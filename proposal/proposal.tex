@@ -59,8 +59,8 @@ simply declared:
 
 %% \begin{figure}[H]
 \begin{verbatim}
-declaration ::=
-    | "in" "namespace" mod_longident structure EOF
+implementation ::=
+    | "in" "namespace" mod_longident headers structure EOF
     | structure EOF
 
 interface ::=
@@ -94,9 +94,12 @@ change and is only a representation of the possibilities, is the following:
 \begin{verbatim}
 module_name = uident
 
-expr ::=
-    | ...                                             original OCaml expressions
-    | "import" ns_conf                                namespace opening    
+imports ::=
+    |
+    | import imports 
+
+import ::=
+    | "import" ns_conf                                module importation    
 
 ns_conf ::=
     | mod_long_ident "." "(" modules_constraints ")"  modules constraints
@@ -104,8 +107,8 @@ ns_conf ::=
                                                       namespaces instantiation 
 
 instance_args ::=
-    | "(" module_name =" module_name ")"
-    | "(" module_name =" module_name ")" instance_args
+    | "(" module_name "=" module_name ")"
+    | "(" module_name "=" module_name ")" instance_args
 
 modules_constraints ::=
     | module_constraint
@@ -242,7 +245,7 @@ considered as an alias for a name that doesn't exists yet.
 
 One of the advantage of namespaces is their ability to provide a nice way to
 define how libraries are installed and how the compiler should look for the
-modules. A nice property is allows to get ride of external tools to look for
+modules. A nice property is it allows to get ride of external tools to look for
 specific modules in external libraries.
 
 \paragraph{Compiled modules and installation}
@@ -260,14 +263,17 @@ create the correct directories thanks to the ``in namespace'' information.
 When linking, those folders are looked for from the loadpath: there is not a
 global folder where modules from different libraries are placed. It would be
 quite hard to link a library since the compiler would have to look for each
-modules that belongs to that library. Linking a library is simply giving the
-folder where it is installed to \texttt{-I}. Modules that doesn't have a
-namespace can be found at the root of the loadpath.
+modules that belongs to that library. Moreover, installing a library that
+extends a namespace and redefines some of its existing modules would be clearly
+dangerous, and could lead to overwriting files.
 
 To allow those namespaces to be used without external tool, we propose to add a
 canonical path where libraries should be installed, which would be symbolized by
 ``+'' before the folder name with \texttt{-I}. This path can be set by an
-environment variable of the system (\texttt{OCAML\_LD\_PATH} for example)
+environment variable of the system (\texttt{OCAML\_LD\_PATH} for
+example). Linking a library is simply giving the folder where it is installed to
+\texttt{-I}. Modules that doesn't have a namespace can be found at the root of
+the loadpath.
 
 \paragraph{Alternative to hierarchical filesystem}
 
@@ -279,8 +285,8 @@ belong. It have the following simple syntax:
 
 \begin{verbatim}
 lines ::=
-    | 
-    | line "\n" lines
+    | EOF
+    | line "\n" lines EOF
 
 line ::= filepath ":" mod_longident
 \end{verbatim}
