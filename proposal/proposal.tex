@@ -14,7 +14,7 @@
                       %% stringstyle=\color{red},
                       %% identifierstyle=\ttfamily,
                       %% keywordstyle=\color{blue},
-                      %% basicstyle=\footnotesize,
+                      basicstyle=\footnotesize\tt,
                       otherkeywords={namespace, abstract}
                     }
                   }
@@ -28,11 +28,11 @@
 
 \maketitle
 
-This proposal is about a mecanism to reason about namespace, integrated into the
-OCaml language, but without changing the semantics of the language and
-cluttering it. It aims to be rather independent from the language and viewed as
-a meaning for the user to describe its compilation environment, and helping the
-compiler without the need of external tools for simple manipulation.
+This proposal is about integrating namespaces into the OCaml language, but
+without changing the semantics of the language and cluttering it. It aims to be
+rather independent from the core language and viewed as a meaning for the user to
+describe its compilation environment, and helping the compiler without the need
+of external tools for simple compilation.
 
 It tightly binds the build system, the file system and the language together,
 helping the compiler to reason about installed libraries.
@@ -49,8 +49,9 @@ At the end, we present some use case of namespaces.
 
 Namespaces are integrated into the language, they are a meaning to represent
 \emph{hierarchies} of modules and namespaces, helping the user to use multiple
-modules without using long-prefixed names or aliases. For the library provider,
-it allows the possibility to use simple names.
+modules from different libraries, and possibly with the same name, without using
+long-prefixed names or aliases. For the library provider, it allows the
+possibility to use simpler names.
 
 Namespaces are not directly used inside the language, but in a prelude of each
 module to decribe the ``compilation environment''. Only \emph{toplevel modules}
@@ -83,12 +84,16 @@ The \texttt{abstract} keyword for interfaces defines a \emph{hole} in the
 namespace, in other word a module whose implementation will be resolved at link
 time. We consider a module cannot be abstract and having an implementation in
 the namespace, it would result on an error. However, this possibility might be
-considered in the future, allowing default implementation for holes.
+considered in the future, allowing default implementation for holes. It is a
+simple feature of separated compilation (it is already possible to link multiple
+implementation over a same interface), but it makes it explicit and parametric
+(in other word, it is simply an abstraction, so it should be possible to link
+using a different name but with the same implementation).
 
 \medskip
 
-As in other languages, namespaces are imported, meaning allowing to use the modules
-imported. Namespaces cannot be used to qualify modules. The syntax, which can
+As in other languages, namespaces are imported, and its modules added into the
+environment. Namespaces cannot be used to qualify modules. The syntax, which can
 change and is only a representation of the possibilities, is the following:
 
 %% \begin{figure}[H]
@@ -127,22 +132,23 @@ modules_constraint ::=
 %% \end{figure}
 
 The syntax is rather simple, and can be simply described. The imports allows the
-user to declare which modules to use from this namespace, but also which not to
-use. The wildcard allows to import in the environment every modules of the
-namespaces that are not declared in the current constraints. Shadowing doesn't
-add the module (it is only useful when using the wildcard), and aliasing allows
-to have module from multiple namespace with the same original name.
+user to declare which modules to use from this namespace. The wildcard allows to
+import in the environment every modules of the namespace that are not declared
+in the current constraints. Shadowing doesn't add the module (it is only useful
+when using the wildcard), and aliasing allows to have module from multiple
+namespace with the same original name.
 
 Importing a namespace does not import the subnamespaces. Being in a namespace
 allows to directly import every modules from it. Modules without namespaces are
 accepted and virtually doesn't belong to one. Actually, there is a \emph{global}
-namespace (like C\# of F\#) where they belong to.
+namespace (like C\# of F\#) for this specific issues.
 
 A namespace can be imported and instantiated over some implementation. It allows
 parametric libraries, and will be explained in the compilation section. It is
 mandatory to explicitely affect the abstracted module, since there can't be any
 possibility to give the order of those modules, especially because namespaces
-are extensible.
+are extensible (and then ``arguments'' can be added later, with unspecified
+order).
 
 The possibilities inside the language are simple, but there are some possible
 extensions that will be discussed later.
@@ -169,7 +175,7 @@ they belong to external libraries that are linked with the program). This
 algorithm would be used however in the original ocamldep's behavior, when
 looking for the .ml in the loadpath: when namespace cannot be resolved, each file
 in the loadpath with the same name as the module is checked to possibly retrieve
-one that belong to a namespace imported with wildcard.
+one that belongs to a namespace imported with wildcard.
 
 
 \paragraph{Compilation unit}
@@ -280,7 +286,7 @@ the loadpath.
 
 \paragraph{Alternative to hierarchical filesystem}
 
-Whereas filesystem is a good way to organize namespaces, some could want a way
+Whereas file system is a good way to organize namespaces, some could want a way
 to flatten this hierarchy to avoid scanning (it can be too slow on some
 operating system). The idea is to provide a file (\texttt{.ns}) that simply
 describes where are the files of the library, and in which namespace they
@@ -323,15 +329,15 @@ namespace as its functors packed.
 
 \paragraph{Automatically opened modules}
 
-Namespaces can be an elegant way to declare libraries. We can suppose that a
-library wants that a module is always opened when using it, ``à-la''
-Pervasives. It would be syntactically easy to add such a feature, by adding the
-keyword ``opened'' at the beginning of the namespace declaration, but it needs
-more thoughts at compilation and linking. There are some way to do it,
-especially by adding a directory \texttt{``\_opened''} in the installed library
-for each namespaces with such modules, that the compiler would recognize as the
+Namespaces can be an elegant way to declare libraries. We can suppose a library
+wants one of its modules is always opened when using it, ``à-la'' Pervasives. It
+would be syntactically easy to add such a feature, by adding the keyword
+``opened'' at the beginning of the namespace declaration, but it needs more
+thoughts at compilation and linking. There are some way to do it, especially by
+adding a directory \texttt{``\_opened''} in the installed library for each
+namespaces with such modules, that the compiler would recognize as the
 automatically opened ones. As a result, when importing a library (even one
-module), the opened modules are automatically imported. Aliasing or shadowing
+module), the opened ones are automatically imported. Aliasing or shadowing
 them prevent this behavior.
 
 \section{Use-case}
@@ -447,7 +453,7 @@ in namespace MySolver
 
 let is_sat f =
 ... 
-(* some preliminary computation, like turning the formula into its bnf *)
+(* some preliminary computations, like turning the formula into its bnf *)
   let sat = Sat.solve formula in 
 ...
 \end{OCaml}
