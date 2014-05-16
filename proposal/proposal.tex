@@ -61,6 +61,7 @@ simply declared:
 \begin{verbatim}
 implementation ::=
     | "in" "namespace" mod_longident headers structure EOF
+    | headers structure EOF
     | structure EOF
 
 interface ::=
@@ -95,15 +96,17 @@ change and is only a representation of the possibilities, is the following:
 module_name = uident
 
 imports ::=
-    |
+    | 
     | import imports 
 
 import ::=
-    | "import" ns_conf                                module importation    
+    | ("with|"and)" ns_conf                           module importation    
+
 
 ns_conf ::=
-    | mod_long_ident "." "(" modules_constraints ")"  modules constraints
-    | mod_long_ident instance_args "." "(" modules_constraints ")"
+    | "(" modules_constraints ")" "of" mod_long_ident 
+                                                      modules constraints
+    | "(" modules_constraints ")" "of" mod_long_ident instance_args 
                                                       namespaces instantiation 
 
 instance_args ::=
@@ -123,12 +126,12 @@ modules_constraint ::=
 %% \caption{Namespace use}
 %% \end{figure}
 
-The syntax is rather simple, and can be simply described. The import allows the
+The syntax is rather simple, and can be simply described. The imports allows the
 user to declare which modules to use from this namespace, but also which not to
 use. The wildcard allows to import in the environment every modules of the
 namespaces that are not declared in the current constraints. Shadowing doesn't
-import the module (it is only useful when using the wildcard), and aliasing
-allows to have module from multiple namespace with the same original name.
+add the module (it is only useful when using the wildcard), and aliasing allows
+to have module from multiple namespace with the same original name.
 
 Importing a namespace does not import the subnamespaces. Being in a namespace
 allows to directly import every modules from it. Modules without namespaces are
@@ -149,9 +152,9 @@ extensions that will be discussed later.
 \paragraph{Dependencies}
 
 The dependency computation would not change too much and would be helped thanks
-to the import clause. This would allow to retrieve the namespace of each module
-(except when using the wildcard import, which is trickier without having
-knowledge of the existing namespaces available in the program).
+to the header. This would allow to retrieve the namespace of each module (except
+when using the wildcard import, which is trickier without having knowledge of
+the existing namespaces available in the program).
 
 This wildcard issue is only relevant in the case we want namespaces to be given
 along with modules' name with the option \texttt{-modules}. It can be solved by
@@ -352,7 +355,7 @@ in namespace Inria.Std
 in namespace Inria.Std
 
 (* we need to first alias the original String *)
-import Inria.Std.(String -> S)
+  with (String -> S) of Inria.Std
 
 include S
 
@@ -408,9 +411,8 @@ to a namespace Myserver):
 \begin{OCaml}
 (** main_lwt.ml *)
 in namespace Myserver
-
-import Ocsigen.(Lwt)
-import MyLib.Http(Async_monad = Lwt).(Protocol)
+  with (Lwt) of Ocsigen
+  and (Protocol) of MyLib.Http(Async_monad = Lwt)
 ...
 \end{OCaml}
 
@@ -456,8 +458,8 @@ Finally, our Solver can be used by the following benchmarking module:
 
 \begin{OCaml}
 (** bench.ml *)
-import MySolver(Sat = Dpll).(Parser, Solver -> Solve_Dpll)
-import MySolver(Sat = Cdcl).(Solver -> Solve_Cdcl)
+with (Parser, Solver -> Solve_Dpll) of MySolver(Sat = Dpll)
+and (Solver -> Solve_Cdcl) of MySolver(Sat = Cdcl)
 
 ...
 let compute_and_print_time l = ...
@@ -485,7 +487,7 @@ course, this example could be done simply by functorizing directly Solver, but
 it can be rather nice to let the linker do the job, and it allows every modules
 in the namespace to be abstract over this specific interface.
 
-\bibliographystyle{abbrv}
-\bibliography{biblio} 
+%% \bibliographystyle{abbrv}
+%% \bibliography{biblio} 
 
 \end{document}
