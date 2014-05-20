@@ -60,14 +60,18 @@ simply declared:
 
 %% \begin{figure}[H]
 \begin{verbatim}
+ns_args ::=
+    | 
+    | "(" module_name ")" ns_args
+
 implementation ::=
-    | "in" "namespace" mod_longident headers structure EOF
+    | "in" "namespace" mod_longident ns_args headers structure EOF
     | headers structure EOF
     | structure EOF
 
 interface ::=
-    | "in" "namespace" mod_longident signature EOF
-    | "abstract" "in" "namespace" mod_longident signature EOF
+    | "in" "namespace" mod_longident ns_args headers signature EOF
+    | headers signature EOF
     | signature EOF
 \end{verbatim}
 %% \caption{Namespace declaration}
@@ -80,15 +84,20 @@ example is valid:
 in namespace Inria.Std
 \end{OCaml}
 
-The \texttt{abstract} keyword for interfaces defines a \emph{hole} in the
-namespace, in other word a module whose implementation will be resolved at link
-time. We consider a module cannot be abstract and having an implementation in
-the namespace, it would result on an error. However, this possibility might be
-considered in the future, allowing default implementation for holes. It is a
-simple feature of separated compilation (it is already possible to link multiple
-implementation over a same interface), but it makes it explicit and parametric
-(in other word, it is simply an abstraction, so it should be possible to link
-using a different name but with the same implementation).
+Namespaces can take arguments, in other words they can abstract some of their
+implementation and became modular over some implementation. The argument of the
+``functor'' has to be a .mli available in the namespace (in this syntax the
+module singature is not explicit, it is not clear for now if it shoud be).
+
+%% The \texttt{abstract} keyword for interfaces defines a \emph{hole} in the
+%% namespace, in other word a module whose implementation will be resolved at link
+%% time. We consider a module cannot be abstract and having an implementation in
+%% the namespace, it would result on an error. However, this possibility might be
+%% considered in the future, allowing default implementation for holes. It is a
+%% simple feature of separated compilation (it is already possible to link multiple
+%% implementation over a same interface), but it makes it explicit and parametric
+%% (in other word, it is simply an abstraction, so it should be possible to link
+%% using a different name but with the same implementation).
 
 \medskip
 
@@ -107,16 +116,11 @@ imports ::=
 import ::=
     | ("with|"and)" ns_conf                           module importation    
 
-
 ns_conf ::=
     | "(" modules_constraints ")" "of" mod_long_ident 
                                                       modules constraints
-    | "(" modules_constraints ")" "of" mod_long_ident instance_args 
+    | "(" modules_constraints ")" "of" mod_long_ident ns_args 
                                                       namespaces instantiation 
-
-instance_args ::=
-    | "(" module_name "=" module_name ")"
-    | "(" module_name "=" module_name ")" instance_args
 
 modules_constraints ::=
     | module_constraint
@@ -124,8 +128,8 @@ modules_constraints ::=
 
 modules_constraint ::=
     | "_"                                             every other modules
-    | module_name "->" module_name                    aliased module
-    | module_name "->" "_"                            shadowed module
+    | module_name "as" module_name                    aliased module
+    | module_name "as" "_"                            shadowed module
     | module_name                                     a module
 \end{verbatim}
 %% \caption{Namespace use}
@@ -144,11 +148,11 @@ accepted and virtually doesn't belong to one. Actually, there is a \emph{global}
 namespace (like C\# of F\#) for this specific issues.
 
 A namespace can be imported and instantiated over some implementation. It allows
-parametric libraries, and will be explained in the compilation section. It is
-mandatory to explicitely affect the abstracted module, since there can't be any
-possibility to give the order of those modules, especially because namespaces
-are extensible (and then ``arguments'' can be added later, with unspecified
-order).
+parametric libraries, and will be explained in the compilation section. %% It is
+%% mandatory to explicitely affect the abstracted module, since there can't be any
+%% possibility to give the order of those modules, especially because namespaces
+%% are extensible (and then ``arguments'' can be added later, with unspecified
+%% order).
 
 The possibilities inside the language are simple, but there are some possible
 extensions that will be discussed later.
@@ -231,24 +235,36 @@ are still accessible.
 
 \paragraph{Parametric namespaces}
 
+/!\ Not clear for now how it should be represented and solved /!\
+
+
 Namespaces can be parametric and use multiple implementations over one
-interface. A module can be abstracted and considered as a \emph{hole} in the
-namespace. Later in the program, this hole can be filled with an implementation
-that type checks against this interface. This case is actually solved during the
-linking phase, by feeding the compiler with the correct .cmo. As a result, only
-compilation units can be used, but this shouldn't be a problem since only
-toplevel modules can be found during the importing phase.
+interface. A module can be abstracted and considered as a \emph{parameter} in
+the namespace. %% Later in the program, this abstraction can be filled with an
+%% implementation that type checks against this interface. This case is actually
+%% solved during the linking phase, by feeding the compiler with the correct
+%% .cmo. As a result, only compilation units can be used, but this shouldn't be a
+%% problem since only toplevel modules can be found during the importing phase.
 
-A parametric namespace doesn't have to be instantiated each time it is used, and
-simply use the abstract module. However, it has to be to produce an executable
-(for a cma, it can be left abstracted even if it is not recommended for the
-comprehension). When an affectation is done, the compiler looks if there exists
-an abstracted module with the name given, and gives the corresponding module to
-each others that needs it.
+%% A parametric namespace doesn't have to be instantiated each time it is used, and
+%% simply use the abstract module. However, it has to be to produce an executable
+%% (for a cma, it can be left abstracted even if it is not recommended for the
+%% comprehension). When an affectation is done, the compiler looks if there exists
+%% an abstracted module with the name given, and gives the corresponding module to
+%% each others that needs it.
 
-The representation of this hole, and how the link would work is rather unclear
+The representation of this parameter, and how the link would work is rather unclear
 for now. It could be some field in the compilation units that refers to it but
 considered as an alias for a name that doesn't exists yet.
+
+\paragraph{Possible implementation solution}
+
+The actual functor pack patch adds two fields to cmis/cmos/cmxs:
+\lstinline{functor_part} and \lstinline{functor_args}. It is not clear how they
+are used yet, but they could be reused for modules that belong in such a
+namespace. We can imagine a mechanism that then instantiate those modules with
+the structure given, for example by defining a .cmn that would act as the
+``functor'' of the namespace (I don't have any idea how for now).
 
 \section{Installation and file system relationship}
 
@@ -377,7 +393,7 @@ ocaml(c|opt) -o prog -I +extendedlib m.ml
 Of course, the String module we've defined is not used by the modules from the
 ``original'' namespace but only by our extended version.
 
-\subsection{Libraries using ``holes''}
+\subsection{Parameterized library}
 
 Suppose we're writing a library that uses a specific asynchronous monad, like
 Lwt, but without without specifying implementation, leaving the choice up to the
@@ -386,7 +402,7 @@ from this library resides in the namespace Mylib.Http. Protocol is the main modu
 
 \begin{OCaml}
 (** async_monad.mli *)
-abstract in namespace Mylib.Http
+in namespace Mylib.Http(Async_monad)
 
 type t
 
@@ -403,9 +419,8 @@ val poll : 'a t -> 'a option
 \begin{OCaml}
 (** protocol.ml *)
 
-in namespace MyLib.Http
+in namespace MyLib.Http(Async_monad)
 
-open Async_monad
 ...
 \end{OCaml}
 
@@ -418,7 +433,7 @@ to a namespace Myserver):
 (** main_lwt.ml *)
 in namespace Myserver
   with (Lwt) of Ocsigen
-  and (Protocol) of MyLib.Http(Async_monad = Lwt)
+  and (Protocol) of MyLib.Http(Lwt)
 ...
 \end{OCaml}
 
@@ -438,7 +453,7 @@ Solver. The library defines its namespace MySolver.
 
 \begin{OCaml}
 (** sat.mli *)
-abstract in namespace MySolver
+in namespace MySolver(Sat)
 
 type bnf
 
@@ -449,7 +464,7 @@ val solve: bnf -> bool
 
 \begin{OCaml}
 (** solver.ml *)
-in namespace MySolver
+in namespace MySolver(Sat)
 
 let is_sat f =
 ... 
@@ -464,8 +479,8 @@ Finally, our Solver can be used by the following benchmarking module:
 
 \begin{OCaml}
 (** bench.ml *)
-with (Parser, Solver -> Solve_Dpll) of MySolver(Sat = Dpll)
-and (Solver -> Solve_Cdcl) of MySolver(Sat = Cdcl)
+with (Parser, Solver as Solve_Dpll) of MySolver(Dpll)
+and (Solver as Solve_Cdcl) of MySolver(Cdcl)
 
 ...
 let compute_and_print_time l = ...
