@@ -58,8 +58,7 @@ defined in the build system but are part of the code.
 Recently has been introduced in the 4.02 version of OCaml the module aliases, in
 other word real module reference when using the \lstinline{module X = Y} syntax
 (supposing Y is a compilation unit). As a result, it decreases a lot the size of
-the compiled code since it is no longer equivalent to \lstinline{module X =
-  struct include Y end}. It also allows better dependencies, since it only is a
+the compiled code since it is no longer equivalent to \lstinline{module X = struct include Y end}. It also allows better dependencies, since it only is a
 reference now. This feature was needed since some library providers (Jane
 Street's Core in particular) used that kind of construction to simulate
 namespaces: a single module which essentially contains only aliases, which
@@ -73,8 +72,8 @@ option of the compiler (which is not a feature, otherwise it would be activated
 by default). 
 
 Our namespaces proposal aims to solve this issue to make real namespaces, with a
-particular semantics, not using modules to simulate them and using hacks in the
-compiler.
+particular semantics, without using modules to simulate them and using ``hacks''
+in the compiler to avoid unused linking.
 
 \section{Semantics in the language}
 
