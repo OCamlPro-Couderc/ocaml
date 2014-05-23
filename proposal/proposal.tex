@@ -43,7 +43,38 @@ It focuses on the following points:
 \item Installation and linking of libraries
 \end{itemize}
 
-At the end, we present some use case of namespaces.
+What we want to solve in particular is integrating the \emph{big-functor} patch
+at the namespace level, allowing to have paramteric libraries.At the end, we
+present some use case of namespaces.
+
+One particular goal we want to achieve is making a clear distinction between the
+language's semantics and the code generation, in other word making the language
+more expressive, especially in cases like -pack and -pack-functor, which are
+defined in the build system but are part of the code.
+
+
+\paragraph{The need of namespaces}
+
+Recently has been introduced in the 4.02 version of OCaml the module aliases, in
+other word real module reference when using the \lstinline{module X = Y} syntax
+(supposing Y is a compilation unit). As a result, it decreases a lot the size of
+the compiled code since it is no longer equivalent to \lstinline{module X =
+  struct include Y end}. It also allows better dependencies, since it only is a
+reference now. This feature was needed since some library providers (Jane
+Street's Core in particular) used that kind of construction to simulate
+namespaces: a single module which essentially contains only aliases, which
+avoids using long names for the user but qualification and opening the ``big
+module''. For Core, it would create one huge compilation unit, resulting in
+linking every modules aliased (and aliases in those ones, etc).
+
+An option had been added then, thanks to ``module aliases'', to avoid linking
+when an alias in unused, which simulates a namespace. However, it remains an
+option of the compiler (which is not a feature, otherwise it would be activated
+by default). 
+
+Our namespaces proposal aims to solve this issue to make real namespaces, with a
+particular semantics, not using modules to simulate them and using hacks in the
+compiler.
 
 \section{Semantics in the language}
 
@@ -85,19 +116,18 @@ in namespace Inria.Std
 \end{OCaml}
 
 Namespaces can take arguments, in other words they can abstract some of their
-implementation and became modular over some implementation. The argument of the
-``functor'' has to be a .mli available in the namespace (in this syntax the
-module singature is not explicit, it is not clear for now if it shoud be).
+implementation and became modular. The argument of the ``functor'' has to be a
+.mli available in the namespace (in this syntax the module singature is not
+explicit, it is not clear for now if it shoud be). For now, it is not clear if
+this argument must be explicit for each modules in the namespace, or only those
+that uses it. If it has to be explicited (even if unused) in each, the result
+would be that the interface used to type this argument would also have a
+``virtual'' access to it, resulting in a false recursive module.
 
-%% The \texttt{abstract} keyword for interfaces defines a \emph{hole} in the
-%% namespace, in other word a module whose implementation will be resolved at link
-%% time. We consider a module cannot be abstract and having an implementation in
-%% the namespace, it would result on an error. However, this possibility might be
-%% considered in the future, allowing default implementation for holes. It is a
-%% simple feature of separated compilation (it is already possible to link multiple
-%% implementation over a same interface), but it makes it explicit and parametric
-%% (in other word, it is simply an abstraction, so it should be possible to link
-%% using a different name but with the same implementation).
+In this proposal, the functorized namespaces are part of the language, not only
+defined at the build system level (like functor-pack): it is an essential part
+of our proposal and useful to understand how the namespaces are organized and
+used.
 
 \medskip
 
@@ -148,11 +178,7 @@ accepted and virtually doesn't belong to one. Actually, there is a \emph{global}
 namespace (like C\# of F\#) for this specific issues.
 
 A namespace can be imported and instantiated over some implementation. It allows
-parametric libraries, and will be explained in the compilation section. %% It is
-%% mandatory to explicitely affect the abstracted module, since there can't be any
-%% possibility to give the order of those modules, especially because namespaces
-%% are extensible (and then ``arguments'' can be added later, with unspecified
-%% order).
+parametric libraries, and will be explained in the compilation section. 
 
 The possibilities inside the language are simple, but there are some possible
 extensions that will be discussed later.
@@ -240,24 +266,7 @@ are still accessible.
 
 Namespaces can be parametric and use multiple implementations over one
 interface. A module can be abstracted and considered as a \emph{parameter} in
-the namespace. %% Later in the program, this abstraction can be filled with an
-%% implementation that type checks against this interface. This case is actually
-%% solved during the linking phase, by feeding the compiler with the correct
-%% .cmo. As a result, only compilation units can be used, but this shouldn't be a
-%% problem since only toplevel modules can be found during the importing phase.
-
-%% A parametric namespace doesn't have to be instantiated each time it is used, and
-%% simply use the abstract module. However, it has to be to produce an executable
-%% (for a cma, it can be left abstracted even if it is not recommended for the
-%% comprehension). When an affectation is done, the compiler looks if there exists
-%% an abstracted module with the name given, and gives the corresponding module to
-%% each others that needs it.
-
-The representation of this parameter, and how the link would work is rather unclear
-for now. It could be some field in the compilation units that refers to it but
-considered as an alias for a name that doesn't exists yet.
-
-\paragraph{Possible implementation solution}
+the namespace. 
 
 The actual functor pack patch adds two fields to cmis/cmos/cmxs:
 \lstinline{functor_part} and \lstinline{functor_args}. It is not clear how they
@@ -266,16 +275,19 @@ namespace. We can imagine a mechanism that then instantiate those modules with
 the structure given, for example by defining a .cmn that would act as the
 ``functor'' of the namespace (I don't have any idea how for now).
 
+Compiling a module which belongs to a paramteric namespace is using the
+\lstinline{-functor} automatically, feeding with the correct cmi. 
+
 \section{Installation and file system relationship}
 
 One of the advantage of namespaces is their ability to provide a nice way to
 define how libraries are installed and how the compiler should look for the
-modules. A nice property is it allows to get ride of external tools to look for
-specific modules in external libraries.
+modules. As a result, we can't leverage the need for external tools to compile
+using external libraries, especially for simple programs.
 
 \paragraph{Compiled modules and installation}
 
-Namespaces and filesystem organization are highly related: a namespace is a
+Namespaces and file system organization are highly related: a namespace is a
 directory, at least after compilation. For example, if the module belongs to the
 namespace \texttt{Inria.Std}, its compilation result will be placed in the
 directory \texttt{inria/std}. As a result, the compiler will be able to look for
@@ -299,6 +311,11 @@ environment variable of the system (\texttt{OCAML\_LD\_PATH} for
 example). Linking a library is simply giving the folder where it is installed to
 \texttt{-I}. Modules that doesn't have a namespace can be found at the root of
 the loadpath.
+
+Having such a standard library path for user libraries is relevant, thanks to
+the use of OPAM: the user's libraries are installed in the
+\texttt{~/.opam/<version>/lib/} directory, and it can be used as a standard
+installation path. 
 
 \paragraph{Alternative to hierarchical filesystem}
 
