@@ -1,32 +1,43 @@
-NAD= -no-alias-deps
 
+# Module behaving as namespace
+NAMESPACE= std.ml
+NOBJ= $(NAMESPACE:.ml=.cmo)
+NS= $(basename $(NAMESPACE))
+PREFIX= $(NS)_
+NSMOD= Std
+
+# Modules from the namespace (the library)
 LIB= list.ml array.ml
-OBJS_LIB= $(LIB:.ml=.cmo)
-FLAGS= $(NAD) -open Std -o $@
-LINKED= std_list.cmo std_array.cmo std.cmo
+OBJS= $(LIB:.ml=.cmo)
+POBJS= $(addprefix $(PREFIX), $(OBJS))
+LINKED= $(POBJS) $(NOBJ)
 
+# Our main program
+SRC= main.ml
+SOBJ= $(SRC:.ml=.cmo)
+EXEC= prog
 
-all: std.cmo std_list.cmo std_array.cmo main
+CAMLC= ocamlc
+CAMLDEP= ocamldep
+NAD= -no-alias-deps
+FLAGS= $(NAD) -open $(NSMOD) -o $@
 
-main: main.ml
-	ocamlc -o res $(LINKED) $^
+all: $(NOBJ) $(POBJS) $(EXEC)
 
-std.cmo: std.ml
+$(EXEC): $(SOBJ)
+	ocamlc -o $@ $(LINKED) $^
+
+%.cmo: %.ml
 	ocamlc -c $(NAD) $^
 
-std_list.cmo: list.ml
-	ocamlc -c $(FLAGS) -c $<
-
-std_array.cmo: array.ml
-	ocamlc -c $(FLAGS) -c $<
+$(PREFIX)%.cmo: %.ml
+	ocamlc -c $(FLAGS) $<
 
 clean :
 	rm -f *.cm[ioxt] *.cmti depend *.o *~
-	rm -f $(SRC_MLL:.mll=.ml) $(SRC_MLY:.mly=.ml) $(SRC_MLY:.mly=.mli)
 	rm -f $(EXEC)
-	rm -f $(EXEC).opt
 
-depend: $(SMLIY)
-	$(CAMLDEP) $(SMLIY) $(SMLIY:.mly:.mli) > depend
+# depend: $(NAMESPACE) $(LIB) $(SRC)
+# 	$(CAMLDEP) $(NAMESPACE) $(LIB) $(SRC) > depend
 
--include depend
+# -include depend

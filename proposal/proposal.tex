@@ -44,7 +44,7 @@ It focuses on the following points:
 \end{itemize}
 
 What we want to solve in particular is integrating the \emph{big-functor} patch
-at the namespace level, allowing to have paramteric libraries.At the end, we
+at the namespace level, allowing to have paramteric libraries. At the end, we
 present some use case of namespaces.
 
 One particular goal we want to achieve is making a clear distinction between the
@@ -66,7 +66,8 @@ with a particular semantics, without using modules to simulate them and using
 In the current stable version (4.01.0), there is no namespace solution except
 aliasing modules into one, building then a huge one thanks to the module copy
 semantics. In the next one (4.02.0), module aliases have been introduced with
-some ``tricks'' to simulates the use of namespaces.
+some ``tricks'' to simulates the use of namespaces. The actual namespace
+mechanism of OCaml is based on the \lstinline{module X = Y} construct.
 
 First of all was added the module aliases. As a result, it decreases a lot the
 size of the compiled code since it is no longer equivalent to \lstinline{module X = struct include Y end}. It also allows better dependencies, since it only
