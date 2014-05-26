@@ -52,28 +52,113 @@ language's semantics and the code generation, in other word making the language
 more expressive, especially in cases like -pack and -pack-functor, which are
 defined in the build system but are part of the code.
 
+An option had been added then, thanks to ``module aliases'', to avoid linking
+necessity when an alias in unused, which simulates a namespace
+mechanism. However, it remains an option of the compiler (which is not a
+feature, otherwise it would be activated by default).
 
-\paragraph{The need of namespaces}
+Our namespaces proposal aims to solve this issue by designing real namespaces,
+with a particular semantics, without using modules to simulate them and using
+``hacks'' in the compiler to avoid unused linking.
 
-Recently has been introduced in the 4.02 version of OCaml the module aliases, in
-other word real module reference when using the \lstinline{module X = Y} syntax
-(supposing Y is a compilation unit). As a result, it decreases a lot the size of
-the compiled code since it is no longer equivalent to \lstinline{module X = struct include Y end}. It also allows better dependencies, since it only is a
-reference now. This feature was needed since some library providers (Jane
+\section{Namespaces in OCaml: state of the art}
+
+In the current stable version (4.01.0), there is no namespace solution except
+aliasing modules into one, building then a huge one thanks to the module copy
+semantics. In the next one (4.02.0), module aliases have been introduced with
+some ``tricks'' to simulates the use of namespaces.
+
+First of all was added the module aliases. As a result, it decreases a lot the
+size of the compiled code since it is no longer equivalent to \lstinline{module X = struct include Y end}. It also allows better dependencies, since it only
+is a reference now. This feature was needed since some library providers (Jane
 Street's Core in particular) used that kind of construction to simulate
 namespaces: a single module which essentially contains only aliases, which
 avoids using long names for the user but qualification and opening the ``big
 module''. For Core, it would create one huge compilation unit, resulting in
 linking every modules aliased (and aliases in those ones, etc).
 
-An option had been added then, thanks to ``module aliases'', to avoid linking
-when an alias in unused, which simulates a namespace. However, it remains an
-option of the compiler (which is not a feature, otherwise it would be activated
-by default). 
+With this new semantics has been added a new option: \texttt{-no-alias-deps},
+that allows unused aliases to be dropped at link time, and moreover, that allows
+the .cmi of those aliases not to be compiled yet. Another option added is the
+\texttt{-open}, which allows modules to be opened before compiling. It simply adds
+the opening statement at the beginnong of the AST. Finally, the \texttt{-o} has
+been modified: the compilation unit name is now the same as the filename given
+to the option (actually, only the left part before the first ``.'').
 
-Our namespaces proposal aims to solve this issue to make real namespaces, with a
-particular semantics, without using modules to simulate them and using ``hacks''
-in the compiler to avoid unused linking.
+Using those new features, it is possible to make some kind of ``namespaces'' in
+OCaml, but in a ``hackish'' way. Here is a complete example of how it works.
+
+We're going to make a namespace Std, which would contain two modules Array and
+List. Then Std is simply a module that contains only aliases (the code of this
+example is available in the same repository):
+
+\begin{OCaml}
+(* std.ml *)
+
+module List = Std_list
+module Array = Std_array
+\end{OCaml}
+
+Then, we define our two modules:
+
+\begin{OCaml}
+(* list.ml *)
+
+type 'a t = 'a list
+...
+
+(* array.ml *)
+type 'a t = 'a List.t 
+...
+\end{OCaml}
+
+We use our library into a \texttt{main.ml} file:
+
+\begin{OCaml}
+open Std
+
+let _ = ...
+\end{OCaml}
+
+As you can notice, those files are not using the same name as defined in
+std.ml. Now, here is the command line to compile our new namespace. We will
+explained line by line:
+
+\begin{verbatim}
+1) ocamlc -c -no-alias-deps std.ml
+2) ocamlc -c -no-alias-deps -open Std -o std_list.cmo -c list.ml
+3) ocamlc -c -no-alias-deps -open Std -o std_array.cmo -c array.ml
+4) ocamlc -o prog.byte std_list.cmo std_array.cmo std.cmo main.ml
+\end{verbatim}
+
+\begin{enumerate}
+\item \texttt{std.ml} is first compiled using the -no-alias-deps option. The
+  .cmo can be compiled without even needing the .cmis of Std\_list and Std\_array.
+\item \texttt{list.ml} is compiled into \texttt{std\_list.cmo}. Its compilation
+  unit name is then \lstinline{Std_list}. As you can notice, Std is opened, but
+  we do not use it there.
+\item \texttt{array.ml} is compiled into \texttt{std\_array.cmo}. Std is opened:
+  it simulates the fact that Array is part of Std, and then can access
+  ``Std\_list'' as ``List'' directly.
+\item Finally, \texttt{main.ml} is compiled with the correct link order (and not
+  compilation order).
+\end{enumerate}
+
+One problem we can notice is it introduces a false circularity thanks to
+-no-alias-deps (which still gives a warning if no .cmi is present for the
+alias). One can wonder why list.ml and array.ml are not directly prefixed: it
+allows \texttt{ocamldep} to compute the correct dependencies. Since it does not
+use the \texttt{-open}, it will directly look for \texttt{list.ml} and
+\texttt{array.ml} when computing dependencies.
+
+This trick can do a minimal job and does not change too much the actual code
+base for users that used modules to simulate namespaces. However, this can be
+seen as a bit of a hack, it is not easy to use and moreover, it can be hard to
+understand for beginners since it only resides in the build system. It also
+lacks extensivity, and functorization can be painful since every compilation
+unit has to be encapsulated in a functor. As a result, since it is rather a
+trick than a real namespace solution, we propose our own design that we aim to
+be clearer, simpler to use and more expressive.
 
 \section{Semantics in the language}
 
@@ -260,19 +345,18 @@ are still accessible.
 
 \paragraph{Parametric namespaces}
 
-/!\ Not clear for now how it should be represented and solved /!\
-
+\textbf{Work-in-progress}
 
 Namespaces can be parametric and use multiple implementations over one
 interface. A module can be abstracted and considered as a \emph{parameter} in
 the namespace. 
 
 The actual functor pack patch adds two fields to cmis/cmos/cmxs:
-\lstinline{functor_part} and \lstinline{functor_args}. It is not clear how they
-are used yet, but they could be reused for modules that belong in such a
-namespace. We can imagine a mechanism that then instantiate those modules with
-the structure given, for example by defining a .cmn that would act as the
-``functor'' of the namespace (I don't have any idea how for now).
+\lstinline{functor_part} and \lstinline{functor_args}. They can certainly be
+reused for modules that belong in such a namespace. We can imagine a mechanism
+that then instantiate those modules with the structure given, for example by
+defining a .cmn that would act as the ``functor'' of the namespace (I don't have
+any idea how for now).
 
 Compiling a module which belongs to a paramteric namespace is using the
 \lstinline{-functor} automatically, feeding with the correct cmi. 
@@ -372,6 +456,10 @@ automatically opened ones. As a result, when importing a library (even one
 module), the opened ones are automatically imported. Aliasing or shadowing
 them prevent this behavior.
 
+This proposition is part of the 4.02 version of OCaml: a \texttt{-open} option
+had been added, what we propose is specifying modules that should be opened
+directly in the language, making this option automatic when using the namespace.
+
 \section{Use-case}
 
 \subsection{Extending libraries}
@@ -398,6 +486,7 @@ in namespace Inria.Std
 include S
 
 (* some new functions and replacements for String *)
+...
 \end{OCaml}
 
 Supposing this extended library is installed into \texttt{+extendedlib}, the
