@@ -2,15 +2,16 @@
 # Module behaving as namespace
 NAMESPACE= std.ml
 NOBJ= $(NAMESPACE:.ml=.cmo)
-NS= $(basename $(NAMESPACE))
-PREFIX= $(NS)_
+NOBJA= $(NOBJ:.cmo=.cma)
+PREFIX= $(basename $(NAMESPACE))_
 NSMOD= Std
 
 # Modules from the namespace (the library)
 LIB= list.ml array.ml
 OBJS= $(LIB:.ml=.cmo)
 POBJS= $(addprefix $(PREFIX), $(OBJS))
-LINKED= $(POBJS) $(NOBJ)
+LINKED= $(NOBJA)
+
 
 # Our main program
 SRC= main.ml
@@ -22,16 +23,19 @@ CAMLDEP= ocamldep
 NAD= -no-alias-deps
 FLAGS= $(NAD) -open $(NSMOD) -o $@
 
-all: $(NOBJ) $(POBJS) $(EXEC)
+all: $(EXEC)
 
-$(EXEC): $(SOBJ)
-	ocamlc -o $@ $(LINKED) $^
+$(EXEC): $(NOBJA) $(SOBJ)
+	$(CAMLC) -o $@ $^
+
+$(NOBJA): $(NOBJ) $(POBJS)
+	$(CAMLC) -a -o $@ $^
 
 %.cmo: %.ml
-	ocamlc -c $(NAD) $^
+	$(CAMLC) -c $(NAD) $<
 
 $(PREFIX)%.cmo: %.ml
-	ocamlc -c $(FLAGS) $<
+	$(CAMLC) -c $(FLAGS) $<
 
 clean :
 	rm -f *.cm[ioxt] *.cmti depend *.o *~
