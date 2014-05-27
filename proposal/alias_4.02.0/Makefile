@@ -2,9 +2,10 @@
 # Module behaving as namespace
 NAMESPACE= std.ml
 NOBJ= $(NAMESPACE:.ml=.cmo)
-NOBJA= $(NOBJ:.cmo=.cma)
-PREFIX= $(basename $(NAMESPACE))_
-NSMOD= Std
+STD= $(NOBJ:.cmo=.cma)
+NS= $(basename $(NAMESPACE))
+PREFIX= $(NS)_
+NSMOD= $(shell echo $(NS) | sed 's/^\(.\)/\U\1/')
 
 # Modules from the namespace (the library)
 LIB= list.ml array.ml
@@ -23,12 +24,15 @@ CAMLDEP= ocamldep
 NAD= -no-alias-deps
 FLAGS= $(NAD) -open $(NSMOD) -o $@
 
-all: $(EXEC)
+.PHONY: depend
 
-$(EXEC): $(NOBJA) $(SOBJ)
+all: depend $(EXEC)
+	$(NSM)
+
+$(EXEC): $(STD) $(SOBJ)
 	$(CAMLC) -o $@ $^
 
-$(NOBJA): $(NOBJ) $(POBJS)
+$(STD): $(NOBJ) $(POBJS)
 	$(CAMLC) -a -o $@ $^
 
 %.cmo: %.ml
@@ -38,10 +42,13 @@ $(PREFIX)%.cmo: %.ml
 	$(CAMLC) -c $(FLAGS) $<
 
 clean :
-	rm -f *.cm[ioxt] *.cmti depend *.o *~
+	rm -f *.cm[ioxta] *.cmti depend *.o *~
 	rm -f $(EXEC)
 
-# depend: $(NAMESPACE) $(LIB) $(SRC)
-# 	$(CAMLDEP) $(NAMESPACE) $(LIB) $(SRC) > depend
+depend: $(NAMESPACE) $(LIB) $(SRC)
+	$(CAMLDEP) $(NAMESPACE) > depend
+	rm -f sed.script
+	$(foreach f, $(OBJS), echo 's/$(f)/$(PREFIX)$(f)/' >> sed.script;)
+	$(CAMLDEP) $(LIB) $(SRC) | sed -f sed.script >> depend
 
-# -include depend
+-include depend
