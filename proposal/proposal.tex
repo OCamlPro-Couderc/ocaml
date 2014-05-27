@@ -153,15 +153,56 @@ One problem we can notice is it introduces a false circularity thanks to
 alias). One can wonder why list.ml and array.ml are not directly prefixed: it
 allows \texttt{ocamldep} to compute the correct dependencies. Since it does not
 use the \texttt{-open}, it will directly look for \texttt{list.ml} and
-\texttt{array.ml} when computing dependencies.
+\texttt{array.ml} when computing dependencies. Module aliases allows
+transitivity of modules, in other word when a module uses an alias of another,
+it is dependent of the original module. It can be easily proved, using
+\texttt{ocamlobjinfo} on \texttt{std\_array.cmo}, which uses Std.List:
+
+\begin{verbatim}
+$ ocamlobjinfo std_array.cmo
+
+> File std_array.cmo
+  Unit name: Std_array
+  Interfaces imported:
+          7c8a263a96a654384a6681fbb54e2086        Std_list
+          9f356419d7d86d4e168df281b62838a7        Std
+          694c578e10dc06471184517139073079        Pervasives
+          cb77aca7e2fdaecdc94c6da2b8bebf49        Std_array
+  Uses unsafe features: no
+  Force link: no
+\end{verbatim}
+
+Moreover, the same output for \texttt{std.cmo}:
+
+\begin{verbatim}
+$ ocamlobjinfo std.cmo
+
+> File std.cmo
+  Unit name: Std
+  Interfaces imported:
+          694c578e10dc06471184517139073079        Pervasives
+          9f356419d7d86d4e168df281b62838a7        Std
+  Uses unsafe features: no
+  Force link: no
+\end{verbatim}
+
+We can notice \texttt{Std} is in fact \textbf{not} dependent over Std\_list and
+Std\_array. Those dependencies are ``transparent''.
 
 This trick can do a minimal job and does not change too much the actual code
-base for users that used modules to simulate namespaces. However, those bits of
-namespaces are only on the build system's side, and not easily compiled using
-GNU Make. It also lacks extensivity, and functorization can be painful since
-every compilation unit has to be encapsulated in a functor. As a result, since
-it is rather a trick than a real namespace solution, we propose our own design
-that we aim to be clearer, simpler to use and more expressive.
+base for users that used modules to simulate namespaces (it was actually the
+goal of this impplementation). However, those bits of namespaces are only on the
+build system's side. It lacks extensivity, and functorization can be painful
+since every compilation unit has to be encapsulated in a functor. Moreover, it
+needs a strong build system to compute the dependencies, and a correct Makefile
+can be hard to write according to this namespace strategy. 
+
+
+This solution works thanks to the real module aliases (or references), and in
+fact could be used, but it is complex enough to discourage beginners to create
+their own. As a result, since it is rather a trick than a real solution, we
+propose our own design that we aim to be clearer, simpler to use and more
+expressive.
 
 \section{Semantics in the language}
 
