@@ -207,11 +207,11 @@ We can notice \texttt{Std} is in fact \textbf{not} dependent over Std\_list and
 Std\_array. Those dependencies are ``transparent''. A problem is when computing
 dependencies: since \texttt{ml} files are not prefixed, the result of ocamldep will
 be the \texttt{cm[ixo]} not prefixed either. It needs some transformations to get
-better dependencies.
+the correct names.
 
 This trick can do a minimal job and does not change too much the actual code
 base for users that used modules to simulate namespaces (it was actually the
-goal of this impplementation). However, those bits of namespaces are only on the
+goal of this implementation). However, those bits of namespaces are only on the
 build system's side. It lacks extensivity, and functorization can be painful
 since every compilation unit has to be encapsulated in a functor. Moreover, it
 needs a strong build system to compute the dependencies, and a correct Makefile
@@ -233,7 +233,7 @@ long-prefixed names or aliases. For the library provider, it allows the
 possibility to use simpler names.
 
 Namespaces are not directly used inside the language, but in a prelude of each
-module to decribe the ``compilation environment''. Only \emph{toplevel modules}
+module to describe the ``compilation environment''. Only \emph{toplevel modules}
 (as compilation unit) can belong to namespaces, not submodules. A namespace is
 simply declared: 
 
@@ -265,12 +265,13 @@ in namespace Inria.Std
 
 Namespaces can take arguments, in other words they can abstract some of their
 implementation and became modular. The argument of the ``functor'' has to be a
-.mli available in the namespace (in this syntax the module singature is not
-explicit, it is not clear for now if it shoud be). For now, it is not clear if
-this argument must be explicit for each modules in the namespace, or only those
-that uses it. If it has to be explicited (even if unused) in each, the result
-would be that the interface used to type this argument would also have a
-``virtual'' access to it, resulting in a false recursive module.
+\texttt{.mli} available in the namespace (in this syntax the module signature is
+not explicit, it is not clear for now if it shoud be since the mli/cmi is the
+signature). For now, it is not clear if this argument must be explicit for each
+modules in the namespace, or only those that uses it. If it has to be explicited
+(even if unused) in each, the result would be that the interface used to type
+this argument would also have a ``virtual'' access to it, resulting in a false
+recursive module.
 
 In this proposal, the functorized namespaces are part of the language, not only
 defined at the build system level (like functor-pack): it is an essential part
@@ -280,8 +281,8 @@ used.
 \medskip
 
 As in other languages, namespaces are imported, and its modules added into the
-environment. Namespaces cannot be used to qualify modules. The syntax, which can
-change and is only a representation of the possibilities, is the following:
+environment. Namespaces cannot be used to qualify modules. The syntax is the
+following:
 
 %% \begin{figure}[H]
 \begin{verbatim}
@@ -305,7 +306,7 @@ modules_constraints ::=
     | module_constraint ";" module_constraints
 
 modules_constraint ::=
-    | "_"                                             every other modules
+    | "_"                                             "wildcard": every other modules
     | module_name "as" module_name                    aliased module
     | module_name "as" "_"                            shadowed module
     | module_name                                     a module
@@ -344,16 +345,16 @@ This wildcard issue is only relevant in the case we want namespaces to be given
 along with modules' name with the option \texttt{-modules}. It can be solved by
 simply changing the behavior of the existing algorithm. For now, asking for raw
 dependencies simply prints the modules that are used, without even looking for
-the corresponding .ml(i) file in the loadpath. What is proposed is using the
-normal behavior and check if a file exists when a namespace cannot be derived,
-checking if files that corresponds uses one namespace from the imports (that
-only use wildcards). It can refine the dependencies of the compiled program, and
-let the build system deal with modules whose namespaces aren't found (because
-they belong to external libraries that are linked with the program). This
-algorithm would be used however in the original ocamldep's behavior, when
-looking for the .ml in the loadpath: when namespace cannot be resolved, each file
-in the loadpath with the same name as the module is checked to possibly retrieve
-one that belongs to a namespace imported with wildcard.
+the corresponding \texttt{.ml(i)} files in the loadpath. What is proposed is
+using the normal behavior and check if a file exists when a namespace cannot be
+derived, checking if files that corresponds uses one namespace from the imports
+(that only use wildcards). It can refine the dependencies of the compiled
+program, and let the build system deal with modules whose namespaces aren't
+found (because they belong to external libraries that are linked with the
+program). This algorithm would be used however in the original ocamldep's
+behavior, when looking for the .ml in the loadpath: when namespace cannot be
+resolved, each file in the loadpath with the same name as the module is checked
+to possibly retrieve one that belongs to a namespace imported with wildcard.
 
 
 \paragraph{Compilation unit}
@@ -402,9 +403,9 @@ and we suppose the library \emph{ocamlpro} is linked using \texttt{-I +ocamlpro}
 \texttt{stdlib} is always linked, meaning that any libraries using the
 \texttt{``global''.Std} namespace would conflict with it. The result is that the
 modules in \texttt{Ocamlpro/Std} would subsume those existing with the same name
-from the standard library. If one use \texttt{List} in its program, it would
-be the one from OCamlPro. But modules that don't belong to \texttt{Ocamlpro/Std}
-are still accessible.
+from the standard library. If one use \texttt{List} in its program, it would be
+the one from OCamlPro. But modules that don't not exists in
+\texttt{Ocamlpro/Std} are still accessible.
 
 
 \paragraph{Parametric namespaces}
@@ -420,7 +421,7 @@ The actual functor pack patch adds two fields to cmis/cmos/cmxs:
 reused for modules that belong in such a namespace. We can imagine a mechanism
 that then instantiate those modules with the structure given, for example by
 defining a .cmn that would act as the ``functor'' of the namespace (I don't have
-any idea how for now).
+any idea how for now, finding a way to avoid using new files would be even better).
 
 Compiling a module which belongs to a paramteric namespace is using the
 \lstinline{-functor} automatically, feeding with the correct cmi. 
@@ -429,7 +430,7 @@ Compiling a module which belongs to a paramteric namespace is using the
 
 One of the advantage of namespaces is their ability to provide a nice way to
 define how libraries are installed and how the compiler should look for the
-modules. As a result, we can't leverage the need for external tools to compile
+modules. As a result, we can leverage the need for external tools to compile
 using external libraries, especially for simple programs.
 
 \paragraph{Compiled modules and installation}
@@ -470,7 +471,7 @@ Whereas file system is a good way to organize namespaces, some could want a way
 to flatten this hierarchy to avoid scanning (it can be too slow on some
 operating system). The idea is to provide a file (\texttt{.ns}) that simply
 describes where are the files of the library, and in which namespace they
-belong. It have the following simple syntax:
+belong. It has the following simple syntax:
 
 \begin{verbatim}
 lines ::=
@@ -549,7 +550,7 @@ in namespace Inria.Std
 
 include S
 
-(* some new functions and replacements for String *)
+(* some new functions and rebindings of String *)
 ...
 \end{OCaml}
 
