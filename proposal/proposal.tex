@@ -50,42 +50,59 @@ present some use case of namespaces.
 One particular goal we want to achieve is making a clear distinction between the
 language's semantics and the code generation, in other word making the language
 more expressive, especially in cases like -pack and -pack-functor, which are
-defined in the build system but are part of the code.
+defined in the build system but are part of the semantics of the program.
 
 An option had been added then, thanks to ``module aliases'', to avoid linking
 necessity when an alias in unused, which simulates a namespace
-mechanism. However, it remains an option of the compiler (which is not a
-feature, otherwise it would be activated by default).
+mechanism. However, it remains an option of the compiler, that triggers a
+warning and allows some some vicious links. It will be explained in the next
+section.
 
 Our namespaces proposal aims to solve this issue by designing real namespaces,
-with a particular semantics, without using modules to simulate them and using
-``hacks'' in the compiler to avoid unused linking.
+with a particular semantics, without a hard to understand compilation scheme
+introduced by the last version of the compiler.
 
 \section{Namespaces in OCaml: state of the art}
 
+\subsection{Prior 4.02.0}
+
 In the current stable version (4.01.0), there is no namespace solution. The only
-possibility is aliasing modules into one. However, the result is a huge
-\texttt{.cmo} that contains every aliased one, because the alias is in fact a
-copy, not a reference. In the next version (4.02.0), module aliases have been
-improved, and new options added to the compiler.
+possibility is aliasing modules into one. A typical ``namespace module'' is
+simply a \texttt{.ml} that only contains:
 
-First of all was added the \emph{real} module aliases. As a result, it decreases
-a lot the size of the compiled code since it is no longer equivalent to
-\texttt{module X = struct include Y end}: it only is a reference now. This
-feature was needed since some library providers (Jane Street's Core in
-particular) used that kind of construction to simulate namespaces: a single
-module which essentially contains only aliases, which avoids using long names
-for the user but qualification and opening the ``big module''. For Core, it
-would create one huge compilation unit, resulting in linking every modules
-aliased (and aliases in those ones, etc).
+\begin{OCaml}
+module List = Mystd_List
+\end{OCaml}
 
-With this new semantics has been introduces a new option: \texttt{-no-alias-deps},
-that allow unused aliases to be dropped at link time, and moreover, that allows
-the .cmi of those aliases not to be present yet. Another option added is the
-\texttt{-open}, which allows modules to be opened before compiling. It simply adds
-the opening statement at the beginning of the AST. Finally, the \texttt{-o} has
-been modified: the compilation unit name is now the same as the filename given
-to the option (actually, only the left part before the first ``.'').
+It allows using short names, but at a high cost for the end user: this
+``aliasing'' is simply copying the module's code (references are shared) into
+the new \emph{wrapper}, resulting in huge binary programs (a ``Hello world'' can
+then weights many megaoctets, which is not satisfying). It has more or less the
+same properties as \texttt{-pack}, with the possibility to rebind modules with
+new (and shorter) names.
+
+The other solution is simply prefixing modules' name to be unique, without a
+\emph{wrapper} to access them: only necessary modules are linked, however it can
+be a little painful for the user to use those long names.
+
+\subsection{In 4.02.0 and later}
+
+In the next version (4.02.0), module aliases have been improved, and new options
+added to the compiler. First of all was added the \emph{real} module aliases. As
+a result, it decreases a lot the size of the compiled code since it is no longer
+equivalent to 
+\begin{OCaml}
+  module X = struct include Y end
+\end{OCaml} 
+It only is a reference now.
+
+With this new semantics has been introduced a new option:
+\texttt{-no-alias-deps}, that allows unused aliases to be dropped at link time,
+and moreover, that allows the .cmi of those aliases not to be present
+yet. Another option added is the \texttt{-open} which simply adds the opening
+statement at the beginning of the AST. Finally, the \texttt{-o} has been
+modified: the compilation unit name is now the same as the filename given to the
+option (actually, only the left part before the first ``.'').
 
 Using those features, it is possible to simulate some kind of ``namespaces'' in
 OCaml. Here is a complete example of how it works.
@@ -124,7 +141,7 @@ let _ = ...
 
 As you can notice, those files are not using the same name as defined in
 std.ml. Now, here is the command line to compile our new namespace. We will
-explain line by line:
+explain it line by line:
 
 \begin{verbatim}
 1) ocamlc -c -no-alias-deps std.ml
@@ -135,9 +152,9 @@ explain line by line:
 \end{verbatim}
 
 \begin{enumerate}
-\item \texttt{std.ml} is first compiled using the -no-alias-deps option. The
-  .cmo can be compiled without even needing the .cmis of Std\_list and
-  Std\_array (as soon as they can be given at link time).
+\item \texttt{std.ml} is first compiled using the \texttt{-no-alias-deps}
+  option. The \texttt{.cmo} can be compiled without even needing the .cmis of Std\_list
+  and Std\_array (as soon as they can be given at link time).
 \item \texttt{list.ml} is compiled into \texttt{std\_list.cmo}. Its compilation
   unit name is then \lstinline{Std_list}. As you can notice, Std is opened, but
   we do not use it there.
@@ -149,14 +166,14 @@ explain line by line:
 \end{enumerate}
 
 One problem we can notice is it introduces a false circularity thanks to
--no-alias-deps (which still gives a warning if no .cmi is present for the
-alias). One can wonder why list.ml and array.ml are not directly prefixed: it
-allows \texttt{ocamldep} to compute the correct dependencies. Since it does not
-use the \texttt{-open}, it will directly look for \texttt{list.ml} and
-\texttt{array.ml} when computing dependencies. Module aliases allows
-transitivity of modules, in other word when a module uses an alias of another,
-it is dependent of the original module. It can be easily proved, using
-\texttt{ocamlobjinfo} on \texttt{std\_array.cmo}, which uses Std.List:
+\texttt{-no-alias-deps} (which still gives a warning if no .cmi is present for
+the alias). One can wonder why list.ml and array.ml are not directly prefixed:
+it allows \texttt{ocamldep} to compute the correct dependencies. Since it does
+not use the \texttt{-open}, it will directly look for \texttt{list.ml} and
+\texttt{array.ml}. Module aliases allows transitivity of modules, in other word
+when a module uses an alias defined in another, it is dependent of the aliased
+module. It can be easily proved, using \texttt{ocamlobjinfo} on
+\texttt{std\_array.cmo}, which uses Std.List:
 
 \begin{verbatim}
 $ ocamlobjinfo std_array.cmo
@@ -187,7 +204,10 @@ $ ocamlobjinfo std.cmo
 \end{verbatim}
 
 We can notice \texttt{Std} is in fact \textbf{not} dependent over Std\_list and
-Std\_array. Those dependencies are ``transparent''.
+Std\_array. Those dependencies are ``transparent''. A problem is when computing
+dependencies: since \texttt{ml} files are not prefixed, the result of ocamldep will
+be the \texttt{cm[ixo]} not prefixed either. It needs some transformations to get
+better dependencies.
 
 This trick can do a minimal job and does not change too much the actual code
 base for users that used modules to simulate namespaces (it was actually the
@@ -195,8 +215,8 @@ goal of this impplementation). However, those bits of namespaces are only on the
 build system's side. It lacks extensivity, and functorization can be painful
 since every compilation unit has to be encapsulated in a functor. Moreover, it
 needs a strong build system to compute the dependencies, and a correct Makefile
-can be hard to write according to this namespace strategy. 
-
+can be hard to write according to this namespace strategy. Another point it
+doesn't solve is the ability to link two compilation unit with the same name.
 
 This solution works thanks to the real module aliases (or references), and in
 fact could be used, but it is complex enough to discourage beginners to create
