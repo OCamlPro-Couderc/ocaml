@@ -41,7 +41,8 @@ type mapper = {
                            -> constructor_declaration;
   expr: mapper -> expression -> expression;
   extension: mapper -> extension -> extension;
-  extension_constructor: mapper -> extension_constructor -> extension_constructor;
+  extension_constructor: mapper -> extension_constructor
+                         -> extension_constructor;
   include_declaration: mapper -> include_declaration -> include_declaration;
   include_description: mapper -> include_description -> include_description;
   label_declaration: mapper -> label_declaration -> label_declaration;
@@ -629,7 +630,7 @@ let apply ~source ~target mapper =
   in
   if magic <> Config.ast_impl_magic_number
   && magic <> Config.ast_intf_magic_number then
-    failwith "Ast_mapper: unknown magic number";
+    failwith "Ast_mapper: OCaml version mismatch or malformed input";
   Location.input_name := input_value ic;
   let ast = input_value ic in
   close_in ic;
@@ -643,9 +644,11 @@ let apply ~source ~target mapper =
       match error_of_exn exn with
       | Some error ->
           if magic = Config.ast_impl_magic_number
-          then Obj.magic [{pstr_desc = Pstr_extension (extension_of_error error, []);
+          then Obj.magic [{pstr_desc = Pstr_extension (extension_of_error error,
+                                                       []);
                            pstr_loc  = Location.none}]
-          else Obj.magic [{psig_desc = Psig_extension (extension_of_error error, []);
+          else Obj.magic [{psig_desc = Psig_extension (extension_of_error error,
+                                                       []);
                            psig_loc  = Location.none}]
       | None -> raise exn
   in
