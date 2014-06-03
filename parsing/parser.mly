@@ -289,6 +289,8 @@ let mkcf_attrs d attrs =
 let mkctf_attrs d attrs =
   Ctf.mk ~loc:(symbol_rloc()) ~attrs d
 
+let string_of_lident l = String.concat "." @@ Longident.flatten l
+
 %}
 
 /* Tokens */
@@ -370,6 +372,7 @@ let mkctf_attrs d attrs =
 %token MINUSGREATER
 %token MODULE
 %token MUTABLE
+%token NAMESPACE
 %token <nativeint> NATIVEINT
 %token NEW
 %token OBJECT
@@ -501,6 +504,7 @@ The precedences must be listed from low to high.
 
 implementation:
     structure EOF                        { $1 }
+  | prelude structure EOF                { $2 }
 ;
 interface:
     signature EOF                        { $1 }
@@ -510,6 +514,31 @@ toplevel_phrase:
   | toplevel_directive SEMISEMI          { $1 }
   | EOF                                  { raise End_of_file }
 ;
+prelude:
+    namespace_decl imports               { () }
+  | imports                              { () }
+;
+namespace_decl:
+    IN NAMESPACE mod_longident           { Printf.printf "In namespace %s\n" @@
+    string_of_lident $3 }
+;
+imports:
+    /* empty */                          { () }
+  | import imports_tail                  { () }
+;
+import:
+    WITH import_arg                      { () }
+;
+imports_tail:
+    /* empty */                          { () }
+  | import_tail imports_tail             { () }
+;
+import_tail:
+    AND import_arg                       { () }
+;
+import_arg:
+    UIDENT OF mod_longident              { Printf.printf "With %s of %s\n" $1
+    (string_of_lident $3) }
 top_structure:
     seq_expr post_item_attributes { [mkstrexp $1 $2] }
   | top_structure_tail            { $1 }

@@ -62,6 +62,7 @@ let keyword_table =
     "method", METHOD;
     "module", MODULE;
     "mutable", MUTABLE;
+    "namespace", NAMESPACE;
     "new", NEW;
     "object", OBJECT;
     "of", OF;
