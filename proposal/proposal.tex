@@ -77,7 +77,7 @@ the dependency order by $\prec$, whereas $A \prec B$ means $B$ has a dependency
 on $A$. The dependency is a strict order relationship, and as a result it is
 transitive and not reflexive. Then:
 
-$$if~ A \prec B, A \in deps(B)$$
+$$A \prec B \leftrightarrow A \in deps(B)$$
 
 The load path $LP$ is the set of paths $\{P_0, .., P_m\}$ were compilation units
 can be used at link time. Then, we suppose $compunit(P)$ the set of available
