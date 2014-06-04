@@ -27,7 +27,7 @@ CAMLC= ocamlc
 CAMLOPT= ocamlopt
 CAMLDEP= ocamldep
 NAD= -no-alias-deps
-FLAGS= $(NAD) -open $(NSMOD) -o $@
+FLAGS= -open $(NSMOD) -o $@
 
 .PHONY: depend
 
@@ -40,19 +40,28 @@ $(EXEC).opt: $(STDX) $(SOBJX)
 	$(CAMLOPT) -o $@ $^
 
 $(STD): $(NOBJ) $(CMIS) $(POBJS)
-	$(CAMLC) -a -o $@ $(NOBJS) $(POBJS)
+	$(CAMLC) -a -o $@ $(NOBJ) $(POBJS)
 
 $(STDX): $(NOBJX) $(CMIS) $(POBJSX)
 	$(CAMLOPT) -a -o $@ $(NOBJX) $(POBJSX)
 
-%.cmi: %.mli
+$(NS).cmo: $(NS).ml
 	$(CAMLC) -c $(NAD) $<
+
+$(NS).cmi: $(NS).mli
+	$(CAMLC) -c $(NAD) $<
+
+$(NS).cmx: $(NS).ml
+	$(CAMLOPT) -c $(NAD) $<
+
+%.cmi: %.mli
+	$(CAMLC) -c $<
 
 %.cmo: %.ml
-	$(CAMLC) -c $(NAD) $<
+	$(CAMLC) -c $<
 
 %.cmx: %.ml
-	$(CAMLOPT) -c $(NAD) $<
+	$(CAMLOPT) -c $<
 
 $(PREFIX)%.cmi: %.mli
 	$(CAMLC) -c $(FLAGS) $<
@@ -64,8 +73,9 @@ $(PREFIX)%.cmx: %.ml
 	$(CAMLOPT) -c $(FLAGS) $<
 
 clean :
-	rm -f *.cm[ioxta] *.cmti depend *.o *~
-	rm -f $(EXEC)
+	rm -f *.cm[ioxta] *.cmti *.cmxa depend *.[oa] *~
+	rm -f $(EXEC) $(EXEC).opt
+	rm -f sed.script
 
 depend: $(NAMESPACE) $(LIB) $(SRC)
 	$(CAMLDEP) $(NAMESPACE) > depend
