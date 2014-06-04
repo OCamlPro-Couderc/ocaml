@@ -67,14 +67,15 @@ introduced by the last version of the compiler.
 \subsection{Linking formalism}
 
 First of all, it can be interesting to formalize what is a correctly linked
-program. This mechanism is different since 4.02, then it is interesting to
-understand how the changes affects the linker.
+program. This mechanism will be different starting from 4.02, then it is
+interesting to understand how the changes will affect the linked programs.
 
-Lets assume a program is simply an ordered set $Pr$ of compilation units $\{C_0$,
-.. $C_n\}$. We suppose $deps(C)$ the set of compilation units on which is
-dependent C. Then, we express the dependency order by $\prec$, whereas $A \prec
-B$ means $B$ has a dependency on $A$. The dependency is a strict order
-relationship, and as a result it is transitive and not reflexive. Then:
+We will suppose the typechecking is always correct. Lets assume a program is
+simply an ordered set $Pr$ of compilation units $\{C_0$, .. $C_n\}$. We suppose
+$deps(C)$ the set of compilation units on which is dependent C. Then, we express
+the dependency order by $\prec$, whereas $A \prec B$ means $B$ has a dependency
+on $A$. The dependency is a strict order relationship, and as a result it is
+transitive and not reflexive. Then:
 
 $$if~ A \prec B, A \in deps(B)$$
 
@@ -93,9 +94,16 @@ $$Cs(P_m) = Cs(m-1) \oplus compunit(P-m) ~and~ Cs(P_0) = compunit(P_0)$$
 Morally, it is a \emph{fold left application} over the load path. We will use it
 as $compunits(LP)$.
 
+Let $M_i$ the source file for $C_i$. We assume $deps(\_)$ is also available for
+source files, and returns the necessary compilation units ($deps(M_i) =
+deps(C_i)$). Then $compile(M_i)$ is a predicate indicating if the source file
+can be compiled (and $C_i$ its result), and
+
+$$deps(M_i) \subseteq compunits(LP) \rightarrow compile(M_i)$$
+
 As a result, we can express a correctly linked program as:
 
-$$ P ::= \{ C_0, .., C_n ~|~ \forall i \in [1; n], ~deps(C_i) \subseteq \{ C_0, ..,
+$$ Pr ::= \{ C_0, .., C_n ~|~ \forall i \in [1; n], ~deps(C_i) \subseteq \{ C_0, ..,
     C_{i-1} \} \land deps(C_0) = \emptyset \}$$
 $$  whereas ~ LP = \{ P_0, .., P_m \}~and~\forall i \in [0; n], C_i \in compunits(LP)
 $$
@@ -138,22 +146,35 @@ be a little painful for the user to use those long names.
 
 \subsection{In 4.02.0 and later}
 
-In the next version (4.02.0), module aliases have been added, and new options
-added to the compiler. First of all was added the \emph{real} module aliases. As
-a result, it decreases a lot the size of the compiled code since it is no longer
-equivalent to 
-\begin{OCaml}
-  module X = struct include Y end
-\end{OCaml} 
-It only is a reference now.
+The next version of OCaml changes a bit the link process, by adding an option
+\texttt{-no-alias-deps} that changes its semantics by making a difference
+between \emph{aliases} and dependencies. Formally, it adds a new predicate
+$alias(C)$ for each compilation units. If the compilation unit $C$ aliases
+another compilation unit (\texttt{module X = Y}) and is compiled using
+\texttt{-no-alias-deps}, then
 
-With this new semantics has been introduced a new option:
-\texttt{-no-alias-deps}, that allows unused aliases to be dropped at link time,
-and moreover, that allows the .cmi of those aliases not to be present
-yet. Another option added is the \texttt{-open} which simply adds the opening
-statement at the beginning of the AST. Finally, the \texttt{-o} has been
-modified: the compilation unit name is now the same as the filename given to the
-option (actually, only the left part before the first ``.'').
+$$''module~X = Y'' \rightarrow Y \notin deps(C) \land Y \in alias(C)$$ 
+
+If $X$ is used (as qualifier, opened or used as argument of a functor or as
+first-class argument), $Y$ is no longer part of aliases but becomes a real
+dependency, then $\forall C, alias(C) \cap deps(C) = \emptyset$. Moreover,
+$alias(C)$ is transitive:
+
+$$if~ A \prec B \land X \in alias(A) \rightarrow X \in alias(B)$$
+
+The correctly linked program equation does not change in this configuration,
+which then implies two important properties:
+\begin{itemize}
+\item An unused alias does not have to be \emph{linked} for the program to be correct;
+\item An unused alias does not have to be \emph{present} to compile.
+\end{itemize}
+
+Another option added is the \texttt{-open}: it takes a module name and opens it
+directly (it adds the opening statement in the AST).
+
+Finally, the \texttt{-o} has been modified: the compilation unit name is now the
+same as the filename given to the option (actually, only the left part before
+the first ``.'').
 
 Using those features, it is possible to simulate some kind of ``namespaces'' in
 OCaml. Here is a complete example of how it works.
