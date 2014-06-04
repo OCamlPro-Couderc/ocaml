@@ -33,9 +33,12 @@ CAMLDEP= ocamldep
 NAD= -no-alias-deps
 FLAGS= -open $(NSMOD) -o $@
 
-.PHONY: depend
 
 all: $(EXEC) $(EXEC).opt
+
+stats: $(EXEC) $(EXEC)_pack
+	@echo "Size of bytecode executable generated using -no-alias-deps versus -pack:";
+	@$(foreach f, $^, stat --printf="%n: %s bytes.\n" $(f);)
 
 $(EXEC): $(STD) $(SOBJ)
 	$(CAMLC) -o $@ $^

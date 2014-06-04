@@ -64,30 +64,81 @@ introduced by the last version of the compiler.
 
 \section{Namespaces in OCaml: state of the art}
 
+\subsection{Linking formalism}
+
+First of all, it can be interesting to formalize what is a correctly linked
+program. This mechanism is different since 4.02, then it is interesting to
+understand how the changes affects the linker.
+
+Lets assume a program is simply an ordered set $Pr$ of compilation units $\{C_0$,
+.. $C_n\}$. We suppose $deps(C)$ the set of compilation units on which is
+dependent C. Then, we express the dependency order by $\prec$, whereas $A \prec
+B$ means $B$ has a dependency on $A$. The dependency is a strict order
+relationship, and as a result it is transitive and not reflexive. Then:
+
+$$if~ A \prec B, A \in deps(B)$$
+
+The load path $LP$ is the set of paths $\{P_0, .., P_m\}$ were compilation units
+can be used at link time. Then, we suppose $compunit(P)$ the set of available
+compilation units in the path $P$. We define $\oplus$ as the merge operation of
+two sets ($S_1$ and $S_2$):
+
+$$S_1 \oplus S_2 = S_1 \cup (S_2 - S_1 \cap S_2) $$
+
+Then, the set of available compilation units $Cs$ from the load path at the path
+$P_k$ is: 
+
+$$Cs(P_m) = Cs(m-1) \oplus compunit(P-m) ~and~ Cs(P_0) = compunit(P_0)$$
+
+Morally, it is a \emph{fold left application} over the load path. We will use it
+as $compunits(LP)$.
+
+As a result, we can express a correctly linked program as:
+
+$$ P ::= \{ C_0, .., C_n ~|~ \forall i \in [1; n], ~deps(C_i) \subseteq \{ C_0, ..,
+    C_{i-1} \} \land deps(C_0) = \emptyset \}$$
+$$  whereas ~ LP = \{ P_0, .., P_m \}~and~\forall i \in [0; n], C_i \in compunits(LP)
+$$
+
 \subsection{Prior 4.02.0}
 
 In the current stable version (4.01.0), there is no namespace solution. The only
-possibility is aliasing modules into one. A typical ``namespace module'' is
-simply a \texttt{.ml} that only contains:
+possibility is aliasing modules into a big one, which is a kind of
+\emph{wrapper} module. A typical ``namespace module'' is simply a \texttt{.ml}
+that only contains multiple:
 
 \begin{OCaml}
 module List = Mystd_List
 \end{OCaml}
 
-It allows using short names, but at a high cost for the end user: this
-``aliasing'' is simply copying the module's code (references are shared) into
-the new \emph{wrapper}, resulting in huge binary programs (a ``Hello world'' can
-then weights many megaoctets, which is not satisfying). It has more or less the
-same properties as \texttt{-pack}, with the possibility to rebind modules with
-new (and shorter) names.
+It has multiple bad properties:
+\begin{enumerate}
+  \item It is a bottleneck for dependencies: when one of the aliased module is
+    recompiled, the wrapper must be recompiled, and in fact every module that
+    depends on it must be compiled again.
+  \item When using it as a namespace, every module aliased in it has to be
+    linked: this kind of module can lead to build huge executables. Even if one
+    of the alias is not used, it must be linked with the program since the
+    wrapper is dependent on it. It is expressed above by the constraint
+    $ \forall i \in [1; n], ~deps(C_i) \subseteq \{ C_0, .., C_{i-1} \}$
+  \item It is not extensible: Some would want to extend ``a posteriori'' a
+    namespace they are using to add new modules or redefine them
+\end{enumerate}
 
-The other solution is simply prefixing modules' name to be unique, without a
+Another possible solution is \emph{packing} the modules to make them appear as
+if they were part of a namespace. The idea is to take every compilation unit,
+and copy them into a single one that acts as a wrapper. As a result, using a
+namespace is simply linking this huge compilation unit. It is completely managed
+by the build system, and as a consequence the dependencies can be hard to
+compute since the wrapper does not have a source file.
+
+The last solution is simply prefixing modules' name to be unique, without a
 \emph{wrapper} to access them: only necessary modules are linked, however it can
 be a little painful for the user to use those long names.
 
 \subsection{In 4.02.0 and later}
 
-In the next version (4.02.0), module aliases have been improved, and new options
+In the next version (4.02.0), module aliases have been added, and new options
 added to the compiler. First of all was added the \emph{real} module aliases. As
 a result, it decreases a lot the size of the compiled code since it is no longer
 equivalent to 
