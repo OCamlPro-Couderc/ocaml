@@ -1,0 +1,4 @@
+The example given in the first part of the proposal. It also produces a pack
+with the same semantics. The "without_weakdeps" is the same program compiled
+without the -no-alias-deps option (and some necessary rearrangement of the link
+order).

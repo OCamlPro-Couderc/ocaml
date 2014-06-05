@@ -13,13 +13,10 @@ NSMOD= $(shell echo $(NS) | sed 's/^\(.\)/\U\1/')
 NSPACK= $(NS)_pack.cmo
 
 # Modules from the namespace (the library)
-LIB= a.ml b.ml c.ml
-LIB_MLI= a.mli b.mli c.mli
-OBJS= $(LIB:.ml=.cmo)
-CMIS= $(LIB_MLI:.mli=.cmi)
-POBJS= $(addprefix $(PREFIX), $(OBJS))
+LIB= ns_a.ml ns_b.ml ns_c.ml
+POBJS= $(LIB:.ml=.cmo)
+# POBJS= $(addprefix $(PREFIX), $(OBJS))
 POBJSX= $(POBJS:.cmo=.cmx)
-PCMIS= $(addprefix $(PREFIX), $(CMIS))
 
 # Our main program
 SRC= main.ml
@@ -31,13 +28,13 @@ CAMLC= ocamlc
 CAMLOPT= ocamlopt
 CAMLDEP= ocamldep
 NAD= -no-alias-deps
-FLAGS= -open $(NSMOD) -o $@
+FLAGS= -o $@
 
 
 all: $(EXEC) $(EXEC).opt
 
-stats: $(EXEC) $(EXEC).opt $(EXEC)_pack
-	@echo "Size of executables generated using -no-alias-deps versus -pack:";
+stats: $(EXEC) $(EXEC).opt
+	@echo "Size of executables generated without -no-alias-deps:";
 	@$(foreach f, $^, stat --printf="%n: %s bytes.\n" $(f);)
 
 $(EXEC): $(STD) $(SOBJ)
@@ -49,23 +46,23 @@ $(EXEC).opt: $(STDX) $(SOBJX)
 $(EXEC)_pack: $(NSPACK) main_pack.cmo
 	$(CAMLC) -o $@ $^
 
-$(STD): $(NOBJ) $(PCMIS) $(POBJS)
-	$(CAMLC) -a -o $@ $(NOBJ) $(POBJS)
+$(STD): $(PCMIS) $(POBJS) $(NOBJ) 
+	$(CAMLC) -a -o $@ $(POBJS) $(NOBJ)
 
-$(STDX): $(NOBJX) $(PCMIS) $(POBJSX)
-	$(CAMLOPT) -a -o $@ $(NOBJX) $(POBJSX)
+$(STDX): $(PCMIS) $(POBJSX) $(NOBJX)
+	$(CAMLOPT) -a -o $@ $(POBJSX) $(NOBJX)
 
-$(NSPACK): $(CMIS) $(OBJS)
-	$(CAMLC) -pack -o $@ $(OBJS)
+# $(NSPACK): $(CMIS) $(OBJS)
+# 	$(CAMLC) -pack -o $@ $(OBJS)
 
-$(NS).cmo: $(NS).ml
-	$(CAMLC) -c $(NAD) $<
+# $(NS).cmo: $(NS).ml
+# 	$(CAMLC) -c $(NAD) $<
 
-$(NS).cmi: $(NS).mli
-	$(CAMLC) -c $(NAD) $<
+# $(NS).cmi: $(NS).mli
+# 	$(CAMLC) -c $(NAD) $<
 
-$(NS).cmx: $(NS).ml
-	$(CAMLOPT) -c $(NAD) $<
+# $(NS).cmx: $(NS).ml
+# 	$(CAMLOPT) -c $(NAD) $<
 
 %.cmi: %.mli
 	$(CAMLC) -c $<
@@ -76,14 +73,14 @@ $(NS).cmx: $(NS).ml
 %.cmx: %.ml
 	$(CAMLOPT) -c $<
 
-$(PREFIX)%.cmi: %.mli
-	$(CAMLC) -c $(FLAGS) $<
+# $(PREFIX)%.cmi: %.mli
+# 	$(CAMLC) -c $(FLAGS) $<
 
-$(PREFIX)%.cmo: %.ml
-	$(CAMLC) -c $(FLAGS) $<
+# $(PREFIX)%.cmo: %.ml
+# 	$(CAMLC) -c $(FLAGS) $<
 
-$(PREFIX)%.cmx: %.ml
-	$(CAMLOPT) -c $(FLAGS) $<
+# $(PREFIX)%.cmx: %.ml
+# 	$(CAMLOPT) -c $(FLAGS) $<
 
 clean :
 	rm -f *.cm[ioxta] *.cmti *.cmxa depend *.[oa] *~
@@ -91,9 +88,6 @@ clean :
 	rm -f sed.script
 
 depend: $(NAMESPACE) $(LIB) $(SRC)
-	$(CAMLDEP) $(NAMESPACE) > depend
-	rm -f sed.script
-	$(foreach f, $(basename $(OBJS)), echo 's/$(f)\./$(PREFIX)$(f)\./g' >> sed.script;)
-	$(CAMLDEP) $(LIB) $(SRC) | sed -f sed.script >> depend
+	$(CAMLDEP) $^ > depend
 
 -include depend
