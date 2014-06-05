@@ -49,8 +49,8 @@ present some use case of namespaces.
 
 One particular goal we want to achieve is making a clear distinction between the
 language's semantics and the code generation, in other word making the language
-more expressive, especially in cases like -pack and -pack-functor, which are
-defined in the build system but are part of the semantics of the program.
+more expressive. %% , especially in cases like -pack and -pack-functor, which are
+%% defined in the build system but are part of the semantics of the program.
 
 An option had been added then, thanks to ``module aliases'', to avoid linking
 necessity when an alias in unused, which simulates a namespace
@@ -86,20 +86,23 @@ $$A \prec B \leftrightarrow A \in deps(B)$$
 %%   \label{propagate}
 %% \end{equation}
 
-The load path $LP$ is the set of paths $\{P_0, .., P_m\}$ were compilation units
-can be used at link time. Then, we suppose $compunit(P)$ the set of available
-compilation units in the path $P$. We define $\oplus$ as the merge operation of
-two sets ($S_1$ and $S_2$):
+The load path $LP$ is the set of paths $\{P_0, .., P_m\}$ where are stored
+compilation units that can be used at link time. Then, we suppose $compunit(P)$
+the set of available compilation units in the path $P$. We define $\oplus$ as
+the merge operation of two sets ($S_1$ and $S_2$):
 
 $$S_1 \oplus S_2 = S_1 \cup (S_2 - S_1 \cap S_2) $$
 
 Then, the set of available compilation units $Cs$ from the load path at the path
 $P_k$ is: 
 
-$$Cs(P_m) = Cs(m-1) \oplus compunit(P-m) ~and~ Cs(P_0) = compunit(P_0)$$
+\begin{equation}
+Cs(P_m) = Cs(m-1) \oplus compunit(P-m) \text{ and } Cs(P_0) = compunit(P_0)
+\label{merge}
+\end{equation}
 
-Morally, it is a \emph{fold left application} over the load path. We will use it
-as $compunits(LP)$.
+Morally, it is a \emph{fold left application} of $\oplus$ over the load path. We
+will use it as $compunits(LP)$.
 
 Let $M_i$ the source file for $C_i$. We assume $deps(\_)$ is also available for
 source files, and returns the necessary compilation units ($deps(M_i) =
@@ -145,7 +148,7 @@ It has multiple bad properties:
 \begin{enumerate}
   \item It is a bottleneck for dependencies: when one of the aliased module is
     recompiled, the wrapper must be recompiled, and in fact every module that
-    depends on it must be compiled again (\ref{recompile}).
+    depends on it must be compiled again (because of (\ref{recompile})).
   \item When using it as a namespace, every module aliased in it has to be
     linked: this kind of module can lead to build huge executables. Even if one
     of the alias is not used, it must be linked with the program since the
@@ -180,7 +183,7 @@ compilation units. If the compilation unit $C$ aliases another compilation unit
 $$\texttt{module~X = Y} \rightarrow Y \notin deps(C) \land Y \in weakdeps(C)$$ 
 
 If $X$ is used (as qualifier, opened or used as argument of a functor or as
-first-class argument), $Y$ is no longer part of weak dependancies but becomes a
+first-class argument), $Y$ is no longer part of weak dependencies but becomes a
 srong one, then $\forall C, weakdeps(C) \cap deps(C) = \emptyset$. Moreover,
 $weakdeps(C)$ is transitive:
 
@@ -219,7 +222,7 @@ the first ``.'').
 Using those features, it is possible to simulate some kind of ``namespaces'' in
 OCaml. Here is a complete example of how it works.
 
-We are going to make a namespace Ns, which would contain three modules A, B and
+We are going to make a namespace Ns, which will contain three modules A, B and
 C. Then Ns is simply a module that contains only aliases (the code of this
 example is available in the same repository as this proposal):
 
@@ -390,6 +393,13 @@ doesn't solve is the ability to link two compilation units with the same name
 (and try to solve this point by using the new \emph{-o} behavior to add a prefix
 at compile time).
 
+In terms of dependencies, using the canonical name (not prefixed) and the
+\texttt{-open} to build the dependencies correctly is not that strong. Indeed,
+if one uses directly the fully qualified name of the module (for example
+\texttt{Ns.A}), ocamldep will not be able to discover the dependency on
+\texttt{a.ml}. When using \lstinline{open Ns}, there won't be any problem
+however, but using fully qualified modules breaks the trick. 
+
 In another hand, this new alias and weak dependencies semantics is rather
 elegant and really helpfull, and can decrease a lot the size of the code.
 
@@ -414,18 +424,16 @@ simply declared:
 
 %% \begin{figure}[H]
 \begin{verbatim}
-ns_args ::=
-    | 
-    | "(" module_name ")" ns_args
+prelude ::=
+    | "in" "namespace" mod_longident imports 
+    | imports
 
 implementation ::=
-    | "in" "namespace" mod_longident ns_args headers structure EOF
-    | headers structure EOF
+    | prelude structure EOF
     | structure EOF
 
 interface ::=
-    | "in" "namespace" mod_longident ns_args headers signature EOF
-    | headers signature EOF
+    | prelude signature EOF
     | signature EOF
 \end{verbatim}
 %% \caption{Namespace declaration}
@@ -438,26 +446,29 @@ example is valid:
 in namespace Inria.Std
 \end{OCaml}
 
-Namespaces can take arguments, in other words they can abstract some of their
-implementation and became modular. The argument of the ``functor'' has to be a
-\texttt{.mli} available in the namespace (in this syntax the module signature is
-not explicit, it is not clear for now if it shoud be since the mli/cmi is the
-signature). For now, it is not clear if this argument must be explicit for each
-modules in the namespace, or only those that uses it. If it has to be explicited
-(even if unused) in each, the result would be that the interface used to type
-this argument would also have a ``virtual'' access to it, resulting in a false
-recursive module.
+%% Namespaces can take arguments, in other words they can abstract some of their
+%% implementation and became modular. The argument of the ``functor'' has to be a
+%% \texttt{.mli} available in the namespace (in this syntax the module signature is
+%% not explicit, it is not clear for now if it shoud be since the mli/cmi is the
+%% signature). For now, it is not clear if this argument must be explicit for each
+%% modules in the namespace, or only those that uses it. If it has to be explicited
+%% (even if unused) in each, the result would be that the interface used to type
+%% this argument would also have a ``virtual'' access to it, resulting in a false
+%% recursive module.
 
-In this proposal, the functorized namespaces are part of the language, not only
-defined at the build system level (like functor-pack): it is an essential part
-of our proposal and useful to understand how the namespaces are organized and
-used.
+%% In this proposal, the functorized namespaces are part of the language, not only
+%% defined at the build system level (like functor-pack): it is an essential part
+%% of our proposal and useful to understand how the namespaces are organized and
+%% used.
 
 \medskip
 
-As in other languages, namespaces are imported, and its modules added into the
-environment. Namespaces cannot be used to qualify modules. The syntax is the
-following:
+There is actually two possible propositions, with two semantics. The first
+imports modules from namespaces directly in the environment. The other imports
+the complete path of the module, in other word each modules qualified by their
+namespace. The syntax is almost the same, the only difference is
+\texttt{ns\_conf} which differs according to our two proposals. 
+
 
 %% \begin{figure}[H]
 \begin{verbatim}
@@ -470,11 +481,14 @@ imports ::=
 import ::=
     | ("with|"and)" ns_conf                           module importation    
 
+// for the first proposal
 ns_conf ::=
     | "(" modules_constraints ")" "of" mod_long_ident 
                                                       modules constraints
-    | "(" modules_constraints ")" "of" mod_long_ident ns_args 
-                                                      namespaces instantiation 
+
+// for the second proposal
+ns_conf ::=
+    | mod_long_ident "." "(" module_constraints ")"
 
 modules_constraints ::=
     | module_constraint
@@ -489,6 +503,8 @@ modules_constraint ::=
 %% \caption{Namespace use}
 %% \end{figure}
 
+\paragraph{First proposal}
+
 The syntax is rather simple, and can be simply described. The imports allows the
 user to declare which modules to use from this namespace. The wildcard allows to
 import in the environment every modules of the namespace that are not declared
@@ -501,8 +517,16 @@ allows to directly import every modules from it. Modules without namespaces are
 accepted and virtually doesn't belong to one. Actually, there is a \emph{global}
 namespace (like C\# of F\#) for this specific issues.
 
-A namespace can be imported and instantiated over some implementation. It allows
-parametric libraries, and will be explained in the compilation section. 
+\paragraph{Second proposal}
+
+On the contrary, modules are not directly imported in the environment. The
+complete path is accessible, and the namespaces can be used as modules (with
+some restrictions). In this idea, namespaces are kind of modules, and have a
+signature. In fact, this implementation does an elaboration of the import
+clauses into multiple modules and sub modules.
+
+In both propositions, namespace and modules share the same ``namespace'' (i.e.,
+a namespace cannot have the same name as a module, and vice-versa).
 
 The possibilities inside the language are simple, but there are some possible
 extensions that will be discussed later.
@@ -529,7 +553,9 @@ found (because they belong to external libraries that are linked with the
 program). This algorithm would be used however in the original ocamldep's
 behavior, when looking for the .ml in the loadpath: when namespace cannot be
 resolved, each file in the loadpath with the same name as the module is checked
-to possibly retrieve one that belongs to a namespace imported with wildcard.
+to possibly retrieve one that belongs to a namespace imported with wildcard. It
+can be an option of ocamldep, and it will simply read the first three tokens of
+the files that could match to retreive the namespace.
 
 
 \paragraph{Compilation unit}
@@ -553,10 +579,24 @@ anyone can add a module to an existing namespace. In other words, linking two
 libraries that exports the same namespaces will \emph{merge} them into
 one. Actually, it is the current behavior during link with modules: if two
 modules have the same name in the loadpath, only the first one found (according
-to the order of -I given to the compiler) is used. In our merge semantics, we
-follow the same rules: when two namespaces have the same name, the result is a
-namespace that contains the modules from both, and in case of conflicting
-modules only the first one found are kept.
+to the order of -I given to the compiler) is used (see formula (\ref{merge}). In
+our merge semantics, we follow the same rules: when two namespaces have the same
+name, the result is a namespace that contains the modules from both, and in case
+of conflicting modules only the first one found are kept.
+
+A formal representation is the following: suppose the loadpath $LP$, which
+contains paths $P_i$. Each path $P_i$ is a directory that contains compilation
+units $C_j$ and directories $D_k$. Then, the compilation units are:
+
+\begin{multline}
+\forall D_1, D_2 \in P_1, P_2, D_1 = D_2
+\rightarrow P_1 \oplus' P_2 = P_1 \oplus P_2 + D_1 \oplus D_2
+\label{ns-merge} 
+\end{multline}
+
+It is a recursive definition, meaning that subfolders are also taking in
+consideration. As a result $\oplus$ is replaced by $\oplus'$ when computing the
+available compilation units.
 
 For example, we can consider the two following libraries:
 
@@ -575,11 +615,11 @@ global ---- Std ---- List
 \end{verbatim}
 and we suppose the library \emph{ocamlpro} is linked using \texttt{-I +ocamlpro}.
 
-\texttt{stdlib} is always linked, meaning that any libraries using the
+\texttt{stdlib} is always linked last, meaning that any libraries using the
 \texttt{``global''.Std} namespace would conflict with it. The result is that the
 modules in \texttt{Ocamlpro/Std} would subsume those existing with the same name
 from the standard library. If one use \texttt{List} in its program, it would be
-the one from OCamlPro. But modules that don't not exists in
+the one from OCamlPro. But modules that do not not exists in
 \texttt{Ocamlpro/Std} are still accessible.
 
 
@@ -593,13 +633,27 @@ the namespace.
 
 The actual functor pack patch adds two fields to cmis/cmos/cmxs:
 \lstinline{functor_part} and \lstinline{functor_args}. They can certainly be
-reused for modules that belong in such a namespace. We can imagine a mechanism
-that then instantiate those modules with the structure given, for example by
-defining a .cmn that would act as the ``functor'' of the namespace (I don't have
-any idea how for now, finding a way to avoid using new files would be even better).
+reused for modules that belong in such a namespace. It will be completely
+explicit in the build system. For example, let assume a namespace \texttt{Ns}
+which is parametric over an interface \texttt{Arg}. Its modules are compiled
+with the option 
 
-Compiling a module which belongs to a paramteric namespace is using the
-\lstinline{-functor} automatically, feeding with the correct cmi. 
+\begin{verbatim}
+ocamlc -functor arg.cmi a.ml
+\end{verbatim}
+
+We can then instantiate them by applying them an argument, which would result on
+a new namespace that corresponds of the applied version on this specific
+argument. Instantiating the modules would lead to 
+
+\begin{verbatim}
+ocamlc -apply x.cmo -ns NsX a.cmo 
+(* the namespace has to be given as an option since there does not exists a
+ source file for the original*)
+\end{verbatim}
+
+As a result, the instantiation is done once and for all. This would introduce a
+concept of ``functor-units''.
 
 \section{Installation and file system relationship}
 
@@ -611,14 +665,15 @@ using external libraries, especially for simple programs.
 \paragraph{Compiled modules and installation}
 
 Namespaces and file system organization are highly related: a namespace is a
-directory, at least after compilation. For example, if the module belongs to the
-namespace \texttt{Inria.Std}, its compilation result will be placed in the
-directory \texttt{inria/std}. As a result, the compiler will be able to look for
-modules in namespaces and subnamespaces simply by scanning recursively the
-folders in its loadpath. Sources should belong to the same directory, and it
-could help ocamldep to look for dependencies without having to check the ``in
-namespace'' declaration. However, it can be avoided, and the compiler will
-create the correct directories thanks to the ``in namespace'' information.
+directory, at least after compilation (it is actually expressed in
+(\ref{ns-merge})). For example, if the module belongs to the namespace
+\texttt{Inria.Std}, its compilation result will be placed in the directory
+\texttt{inria/std}. As a result, the compiler will be able to look for modules
+in namespaces and subnamespaces simply by scanning recursively the folders in
+its loadpath. Sources should belong to the same directory, and it could help
+ocamldep to look for dependencies without having to check the ``in namespace''
+declaration. However, it can be avoided, and the compiler will create the
+correct directories thanks to the ``in namespace'' information.
 
 When linking, those folders are looked for from the loadpath: there is not a
 global folder where modules from different libraries are placed. It would be
