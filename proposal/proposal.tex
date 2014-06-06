@@ -649,7 +649,7 @@ argument. Instantiating the modules would lead to
 \begin{verbatim}
 ocamlc -apply x.cmo -ns NsX a.cmo 
 (* the namespace has to be given as an option since there does not exists a
- source file for the original*)
+ source file for the original *)
 \end{verbatim}
 
 As a result, the instantiation is done once and for all. This would introduce a
@@ -665,8 +665,8 @@ using external libraries, especially for simple programs.
 \paragraph{Compiled modules and installation}
 
 Namespaces and file system organization are highly related: a namespace is a
-directory, at least after compilation (it is actually expressed in
-(\ref{ns-merge})). For example, if the module belongs to the namespace
+directory, at least after compilation (it has been hinted in (\ref{ns-merge})
+actually). For example, if the module belongs to the namespace
 \texttt{Inria.Std}, its compilation result will be placed in the directory
 \texttt{inria/std}. As a result, the compiler will be able to look for modules
 in namespaces and subnamespaces simply by scanning recursively the folders in
@@ -688,7 +688,9 @@ canonical path where libraries should be installed, which would be symbolized by
 environment variable of the system (\texttt{OCAML\_LD\_PATH} for
 example). Linking a library is simply giving the folder where it is installed to
 \texttt{-I}. Modules that doesn't have a namespace can be found at the root of
-the loadpath.
+the loadpath. Another possibility is to use an option \texttt{-lib} to refer to
+libraries stored in the canonical install path: it would not change the \texttt{-I}
+behavior.
 
 Having such a standard library path for user libraries is relevant, thanks to
 the use of OPAM: the user's libraries are installed in the
@@ -741,21 +743,30 @@ namespace as its functors packed.
 \paragraph{Automatically opened modules}
 
 Namespaces can be an elegant way to declare libraries. We can suppose a library
-wants one of its modules is always opened when using it, ``à-la'' Pervasives. It
-would be syntactically easy to add such a feature, by adding the keyword
-``opened'' at the beginning of the namespace declaration, but it needs more
-thoughts at compilation and linking. There are some way to do it, especially by
-adding a directory \texttt{``\_opened''} in the installed library for each
-namespaces with such modules, that the compiler would recognize as the
-automatically opened ones. As a result, when importing a library (even one
-module), the opened ones are automatically imported. Aliasing or shadowing
-them prevent this behavior.
+wants one of its modules is always opened when using it, ``à-la''
+Pervasives. A possibility would be to open automatically modules whose name is
+Pervasives when using a namespace. It binds the name to a specific semantics,
+but is relevant since some languages binds the \emph{main} name as the entry
+point of a program.
 
-This proposition is part of the 4.02 version of OCaml: a \texttt{-open} option
-had been added, what we propose is specifying modules that should be opened
-directly in the language, making this option automatic when using the namespace.
+%% It
+%% would be syntactically easy to add such a feature, by adding the keyword
+%% ``opened'' at the beginning of the namespace declaration, but it needs more
+%% thoughts at compilation and linking. There are some way to do it, especially by
+%% adding a directory \texttt{``\_opened''} in the installed library for each
+%% namespaces with such modules, that the compiler would recognize as the
+%% automatically opened ones. As a result, when importing a library (even one
+%% module), the opened ones are automatically imported. Aliasing or shadowing
+%% them prevent this behavior.
+
+%% This proposition is part of the 4.02 version of OCaml: a \texttt{-open} option
+%% had been added, what we propose is specifying modules that should be opened
+%% directly in the language, making this option automatic when using the namespace.
 
 \section{Use-case}
+
+We present some use cases of namespaces in the language, at first with the first
+proposal, then with the second one, showing what is interesting with both proposal.
 
 \subsection{Extending libraries}
 
@@ -802,7 +813,7 @@ from this library resides in the namespace Mylib.Http. Protocol is the main modu
 
 \begin{OCaml}
 (** async_monad.mli *)
-in namespace Mylib.Http(Async_monad)
+in namespace Mylib.Http
 
 type t
 
@@ -819,41 +830,54 @@ val poll : 'a t -> 'a option
 \begin{OCaml}
 (** protocol.ml *)
 
-in namespace MyLib.Http(Async_monad)
+in namespace MyLib.Http
 
+open Async_monad
 ...
 \end{OCaml}
 
+The compilation of our module is:
+
+\begin{verbatim}
+ocamlc -c -functor Async_monad protocol.ml
+\end{verbatim}
+
 \medskip
 
-Now suppose your writing a server, using this HTTP library (we suppose it belongs
-to a namespace Myserver):
+Now suppose your writing a server, using this HTTP library (we suppose it
+belongs to a namespace Myserver). First of all, we have to instantiate our
+namespace over an implementation of our monad:
+
+\begin{verbatim}
+ocamlc -I +ocsigen-lib -apply Ocsigen.Lwt -ns Mylib.Http_Lwt protocol.cmo
+... # We do the same for the other modules in this namespace 
+\end{verbatim}
+
+We then create a new namespace Mylib.Http\_Lwt that corresponds to the
+instantiation of Mylib.Http over Ocsigen.Lwt.
 
 \begin{OCaml}
 (** main_lwt.ml *)
 in namespace Myserver
   with (Lwt) of Ocsigen
-  and (Protocol) of MyLib.Http(Lwt)
+  and (Protocol) of MyLib.Http_Lwt
 ...
 \end{OCaml}
-
-The program is then instantiated over Lwt, and there can be multiple servers for
-each possible asynchronous monad that implements the same interface.
 
 \subsection{Multiple instantiation}
 
 Suppose a library using a SAT-solver to prove the correctness of some values it
 is using. There exists multiple SATisfiability solving algorithms (mainly DPLL
-and CDCL, with multiple variants), and one case of using ``holes'' would be to
-instantiate multiple versions of a library and benchmark the different
-implementations.
+and CDCL, with multiple variants), and one case of functors at the namespace
+level would be to instantiate multiple versions of a library and benchmark the
+different implementations.
 
 Suppose our library, particularly composed by a \emph{hole} Sat and a module
 Solver. The library defines its namespace MySolver.
 
 \begin{OCaml}
 (** sat.mli *)
-in namespace MySolver(Sat)
+in namespace MySolver
 
 type bnf
 
@@ -864,7 +888,7 @@ val solve: bnf -> bool
 
 \begin{OCaml}
 (** solver.ml *)
-in namespace MySolver(Sat)
+in namespace MySolver
 
 let is_sat f =
 ... 
@@ -873,14 +897,27 @@ let is_sat f =
 ...
 \end{OCaml}
 
+\begin{verbatim}
+ocamlc -c sat.mli
+ocamlc -c -functor Sat solver.ml
+\end{verbatim}
+
 \medskip
 
-Finally, our Solver can be used by the following benchmarking module:
+Finally, our Solver can be used by the following benchmarking modules:
+
+\begin{verbatim}
+ocamlc -apply Dpll -ns MySolver_Dpll solver.cmo
+... # every other modules to instantiate
+
+ocamlc -apply Cdcl -ns MySolver_Cdcl solver.cmo
+... # idem 
+\end{verbatim}
 
 \begin{OCaml}
 (** bench.ml *)
-with (Parser, Solver as Solve_Dpll) of MySolver(Dpll)
-and (Solver as Solve_Cdcl) of MySolver(Cdcl)
+with (Parser, Solver as Solve_Dpll) of MySolver_Dpll
+and (Solver as Solve_Cdcl) of MySolver_Cdcl
 
 ...
 let compute_and_print_time l = ...
@@ -903,10 +940,7 @@ let () =
 
 \medskip
 
-As a result, we can see namespaces with holes as functorized namespaces. Of
-course, this example could be done simply by functorizing directly Solver, but
-it can be rather nice to let the linker do the job, and it allows every modules
-in the namespace to be abstract over this specific interface.
+
 
 %% \bibliographystyle{abbrv}
 %% \bibliography{biblio} 
