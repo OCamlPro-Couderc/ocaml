@@ -171,12 +171,12 @@ The last solution is simply prefixing modules' name to be unique, without a
 \emph{wrapper} to access them: only necessary modules are linked, however it can
 be a little painful for the user to use those long names.
 
-\subsection{Since 4.02.0}
+\subsection{Toward 4.02.0}
 
 The next version of OCaml changes a bit the link process, by adding an option
 \texttt{-no-alias-deps} that changes its semantics by making a difference
 between \emph{aliases} and dependencies. It introduces the concept of weak
-dependecies. Formally, it adds a new predicate $weakdeps(C)$ for each
+dependencies. Formally, it adds a new predicate $weakdeps(C)$ for each
 compilation units. If the compilation unit $C$ aliases another compilation unit
 (\texttt{module X = Y}) and is compiled using \texttt{-no-alias-deps}, then
 
@@ -205,9 +205,6 @@ implies some important properties:
 \item A side effect of this option is that there is no bottleneck when a
   recompilation is needed, since the alias is propagated until it is
   used. However, it needs a strong build system to discover such propagation.
-%% \item Dependencies are no longer propagated. In other word, the rule
-%%   (\ref{propagate}) no longer applies. It can be witnessed in the
-%%   experimentation below.
 \end{itemize}
 
 Another option added is the \texttt{-open}: it takes a module name and opens it
@@ -247,8 +244,8 @@ let print_from_B () = print_endline ``Hello from B!''
 let x = ``lorem ipsum ...'' (* ~15000 characters long *)
 
 let print_from_C () =
-  print_from_A ();
-  print_from_B ();
+  A.print_from_A ();
+  B.print_from_B ();
   Printf.printf ``Ouch! from C:\n %s\n'' x
 \end{OCaml}
 
@@ -506,16 +503,16 @@ modules_constraint ::=
 \paragraph{First proposal}
 
 The syntax is rather simple, and can be simply described. The imports allows the
-user to declare which modules to use from this namespace. The wildcard allows to
-import in the environment every modules of the namespace that are not declared
-in the current constraints. Shadowing doesn't add the module (it is only useful
-when using the wildcard), and aliasing allows to have module from multiple
-namespace with the same original name.
+user to declare which modules to use from this namespace. 
 
-Importing a namespace does not import the subnamespaces. Being in a namespace
-allows to directly import every modules from it. Modules without namespaces are
-accepted and virtually doesn't belong to one. Actually, there is a \emph{global}
-namespace (like C\# of F\#) for this specific issues.
+Then an import clause
+\begin{OCaml}
+with (List) of Inria.Std
+\end{OCaml}
+is elaborated into
+\begin{OCaml}
+module List = ``module List from namespace Inria.Std''
+\end{OCaml}
 
 \paragraph{Second proposal}
 
@@ -525,7 +522,75 @@ some restrictions). In this idea, namespaces are kind of modules, and have a
 signature. In fact, this implementation does an elaboration of the import
 clauses into multiple modules and sub modules.
 
-In both propositions, namespace and modules share the same ``namespace'' (i.e.,
+In other word, if we suppose
+\begin{OCaml}
+with Ocsigen.(Lwt, Server as S)
+\end{OCaml}
+it would be elaborated into
+\begin{OCaml}
+module Ocsigen = struct
+  module Lwt = ``lwt.cmo of namespace Ocsigen''
+  module S = ``server.cmo of namespace Ocsigen''
+end
+\end{OCaml}
+
+As it can be noticed, it cannot be entirely done using the actual syntax, since
+it needs to be able to refer to some modules from namespaces. It cannot be done
+with a preprocessor and a syntax extension since the compiler has to reason
+about modules inside namespaces. On another hand, the entire prelude has to be
+computed before elaboration: since namespaces can hav subnamespaces, the entire
+path must be resolved.
+
+For example, let suppose the following prelude:
+\begin{OCaml}
+with Inria.Unsafe.(Obj)
+and Inria.Std.(Hashtbl)
+\end{OCaml}
+If we elaborated line by line:
+\begin{OCaml}
+module Inria = struct
+  module Unsafe = struct
+    module Obj = ...
+  end
+end
+
+module Inria = struct
+  module Std = struct
+    module Hashtbl = ...
+  end
+end
+
+\end{OCaml}
+However, only the second module \texttt{Inria} would be available. A correct
+elaboration would then need to first discover the environment that will be
+needed, resulting in:
+\begin{OCaml}
+module Inria = struct
+  module Unsafe = struct
+    module Obj = ...
+  end
+  module Std = struct
+    module Hashtbl = ...
+  end
+end
+\end{OCaml}
+
+
+\medskip
+
+In both proposals, the constraints are the same. The wildcard allows to import
+in the environment every modules of the namespace that are not declared in the
+current constraints. Shadowing doesn't add the module (it is only useful when
+using the wildcard), and aliasing allows to have module from multiple namespace
+with the same original name.
+
+Importing a namespace does not import the subnamespaces. Being in a namespace
+allows to directly import every modules from it. Modules without namespaces are
+accepted and virtually doesn't belong to one. Actually, there is a \emph{global}
+namespace (like C\# of F\#) for this specific issues.
+
+
+In both propositions, namespaces and modules share the same ``namespace'' (i.e.,
 a namespace cannot have the same name as a module, and vice-versa).
 
 The possibilities inside the language are simple, but there are some possible
@@ -765,8 +830,9 @@ point of a program.
 
 \section{Use-case}
 
-We present some use cases of namespaces in the language, at first with the first
-proposal, then with the second one, showing what is interesting with both proposal.
+We present some use cases of namespaces in the language, we use the first
+proposal in it, but the semantics is the same.
+
 
 \subsection{Extending libraries}
 
@@ -938,9 +1004,29 @@ let () =
   compute_and_print_time times
 \end{OCaml}
 
-\medskip
+\subsection{Importing modules with the same name}
 
+One problem that can be easily solved is the ability to use two compilation
+units that share the same name, thanks to the importing constraints and even the
+full qualified path of the second proposal. Both proposal can use constraints,
+but second can be even more powerful.
 
+For example, suppose the Batteries modules are not prefixed with
+\texttt{``Bat\_''}, it would not be possible to use List from the Stdlib against
+the one from Batteries.
+
+\begin{OCaml}
+with (List as BList) of Batteries
+and (List as OList) of Inria.Std
+\end{OCaml}
+
+With the second proposal, aliasing is possible but not mandatory since it makes
+qualification explicit.
+
+\begin{OCaml}
+with Batteries.(List)
+and Inria.Std.(List)
+\end{OCaml}
 
 %% \bibliographystyle{abbrv}
 %% \bibliography{biblio} 
