@@ -192,6 +192,12 @@ and module_expr_desc =
   | Tmod_constraint of
       module_expr * Types.module_type * module_type_constraint * module_coercion
   | Tmod_unpack of expression * Types.module_type
+  (*
+     | Tmod_prefixed_ident of Path.t * Path.t * Longident.t
+                          (namespace)    ?      (Module name)
+     Type of module with it provenance information: used at link time to link
+    the compilation unit from the corresponding namespace
+   *)
 
 and structure = {
   str_items : structure_item list;
@@ -261,6 +267,11 @@ and module_type_desc =
   | Tmty_with of module_type * (Path.t * Longident.t loc * with_constraint) list
   | Tmty_typeof of module_expr
   | Tmty_alias of Path.t * Longident.t loc
+  (*
+     | Tmty_namespace of Path.t * Longident.t loc
+    Type of namespaces elaborated into modules, useful to add a a warning if
+    used as a functor argument (especially if created from a wildcard
+  *)
 
 and signature = {
   sig_items : signature_item list;

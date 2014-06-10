@@ -1184,31 +1184,34 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
   | Pmod_extension ext ->
       raise (Error_forward (Typetexp.error_of_extension ext))
 
-and string_of_longident l = String.concat "." (Longident.flatten l)
+(* and string_of_longident l = String.concat "." (Longident.flatten l) *)
 
-(* Should be in Env, to move *)
-and cu_ns = ref None
+(* (\* Should be in Env, to move *\) *)
+(* and cu_ns = ref None *)
 
-and check_namespace_availability ns loc ns_names =
-  check_name "namespace" ns_names
-    (mkloc (string_of_longident ns) loc)
+(* and check_namespace_availability ns loc ns_names = *)
+(*   check_name "namespace" ns_names *)
+(*     (mkloc (string_of_longident ns) loc) *)
 
-and check_import_constraints cstr =
-  List.fold_left (fun tree cstr -> ()) () cstr
+(* and check_import_constraints cstr = *)
+(*   List.fold_left (fun tree cstr -> ()) () cstr *)
 
-and verify_import i ns_names =
-  check_namespace_availability i.imp_namespace i.imp_loc ns_names;
-  let _constraints = check_import_constraints i.imp_cstr in
-  ()
+(* and elaborate_imports tree = *)
+(*   () *)
 
-and compute_prelude prl ns_names =
-  cu_ns :=
-    begin
-      match prl.prl_ns with
-      | None -> None
-      | Some nd -> Some nd.ns_name
-    end;
-  List.iter (fun i -> verify_import i ns_names) prl.prl_imports
+(* and verify_import i ns_names = *)
+(*   check_namespace_availability i.imp_namespace i.imp_loc ns_names; *)
+(*   let _constraints = check_import_constraints i.imp_cstr in *)
+(*   () *)
+
+(* and compute_prelude prl ns_names = *)
+(*   cu_ns := *)
+(*     begin *)
+(*       match prl.prl_ns with *)
+(*       | None -> None *)
+(*       | Some nd -> Some nd.ns_name *)
+(*     end; *)
+(*   List.iter (fun i -> verify_import i ns_names) prl.prl_imports *)
 
 
 and type_structure ?(toplevel = false) funct_body anchor env sstr scope =
@@ -1220,7 +1223,7 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr scope =
   let type_str_item env srem {pstr_loc = loc; pstr_desc = desc} =
     match desc with
     | Pstr_prelude prl ->
-        compute_prelude prl namespace_names;
+        Typens.compute_prelude prl (check_name "namespace" namespace_names);
         (* TODO:
            - set the namespace.
            - check for each import:
