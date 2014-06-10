@@ -289,6 +289,11 @@ let mkcf_attrs d attrs =
 let mkctf_attrs d attrs =
   Ctf.mk ~loc:(symbol_rloc()) ~attrs d
 
+let mk_prl = Ns.mk ~loc:(symbol_rloc())
+let mk_nsd = Ns.mk_nsd ~loc:(symbol_rloc())
+let mk_imp = Ns.mk_imp ~loc:(symbol_rloc())
+let mk_icstr = Ns.mk_icstr ~loc:(symbol_rloc())
+
 let string_of_lident l = String.concat "." @@ Longident.flatten l
 
 %}
@@ -504,7 +509,7 @@ The precedences must be listed from low to high.
 
 implementation:
     structure EOF                        { $1 }
-  | prelude structure EOF                { $2 }
+  | prelude structure EOF                { mkstr (Pstr_prelude $1) :: $2 }
 ;
 interface:
     signature EOF                        { $1 }
@@ -515,30 +520,41 @@ toplevel_phrase:
   | EOF                                  { raise End_of_file }
 ;
 prelude:
-    namespace_decl imports               { () }
-  | imports                              { () }
+    namespace_decl imports               { mk_prl (Some $1) $2 }
+  | imports                              { mk_prl None $1 }
 ;
 namespace_decl:
-    IN NAMESPACE mod_longident           { Printf.printf "In namespace %s\n" @@
-    string_of_lident $3 }
+    IN NAMESPACE mod_longident           { mk_nsd $3 }
 ;
 imports:
-    /* empty */                          { () }
-  | import imports_tail                  { () }
+    /* empty */                          { [] }
+  | import imports_tail                  { $1 :: $2 }
 ;
 import:
-    WITH import_arg                      { () }
+    WITH import_arg                      { $2 }
 ;
 imports_tail:
-    /* empty */                          { () }
-  | import_tail imports_tail             { () }
+    /* empty */                          { [] }
+  | import_tail imports_tail             { $1 :: $2 }
 ;
 import_tail:
-    AND import_arg                       { () }
+    AND import_arg                       { $2 }
 ;
 import_arg:
-    UIDENT OF mod_longident              { Printf.printf "With %s of %s\n" $1
-    (string_of_lident $3) }
+    LPAREN import_constraints RPAREN OF mod_longident
+                                         { mk_imp $2 $5 }
+;
+import_constraints:
+    import_constraint                    { [ $1 ] }
+  | import_constraint SEMI import_constraints
+                                         { $1 :: $3 }
+;
+import_constraint:
+    UIDENT                               { mk_icstr (Cstr_mod $1) }
+  | UIDENT AS UIDENT                     { mk_icstr (Cstr_alias ($1, $3)) }
+  | UIDENT AS UNDERSCORE                 { mk_icstr (Cstr_shadow $1) }
+  | UNDERSCORE                           { mk_icstr (Cstr_wildcard) }
+;
 top_structure:
     seq_expr post_item_attributes { [mkstrexp $1 $2] }
   | top_structure_tail            { $1 }

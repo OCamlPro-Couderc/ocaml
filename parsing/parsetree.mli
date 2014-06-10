@@ -764,11 +764,11 @@ and import_constraint_item =
   }
 
 and constraint_desc =
-  | Cstr_mod of Longident.t
+  | Cstr_mod of string
                   (* with M of ... *)
-  | Cstr_alias of Longident.t * string
+  | Cstr_alias of string * string
                   (* with M as N of ... *)
-  | Cstr_shadow of Longident.t
+  | Cstr_shadow of string
                      (* with M as _ of ... *)
   | Cstr_wildcard
     (* with _ of ... *)
