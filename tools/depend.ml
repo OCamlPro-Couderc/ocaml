@@ -330,6 +330,7 @@ and add_struct_item bv item =
       add_module bv incl.pincl_mod; bv
   | Pstr_attribute _ | Pstr_extension _ ->
       bv
+  | Pstr_prelude _ -> failwith "Not implemented"
 
 and add_use_file bv top_phrs =
   ignore (List.fold_left add_top_phrase bv top_phrs)

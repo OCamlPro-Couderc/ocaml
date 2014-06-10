@@ -279,6 +279,7 @@ module M = struct
     let open Str in
     let loc = sub.location sub loc in
     match desc with
+    | Pstr_prelude _ -> failwith "Not implemented"
     | Pstr_eval (x, attrs) ->
         eval ~loc ~attrs:(sub.attributes sub attrs) (sub.expr sub x)
     | Pstr_value (r, vbs) -> value ~loc r (List.map (sub.value_binding sub) vbs)

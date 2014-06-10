@@ -733,6 +733,46 @@ and module_expr_desc =
   | Pmod_extension of extension
         (* [%id] *)
 
+and prelude =
+  {
+    prl_ns: namespace_decl option;
+    prl_imports: imports;
+    prl_loc: Location.t;
+  }
+
+and namespace_decl =
+  {
+    ns_name: Longident.t;
+    ns_loc: Location.t;
+  }
+
+and imports = import_item list
+
+and import_item =
+  {
+    imp_cstr: import_constraints;
+    imp_namespace: Longident.t;
+    imp_loc: Location.t;
+  }
+
+and import_constraints = import_constraint_item list
+
+and import_constraint_item =
+  {
+    cstr_type: constraint_desc;
+    cstr_loc: Location.t;
+  }
+
+and constraint_desc =
+  | Cstr_mod of Longident.t
+                  (* with M of ... *)
+  | Cstr_alias of Longident.t * string
+                  (* with M as N of ... *)
+  | Cstr_shadow of Longident.t
+                     (* with M as _ of ... *)
+  | Cstr_wildcard
+    (* with _ of ... *)
+
 and structure = structure_item list
 
 and structure_item =
@@ -742,6 +782,10 @@ and structure_item =
     }
 
 and structure_item_desc =
+  | Pstr_prelude of prelude
+      (* in namespace ... with ...            (prl_ns = Some ..)
+         with ... of ... and ...              (prl_ns = None ..)
+      *)
   | Pstr_eval of expression * attributes
         (* E *)
   | Pstr_value of rec_flag * value_binding list

@@ -738,6 +738,7 @@ and structure_item i ppf x =
   line i ppf "structure_item %a\n" fmt_location x.pstr_loc;
   let i = i+1 in
   match x.pstr_desc with
+  | Pstr_prelude _ -> failwith "Not implemented"
   | Pstr_eval (e, attrs) ->
       line i ppf "Pstr_eval\n";
       attributes i ppf attrs;

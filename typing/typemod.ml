@@ -1190,6 +1190,7 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr scope =
 
   let type_str_item env srem {pstr_loc = loc; pstr_desc = desc} =
     match desc with
+    | Pstr_prelude _ -> failwith "Not implemented"
     | Pstr_eval (sexpr, attrs) ->
         let expr = Typecore.type_expression env sexpr in
         Tstr_eval (expr, attrs), [], env

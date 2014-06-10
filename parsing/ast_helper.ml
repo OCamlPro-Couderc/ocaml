@@ -435,3 +435,31 @@ module Cstr = struct
      pcstr_fields = fields;
     }
 end
+
+module Ns = struct
+  let mk ?(loc = !default_loc) nsd imp =
+    {
+      prl_ns = nsd;
+      prl_imports = imp;
+      prl_loc = loc;
+    }
+
+  let mk_nsd ?(loc = !default_loc) name =
+    {
+      ns_name = name;
+      ns_loc = loc;
+    }
+
+  let mk_imp ?(loc = !default_loc) icstr ns =
+    {
+      imp_cstr = icstr;
+      imp_namespace = ns;
+      imp_loc= loc;
+    }
+
+  let mk_icstr ?(loc = !default_loc) cstr =
+    {
+      cstr_type = cstr;
+      cstr_loc = loc;
+    }
+end

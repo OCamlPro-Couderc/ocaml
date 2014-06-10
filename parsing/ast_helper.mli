@@ -361,3 +361,11 @@ module Cstr:
   sig
     val mk: pattern -> class_field list -> class_structure
   end
+
+module Ns:
+  sig
+    val mk: ?loc:loc -> namespace_decl option -> imports -> prelude
+    val mk_nsd: ?loc:loc -> Longident.t -> namespace_decl
+    val mk_imp: ?loc:loc -> import_constraint_item list -> Longident.t -> import_item
+    val mk_icstr: ?loc:loc -> constraint_desc -> import_constraint_item
+  end
