@@ -39,3 +39,5 @@ let parse s =
     [] -> Lident ""  (* should not happen, but don't put assert false
                         so as not to crash the toplevel (see Genprintval) *)
   | hd :: tl -> List.fold_left (fun p s -> Ldot(p, s)) (Lident hd) tl
+
+let string_of_longident l = String.concat "." @@ flatten l

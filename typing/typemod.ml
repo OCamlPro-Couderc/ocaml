@@ -1184,14 +1184,55 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
   | Pmod_extension ext ->
       raise (Error_forward (Typetexp.error_of_extension ext))
 
+and string_of_longident l = String.concat "." (Longident.flatten l)
+
+(* Should be in Env, to move *)
+and cu_ns = ref None
+
+and check_namespace_availability ns loc ns_names =
+  check_name "namespace" ns_names
+    (mkloc (string_of_longident ns) loc)
+
+and check_import_constraints cstr =
+  List.fold_left (fun tree cstr -> ()) () cstr
+
+and verify_import i ns_names =
+  check_namespace_availability i.imp_namespace i.imp_loc ns_names;
+  let _constraints = check_import_constraints i.imp_cstr in
+  ()
+
+and compute_prelude prl ns_names =
+  cu_ns :=
+    begin
+      match prl.prl_ns with
+      | None -> None
+      | Some nd -> Some nd.ns_name
+    end;
+  List.iter (fun i -> verify_import i ns_names) prl.prl_imports
+
+
 and type_structure ?(toplevel = false) funct_body anchor env sstr scope =
   let type_names = ref StringSet.empty
   and module_names = ref StringSet.empty
-  and modtype_names = ref StringSet.empty in
+  and modtype_names = ref StringSet.empty
+  and namespace_names = ref StringSet.empty in
 
   let type_str_item env srem {pstr_loc = loc; pstr_desc = desc} =
     match desc with
-    | Pstr_prelude _ -> failwith "Not implemented"
+    | Pstr_prelude prl ->
+        compute_prelude prl namespace_names;
+        (* TODO:
+           - set the namespace.
+           - check for each import:
+             - if the namespace exists (i.e. there is a directory for this
+             namespace).
+             - if the modules declared exist.
+           - adds each module into the environment.
+
+           For the version with first-order namespaces -> elaborate namespaces
+           into modules.
+        *)
+        failwith "Not implemented: Typemod.type_structure"
     | Pstr_eval (sexpr, attrs) ->
         let expr = Typecore.type_expression env sexpr in
         Tstr_eval (expr, attrs), [], env

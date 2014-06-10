@@ -294,7 +294,6 @@ let mk_nsd = Ns.mk_nsd ~loc:(symbol_rloc())
 let mk_imp = Ns.mk_imp ~loc:(symbol_rloc())
 let mk_icstr = Ns.mk_icstr ~loc:(symbol_rloc())
 
-let string_of_lident l = String.concat "." @@ Longident.flatten l
 
 %}
 
@@ -508,8 +507,8 @@ The precedences must be listed from low to high.
 /* Entry points */
 
 implementation:
-    structure EOF                        { $1 }
-  | prelude structure EOF                { mkstr (Pstr_prelude $1) :: $2 }
+    prelude SEMISEMI structure EOF                { mkstr (Pstr_prelude $1) :: $3 }
+  | structure EOF                        { $1 }
 ;
 interface:
     signature EOF                        { $1 }

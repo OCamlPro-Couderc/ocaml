@@ -602,7 +602,7 @@ class printer  ()= object(self:'self)
         pp f "@[<hov2>assert@ %a@]" self#simple_expr e
     | Pexp_lazy (e) ->
         pp f "@[<hov2>lazy@ %a@]" self#simple_expr e
-    (* Pexp_poly: impossible but we should print it anyway, rather than assert false *) 
+    (* Pexp_poly: impossible but we should print it anyway, rather than assert false *)
     | Pexp_poly (e, None) ->
         pp f "@[<hov2>!poly!@ %a@]" self#simple_expr e
     | Pexp_poly (e, Some ct) ->
@@ -1026,7 +1026,7 @@ class printer  ()= object(self:'self)
 
   method structure_item f x = begin
     match x.pstr_desc with
-    | Pstr_prelude _ -> failwith "Not implemented"
+    | Pstr_prelude _ -> failwith "Not implemented: Pprintast.printer#structure_item"
     | Pstr_eval (e, _attrs) ->
         pp f "@[<hov2>let@ _ =@ %a@]" self#expression e
     | Pstr_type [] -> assert false
