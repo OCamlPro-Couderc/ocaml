@@ -154,6 +154,8 @@ OCamldoc:
   (Maxence Guesdon, report by Anil Madhavapeddy)
 
 Bug fixes:
+- PR#2719: wrong scheduling of bound checks within a 
+  try...with Invalid_argument -> _ ...  (Xavier Leroy)
 - PR#6232: Don't use [mktemp] on platforms where [mkstemp] is available
   (Stéphane Glondu, Mark Shinwell)
 - PR#6439: Don't use the deprecated [getpagesize] function
@@ -168,6 +170,9 @@ Bug fixes:
   (Damien Doligez)
 - PR#5820: Fix camlp4 lexer roll back problem
   (Hongbo Zhang)
+- PR#6038: on x86-32, enforce 16-byte stack alignment for compatibility
+  with recent GCC and Clang.  Win32/MSVC keeps 4-byte stack alignment.
+  (Xavier Leroy)
 - PR#6062: Fix a regression bug caused by commit 13047
   (Hongbo Zhang, report by Christophe Troestler)
 - PR#6109: Typos in ocamlbuild error messages
@@ -188,6 +193,9 @@ Bug fixes:
   (Jacques-Pascal Deplaix)
 - PR#6194: Incorrect unused warning with first-class modules in patterns
   (Jacques Garrigue, report by Markus Mottl and Leo White)
+- PR#6211: in toplevel interactive use, bad interaction between uncaught
+  exceptions and multiple bindings of the form "let x = a let y = b;;".
+  (Xavier Leroy)
 - PR#6216: inlining of GADT matches generates invalid assembly
   (Xavier Leroy and Alain Frisch, report by Mark Shinwell)
 - PR#6233: out-of-bounds exceptions lose their locations on ARM, PowerPC
@@ -208,6 +216,8 @@ Bug fixes:
   (Alain Frisch and Leo White)
 - PR#6267: more information printed by "bt" command of ocamldebug
   (Josh Watzman)
+- PR#6268: -DMODEL_$(MODEL) not passed when building asmrun/arm.p.o
+  (Peter Michael Green)
 - PR#6273: fix Sys.file_exists on large files (Win32)
   (Christoph Bauer)
 - PR#6275: Soundness bug related to type constraints
@@ -255,8 +265,6 @@ Features wishes:
 - PR#4323: have "of_string" in Num and Big_int work with binary and
            hex representations
   (Zoe Paraskevopoulou, review by Gabriel Scherer)
-- PR#5547: Enable the "-use-ocamlfind" option by default
-  (Wojciech Meyer)
 - PR#5650: Camlp4FoldGenerator doesn't handle well "abstract" types
   (Hongbo Zhang)
 - PR#5808: allow simple patterns, not just identifiers, in "let p : t = ..."
