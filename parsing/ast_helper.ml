@@ -437,6 +437,12 @@ module Cstr = struct
 end
 
 module Ns = struct
+  let empty =
+    {
+      prl_ns = None;
+      prl_imports = [];
+      prl_loc = Location.none;
+    }
   let mk ?(loc = !default_loc) nsd imp =
     {
       prl_ns = nsd;
@@ -459,7 +465,7 @@ module Ns = struct
 
   let mk_icstr ?(loc = !default_loc) cstr =
     {
-      cstr_type = cstr;
-      cstr_loc = loc;
+      imp_cstr_desc = cstr;
+      imp_cstr_loc = loc;
     }
 end

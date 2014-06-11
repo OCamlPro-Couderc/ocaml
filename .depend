@@ -139,7 +139,7 @@ typing/typemod.cmi : typing/types.cmi typing/typedtree.cmi typing/path.cmi \
     typing/includemod.cmi typing/ident.cmi typing/env.cmi \
     parsing/asttypes.cmi
 typing/typens.cmi : parsing/parsetree.cmi parsing/longident.cmi \
-    parsing/location.cmi
+    parsing/asttypes.cmi
 typing/types.cmi : typing/primitive.cmi typing/path.cmi \
     parsing/parsetree.cmi parsing/longident.cmi parsing/location.cmi \
     typing/ident.cmi parsing/asttypes.cmi
@@ -368,10 +368,10 @@ typing/typemod.cmx : utils/warnings.cmx typing/typetexp.cmx typing/types.cmx \
     typing/cmt_format.cmx utils/clflags.cmx typing/btype.cmx \
     parsing/asttypes.cmi parsing/ast_mapper.cmx typing/annot.cmi \
     typing/typemod.cmi
-typing/typens.cmo : typing/types.cmi typing/typedtree.cmi typing/path.cmi \
-    parsing/longident.cmi parsing/asttypes.cmi typing/typens.cmi
-typing/typens.cmx : typing/types.cmx typing/typedtree.cmx typing/path.cmx \
-    parsing/longident.cmx parsing/asttypes.cmi typing/typens.cmi
+typing/typens.cmo : typing/typedtree.cmi parsing/parsetree.cmi \
+    parsing/longident.cmi typing/typens.cmi
+typing/typens.cmx : typing/typedtree.cmx parsing/parsetree.cmi \
+    parsing/longident.cmx typing/typens.cmi
 typing/types.cmo : typing/primitive.cmi typing/path.cmi \
     parsing/parsetree.cmi parsing/longident.cmi parsing/location.cmi \
     typing/ident.cmi parsing/asttypes.cmi typing/types.cmi

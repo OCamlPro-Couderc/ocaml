@@ -1,9 +1,6 @@
 (* Functions used to type and elaborate namespace *)
 
-(* open Asttypes *)
-(* open Types *)
 open Longident
-(* open Path *)
 open Parsetree
 open Typedtree
 
@@ -13,52 +10,48 @@ type namespaces = namespace_env list
 
 and namespace_env =
   | Ns of string * namespace_env list
-  | Mod of string * string (* name to use * path to find it *)
+  | Mod of string * string (* name to use * path to find it/original name *)
   | Shadowed of string
 
-let add_mod : namespaces -> Longident.t -> Parsetree.constraint_desc ->
-  namespaces = fun env ns (cstr: Parsetree.constraint_desc) ->
-  let ns = flatten ns in
-  let rec step tree ns =
-    match tree, ns with
-    | _, [] ->
-        let res =
-          match cstr with
-          | Cstr_mod s -> Mod (s, s)
-          | Cstr_alias (s, al) -> Mod (al, s)
-          | Cstr_shadow (s) -> Shadowed s
-          | Cstr_wildcard -> failwith "Wildcard"
-        in
-        res, true
-    | Ns (n, sub), ns :: tl ->
-        if n = ns then
-          let sub, found =
-            List.fold_left
-              (fun (tree, found) n ->
-                 if found then (n :: tree), found
-                 else
-                   let res, found = (step n tl) in
-                   (res :: tree), found)
-              ([], false) sub in
-          Ns (n, sub), found
-        else Ns (n, sub), false
-    | _,_ -> assert false
+let print_namespace ns =
+  let rec print indent = function
+    | Shadowed m -> Format.sprintf "%s- %s as _" indent m
+    | Mod (m, n) -> Format.sprintf "%s- %s as %s" indent m n
+    | Ns (n, sub) ->
+        let indent' = Format.sprintf "%s  " indent in
+        let sub = List.map (print indent') sub in
+        Format.sprintf "%s| %s:\n%s" indent n (String.concat "\n" sub)
   in
-  let env = List.fold_left (fun acc n ->
-      let res, _ = step n ns in
-      res :: acc) [] env in
-  env
+  List.fold_left (fun acc ns -> Format.sprintf "%s\n%s" acc @@ print "" ns) "" ns
+
+let is_namespace ns = function
+  | Ns (n, sub) -> n = ns
+  | _ -> false
+
+let mod_of_cstr = function
+  | Cstr_mod s -> Mod (s, s)
+  | Cstr_alias (s, al) -> Mod (al, s)
+  | Cstr_shadow (s) -> Shadowed s
+  | Cstr_wildcard -> failwith "Wildcard: not yet implemented"
 
 let add_constraints env ns cstrs =
-  List.fold_left (fun env (cstr: Parsetree.import_constraint_item) ->
-      add_mod env ns cstr.cstr_type) env cstrs
+  let ns = flatten ns in
+  let rec step env ns =
+    match env, ns with
+    | content, [] ->
+        List.fold_left (fun acc c ->
+            mod_of_cstr (c.imp_cstr_desc) :: acc) content cstrs
+    | l, ns :: path ->
+        let l = if List.exists (is_namespace ns) l then l
+          else Ns (ns, []) :: l in
+        List.map (function
+            | Ns (n, sub) when n = ns -> Ns (n, step sub path)
+            | any -> any) l in
+  step env ns
 
-let mk_nsenv =
+let mk_nsenv imports =
   List.fold_left (fun env item ->
-      add_constraints env item.imp_namespace item.imp_cstr) []
-
-(* let mk_nsenv imports = *)
-(*   List.fold_left (add_constraints) [] imports *)
+      add_constraints env item.imp_namespace item.imp_cstr) [] imports
 
 let string_of_longident l = String.concat "." (flatten l)
 
@@ -76,6 +69,7 @@ let verify_import i check_ns_names =
   let _constraints = check_import_constraints i.imp_cstr in
   ()
 
+
 let compute_prelude prl check_ns_names =
   cu_ns :=
     begin
@@ -83,5 +77,6 @@ let compute_prelude prl check_ns_names =
       | None -> None
       | Some nd -> Some nd.ns_name
     end;
-  let _ = mk_nsenv prl.prl_imports in
+  let hierarchy = mk_nsenv prl.prl_imports in
+  Format.printf "Resulting namespace hierarchy:\n%s@." @@ print_namespace hierarchy;
   List.iter (fun i -> verify_import i check_ns_names) prl.prl_imports

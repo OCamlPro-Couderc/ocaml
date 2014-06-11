@@ -778,8 +778,8 @@ and import_constraints = import_constraint_item list
 
 and import_constraint_item =
   {
-    cstr_type: constraint_desc;
-    cstr_loc: Location.t;
+    imp_cstr_desc: constraint_desc;
+    imp_cstr_loc: Location.t;
   }
 
 and constraint_desc =

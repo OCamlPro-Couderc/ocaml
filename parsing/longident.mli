@@ -18,6 +18,7 @@ type t =
   | Lapply of t * t
 
 val flatten: t -> string list
+val first: t -> string
 val last: t -> string
 val parse: string -> t
 val string_of_longident: t -> string

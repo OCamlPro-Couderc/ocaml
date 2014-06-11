@@ -364,6 +364,7 @@ module Cstr:
 
 module Ns:
   sig
+    val empty: prelude
     val mk: ?loc:loc -> namespace_decl option -> imports -> prelude
     val mk_nsd: ?loc:loc -> Longident.t -> namespace_decl
     val mk_imp: ?loc:loc -> import_constraint_item list -> Longident.t -> import_item

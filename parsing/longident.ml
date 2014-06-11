@@ -22,6 +22,11 @@ let rec flat accu = function
 
 let flatten lid = flat [] lid
 
+let rec first = function
+    Lident s -> s
+  | Ldot (s, _) -> first s
+  | Lapply (_, _) -> Misc.fatal_error "Longident.first"
+
 let last = function
     Lident s -> s
   | Ldot(_, s) -> s
