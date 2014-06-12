@@ -290,9 +290,15 @@ let md md_type =
 let current_unit = ref ""
 
 (* Persistent structure descriptions *)
-
+(* Adding a field about namespace ? Or simply prefixing the name ?
+   -> second option does not change the type and the hashtbl, but the first
+   should be cleaner. The key of 'persistent_structures' would be a
+   (string * Longident.t) or a (string * string).
+*)
 type pers_struct =
   { ps_name: string;
+    (* ps_namespace: string; *)
+    ps_namespace: Longident.t option;
     ps_sig: signature;
     ps_comps: module_components;
     ps_crcs: (string * Digest.t option) list;
@@ -300,7 +306,8 @@ type pers_struct =
     ps_flags: pers_flags list }
 
 let persistent_structures =
-  (Hashtbl.create 17 : (string, pers_struct option) Hashtbl.t)
+  (* (Hashtbl.create 17 : (string, pers_struct option) Hashtbl.t) *)
+  (Hashtbl.create 17 : (string * Longident.t option, pers_struct option) Hashtbl.t)
 
 (* Consistency between persistent structures *)
 
@@ -328,8 +335,8 @@ let check_consistency ps =
     error (Inconsistent_import(name, auth, source))
 
 (* Reading persistent structures from .cmi files *)
-
-let read_pers_struct modname filename =
+(* CMI format should be modified then to capture the namespace information *)
+let read_pers_struct modname ?(ns=None) filename =
   let cmi = read_cmi filename in
   let name = cmi.cmi_name in
   let sign = cmi.cmi_sign in
@@ -341,6 +348,7 @@ let read_pers_struct modname filename =
                              (Mty_signature sign)
   in
   let ps = { ps_name = name;
+             ps_namespace = ns;
              ps_sig = sign;
              ps_comps = comps;
              ps_crcs = crcs;
@@ -355,13 +363,13 @@ let read_pers_struct modname filename =
       if not !Clflags.recursive_types then
         error (Need_recursive_types(ps.ps_name, !current_unit)))
     ps.ps_flags;
-  Hashtbl.add persistent_structures modname (Some ps);
+  Hashtbl.add persistent_structures (modname, ns) (Some ps);
   ps
 
-let find_pers_struct name =
+let find_pers_struct ?(ns=None) name =
   if name = "*predef*" then raise Not_found;
   let r =
-    try Some (Hashtbl.find persistent_structures name)
+    try Some (Hashtbl.find persistent_structures (name, ns))
     with Not_found -> None
   in
   match r with
@@ -369,9 +377,9 @@ let find_pers_struct name =
   | Some (Some sg) -> sg
   | None ->
       let filename =
-        try find_in_path_uncap !load_path (name ^ ".cmi")
+        try find_in_path_uncap ~ns !load_path (name ^ ".cmi")
         with Not_found ->
-          Hashtbl.add persistent_structures name None;
+          Hashtbl.add persistent_structures (name, ns) None;
           raise Not_found
       in
       read_pers_struct name filename
@@ -389,7 +397,7 @@ let reset_cache_toplevel () =
   (* Delete 'missing cmi' entries from the cache. *)
   let l =
     Hashtbl.fold
-      (fun name r acc -> if r = None then name :: acc else acc)
+      (fun (name, ns) r acc -> if r = None then (name, ns) :: acc else acc)
       persistent_structures []
   in
   List.iter (Hashtbl.remove persistent_structures) l;
@@ -931,7 +939,7 @@ let iter_env proj1 proj2 f env =
     | Functor_comps _ -> ()
   in
   Hashtbl.iter
-    (fun s pso ->
+    (fun (s, ns) pso ->
       match pso with None -> ()
       | Some ps ->
           let id = Pident (Ident.create_persistent s) in
@@ -948,7 +956,7 @@ let same_types env1 env2 =
 
 let used_persistent () =
   let r = ref Concr.empty in
-  Hashtbl.iter (fun s pso -> if pso != None then r := Concr.add s !r)
+  Hashtbl.iter (fun (s, ns) pso -> if pso != None then r := Concr.add s !r)
     persistent_structures;
   !r
 
@@ -1600,7 +1608,7 @@ let imports() =
 
 (* Save a signature to a file *)
 
-let save_signature_with_imports sg modname filename imports =
+let save_signature_with_imports ?(ns=None) sg modname filename imports =
   (*prerr_endline filename;
   List.iter (fun (name, crc) -> prerr_endline name) imports;*)
   Btype.cleanup_abbrev ();
@@ -1623,12 +1631,13 @@ let save_signature_with_imports sg modname filename imports =
         (Pident(Ident.create_persistent modname)) (Mty_signature sg) in
     let ps =
       { ps_name = modname;
+        ps_namespace = ns;
         ps_sig = sg;
         ps_comps = comps;
         ps_crcs = (cmi.cmi_name, Some crc) :: imports;
         ps_filename = filename;
         ps_flags = cmi.cmi_flags } in
-    Hashtbl.add persistent_structures modname (Some ps);
+    Hashtbl.add persistent_structures (modname, ns) (Some ps);
     Consistbl.set crc_units modname crc filename;
     imported_units := modname :: !imported_units;
     sg
@@ -1690,7 +1699,7 @@ let fold_modules f lid env acc =
           acc
       in
       Hashtbl.fold
-        (fun name ps acc ->
+        (fun (name, ns) ps acc ->
           match ps with
               None -> acc
             | Some ps ->
