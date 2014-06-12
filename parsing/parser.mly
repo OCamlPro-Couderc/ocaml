@@ -489,7 +489,7 @@ The precedences must be listed from low to high.
 /* Entry points */
 
 %start implementation                   /* for implementation files */
-%type <Parsetree.structure> implementation
+%type <Parsetree.implementation> implementation
 %start interface                        /* for interface files */
 %type <Parsetree.signature> interface
 %start toplevel_phrase                  /* for interactive use */
@@ -507,8 +507,8 @@ The precedences must be listed from low to high.
 /* Entry points */
 
 implementation:
-    prelude SEMISEMI structure EOF                { mkstr (Pstr_prelude $1) :: $3 }
-  | structure EOF                        { $1 }
+    prelude SEMISEMI structure EOF       { Pimpl ($1, $3) }
+  | structure EOF                        { Pimpl (Ns.empty, $1) }
 ;
 interface:
     signature EOF                        { $1 }

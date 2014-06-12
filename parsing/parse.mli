@@ -12,7 +12,7 @@
 
 (* Entry points in the parser *)
 
-val implementation : Lexing.lexbuf -> Parsetree.structure
+val implementation : Lexing.lexbuf -> Parsetree.implementation
 val interface : Lexing.lexbuf -> Parsetree.signature
 val toplevel_phrase : Lexing.lexbuf -> Parsetree.toplevel_phrase
 val use_file : Lexing.lexbuf -> Parsetree.toplevel_phrase list

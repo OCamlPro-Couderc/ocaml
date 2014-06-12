@@ -801,10 +801,10 @@ and structure_item =
     }
 
 and structure_item_desc =
-  | Pstr_prelude of prelude
-      (* in namespace ... with ...            (prl_ns = Some ..)
-         with ... of ... and ...              (prl_ns = None ..)
-      *)
+  (* | Pstr_prelude of prelude *)
+  (*     (\* in namespace ... with ...            (prl_ns = Some ..) *)
+  (*        with ... of ... and ...              (prl_ns = None ..) *)
+  (*     *\) *)
   | Pstr_eval of expression * attributes
         (* E *)
   | Pstr_value of rec_flag * value_binding list
@@ -855,6 +855,8 @@ and module_binding =
      pmb_loc: Location.t;
     }
 (* X = ME *)
+
+and implementation = Pimpl of prelude * structure
 
 (** {2 Toplevel} *)
 

@@ -136,6 +136,7 @@ let process_file ppf sourcefile =
            None ->
              None
          | Some (parsetree, typedtree) ->
+             let Parsetree.Pimpl(_, parsetree) = parsetree in
              let file_module = Ast_analyser.analyse_typed_tree file
                  !Location.input_name parsetree typedtree
              in

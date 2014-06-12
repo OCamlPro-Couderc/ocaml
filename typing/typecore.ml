@@ -180,8 +180,8 @@ let iter_expression f e =
 
   and structure_item str =
     match str.pstr_desc with
-    | Pstr_prelude _ ->
-        Printf.printf "Possibly wrong: Typecode.structure_item"
+    (* | Pstr_prelude _ -> *)
+    (*     Printf.printf "Possibly wrong: Typecode.structure_item" *)
     | Pstr_eval (e, _) -> expr e
     | Pstr_value (_, pel) -> List.iter binding pel
     | Pstr_primitive _

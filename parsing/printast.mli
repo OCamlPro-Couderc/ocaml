@@ -14,7 +14,7 @@ open Parsetree;;
 open Format;;
 
 val interface : formatter -> signature_item list -> unit;;
-val implementation : formatter -> structure_item list -> unit;;
+val implementation : formatter -> implementation -> unit;;
 val top_phrase : formatter -> toplevel_phrase -> unit;;
 
 val expression: int -> formatter -> expression -> unit

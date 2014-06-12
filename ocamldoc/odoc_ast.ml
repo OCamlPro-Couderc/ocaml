@@ -1673,7 +1673,7 @@ module Analyser =
             }
           in
           (0, env, [ Element_included_module im ]) (* A VOIR : etendre l'environnement ? avec quoi ? *)
-      | Parsetree.Pstr_prelude _ -> failwith "Not implemented"
+      (* | Parsetree.Pstr_prelude _ -> failwith "Not implemented" *)
 
      (** Analysis of a [Parsetree.module_expr] and a name to return a [t_module].*)
      and analyse_module env current_module_name module_name comment_opt p_module_expr tt_module_expr =

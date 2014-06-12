@@ -1026,7 +1026,7 @@ class printer  ()= object(self:'self)
 
   method structure_item f x = begin
     match x.pstr_desc with
-    | Pstr_prelude _ -> failwith "Not implemented: Pprintast.printer#structure_item"
+    (* | Pstr_prelude _ -> failwith "Not implemented: Pprintast.printer#structure_item" *)
     | Pstr_eval (e, _attrs) ->
         pp f "@[<hov2>let@ _ =@ %a@]" self#expression e
     | Pstr_type [] -> assert false
@@ -1304,3 +1304,4 @@ let core_type=default#core_type
 let pattern=default#pattern
 let signature=default#signature
 let structure=default#structure
+let implementation fmt (Pimpl (_, str)) = structure fmt str

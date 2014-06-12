@@ -1191,20 +1191,20 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr scope =
 
   let type_str_item env srem {pstr_loc = loc; pstr_desc = desc} =
     match desc with
-    | Pstr_prelude prl ->
-        Typens.compute_prelude prl (check_name "module" module_names);
-        (* TODO:
-           - set the namespace.
-           - check for each import:
-             - if the namespace exists (i.e. there is a directory for this
-             namespace).
-             - if the modules declared exist.
-           - adds each module into the environment.
+    (* | Pstr_prelude prl -> *)
+    (*     Typens.compute_prelude prl (check_name "module" module_names); *)
+    (*     (\* TODO: *)
+    (*        - set the namespace. *)
+    (*        - check for each import: *)
+    (*          - if the namespace exists (i.e. there is a directory for this *)
+    (*          namespace). *)
+    (*          - if the modules declared exist. *)
+    (*        - adds each module into the environment. *)
 
-           For the version with first-order namespaces -> elaborate namespaces
-           into modules.
-        *)
-        failwith "Not implemented: Typemod.type_structure"
+    (*        For the version with first-order namespaces -> elaborate namespaces *)
+    (*        into modules. *)
+    (*     *\) *)
+    (*     failwith "Not implemented: Typemod.type_structure" *)
     | Pstr_eval (sexpr, attrs) ->
         let expr = Typecore.type_expression env sexpr in
         Tstr_eval (expr, attrs), [], env
@@ -1566,10 +1566,12 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
   Env.reset_required_globals ();
   begin
     let map = Typetexp.emit_external_warnings in
-    ignore (map.Ast_mapper.structure map ast)
+    ignore (map.Ast_mapper.implementation map ast)
   end;
 
+  let Pimpl (prl, ast) = ast in
   let (str, sg, finalenv) =
+    (* let prl = *)
     type_structure initial_env ast (Location.in_file sourcefile) in
   let simple_sg = simplify_signature sg in
   if !Clflags.print_types then begin

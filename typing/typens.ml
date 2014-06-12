@@ -73,41 +73,52 @@ let check_import_constraints cstr =
 *)
 
 let mk_prefixed ns m =
+  let flatten = function
+    | None -> []
+    | Some l -> Longident.flatten l in
   String.capitalize @@
   String.concat "_" @@
   List.map (String.uncapitalize) @@ flatten ns @ [String.uncapitalize m]
 
-let rec elaborate_imports ns = function
-  | Mod (al, m) ->
-      let md =
-        {
-          pmod_desc = Pmod_ident (mknoloc (Lident (mk_prefixed ns m)));
-          pmod_loc = Location.none;
-          pmod_attributes = [];
-        } in
-      Pstr_module {
-        pmb_name = al;
-        pmb_attributes = [];
-        pmb_expr = md;
-        pmb_loc = Location.none;
-      }
-  | Ns (n, sub) ->
-      let ns = Ldot (ns, n.txt) in
-      let str = List.map (fun r ->
-          { pstr_desc = elaborate_imports ns r; pstr_loc = Location.none}) sub in
-      let md =
-        {
-          pmod_desc = Pmod_structure str;
-          pmod_loc = Location.none;
-          pmod_attributes = [];
-        } in
-      Pstr_module {
-        pmb_name = n;
-        pmb_attributes = [];
-        pmb_expr = md;
-        pmb_loc = Location.none;
-      }
-  | _ -> assert false
+let update_ns ns sub =
+  match ns with
+    None -> Some (Lident sub.txt)
+  | Some ns -> Some (Ldot (ns, sub.txt))
+
+let elaborate_import h =
+  let rec compute ns = function
+    | Mod (al, m) ->
+        let md =
+          {
+            pmod_desc = Pmod_ident (mknoloc (Lident (mk_prefixed ns m)));
+            pmod_loc = Location.none;
+            pmod_attributes = [];
+          } in
+        Pstr_module {
+          pmb_name = al;
+          pmb_attributes = [];
+          pmb_expr = md;
+          pmb_loc = Location.none;
+        }
+    | Ns (n, sub) ->
+        let ns = update_ns ns n in
+        let str = List.map (fun r ->
+            { pstr_desc = compute ns r; pstr_loc = Location.none}) sub in
+        let md =
+          {
+            pmod_desc = Pmod_structure str;
+            pmod_loc = Location.none;
+            pmod_attributes = [];
+          } in
+        Pstr_module {
+          pmb_name = n;
+          pmb_attributes = [];
+          pmb_expr = md;
+          pmb_loc = Location.none;
+        }
+    | _ -> assert false
+  in
+  compute None h
 
 let verify_import i check_ns_names =
   check_namespace_availability i.imp_namespace i.imp_loc check_ns_names;
@@ -115,7 +126,7 @@ let verify_import i check_ns_names =
   ()
 
 
-let compute_prelude prl check_names =
+let compute_prelude prl =
   cu_ns :=
     begin
       match prl.prl_ns with
@@ -123,7 +134,7 @@ let compute_prelude prl check_names =
       | Some nd -> Some nd.ns_name
     end;
   let hierarchy = mk_nsenv prl.prl_imports in
-  ()
+  List.map elaborate_import hierarchy
   (* Namespaces and modules share the same namespace *)
   (* List.iter *)
   (*   (function Ns (n, _) | Mod (n, _) -> check_names n *)

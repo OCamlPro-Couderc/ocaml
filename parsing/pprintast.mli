@@ -129,4 +129,5 @@ val core_type: Format.formatter -> Parsetree.core_type -> unit
 val pattern: Format.formatter -> Parsetree.pattern -> unit
 val signature: Format.formatter -> Parsetree.signature -> unit
 val structure: Format.formatter -> Parsetree.structure -> unit
+val implementation: Format.formatter -> Parsetree.implementation -> unit
 val string_of_structure: Parsetree.structure -> string

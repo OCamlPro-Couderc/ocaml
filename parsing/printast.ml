@@ -738,7 +738,7 @@ and structure_item i ppf x =
   line i ppf "structure_item %a\n" fmt_location x.pstr_loc;
   let i = i+1 in
   match x.pstr_desc with
-  | Pstr_prelude _ -> failwith "Not implemented: Printast.structure_item"
+  (* | Pstr_prelude _ -> failwith "Not implemented: Printast.structure_item" *)
   | Pstr_eval (e, attrs) ->
       line i ppf "Pstr_eval\n";
       attributes i ppf attrs;
@@ -883,6 +883,6 @@ and directive_argument i ppf x =
 
 let interface ppf x = list 0 signature_item ppf x;;
 
-let implementation ppf x = list 0 structure_item ppf x;;
+let implementation ppf (Pimpl (_, x)) = list 0 structure_item ppf x;;
 
 let top_phrase ppf x = toplevel_phrase 0 ppf x;;

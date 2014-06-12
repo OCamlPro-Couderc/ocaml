@@ -24,7 +24,7 @@ val type_toplevel_phrase:
         Env.t -> Parsetree.structure ->
          Typedtree.structure * Types.signature * Env.t
 val type_implementation:
-  string -> string -> string -> Env.t -> Parsetree.structure ->
+  string -> string -> string -> Env.t -> Parsetree.implementation ->
   Typedtree.structure * Typedtree.module_coercion
 val type_interface:
         Env.t -> Parsetree.signature -> Typedtree.signature

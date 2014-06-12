@@ -68,7 +68,7 @@ let implementation ppf sourcefile outputprefix =
     then
       ast
       ++ print_if ppf Clflags.dump_parsetree Printast.implementation
-      ++ print_if ppf Clflags.dump_source Pprintast.structure
+      ++ print_if ppf Clflags.dump_source Pprintast.implementation
       ++ Typemod.type_implementation sourcefile outputprefix modulename env
       ++ print_if ppf Clflags.dump_typedtree
           Printtyped.implementation_with_coercion
@@ -76,7 +76,7 @@ let implementation ppf sourcefile outputprefix =
     else begin
       ast
       ++ print_if ppf Clflags.dump_parsetree Printast.implementation
-      ++ print_if ppf Clflags.dump_source Pprintast.structure
+      ++ print_if ppf Clflags.dump_source Pprintast.implementation
       ++ Typemod.type_implementation sourcefile outputprefix modulename env
       ++ print_if ppf Clflags.dump_typedtree
           Printtyped.implementation_with_coercion
