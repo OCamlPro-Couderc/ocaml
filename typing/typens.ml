@@ -118,7 +118,10 @@ let elaborate_import h =
         }
     | _ -> assert false
   in
-  compute None h
+  {
+    pstr_desc = compute None h;
+    pstr_loc = Location.none;
+  }
 
 let verify_import i check_ns_names =
   check_namespace_availability i.imp_namespace i.imp_loc check_ns_names;

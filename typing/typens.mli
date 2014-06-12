@@ -17,8 +17,8 @@ and namespace_env =
   to use it to compute dependencies and build such an environment *)
 val mk_nsenv: Parsetree.imports -> namespaces
 
-val elaborate_import: namespace_env -> Parsetree.structure_item_desc
+val elaborate_import: namespace_env -> Parsetree.structure_item
 
 (** Checks the prelude, takes a function that add the namespaces into the
     modules names *)
-val compute_prelude: Parsetree.prelude -> Parsetree.structure_item_desc list
+val compute_prelude: Parsetree.prelude -> Parsetree.structure

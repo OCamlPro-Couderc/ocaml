@@ -1571,7 +1571,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
 
   let Pimpl (prl, ast) = ast in
   let (str, sg, finalenv) =
-    (* let prl = *)
+    let ast = Typens.compute_prelude prl @ ast in
+    let out = open_out "ast_result" in
+    Pprintast.structure (Format.formatter_of_out_channel out) ast;
+    close_out out;
     type_structure initial_env ast (Location.in_file sourcefile) in
   let simple_sg = simplify_signature sg in
   if !Clflags.print_types then begin
