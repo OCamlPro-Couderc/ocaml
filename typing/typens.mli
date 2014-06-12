@@ -8,13 +8,16 @@ val cu_ns: Longident.t option ref
 type namespaces = namespace_env list
 
 and namespace_env =
-  | Ns of string * namespace_env list
-  | Mod of string * string (* name to use * path to find it *)
-  | Shadowed of string
+  | Ns of string Asttypes.loc * namespace_env list
+  | Mod of string Asttypes.loc * string (* name to use * path to find it *)
+  | Shadowed of string Asttypes.loc
+  | Wildcard
 
 (** Builds the environment, using the prelude given. Exported to allow programs
   to use it to compute dependencies and build such an environment *)
 val mk_nsenv: Parsetree.imports -> namespaces
+
+val elaborate_imports: Parsetree.imports -> Parsetree.structure
 
 (** Checks the prelude, takes a function that add the namespaces into the
     modules names *)

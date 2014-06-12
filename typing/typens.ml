@@ -3,55 +3,58 @@
 open Longident
 open Parsetree
 open Typedtree
+open Asttypes
 
 let cu_ns = ref None
 
 type namespaces = namespace_env list
 
 and namespace_env =
-  | Ns of string * namespace_env list
-  | Mod of string * string (* name to use * path to find it/original name *)
-  | Shadowed of string
+  | Ns of string Asttypes.loc * namespace_env list
+  | Mod of string Asttypes.loc * string (* name to use * path to find it/original name *)
+  | Shadowed of string Asttypes.loc
+  | Wildcard
 
 let print_namespace ns =
   let rec print indent = function
-    | Shadowed m -> Format.sprintf "%s- %s as _" indent m
-    | Mod (m, n) -> Format.sprintf "%s- %s as %s" indent m n
+    | Shadowed m -> Format.sprintf "%s- %s as _" indent m.txt
+    | Mod (m, n) -> Format.sprintf "%s- %s as %s" indent m.txt n
     | Ns (n, sub) ->
         let indent' = Format.sprintf "%s  " indent in
         let sub = List.map (print indent') sub in
-        Format.sprintf "%s| %s:\n%s" indent n (String.concat "\n" sub)
+        Format.sprintf "%s| %s:\n%s" indent n.txt (String.concat "\n" sub)
+    | Wildcard -> Format.sprintf "%s- ..." indent
   in
   List.fold_left (fun acc ns -> Format.sprintf "%s\n%s" acc @@ print "" ns) "" ns
 
 let is_namespace ns = function
-  | Ns (n, sub) -> n = ns
+  | Ns (n, sub) -> n.txt = ns
   | _ -> false
 
-let mod_of_cstr = function
-  | Cstr_mod s -> Mod (s, s)
-  | Cstr_alias (s, al) -> Mod (al, s)
-  | Cstr_shadow (s) -> Shadowed s
+let mod_of_cstr loc = function
+  | Cstr_mod s -> Mod (mkloc s loc, s)
+  | Cstr_alias (s, al) -> Mod (mkloc al loc, s)
+  | Cstr_shadow (s) -> Shadowed (mkloc s loc)
   | Cstr_wildcard -> failwith "Wildcard: not yet implemented"
 
-let add_constraints env ns cstrs =
+let add_constraints loc env (ns: Longident.t) cstrs =
   let ns = flatten ns in
   let rec step env ns =
     match env, ns with
     | content, [] ->
         List.fold_left (fun acc c ->
-            mod_of_cstr (c.imp_cstr_desc) :: acc) content cstrs
+            mod_of_cstr (c.imp_cstr_loc) (c.imp_cstr_desc) :: acc) content cstrs
     | l, ns :: path ->
         let l = if List.exists (is_namespace ns) l then l
-          else Ns (ns, []) :: l in
+          else Ns (mkloc ns loc, []) :: l in
         List.map (function
-            | Ns (n, sub) when n = ns -> Ns (n, step sub path)
+            | Ns (n, sub) when n.txt = ns -> Ns (n, step sub path)
             | any -> any) l in
   step env ns
 
 let mk_nsenv imports =
   List.fold_left (fun env item ->
-      add_constraints env item.imp_namespace item.imp_cstr) [] imports
+      add_constraints item.imp_loc env item.imp_namespace item.imp_cstr) [] imports
 
 let string_of_longident l = String.concat "." (flatten l)
 
@@ -61,8 +64,50 @@ let check_namespace_availability ns loc check_ns_names =
 let check_import_constraints cstr =
   List.fold_left (fun tree cstr -> ()) () cstr
 
-let elaborate_imports tree =
-  ()
+(*
+   First step of elaboration: when looking for List in Core, look directly for
+   Core_list
+   Once it is working, looking for list.cmi/cmo in core directory instead
+   Finally, extend compilation units to add the possibility to link two cu with
+   the same name: i.e. add a namespace information into it
+*)
+
+let mk_prefixed ns m =
+  String.capitalize @@
+  String.concat "_" @@
+  List.map (String.uncapitalize) @@ flatten ns @ [String.uncapitalize m]
+
+let rec elaborate_imports ns = function
+  | Mod (al, m) ->
+      let md =
+        {
+          pmod_desc = Pmod_ident (mknoloc (Lident (mk_prefixed ns m)));
+          pmod_loc = Location.none;
+          pmod_attributes = [];
+        } in
+      Pstr_module {
+        pmb_name = al;
+        pmb_attributes = [];
+        pmb_expr = md;
+        pmb_loc = Location.none;
+      }
+  | Ns (n, sub) ->
+      let ns = Ldot (ns, n.txt) in
+      let str = List.map (fun r ->
+          { pstr_desc = elaborate_imports ns r; pstr_loc = Location.none}) sub in
+      let md =
+        {
+          pmod_desc = Pmod_structure str;
+          pmod_loc = Location.none;
+          pmod_attributes = [];
+        } in
+      Pstr_module {
+        pmb_name = n;
+        pmb_attributes = [];
+        pmb_expr = md;
+        pmb_loc = Location.none;
+      }
+  | _ -> assert false
 
 let verify_import i check_ns_names =
   check_namespace_availability i.imp_namespace i.imp_loc check_ns_names;
@@ -70,7 +115,7 @@ let verify_import i check_ns_names =
   ()
 
 
-let compute_prelude prl check_ns_names =
+let compute_prelude prl check_names =
   cu_ns :=
     begin
       match prl.prl_ns with
@@ -78,5 +123,11 @@ let compute_prelude prl check_ns_names =
       | Some nd -> Some nd.ns_name
     end;
   let hierarchy = mk_nsenv prl.prl_imports in
-  Format.printf "Resulting namespace hierarchy:\n%s@." @@ print_namespace hierarchy;
-  List.iter (fun i -> verify_import i check_ns_names) prl.prl_imports
+  ()
+  (* Namespaces and modules share the same namespace *)
+  (* List.iter *)
+  (*   (function Ns (n, _) | Mod (n, _) -> check_names n *)
+  (*           | Shadowed (_) | Wildcard -> ()) *)
+  (*   hierarchy; *)
+  (* Format.printf "Resulting namespace hierarchy:\n%s@." @@ print_namespace hierarchy *)
+  (* List.iter (fun i -> verify_import i check_names) prl.prl_imports *)
