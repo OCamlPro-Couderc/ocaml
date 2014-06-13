@@ -476,7 +476,7 @@ let find_type p env =
 let find_type_descrs p env =
   snd (find_type_full p env)
 
-let find_module ~alias path env =
+let find_module ~alias ns path env =
   match path with
     Pident id ->
       begin try
@@ -484,7 +484,7 @@ let find_module ~alias path env =
         in data
       with Not_found ->
         if Ident.persistent id then
-          let ps = find_pers_struct (Ident.name id) in
+          let ps = find_pers_struct ~ns (Ident.name id) in
           md (Mty_signature(ps.ps_sig))
         else raise Not_found
       end
@@ -538,7 +538,7 @@ let rec normalize_path lax env path =
         Papply(normalize_path lax env p1, normalize_path true env p2)
     | _ -> path
   in
-  try match find_module ~alias:true path env with
+  try match find_module ~alias:true None path env with
     {md_type=Mty_alias path1} ->
       let path' = normalize_path lax env path1 in
       if lax || !Clflags.transparent_modules then path' else
@@ -638,8 +638,8 @@ let rec lookup_module_descr lid env =
       end
   | Lapply(l1, l2) ->
       let (p1, desc1) = lookup_module_descr l1 env in
-      let p2 = lookup_module true l2 env in
-      let {md_type=mty2} = find_module p2 env in
+      let p2 = lookup_module true None l2 env in
+      let {md_type=mty2} = find_module None p2 env in
       begin match EnvLazy.force !components_of_module_maker' desc1 with
         Functor_comps f ->
           Misc.may (!check_modtype_inclusion env mty2 p2) f.fcomp_arg;
@@ -648,7 +648,7 @@ let rec lookup_module_descr lid env =
           raise Not_found
       end
 
-and lookup_module ~load lid env : Path.t =
+and lookup_module ~load ns lid env : Path.t =
   match lid with
     Lident s ->
       begin try
@@ -663,10 +663,10 @@ and lookup_module ~load lid env : Path.t =
       with Not_found ->
         if s = !current_unit then raise Not_found;
 	if !Clflags.transparent_modules && not load then
-	  try ignore (find_in_path_uncap !load_path (s ^ ".cmi"))
+	  try ignore (find_in_path_uncap !load_path ~ns (s ^ ".cmi"))
           with Not_found ->
 	    Location.prerr_warning Location.none (Warnings.No_cmi_file s)
-	else ignore (find_pers_struct s);
+	else ignore (find_pers_struct ~ns s);
         Pident(Ident.create_persistent s)
       end
   | Ldot(l, s) ->
@@ -680,8 +680,8 @@ and lookup_module ~load lid env : Path.t =
       end
   | Lapply(l1, l2) ->
       let (p1, desc1) = lookup_module_descr l1 env in
-      let p2 = lookup_module true l2 env in
-      let {md_type=mty2} = find_module p2 env in
+      let p2 = lookup_module true None l2 env in
+      let {md_type=mty2} = find_module None p2 env in
       let p = Papply(p1, p2) in
       begin match EnvLazy.force !components_of_module_maker' desc1 with
         Functor_comps f ->
@@ -1053,7 +1053,7 @@ let rec scrape_alias env ?path mty =
       end
   | Mty_alias path, _ ->
       begin try
-        scrape_alias env (find_module path env).md_type ~path
+        scrape_alias env (find_module None path env).md_type ~path
       with Not_found ->
         (*Location.prerr_warning Location.none
 	  (Warnings.No_cmi_file (Path.name path));*)

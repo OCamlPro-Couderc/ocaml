@@ -49,7 +49,7 @@ val find_shadowed_types: Path.t -> t -> Path.t list
 val find_value: Path.t -> t -> value_description
 val find_type: Path.t -> t -> type_declaration
 val find_type_descrs: Path.t -> t -> type_descriptions
-val find_module: Path.t -> t -> module_declaration
+val find_module: Longident.t option -> Path.t -> t -> module_declaration
 val find_modtype: Path.t -> t -> modtype_declaration
 val find_class: Path.t -> t -> class_declaration
 val find_cltype: Path.t -> t -> class_type_declaration
@@ -87,7 +87,7 @@ val lookup_label: Longident.t -> t -> label_description
 val lookup_all_labels:
   Longident.t -> t -> (label_description * (unit -> unit)) list
 val lookup_type: Longident.t -> t -> Path.t * type_declaration
-val lookup_module: load:bool -> Longident.t -> t -> Path.t
+val lookup_module: load:bool -> Longident.t option -> Longident.t -> t -> Path.t
 val lookup_modtype: Longident.t -> t -> Path.t * modtype_declaration
 val lookup_class: Longident.t -> t -> Path.t * class_declaration
 val lookup_cltype: Longident.t -> t -> Path.t * class_type_declaration

@@ -410,7 +410,7 @@ let () =
 let () =
   reg_show_prim "show_module"
     (fun env loc id lid ->
-       let path, md = Typetexp.find_module env loc lid in
+       let path, md = Typetexp.find_module env loc lid None in
        [ Sig_module (id, {md with md_type = trim_signature md.md_type},
                      Trec_not) ]
     )

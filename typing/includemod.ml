@@ -107,7 +107,7 @@ let expand_module_path env cxt path =
     raise(Error[cxt, env, Unbound_modtype_path path])
 
 let expand_module_alias env cxt path =
-  try (Env.find_module path env).md_type
+  try (Env.find_module None path env).md_type
   with Not_found ->
     raise(Error[cxt, env, Unbound_module_path path])
 

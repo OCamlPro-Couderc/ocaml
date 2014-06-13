@@ -104,7 +104,7 @@ let nondep_supertype env mid mty =
         else mty
     | Mty_alias p ->
         if Path.isfree mid p then
-          nondep_mty env va (Env.find_module p env).md_type
+          nondep_mty env va (Env.find_module None p env).md_type
         else mty
     | Mty_signature sg ->
         Mty_signature(nondep_sig env va sg)
