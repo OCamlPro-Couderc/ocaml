@@ -610,7 +610,7 @@ functor_args:
 
 module_expr:
     mod_longident
-      { mkmod(Pmod_ident (mkrhs $1 1)) }
+      { mkmod(Pmod_ident (mkrhs $1 1, None)) }
   | STRUCT structure END
       { mkmod(Pmod_structure($2)) }
   | STRUCT structure error

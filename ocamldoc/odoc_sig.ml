@@ -1022,7 +1022,7 @@ module Analyser =
                   f mt.Parsetree.pmty_desc
               | Parsetree.Pmty_typeof mexpr ->
                   begin match mexpr.Parsetree.pmod_desc with
-                    Parsetree.Pmod_ident longident -> Name.from_longident longident.txt
+                    Parsetree.Pmod_ident (longident, _) -> Name.from_longident longident.txt
                   | _ -> "??"
                   end
               | Parsetree.Pmty_extension _ -> assert false

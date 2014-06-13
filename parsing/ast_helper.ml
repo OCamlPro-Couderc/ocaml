@@ -143,7 +143,7 @@ let mk ?(loc = !default_loc) ?(attrs = []) d =
   {pmod_desc = d; pmod_loc = loc; pmod_attributes = attrs}
   let attr d a = {d with pmod_attributes = d.pmod_attributes @ [a]}
 
-  let ident ?loc ?attrs x = mk ?loc ?attrs (Pmod_ident x)
+  let ident ?loc ?attrs ns x = mk ?loc ?attrs (Pmod_ident (x, ns))
   let structure ?loc ?attrs x = mk ?loc ?attrs (Pmod_structure x)
   let functor_ ?loc ?attrs arg arg_ty body =
     mk ?loc ?attrs (Pmod_functor (arg, arg_ty, body))

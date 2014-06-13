@@ -737,7 +737,7 @@ and module_expr =
     }
 
 and module_expr_desc =
-  | Pmod_ident of Longident.t loc
+  | Pmod_ident of Longident.t loc * Longident.t loc option
         (* X *)
   | Pmod_structure of structure
         (* struct ... end *)

@@ -85,12 +85,16 @@ let update_ns ns sub =
     None -> Some (Lident sub.txt)
   | Some ns -> Some (Ldot (ns, sub.txt))
 
+let addnoloc = function
+    None -> None
+  | Some x -> Some (mknoloc x)
+
 let elaborate_import h =
   let rec compute ns = function
     | Mod (al, m) ->
         let md =
           {
-            pmod_desc = Pmod_ident (mknoloc (Lident (mk_prefixed ns m)));
+            pmod_desc = Pmod_ident (mknoloc (Lident m), addnoloc ns);
             pmod_loc = Location.none;
             pmod_attributes = [];
           } in

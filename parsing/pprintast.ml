@@ -947,7 +947,7 @@ class printer  ()= object(self:'self)
         pp f "@[<hov2>(%a@ :@ %a)@]"
           self#module_expr  me
           self#module_type mt
-    | Pmod_ident (li) ->
+    | Pmod_ident (li, _) ->
         pp f "%a" self#longident_loc li;
     | Pmod_functor (_, None, me) ->
         pp f "functor ()@;->@;%a" self#module_expr me

@@ -1710,7 +1710,7 @@ module Analyser =
       }
       in
       match (p_module_expr.Parsetree.pmod_desc, tt_module_expr.Typedtree.mod_desc) with
-        (Parsetree.Pmod_ident longident, Typedtree.Tmod_ident (path, _)) ->
+        (Parsetree.Pmod_ident (longident, _), Typedtree.Tmod_ident (path, _)) ->
           let alias_name = Odoc_env.full_module_name env (Name.from_path path) in
           { m_base with m_kind = Module_alias { ma_name = alias_name ;
                                                 ma_module = None ; } }

@@ -272,7 +272,7 @@ and add_sig_item bv item =
 
 and add_module bv modl =
   match modl.pmod_desc with
-    Pmod_ident l -> addmodule bv l
+    Pmod_ident (l, _) -> addmodule bv l
   | Pmod_structure s -> ignore (add_structure bv s)
   | Pmod_functor(id, mty, modl) ->
       Misc.may (add_modtype bv) mty;

@@ -262,7 +262,7 @@ module M = struct
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
     match desc with
-    | Pmod_ident x -> ident ~loc ~attrs (map_loc sub x)
+    | Pmod_ident (x, ns) -> ident ~loc ~attrs ns (map_loc sub x)
     | Pmod_structure str -> structure ~loc ~attrs (sub.structure sub str)
     | Pmod_functor (arg, arg_ty, body) ->
         functor_ ~loc ~attrs (map_loc sub arg)

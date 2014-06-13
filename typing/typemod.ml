@@ -1048,7 +1048,7 @@ let wrap_constraint env arg mty explicit =
 
 let rec type_module ?(alias=false) sttn funct_body anchor env smod =
   match smod.pmod_desc with
-    Pmod_ident lid ->
+    Pmod_ident (lid, _) ->
       let path =
         Typetexp.lookup_module ~load:(not alias) env smod.pmod_loc lid.txt in
       let md = { mod_desc = Tmod_ident (path, lid);
@@ -1484,7 +1484,7 @@ and normalize_signature_item env = function
 let type_module_type_of env smod =
   let tmty =
     match smod.pmod_desc with
-    | Pmod_ident lid -> (* turn off strengthening in this case *)
+    | Pmod_ident (lid, _) -> (* turn off strengthening in this case *)
         let path, md = Typetexp.find_module env smod.pmod_loc lid.txt in
         rm { mod_desc = Tmod_ident (path, lid);
              mod_type = md.md_type;
