@@ -151,6 +151,8 @@ module Options = Main_args.Make_optcomp_options (struct
   let _dstartup = set keep_startup_file
 
   let anonymous = anonymous
+
+  let _nsd = set ns_debug
 end);;
 
 let main () =

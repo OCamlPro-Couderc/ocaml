@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+let ns_debug = ref false
+
 (* Errors *)
 
 exception Fatal_error
@@ -75,7 +77,7 @@ let may_map f = function
 
 (* File functions *)
 
-let find_in_path ?(ns=None) path name =
+let find_in_path ?(subdir="") path name =
   if not (Filename.is_implicit name) then
     if Sys.file_exists name then name else raise Not_found
   else begin
@@ -87,20 +89,17 @@ let find_in_path ?(ns=None) path name =
     in try_dir path
   end
 
-let find_in_path_uncap ?(ns=None) path name =
-  (* let name = match ns with *)
-  (*   | None -> name *)
-  (*   | Some lid -> *)
-  (*       let dir = String.concat Filename.dir_sep *)
-  (*         @@ List.map String.uncapitalize *)
-  (*         @@ Longident.flatten lid in *)
-  (*       Filename.concat dir name in *)
+let find_in_path_uncap ?(subdir="") path name =
+  if !ns_debug then
+    Format.printf "find_in_path_uncap: Now looking for %s in %s@." name subdir;
   let uname = String.uncapitalize name in
   let rec try_dir = function
     [] -> raise Not_found
   | dir::rem ->
-      let fullname = Filename.concat dir name
-      and ufullname = Filename.concat dir uname in
+      let fullname = Filename.concat dir @@ Filename.concat subdir name
+      and ufullname = Filename.concat dir @@ Filename.concat subdir uname in
+      if !ns_debug then
+        Format.printf "Looking for %s or %s" fullname ufullname;
       if Sys.file_exists ufullname then ufullname
       else if Sys.file_exists fullname then fullname
       else try_dir rem

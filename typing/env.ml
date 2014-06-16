@@ -21,6 +21,14 @@ open Path
 open Types
 open Btype
 
+
+let longident_to_filepath = function
+    | None -> ""
+    | Some lid ->
+        String.concat Filename.dir_sep
+        @@ List.map String.uncapitalize
+        @@ Longident.flatten lid
+
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
 let value_declarations : ((string * Location.t), (unit -> unit)) Hashtbl.t =
@@ -32,6 +40,8 @@ let value_declarations : ((string * Location.t), (unit -> unit)) Hashtbl.t =
        cf Includemod.value_descriptions). *)
 
 let type_declarations = Hashtbl.create 16
+
+
 
 type constructor_usage = Positive | Pattern | Privatize
 type constructor_usages =
@@ -376,8 +386,9 @@ let find_pers_struct ?(ns=None) name =
   | Some None -> raise Not_found
   | Some (Some sg) -> sg
   | None ->
+      let subdir = longident_to_filepath ns in
       let filename =
-        try find_in_path_uncap ~ns !load_path (name ^ ".cmi")
+        try find_in_path_uncap ~subdir !load_path (name ^ ".cmi")
         with Not_found ->
           Hashtbl.add persistent_structures (name, ns) None;
           raise Not_found
@@ -649,6 +660,12 @@ let rec lookup_module_descr lid env =
       end
 
 and lookup_module ~load ns lid env : Path.t =
+  if !Clflags.ns_debug then begin
+    match ns with
+    | None -> ()
+    | Some ns -> Format.printf "Looking for a module in %s\n@." @@
+        Longident.string_of_longident ns
+  end;
   match lid with
     Lident s ->
       begin try
@@ -663,7 +680,8 @@ and lookup_module ~load ns lid env : Path.t =
       with Not_found ->
         if s = !current_unit then raise Not_found;
 	if !Clflags.transparent_modules && not load then
-	  try ignore (find_in_path_uncap !load_path ~ns (s ^ ".cmi"))
+	  try let subdir = longident_to_filepath ns in
+     ignore (find_in_path_uncap !load_path ~subdir (s ^ ".cmi"))
           with Not_found ->
 	    Location.prerr_warning Location.none (Warnings.No_cmi_file s)
 	else ignore (find_pers_struct ~ns s);

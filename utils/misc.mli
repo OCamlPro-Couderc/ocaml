@@ -10,6 +10,8 @@
 (*                                                                     *)
 (***********************************************************************)
 
+val ns_debug : bool ref
+
 (* Miscellaneous useful types and functions *)
 
 val fatal_error: string -> 'a
@@ -40,9 +42,9 @@ val samelist: ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
 val may: ('a -> unit) -> 'a option -> unit
 val may_map: ('a -> 'b) -> 'a option -> 'b option
 
-val find_in_path: ?ns: Longident.t option -> string list -> string -> string
+val find_in_path: ?subdir: string -> string list -> string -> string
         (* Search a file in a list of directories. *)
-val find_in_path_uncap: ?ns: Longident.t option -> string list -> string -> string
+val find_in_path_uncap: ?subdir: string -> string list -> string -> string
         (* Same, but search also for uncapitalized name, i.e.
            if name is Foo.ml, allow /path/Foo.ml and /path/foo.ml
            to match. *)

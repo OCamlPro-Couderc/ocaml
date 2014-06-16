@@ -104,6 +104,8 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _dlambda = option "-dlambda"
   let _dinstr = option "-dinstr"
   let anonymous = process_file
+
+  let _nsd = option "-nsd"
 end);;
 
 let add_profarg s =

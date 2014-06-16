@@ -451,6 +451,10 @@ let mk__ f =
   "<file>  Treat <file> as a file name (even if it starts with `-')"
 ;;
 
+let mk_nsd f =
+  "-nsd", Arg.Unit f, "(undocumented)"
+;;
+
 module type Common_options = sig
   val _absname : unit -> unit
   val _I : string -> unit
@@ -474,6 +478,8 @@ module type Common_options = sig
   val _w : string -> unit
   val _warn_error : string -> unit
   val _warn_help : unit -> unit
+
+  val _nsd : unit -> unit
 
   val _dsource : unit -> unit
   val _dparsetree : unit -> unit
@@ -660,6 +666,8 @@ struct
     mk_where F._where;
     mk__ F.anonymous;
 
+    mk_nsd F._nsd;
+
     mk_nopervasives F._nopervasives;
     mk_use_prims F._use_prims;
     mk_dsource F._dsource;
@@ -773,6 +781,8 @@ struct
     mk_where F._where;
     mk__ F.anonymous;
 
+    mk_nsd F._nsd;
+
     mk_nopervasives F._nopervasives;
     mk_dsource F._dsource;
     mk_dparsetree F._dparsetree;
@@ -830,6 +840,8 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_warn_error F._warn_error;
     mk_warn_help F._warn_help;
     mk__ F.anonymous;
+
+    mk_nsd F._nsd;
 
     mk_dsource F._dsource;
     mk_dparsetree F._dparsetree;
