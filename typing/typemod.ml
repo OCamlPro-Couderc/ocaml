@@ -1676,7 +1676,7 @@ let package_units initial_env objfiles cmifile modulename =
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
-         (modname, None, Env.read_signature modname (pref ^ ".cmi")))
+         (modname, failwith "Namespace of signature ?", Env.read_signature modname (pref ^ ".cmi")))
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
