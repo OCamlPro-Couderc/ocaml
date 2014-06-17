@@ -343,7 +343,7 @@ let check_consistency ps =
       (fun (name, ns, crco) ->
          match crco with
             None -> ()
-          | Some crc -> let ns = optstring ns in
+          | Some crc -> let ns = string_of_longident ns in
               Consistbl.check crc_units name ns crc ps.ps_filename)
       ps.ps_crcs
   with Consistbl.Inconsistency(name, source, auth) ->
@@ -1615,12 +1615,11 @@ let read_signature ?(ns=None) modname filename =
 
 (* Return the CRC of the interface of the given compilation unit *)
 
-let crc_of_unit name ns =
-  let ps = find_pers_struct name ~ns in
+let crc_of_unit name =
+  let ps = find_pers_struct name in
   let crco =
     try
-      let _, _, crco = List.find (fun (n, ns', _) -> n = name && ns' = ns) ps.ps_crcs in
-      crco
+      List.assoc name ps.ps_crcs
     with Not_found ->
       assert false
   in
@@ -1633,10 +1632,7 @@ let crc_of_unit name ns =
 let imports() =
   if !Clflags.ns_debug then
     Format.printf "Env.imports to modify to add ns information for each import@.";
-  let imported_units =
-    List.map (fun (name, ns) -> name, optstring ns) !imported_units in
-  List.map (fun (name, ns, crc) -> name, from_optstring ns, crc) @@
-  Consistbl.extract imported_units crc_units
+  Consistbl.extract !imported_units crc_units
 
 (* Save a signature to a file *)
 
@@ -1653,7 +1649,6 @@ let save_signature_with_imports ?(ns=None) sg modname filename imports =
   try
     let cmi = {
       cmi_name = modname;
-      cmi_namespace = ns;
       cmi_sign = sg;
       cmi_crcs = imports;
       cmi_flags = if !Clflags.recursive_types then [Rectypes] else [];
@@ -1670,12 +1665,12 @@ let save_signature_with_imports ?(ns=None) sg modname filename imports =
         ps_namespace = ns;
         ps_sig = sg;
         ps_comps = comps;
-        ps_crcs = (cmi.cmi_name, ns, Some crc) :: imports;
+        ps_crcs = (cmi.cmi_name, Some crc) :: imports;
         ps_filename = filename;
         ps_flags = cmi.cmi_flags } in
     Hashtbl.add persistent_structures (modname, ns) (Some ps);
-    Consistbl.set crc_units modname (optstring ns) crc filename;
-    imported_units := (modname, ns) :: !imported_units;
+    Consistbl.set crc_units modname crc filename;
+    imported_units := modname :: !imported_units;
     sg
   with exn ->
     close_out oc;
