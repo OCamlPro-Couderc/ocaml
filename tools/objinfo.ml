@@ -36,13 +36,18 @@ let input_stringlist ic len =
 
 let dummy_crc = String.make 32 '-'
 
-let print_name_crc (name, crco) =
+let print_name_crc (name, ns, crco) =
   let crc =
     match crco with
       None -> dummy_crc
     | Some crc -> Digest.to_hex crc
   in
-    printf "\t%s\t%s\n" crc name
+  let ns =
+    match ns with
+      None -> "ROOT"
+    | Some ns -> Longident.string_of_longident ns
+  in
+  printf "\t%s\t%s (in %s)\n" crc name ns
 
 let print_line name =
   printf "\t%s\n" name

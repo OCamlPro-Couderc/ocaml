@@ -158,7 +158,7 @@ let scan_file obj_name tolink =
 (* Consistency check between interfaces *)
 
 let crc_interfaces = Consistbl.create ()
-let interfaces = ref ([] : string list)
+let interfaces = ref ([] : (string * Longident.t option) list)
 let implementations_defined = ref ([] : (string * string) list)
 
 let check_consistency ppf file_name cu =
@@ -167,7 +167,7 @@ let check_consistency ppf file_name cu =
   begin try
     List.iter
       (fun (name, ns, crco) ->
-        interfaces := name :: !interfaces;
+        interfaces := (name, ns) :: !interfaces;
         match crco with
           None -> ()
         | Some crc ->
@@ -193,10 +193,14 @@ let check_consistency ppf file_name cu =
     (cu.cu_name, file_name) :: !implementations_defined
 
 let extract_crc_interfaces () =
+  let interfaces = List.map (fun (name, ns) ->
+      match ns with
+        None -> name, None
+      | Some ns -> name, Some (Longident.string_of_longident ns)) !interfaces in
   List.map (fun (name, ns, crc) -> match ns with
         None -> name, None, crc
       | Some ns -> name, Some (Longident.parse ns), crc) @@
-  Consistbl.extract !interfaces crc_interfaces
+  Consistbl.extract interfaces crc_interfaces
 
 let clear_crc_interfaces () =
   Consistbl.clear crc_interfaces;
