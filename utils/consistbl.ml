@@ -12,7 +12,7 @@
 
 (* Consistency tables: for checking consistency of module CRCs *)
 
-type t = ((string * string option), Digest.t * string) Hashtbl.t
+type t = (string, Digest.t * string) Hashtbl.t
 
 let create () = Hashtbl.create 13
 
@@ -22,45 +22,45 @@ exception Inconsistency of string * string * string
 
 exception Not_available of string
 
-let check tbl name ns crc source =
+let check tbl name crc source =
   try
-    let (old_crc, old_source) = Hashtbl.find tbl (name, ns) in
+    let (old_crc, old_source) = Hashtbl.find tbl name in
     if crc <> old_crc then raise(Inconsistency(name, source, old_source))
   with Not_found ->
-    Hashtbl.add tbl (name, ns) (crc, source)
+    Hashtbl.add tbl name (crc, source)
 
-let check_noadd tbl name ns crc source =
+let check_noadd tbl name crc source =
   try
-    let (old_crc, old_source) = Hashtbl.find tbl (name, ns) in
+    let (old_crc, old_source) = Hashtbl.find tbl name in
     if crc <> old_crc then raise(Inconsistency(name, source, old_source))
   with Not_found ->
     raise (Not_available name)
 
-let set tbl name ns crc source = Hashtbl.add tbl (name, ns) (crc, source)
+let set tbl name crc source = Hashtbl.add tbl name (crc, source)
 
-let source tbl name ns = snd (Hashtbl.find tbl (name, ns))
+let source tbl name = snd (Hashtbl.find tbl name)
 
 let extract l tbl =
   List.fold_left
-    (fun assc (name, ns) ->
+    (fun assc name ->
      try
-       ignore (List.find (fun (name', ns', _) -> name' = name && ns' = ns) assc);
+       ignore (List.assoc name assc);
        assc
      with Not_found ->
        try
-         let (crc, _) = Hashtbl.find tbl (name, ns) in
-           (name, ns, Some crc) :: assc
+         let (crc, _) = Hashtbl.find tbl name in
+           (name, Some crc) :: assc
        with Not_found ->
-         (name, ns, None) :: assc)
+         (name, None) :: assc)
     [] l
 
 let filter p tbl =
   let to_remove = ref [] in
   Hashtbl.iter
-    (fun (name, ns) (crc, auth) ->
-      if not (p (name, ns)) then to_remove := (name, ns) :: !to_remove)
+    (fun name (crc, auth) ->
+      if not (p name) then to_remove := name :: !to_remove)
     tbl;
   List.iter
-    (fun (name, ns) ->
-       while Hashtbl.mem tbl (name, ns) do Hashtbl.remove tbl (name, ns) done)
+    (fun name ->
+       while Hashtbl.mem tbl name do Hashtbl.remove tbl name done)
     !to_remove

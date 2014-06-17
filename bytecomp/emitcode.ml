@@ -360,7 +360,7 @@ let rec emit = function
 
 (* Emission to a file *)
 
-let to_file outchan ?(ns=None) unit_name code =
+let to_file outchan unit_name code =
   init();
   output_string outchan cmo_magic_number;
   let pos_depl = pos_out outchan in
@@ -378,7 +378,6 @@ let to_file outchan ?(ns=None) unit_name code =
       (0, 0) in
   let compunit =
     { cu_name = unit_name;
-      cu_namespace = ns;
       cu_pos = pos_code;
       cu_codesize = !out_position;
       cu_reloc = List.rev !reloc_info;

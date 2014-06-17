@@ -14,9 +14,8 @@ type pers_flags = Rectypes
 
 type cmi_infos = {
     cmi_name : string;
-    cmi_namespace : Longident.t option;
     cmi_sign : Types.signature_item list;
-    cmi_crcs : (string * Longident.t option * Digest.t option) list;
+    cmi_crcs : (string * Digest.t option) list;
     cmi_flags : pers_flags list;
 }
 

@@ -162,21 +162,16 @@ let interfaces = ref ([] : string list)
 let implementations_defined = ref ([] : (string * string) list)
 
 let check_consistency ppf file_name cu =
-  if !Clflags.ns_debug then
-    Format.printf "Bytelink.check_consistency: ns arg of imports unused@.";
   begin try
     List.iter
-      (fun (name, ns, crco) ->
+      (fun (name, crco) ->
         interfaces := name :: !interfaces;
         match crco with
           None -> ()
         | Some crc ->
-            let ns = match ns with
-                None -> None
-              | Some ns -> Some (Longident.string_of_longident ns) in
             if name = cu.cu_name
-            then Consistbl.set crc_interfaces name ns crc file_name
-            else Consistbl.check crc_interfaces name ns crc file_name)
+            then Consistbl.set crc_interfaces name crc file_name
+            else Consistbl.check crc_interfaces name crc file_name)
       cu.cu_imports
   with Consistbl.Inconsistency(name, user, auth) ->
     raise(Error(Inconsistent_import(name, user, auth)))
@@ -193,9 +188,6 @@ let check_consistency ppf file_name cu =
     (cu.cu_name, file_name) :: !implementations_defined
 
 let extract_crc_interfaces () =
-  List.map (fun (name, ns, crc) -> match ns with
-        None -> name, None, crc
-      | Some ns -> name, Some (Longident.parse ns), crc) @@
   Consistbl.extract !interfaces crc_interfaces
 
 let clear_crc_interfaces () =

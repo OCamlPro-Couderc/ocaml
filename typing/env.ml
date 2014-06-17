@@ -307,10 +307,11 @@ let current_unit = ref ""
 *)
 type pers_struct =
   { ps_name: string;
+    (* ps_namespace: string; *)
     ps_namespace: Longident.t option;
     ps_sig: signature;
     ps_comps: module_components;
-    ps_crcs: (string * Longident.t option * Digest.t option) list;
+    ps_crcs: (string * Digest.t option) list;
     ps_filename: string;
     ps_flags: pers_flags list }
 
@@ -324,7 +325,7 @@ let crc_units = Consistbl.create()
 let imported_units =
   if !Clflags.ns_debug then
     Format.printf "Env.imported_units: add namespace information@.";
-  ref ([] : (string * Longident.t option) list)
+  ref ([] : string list)
 
 let clear_imports () =
   Consistbl.clear crc_units;
@@ -334,17 +335,16 @@ let add_imports ps =
   if !Clflags.ns_debug then
     Format.printf "Env.add_imports to modifiy@.";
   List.iter
-    (fun (name, ns, _) -> imported_units := (name, ns) :: !imported_units)
+    (fun (name, _) -> imported_units := name :: !imported_units)
     ps.ps_crcs
 
 let check_consistency ps =
   try
     List.iter
-      (fun (name, ns, crco) ->
+      (fun (name, crco) ->
          match crco with
             None -> ()
-          | Some crc -> let ns = string_of_longident ns in
-              Consistbl.check crc_units name ns crc ps.ps_filename)
+          | Some crc -> Consistbl.check crc_units name crc ps.ps_filename)
       ps.ps_crcs
   with Consistbl.Inconsistency(name, source, auth) ->
     error (Inconsistent_import(name, auth, source))
@@ -354,19 +354,16 @@ let check_consistency ps =
 let read_pers_struct ?(ns=None) modname filename : pers_struct =
   let cmi = read_cmi filename in
   let name = cmi.cmi_name in
-  let cmi_ns = cmi.cmi_namespace in
   let sign = cmi.cmi_sign in
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
-  if cmi_ns <> ns then
-    failwith "Cmi used a different namespace than where it has been found";
   let comps =
       !components_of_module' empty Subst.identity
                              (Pident(Ident.create_persistent name))
                              (Mty_signature sign)
   in
   let ps = { ps_name = name;
-             ps_namespace = cmi_ns;
+             ps_namespace = ns;
              ps_sig = sign;
              ps_comps = comps;
              ps_crcs = crcs;

@@ -202,8 +202,6 @@ let build_global_target oc target_name members mapping pos coercion =
 (* Build the .cmo file obtained by packaging the given .cmo files. *)
 
 let package_object_files ppf files targetfile targetname coercion =
-  if !Clflags.ns_debug then
-    Format.printf "Bytepackager.package_object_file not yet used@.";
   let members =
     map_left_right read_member_info files in
   let unit_names =
@@ -230,16 +228,15 @@ let package_object_files ppf files targetfile targetname coercion =
     let pos_final = pos_out oc in
     let imports =
       List.filter
-        (fun (name, ns, crc) -> not (List.mem name unit_names))
+        (fun (name, crc) -> not (List.mem name unit_names))
         (Bytelink.extract_crc_interfaces()) in
     let compunit =
       { cu_name = targetname;
-        cu_namespace = None;
         cu_pos = pos_code;
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev !relocs;
         cu_imports =
-          (targetname, None, Some (Env.crc_of_unit targetname)) :: imports;
+          (targetname, Some (Env.crc_of_unit targetname)) :: imports;
         cu_primitives = !primitives;
         cu_force_link = !force_link;
         cu_debug = if pos_final > pos_debug then pos_debug else 0;

@@ -15,10 +15,9 @@
 open Cmo_format
 open Instruct
 
-val to_file: out_channel -> ?ns: Longident.t option -> string -> instruction list -> unit
+val to_file: out_channel -> string -> instruction list -> unit
         (* Arguments:
              channel on output file
-             optional: namespace of compilation unit implemented
              name of compilation unit implemented
              list of instructions to emit *)
 val to_memory: instruction list -> instruction list ->
