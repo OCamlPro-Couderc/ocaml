@@ -322,13 +322,18 @@ let persistent_structures =
 (* Consistency between persistent structures *)
 
 let crc_units = Consistbl.create()
-let imported_units = ref ([] : string list)
+let imported_units =
+  if !Clflags.ns_debug then
+    Format.printf "Env.imported_units: add namespace information@.";
+  ref ([] : string list)
 
 let clear_imports () =
   Consistbl.clear crc_units;
   imported_units := []
 
 let add_imports ps =
+  if !Clflags.ns_debug then
+    Format.printf "Env.add_imports to modifiy@.";
   List.iter
     (fun (name, _) -> imported_units := name :: !imported_units)
     ps.ps_crcs
@@ -346,7 +351,7 @@ let check_consistency ps =
 
 (* Reading persistent structures from .cmi files *)
 (* CMI format should be modified then to capture the namespace information *)
-let read_pers_struct modname ?(ns=None) filename =
+let read_pers_struct ?(ns=None) modname filename : pers_struct =
   let cmi = read_cmi filename in
   let name = cmi.cmi_name in
   let sign = cmi.cmi_sign in
@@ -393,7 +398,7 @@ let find_pers_struct ?(ns=None) name =
           Hashtbl.add persistent_structures (name, ns) None;
           raise Not_found
       in
-      read_pers_struct name filename
+      read_pers_struct ~ns name filename
 
 let reset_cache () =
   current_unit := "";
@@ -1601,8 +1606,8 @@ let open_signature ?(loc = Location.none) ?(toplevel = false) ovf root sg env =
 
 (* Read a signature from a file *)
 
-let read_signature modname filename =
-  let ps = read_pers_struct modname filename in
+let read_signature ?(ns=None) modname filename =
+  let ps = read_pers_struct ~ns modname filename in
   ps.ps_sig
 
 (* Return the CRC of the interface of the given compilation unit *)
@@ -1622,6 +1627,8 @@ let crc_of_unit name =
 (* Return the list of imported interfaces with their CRCs *)
 
 let imports() =
+  if !Clflags.ns_debug then
+    Format.printf "Env.imports to modify to add ns information for each import@.";
   Consistbl.extract !imported_units crc_units
 
 (* Save a signature to a file *)
@@ -1631,6 +1638,9 @@ let save_signature_with_imports ?(ns=None) sg modname filename imports =
   List.iter (fun (name, crc) -> prerr_endline name) imports;*)
   Btype.cleanup_abbrev ();
   Subst.reset_for_saving ();
+  if !Clflags.ns_debug then
+    Format.printf "save_signature_with_imports: filename already contains the\
+  namespace folder?@.";
   let sg = Subst.signature (Subst.for_saving Subst.identity) sg in
   let oc = open_out_bin filename in
   try
@@ -1664,8 +1674,8 @@ let save_signature_with_imports ?(ns=None) sg modname filename imports =
     remove_file filename;
     raise exn
 
-let save_signature sg modname filename =
-  save_signature_with_imports sg modname filename (imports())
+let save_signature ?(ns=None) sg modname filename =
+  save_signature_with_imports ~ns sg modname filename (imports())
 
 (* Folding on environments *)
 

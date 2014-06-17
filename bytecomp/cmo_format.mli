@@ -24,11 +24,16 @@ type reloc_info =
 
 type compilation_unit =
   { cu_name: string;                    (* Name of compilation unit *)
+    (* cu_namespace: string; *)         (* Namespace of compilation unit *)
     mutable cu_pos: int;                (* Absolute position in file *)
     cu_codesize: int;                   (* Size of code block *)
     cu_reloc: (reloc_info * int) list;  (* Relocation information *)
     cu_imports:
       (string * Digest.t option) list; (* Names and CRC of intfs imported *)
+    (* cu_imports:
+         (string * string * Digest.t option) list *)
+                                        (* Names with namespace and CRC of intfs
+                                           imported *)
     cu_primitives: string list;         (* Primitives declared inside *)
     mutable cu_force_link: bool;        (* Must be linked even if unref'ed *)
     mutable cu_debug: int;              (* Position of debugging info, or 0 *)

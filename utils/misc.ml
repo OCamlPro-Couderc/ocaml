@@ -99,7 +99,7 @@ let find_in_path_uncap ?(subdir="") path name =
       let fullname = Filename.concat dir @@ Filename.concat subdir name
       and ufullname = Filename.concat dir @@ Filename.concat subdir uname in
       if !ns_debug then
-        Format.printf "Looking for %s or %s" fullname ufullname;
+        Format.printf "Looking for %s or %s@." fullname ufullname;
       if Sys.file_exists ufullname then ufullname
       else if Sys.file_exists fullname then fullname
       else try_dir rem

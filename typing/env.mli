@@ -148,9 +148,9 @@ val set_unit_name: string -> unit
 
 (* Read, save a signature to/from a file *)
 
-val read_signature: string -> string -> signature
+val read_signature: ?ns: Longident.t option -> string -> string -> signature
         (* Arguments: module name, file name. Results: signature. *)
-val save_signature: signature -> string -> string -> signature
+val save_signature: ?ns: Longident.t option -> signature -> string -> string -> signature
         (* Arguments: signature, module name, file name. *)
 val save_signature_with_imports:
     ?ns: Longident.t option -> signature -> string -> string -> (string * Digest.t option) list -> signature
