@@ -14,7 +14,10 @@ type pers_flags = Rectypes
 
 type cmi_infos = {
     cmi_name : string;
+    (* cmi_namespace : ? *)
     cmi_sign : Types.signature_item list;
+    (* Adding the namespace information for each imported unit ? A string
+    option ? A longident option ? *)
     cmi_crcs : (string * Digest.t option) list;
     cmi_flags : pers_flags list;
 }
