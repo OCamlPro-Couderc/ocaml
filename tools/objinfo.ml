@@ -98,9 +98,14 @@ let print_general_infos name crc defines cmi cmx =
 
 open Cmx_format
 
+let add_ns_info =
+  List.map (fun (n, crc) -> n, None, crc)
+
 let print_cmx_infos (ui, crc) =
+  let imports = add_ns_info ui.ui_imports_cmi in
+  let imports_cmx = add_ns_info ui.ui_imports_cmx in
   print_general_infos
-    ui.ui_name crc ui.ui_defines ui.ui_imports_cmi ui.ui_imports_cmx;
+    ui.ui_name crc ui.ui_defines imports imports_cmx;
   printf "Approximation:\n";
   Format.fprintf Format.std_formatter "  %a@." Printclambda.approx ui.ui_approx;
   let pr_funs _ fns =
@@ -125,8 +130,8 @@ let print_cmxs_infos header =
          ui.dynu_name
          ui.dynu_crc
          ui.dynu_defines
-         ui.dynu_imports_cmi
-         ui.dynu_imports_cmx)
+         (add_ns_info ui.dynu_imports_cmi)
+         (add_ns_info ui.dynu_imports_cmx))
     header.dynu_units
 
 let p_title title = printf "%s:\n" title
@@ -155,7 +160,7 @@ let dump_byte ic =
            | "CRCS" ->
                p_section
                  "Imported units"
-                 (input_value ic : (string * Digest.t option) list)
+                 (input_value ic : (string * Longident.t option * Digest.t option) list)
            | "DLLS" ->
                p_list
                  "Used DLLs"

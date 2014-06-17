@@ -62,7 +62,7 @@ let print_info cmt =
         | Some digest ->
             Printf.printf "interface digest: %s\n" (Digest.to_hex digest);
       end;
-      List.iter (fun (name, crco) ->
+      List.iter (fun (name, _, crco) ->
         let crc =
           match crco with
             None -> dummy_crc
