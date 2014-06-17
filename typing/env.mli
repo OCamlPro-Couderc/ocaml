@@ -153,14 +153,13 @@ val read_signature: ?ns: Longident.t option -> string -> string -> signature
 val save_signature: ?ns: Longident.t option -> signature -> string -> string -> signature
         (* Arguments: signature, module name, file name. *)
 val save_signature_with_imports:
-    ?ns: Longident.t option -> signature -> string -> string ->
-    (string * Longident.t option * Digest.t option) list -> signature
+    ?ns: Longident.t option -> signature -> string -> string -> (string * Digest.t option) list -> signature
         (* Arguments: signature, module name, file name,
            imported units with their CRCs. *)
 
 (* Return the CRC of the interface of the given compilation unit *)
 
-val crc_of_unit: string -> Longident.t option -> Digest.t
+val crc_of_unit: string -> Digest.t
 
 (* Return the set of compilation units imported, with their CRC *)
 
@@ -169,7 +168,7 @@ val imports: unit -> (string * Longident.t option * Digest.t option) list
 (* Direct access to the table of imported compilation units with their CRC *)
 
 val crc_units: Consistbl.t
-val imported_units: (string * Longident.t option) list ref
+val imported_units: string list ref
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)
