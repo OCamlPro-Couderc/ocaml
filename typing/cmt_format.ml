@@ -44,6 +44,7 @@ and binary_part =
 
 type cmt_infos = {
   cmt_modname : string;
+  cmt_namespace : Longident.t option;
   cmt_annots : binary_annots;
   cmt_value_dependencies :
     (Types.value_description * Types.value_description) list;
@@ -54,7 +55,7 @@ type cmt_infos = {
   cmt_loadpath : string list;
   cmt_source_digest : Digest.t option;
   cmt_initial_env : Env.t;
-  cmt_imports : (string * Digest.t option) list;
+  cmt_imports : (string * Longident.t option * Digest.t option) list;
   cmt_interface_digest : Digest.t option;
   cmt_use_summaries : bool;
 }
@@ -199,7 +200,7 @@ let record_value_dependency vd1 vd2 =
   if vd1.Types.val_loc <> vd2.Types.val_loc then
     value_deps := (vd1, vd2) :: !value_deps
 
-let save_cmt filename modname binary_annots sourcefile initial_env sg =
+let save_cmt ?(ns=None) filename modname binary_annots sourcefile initial_env sg =
   if !Clflags.binary_annotations && not !Clflags.print_types then begin
     let imports = Env.imports () in
     let oc = open_out_bin filename in
@@ -210,6 +211,7 @@ let save_cmt filename modname binary_annots sourcefile initial_env sg =
           let cmi = {
             cmi_name = modname;
             cmi_sign = sg;
+            cmi_namespace = ns;
             cmi_flags =
             if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
             cmi_crcs = imports;
@@ -219,6 +221,7 @@ let save_cmt filename modname binary_annots sourcefile initial_env sg =
     let source_digest = Misc.may_map Digest.file sourcefile in
     let cmt = {
       cmt_modname = modname;
+      cmt_namespace = ns;
       cmt_annots = clear_env binary_annots;
       cmt_value_dependencies = !value_deps;
       cmt_comments = Lexer.comments ();

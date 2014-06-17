@@ -47,6 +47,7 @@ and binary_part =
 
 type cmt_infos = {
   cmt_modname : string;
+  cmt_namespace : Longident.t option;
   cmt_annots : binary_annots;
   cmt_value_dependencies :
     (Types.value_description * Types.value_description) list;
@@ -57,7 +58,7 @@ type cmt_infos = {
   cmt_loadpath : string list;
   cmt_source_digest : string option;
   cmt_initial_env : Env.t;
-  cmt_imports : (string * Digest.t option) list;
+  cmt_imports : (string * Longident.t option * Digest.t option) list;
   cmt_interface_digest : Digest.t option;
   cmt_use_summaries : bool;
 }
@@ -83,6 +84,7 @@ val read_cmi : string -> Cmi_format.cmi_infos
 (** [save_cmt modname filename binary_annots sourcefile initial_env sg]
     writes a cmt(i) file.  *)
 val save_cmt :
+  ?ns: Longident.t option ->
   string ->  (* filename.cmt to generate *)
   string ->  (* module name *)
   binary_annots ->
