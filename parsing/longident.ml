@@ -46,11 +46,3 @@ let parse s =
   | hd :: tl -> List.fold_left (fun p s -> Ldot(p, s)) (Lident hd) tl
 
 let string_of_longident l = String.concat "." @@ flatten l
-
-let optstring = function
-    None -> None
-  | Some ns -> Some (string_of_longident ns)
-
-let from_optstring = function
-    None -> None
-  | Some ns -> Some (parse ns)
