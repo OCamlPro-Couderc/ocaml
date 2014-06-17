@@ -1653,7 +1653,7 @@ let type_interface env ast =
 
 let rec package_signatures subst = function
     [] -> []
-  | (name, sg) :: rem ->
+  | (name, _, sg) :: rem ->
       let sg' = Subst.signature subst sg in
       let oldid = Ident.create_persistent name
       and newid = Ident.create name in
@@ -1676,7 +1676,7 @@ let package_units initial_env objfiles cmifile modulename =
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
-         (modname, Env.read_signature modname (pref ^ ".cmi")))
+         (modname, failwith "Namespace of signature ?", Env.read_signature modname (pref ^ ".cmi")))
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
@@ -1695,10 +1695,10 @@ let package_units initial_env objfiles cmifile modulename =
     Includemod.compunit initial_env "(obtained by packing)" sg mlifile dclsig
   end else begin
     (* Determine imports *)
-    let unit_names = List.map fst units in
+    let unit_names = List.map (fun (name, ns, _) -> name, ns) units in
     let imports =
       List.filter
-        (fun (name, crc) -> not (List.mem name unit_names))
+        (fun (name, ns, crc) -> not (List.mem (name, ns) unit_names))
         (Env.imports()) in
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin

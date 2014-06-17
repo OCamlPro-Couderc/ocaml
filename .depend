@@ -156,13 +156,13 @@ typing/cmi_format.cmo : typing/types.cmi parsing/longident.cmi \
 typing/cmi_format.cmx : typing/types.cmx parsing/longident.cmx \
     parsing/location.cmx utils/config.cmx typing/cmi_format.cmi
 typing/cmt_format.cmo : typing/types.cmi typing/typedtreeMap.cmi \
-    typing/typedtree.cmi utils/misc.cmi parsing/location.cmi \
-    parsing/lexer.cmi typing/env.cmi utils/config.cmi typing/cmi_format.cmi \
-    utils/clflags.cmi typing/cmt_format.cmi
+    typing/typedtree.cmi utils/misc.cmi parsing/longident.cmi \
+    parsing/location.cmi parsing/lexer.cmi typing/env.cmi utils/config.cmi \
+    typing/cmi_format.cmi utils/clflags.cmi typing/cmt_format.cmi
 typing/cmt_format.cmx : typing/types.cmx typing/typedtreeMap.cmx \
-    typing/typedtree.cmx utils/misc.cmx parsing/location.cmx \
-    parsing/lexer.cmx typing/env.cmx utils/config.cmx typing/cmi_format.cmx \
-    utils/clflags.cmx typing/cmt_format.cmi
+    typing/typedtree.cmx utils/misc.cmx parsing/longident.cmx \
+    parsing/location.cmx parsing/lexer.cmx typing/env.cmx utils/config.cmx \
+    typing/cmi_format.cmx utils/clflags.cmx typing/cmt_format.cmi
 typing/ctype.cmo : typing/types.cmi typing/subst.cmi typing/path.cmi \
     utils/misc.cmi parsing/longident.cmi parsing/location.cmi \
     typing/ident.cmi typing/env.cmi utils/clflags.cmi typing/btype.cmi \
@@ -395,12 +395,15 @@ typing/typetexp.cmx : utils/warnings.cmx typing/types.cmx \
     parsing/ast_mapper.cmx parsing/ast_helper.cmx typing/typetexp.cmi
 bytecomp/bytegen.cmi : bytecomp/lambda.cmi bytecomp/instruct.cmi
 bytecomp/bytelibrarian.cmi :
-bytecomp/bytelink.cmi : bytecomp/symtable.cmi bytecomp/cmo_format.cmi
+bytecomp/bytelink.cmi : bytecomp/symtable.cmi parsing/longident.cmi \
+    bytecomp/cmo_format.cmi
 bytecomp/bytepackager.cmi : typing/ident.cmi typing/env.cmi
 bytecomp/bytesections.cmi :
-bytecomp/cmo_format.cmi : bytecomp/lambda.cmi typing/ident.cmi
+bytecomp/cmo_format.cmi : parsing/longident.cmi bytecomp/lambda.cmi \
+    typing/ident.cmi
 bytecomp/dll.cmi :
-bytecomp/emitcode.cmi : bytecomp/instruct.cmi bytecomp/cmo_format.cmi
+bytecomp/emitcode.cmi : parsing/longident.cmi bytecomp/instruct.cmi \
+    bytecomp/cmo_format.cmi
 bytecomp/instruct.cmi : typing/types.cmi typing/subst.cmi \
     parsing/location.cmi bytecomp/lambda.cmi typing/ident.cmi typing/env.cmi
 bytecomp/lambda.cmi : typing/types.cmi typing/primitive.cmi typing/path.cmi \
@@ -440,15 +443,17 @@ bytecomp/bytelibrarian.cmx : utils/misc.cmx parsing/location.cmx \
     utils/config.cmx bytecomp/cmo_format.cmi utils/clflags.cmx \
     bytecomp/bytelink.cmx bytecomp/bytelibrarian.cmi
 bytecomp/bytelink.cmo : utils/warnings.cmi bytecomp/symtable.cmi \
-    bytecomp/opcodes.cmo utils/misc.cmi parsing/location.cmi typing/ident.cmi \
-    bytecomp/dll.cmi utils/consistbl.cmi utils/config.cmi \
-    bytecomp/cmo_format.cmi utils/clflags.cmi utils/ccomp.cmi \
-    bytecomp/bytesections.cmi bytecomp/bytelink.cmi
+    bytecomp/opcodes.cmo utils/misc.cmi parsing/longident.cmi \
+    parsing/location.cmi typing/ident.cmi bytecomp/dll.cmi \
+    utils/consistbl.cmi utils/config.cmi bytecomp/cmo_format.cmi \
+    utils/clflags.cmi utils/ccomp.cmi bytecomp/bytesections.cmi \
+    bytecomp/bytelink.cmi
 bytecomp/bytelink.cmx : utils/warnings.cmx bytecomp/symtable.cmx \
-    bytecomp/opcodes.cmx utils/misc.cmx parsing/location.cmx typing/ident.cmx \
-    bytecomp/dll.cmx utils/consistbl.cmx utils/config.cmx \
-    bytecomp/cmo_format.cmi utils/clflags.cmx utils/ccomp.cmx \
-    bytecomp/bytesections.cmx bytecomp/bytelink.cmi
+    bytecomp/opcodes.cmx utils/misc.cmx parsing/longident.cmx \
+    parsing/location.cmx typing/ident.cmx bytecomp/dll.cmx \
+    utils/consistbl.cmx utils/config.cmx bytecomp/cmo_format.cmi \
+    utils/clflags.cmx utils/ccomp.cmx bytecomp/bytesections.cmx \
+    bytecomp/bytelink.cmi
 bytecomp/bytepackager.cmo : typing/typemod.cmi bytecomp/translmod.cmi \
     typing/subst.cmi bytecomp/printlambda.cmi typing/path.cmi utils/misc.cmi \
     parsing/location.cmi bytecomp/instruct.cmi typing/ident.cmi \
