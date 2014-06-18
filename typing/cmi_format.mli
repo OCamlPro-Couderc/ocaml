@@ -16,6 +16,7 @@ type cmi_infos = {
     cmi_name : string;
     (* cmi_namespace : ? *)
     cmi_sign : Types.signature_item list;
+    cmi_namespace : Longident.t option;
     (* Adding the namespace information for each imported unit ? A string
     option ? A longident option ? *)
     cmi_crcs : (string * Digest.t option) list;

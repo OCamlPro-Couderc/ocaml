@@ -210,6 +210,7 @@ let save_cmt filename modname binary_annots sourcefile initial_env sg =
           let cmi = {
             cmi_name = modname;
             cmi_sign = sg;
+            cmi_namespace = None;
             cmi_flags =
             if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
             cmi_crcs = imports;

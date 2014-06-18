@@ -1647,6 +1647,7 @@ let save_signature_with_imports ?(ns=None) sg modname filename imports =
     let cmi = {
       cmi_name = modname;
       cmi_sign = sg;
+      cmi_namespace = ns;
       cmi_crcs = imports;
       cmi_flags = if !Clflags.recursive_types then [Rectypes] else [];
     } in
