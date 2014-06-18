@@ -39,7 +39,7 @@ let initial_env () =
   in
   try
     if !Clflags.nopervasives then initial else
-    Env.open_pers_signature "Pervasives" initial
+    Env.open_pers_signature None "Pervasives" initial
   with Not_found ->
     fatal_error "cannot open pervasives.cmi"
 

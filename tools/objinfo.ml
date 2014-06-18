@@ -36,13 +36,18 @@ let input_stringlist ic len =
 
 let dummy_crc = String.make 32 '-'
 
-let print_name_crc (name, crco) =
+let print_name_crc (name, ns, crco) =
   let crc =
     match crco with
       None -> dummy_crc
     | Some crc -> Digest.to_hex crc
   in
-    printf "\t%s\t%s\n" crc name
+  let ns =
+    match ns with
+      None -> "ROOT"
+    | Some ns -> Longident.string_of_longident ns
+  in
+  printf "\t%s\t%s\n(from %s)\n" crc name ns
 
 let print_line name =
   printf "\t%s\n" name
@@ -50,7 +55,7 @@ let print_line name =
 let print_cmo_infos cu =
   printf "Unit name: %s\n" cu.cu_name;
   print_string "Interfaces imported:\n";
-  List.iter print_name_crc cu.cu_imports;
+  List.iter (fun (x, y) -> print_name_crc (x, None, y)) cu.cu_imports;
   printf "Uses unsafe features: ";
   (match cu.cu_primitives with
     | [] -> printf "no\n"
@@ -91,9 +96,9 @@ let print_general_infos name crc defines cmi cmx =
   printf "Globals defined:\n";
   List.iter print_line defines;
   printf "Interfaces imported:\n";
-  List.iter print_name_crc cmi;
+  List.iter (fun (x, y) -> print_name_crc (x, None, y)) cmi;
   printf "Implementations imported:\n";
-  List.iter print_name_crc cmx
+  List.iter (fun (x, y) -> print_name_crc (x, None, y)) cmx
 
 open Cmx_format
 
@@ -154,7 +159,7 @@ let dump_byte ic =
            | "CRCS" ->
                p_section
                  "Imported units"
-                 (input_value ic : (string * Digest.t option) list)
+                 (input_value ic : (string * Longident.t option * Digest.t option) list)
            | "DLLS" ->
                p_list
                  "Used DLLs"

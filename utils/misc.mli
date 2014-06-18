@@ -110,7 +110,7 @@ val get_ref: 'a list ref -> 'a list
            its content to the empty list. *)
 
 
-val assoc2: 'a * 'b -> ('a * 'b * 'c) list -> bool
+val assoc2: 'a * 'b -> ('a * 'b * 'c) list -> 'c
 
 val fst3: 'a * 'b * 'c -> 'a
 val snd3: 'a * 'b * 'c -> 'b

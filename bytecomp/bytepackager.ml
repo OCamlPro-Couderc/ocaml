@@ -202,6 +202,9 @@ let build_global_target oc target_name members mapping pos coercion =
 (* Build the .cmo file obtained by packaging the given .cmo files. *)
 
 let package_object_files ppf files targetfile targetname coercion =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Bytepackager.package_object_files set namespace of cu
+  to None (to update when changing the Cmo format)";
   let members =
     map_left_right read_member_info files in
   let unit_names =
@@ -236,7 +239,7 @@ let package_object_files ppf files targetfile targetname coercion =
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev !relocs;
         cu_imports =
-          (targetname, Some (Env.crc_of_unit targetname)) :: imports;
+          (targetname, Some (Env.crc_of_unit targetname None)) :: imports;
         cu_primitives = !primitives;
         cu_force_link = !force_link;
         cu_debug = if pos_final > pos_debug then pos_debug else 0;

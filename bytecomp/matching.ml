@@ -1479,10 +1479,12 @@ let prim_obj_tag =
    prim_native_float = false}
 
 let get_mod_field modname field =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Matching.get_mod_field gives a None namespace";
   lazy (
     try
       let mod_ident = Ident.create_persistent modname in
-      let env = Env.open_pers_signature modname Env.initial_safe_string in
+      let env = Env.open_pers_signature None modname Env.initial_safe_string in
       let p = try
         match Env.lookup_value (Longident.Lident field) env with
         | (Path.Pdot(_,_,i), _) -> i

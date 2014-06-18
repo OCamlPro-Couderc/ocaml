@@ -162,6 +162,9 @@ let interfaces = ref ([] : string list)
 let implementations_defined = ref ([] : (string * string) list)
 
 let check_consistency ppf file_name cu =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Bytelink.check_consistency gives a None namespace\
+  (hint: should be modified when the cmo format will change)@.";
   begin try
     List.iter
       (fun (name, crco) ->
@@ -170,8 +173,8 @@ let check_consistency ppf file_name cu =
           None -> ()
         | Some crc ->
             if name = cu.cu_name
-            then Consistbl.set crc_interfaces name crc file_name
-            else Consistbl.check crc_interfaces name crc file_name)
+            then Consistbl.set crc_interfaces name None crc file_name
+            else Consistbl.check crc_interfaces name None crc file_name)
       cu.cu_imports
   with Consistbl.Inconsistency(name, user, auth) ->
     raise(Error(Inconsistent_import(name, user, auth)))
@@ -188,7 +191,9 @@ let check_consistency ppf file_name cu =
     (cu.cu_name, file_name) :: !implementations_defined
 
 let extract_crc_interfaces () =
-  Consistbl.extract !interfaces crc_interfaces
+  let interfaces = List.map (fun n -> n, None) !interfaces in
+  List.map (fun (x, _, y) -> x, y) @@
+  Consistbl.extract interfaces crc_interfaces
 
 let clear_crc_interfaces () =
   Consistbl.clear crc_interfaces;

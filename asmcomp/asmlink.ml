@@ -40,6 +40,8 @@ let implementations_defined = ref ([] : (string * string) list)
 let cmx_required = ref ([] : string list)
 
 let check_consistency file_name unit crc =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: asmlink.check_consistency sets  namespace to None@.";
   begin try
     List.iter
       (fun (name, crco) ->
@@ -48,8 +50,8 @@ let check_consistency file_name unit crc =
           None -> ()
         | Some crc ->
             if name = unit.ui_name
-            then Consistbl.set crc_interfaces name crc file_name
-            else Consistbl.check crc_interfaces name crc file_name)
+            then Consistbl.set crc_interfaces name None crc file_name
+            else Consistbl.check crc_interfaces name None crc file_name)
       unit.ui_imports_cmi
   with Consistbl.Inconsistency(name, user, auth) ->
     raise(Error(Inconsistent_interface(name, user, auth)))
@@ -63,7 +65,7 @@ let check_consistency file_name unit crc =
               if List.mem name !cmx_required then
                 raise(Error(Missing_cmx(file_name, name)))
           | Some crc ->
-              Consistbl.check crc_implementations name crc file_name)
+              Consistbl.check crc_implementations name None crc file_name)
       unit.ui_imports_cmx
   with Consistbl.Inconsistency(name, user, auth) ->
     raise(Error(Inconsistent_implementation(name, user, auth)))
@@ -74,16 +76,18 @@ let check_consistency file_name unit crc =
   with Not_found -> ()
   end;
   implementations := unit.ui_name :: !implementations;
-  Consistbl.set crc_implementations unit.ui_name crc file_name;
+  Consistbl.set crc_implementations unit.ui_name None crc file_name;
   implementations_defined :=
     (unit.ui_name, file_name) :: !implementations_defined;
   if unit.ui_symbol <> unit.ui_name then
     cmx_required := unit.ui_name :: !cmx_required
 
 let extract_crc_interfaces () =
-  Consistbl.extract !interfaces crc_interfaces
+  let interfaces = List.map (fun n -> n, None) !interfaces in
+  List.map (fun (x, _, y) -> x, y) @@ Consistbl.extract interfaces crc_interfaces
 let extract_crc_implementations () =
-  Consistbl.extract !implementations crc_implementations
+  let implementations = List.map (fun n -> n, None) !interfaces in
+  List.map (fun (x, _, y) -> x, y) @@ Consistbl.extract implementations crc_implementations
 
 (* Add C objects and options and "custom" info from a library descriptor.
    See bytecomp/bytelink.ml for comments on the order of C objects. *)

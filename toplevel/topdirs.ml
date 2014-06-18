@@ -59,14 +59,17 @@ let _ = Hashtbl.add directive_table "cd" (Directive_string dir_cd)
 exception Load_failed
 
 let check_consistency ppf filename cu =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Topdirs.check_consistency sets namespace to None (to change
+  when Cmo format changes)@.";
   try
     List.iter
       (fun (name, crco) ->
-       Env.imported_units := name :: !Env.imported_units;
+       Env.imported_units := (name, None) :: !Env.imported_units;
        match crco with
          None -> ()
        | Some crc->
-           Consistbl.check Env.crc_units name crc filename)
+           Consistbl.check Env.crc_units name None crc filename)
       cu.cu_imports
   with Consistbl.Inconsistency(name, user, auth) ->
     fprintf ppf "@[<hv 0>The files %s@ and %s@ \

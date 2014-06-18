@@ -22,6 +22,8 @@ open Compenv
 (* Keep in sync with the copy in optcompile.ml *)
 
 let interface ppf sourcefile outputprefix =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Compile.interface set namespace to None@.";
   Compmisc.init_path false;
   let modulename = module_of_filename ppf sourcefile outputprefix in
   Env.set_unit_name modulename;
@@ -40,7 +42,7 @@ let interface ppf sourcefile outputprefix =
   Typecore.force_delayed_checks ();
   Warnings.check_fatal ();
   if not !Clflags.print_types then begin
-    let sg = Env.save_signature sg modulename (outputprefix ^ ".cmi") in
+    let sg = Env.save_signature None sg modulename (outputprefix ^ ".cmi") in
     Typemod.save_signature modulename tsg outputprefix sourcefile
       initial_env sg ;
   end

@@ -121,7 +121,7 @@ val add_signature: signature -> t -> t
 val open_signature:
     ?loc:Location.t -> ?toplevel:bool -> Asttypes.override_flag -> Path.t ->
       signature -> t -> t
-val open_pers_signature: string -> t -> t
+val open_pers_signature: Longident.t option -> string -> t -> t
 
 (* Insertion by name *)
 
@@ -153,13 +153,14 @@ val read_signature: Longident.t option -> string -> string -> signature
 val save_signature: Longident.t option -> signature -> string -> string -> signature
         (* Arguments: signature, module name, file name. *)
 val save_signature_with_imports:
-    Longident.t option -> signature -> string -> string -> (string * Digest.t option) list -> signature
+    Longident.t option -> signature -> string -> string
+    -> (string * Longident.t option * Digest.t option) list -> signature
         (* Arguments: signature, module name, file name,
            imported units with their CRCs. *)
 
 (* Return the CRC of the interface of the given compilation unit *)
 
-val crc_of_unit: string -> Digest.t
+val crc_of_unit: string -> Longident.t option -> Digest.t
 
 (* Return the set of compilation units imported, with their CRC *)
 
@@ -168,7 +169,7 @@ val imports: unit -> (string * Longident.t option * Digest.t option) list
 (* Direct access to the table of imported compilation units with their CRC *)
 
 val crc_units: Consistbl.t
-val imported_units: (string * Longident.t) list ref
+val imported_units: (string * Longident.t option) list ref
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)

@@ -42,7 +42,7 @@ val adapt_filename : string -> string
 
 (** {6 Access control} *)
 
-val allow_only: string list -> unit
+val allow_only: (string * string option) list -> unit
 (** [allow_only units] restricts the compilation units that dynamically-linked
     units can reference: it only allows references to the units named in
     list [units].  References to any other compilation unit will cause
@@ -55,7 +55,7 @@ val allow_only: string list -> unit
     dynamically-linked code, and prevent access to all other units,
     e.g. private, internal modules of the running program. *)
 
-val prohibit: string list -> unit
+val prohibit: (string * string option) list -> unit
 (** [prohibit units] prohibits dynamically-linked units from referencing
     the units named in list [units].  This can be used to prevent
     access to selected units, e.g. private, internal modules of

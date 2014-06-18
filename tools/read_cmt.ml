@@ -62,13 +62,18 @@ let print_info cmt =
         | Some digest ->
             Printf.printf "interface digest: %s\n" (Digest.to_hex digest);
       end;
-      List.iter (fun (name, crco) ->
+      List.iter (fun (name, ns, crco) ->
         let crc =
           match crco with
             None -> dummy_crc
           | Some crc -> Digest.to_hex crc
         in
-          Printf.printf "import: %s %s\n" name crc;
+        let ns =
+          match ns with
+            None -> "ROOT"
+          | Some ns -> Longident.string_of_longident ns
+        in
+          Printf.printf "import: %s %s (from %s)\n" name crc ns;
       ) (List.sort compare cmt.cmt_imports);
       Printf.printf "%!";
       ()

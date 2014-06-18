@@ -211,8 +211,9 @@ let get_ref r =
   let v = !r in
   r := []; v
 
-let assoc2 (x, y) =
-  List.exists (fun (x', y', _) -> x = x' && y = y')
+let assoc2 (x, y) l =
+  let (_, _, z) = List.find (fun (x', y', _) -> x = x' && y = y') l in
+  z
 
 let fst3 (x, _, _) = x
 let snd3 (_,x,_) = x

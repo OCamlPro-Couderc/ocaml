@@ -77,6 +77,7 @@ let allow_extension = ref true
    only authorized compilation units are referenced. *)
 
 let check_consistency file_name cu =
+  Format.printf "BEWARE: Dynlink.check_consistency sets namespace to None@.";
   try
     List.iter
       (fun (name, crco) ->
@@ -84,11 +85,11 @@ let check_consistency file_name cu =
            None -> ()
          | Some crc ->
              if name = cu.cu_name then
-               Consistbl.set !crc_interfaces name crc file_name
+               Consistbl.set !crc_interfaces name None crc file_name
              else if !allow_extension then
-               Consistbl.check !crc_interfaces name crc file_name
+               Consistbl.check !crc_interfaces name None crc file_name
              else
-               Consistbl.check_noadd !crc_interfaces name crc file_name)
+               Consistbl.check_noadd !crc_interfaces name None crc file_name)
       cu.cu_imports
   with Consistbl.Inconsistency(name, user, auth) ->
          raise(Error(Inconsistent_import name))
@@ -116,20 +117,22 @@ let prohibit names =
 (* Initialize the crc_interfaces table with a list of units with fixed CRCs *)
 
 let add_available_units units =
+  Format.printf "BEWARE: Dynlink.add_available_units sets namespace to None@.";
   List.iter
-    (fun (unit, crc) -> Consistbl.set !crc_interfaces unit crc "")
+    (fun (unit, crc) -> Consistbl.set !crc_interfaces unit None crc "")
     units
 
 (* Default interface CRCs: those found in the current executable *)
 let default_crcs = ref []
 
 let default_available_units () =
+  Format.printf "BEWARE: Dynlink.default_available_units set namespace to None@.";
   clear_available_units();
   List.iter
     (fun (unit, crco) ->
        match crco with
          None -> ()
-       | Some crc -> Consistbl.set !crc_interfaces unit crc "")
+       | Some crc -> Consistbl.set !crc_interfaces unit None crc "")
     !default_crcs;
   allow_extension := true
 
@@ -172,7 +175,7 @@ let digest_interface unit loadpath =
     close_in ic;
     let crc =
       match cmi.Cmi_format.cmi_crcs with
-        (_, Some crc) :: _ -> crc
+        (_, _, Some crc) :: _ -> crc
       | _             -> raise(Error(Corrupted_interface filename))
     in
     crc

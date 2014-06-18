@@ -340,16 +340,19 @@ let add_imports ps =
 
 let check_consistency ps =
   if !Clflags.ns_debug then
-    Format.printf "Env.check_consistency@.";
+    Format.printf "Env.check_consistency...@.";
   try
     List.iter
       (fun (name, ns, crco) ->
          match crco with
             None -> ()
           | Some crc ->
+              Format.printf "Before optstring...@.";
               let ns = Longident.optstring ns in
+              Format.printf "After optstring@.";
               Consistbl.check crc_units name ns crc ps.ps_filename)
-      ps.ps_crcs
+      ps.ps_crcs;
+    Format.printf "Out of check_consistency@.";
   with Consistbl.Inconsistency(name, source, auth) ->
     error (Inconsistent_import(name, auth, source))
 
@@ -435,6 +438,8 @@ let set_unit_name name =
 (* Lookup by identifier *)
 
 let rec find_module_descr path env =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Env.find_module_desc gives None to find_pers_struct@.";
   match path with
     Pident id ->
       begin try
@@ -442,7 +447,7 @@ let rec find_module_descr path env =
         in desc
       with Not_found ->
         if Ident.persistent id
-        then (find_pers_struct (Ident.name id)).ps_comps
+        then (find_pers_struct None (Ident.name id)).ps_comps
         else raise Not_found
       end
   | Pdot(p, s, pos) ->
@@ -506,7 +511,7 @@ let find_module ~alias ns path env =
         in data
       with Not_found ->
         if Ident.persistent id then
-          let ps = find_pers_struct ~ns (Ident.name id) in
+          let ps = find_pers_struct ns (Ident.name id) in
           md (Mty_signature(ps.ps_sig))
         else raise Not_found
       end
@@ -640,13 +645,15 @@ let rec is_functor_arg path env =
 exception Recmodule
 
 let rec lookup_module_descr lid env =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Env.lookup_module_descr gives None to find_pers_struct@.";
   match lid with
     Lident s ->
       begin try
         EnvTbl.find_name s env.components
       with Not_found ->
         if s = !current_unit then raise Not_found;
-        let ps = find_pers_struct s in
+        let ps = find_pers_struct None s in
         (Pident(Ident.create_persistent s), ps.ps_comps)
       end
   | Ldot(l, s) ->
@@ -695,7 +702,7 @@ and lookup_module ~load ns lid env : Path.t =
      ignore (find_in_path_uncap !load_path ~subdir (s ^ ".cmi"))
           with Not_found ->
 	    Location.prerr_warning Location.none (Warnings.No_cmi_file s)
-	else ignore (find_pers_struct ~ns s);
+	else ignore (find_pers_struct ns s);
         Pident(Ident.create_persistent s)
       end
   | Ldot(l, s) ->
@@ -1576,8 +1583,8 @@ let open_signature slot root sg env0 =
 
 (* Open a signature from a file *)
 
-let open_pers_signature name env =
-  let ps = find_pers_struct name in
+let open_pers_signature ns name env =
+  let ps = find_pers_struct ns name in
   open_signature None (Pident(Ident.create_persistent name)) ps.ps_sig env
 
 let open_signature ?(loc = Location.none) ?(toplevel = false) ovf root sg env =
@@ -1612,17 +1619,17 @@ let open_signature ?(loc = Location.none) ?(toplevel = false) ovf root sg env =
 
 (* Read a signature from a file *)
 
-let read_signature ?(ns=None) modname filename =
-  let ps = read_pers_struct ~ns modname filename in
+let read_signature ns modname filename =
+  let ps = read_pers_struct ns modname filename in
   ps.ps_sig
 
 (* Return the CRC of the interface of the given compilation unit *)
 
-let crc_of_unit name =
-  let ps = find_pers_struct name in
+let crc_of_unit name ns =
+  let ps = find_pers_struct ns name in
   let crco =
     try
-      List.assoc name ps.ps_crcs
+      Misc.assoc2 (name, ns) ps.ps_crcs
     with Not_found ->
       assert false
   in
@@ -1635,11 +1642,14 @@ let crc_of_unit name =
 let imports() =
   if !Clflags.ns_debug then
     Format.printf "Env.imports to modify to add ns information for each import@.";
-  Consistbl.extract !imported_units crc_units
+  let imported_units =
+    List.map (fun (name, ns) -> name, Longident.optstring ns) !imported_units in
+  List.map (fun (name, ns, crc) -> name, Longident.from_optstring ns, crc) @@
+  Consistbl.extract imported_units crc_units
 
 (* Save a signature to a file *)
 
-let save_signature_with_imports ?(ns=None) sg modname filename imports =
+let save_signature_with_imports ns sg modname filename imports =
   (*prerr_endline filename;
   List.iter (fun (name, crc) -> prerr_endline name) imports;*)
   Btype.cleanup_abbrev ();
@@ -1669,20 +1679,20 @@ let save_signature_with_imports ?(ns=None) sg modname filename imports =
         ps_namespace = ns;
         ps_sig = sg;
         ps_comps = comps;
-        ps_crcs = (cmi.cmi_name, Some crc) :: imports;
+        ps_crcs = (cmi.cmi_name, ns, Some crc) :: imports;
         ps_filename = filename;
         ps_flags = cmi.cmi_flags } in
     Hashtbl.add persistent_structures (modname, ns) (Some ps);
-    Consistbl.set crc_units modname crc filename;
-    imported_units := modname :: !imported_units;
+    Consistbl.set crc_units modname (optstring ns) crc filename;
+    imported_units := (modname, ns) :: !imported_units;
     sg
   with exn ->
     close_out oc;
     remove_file filename;
     raise exn
 
-let save_signature ?(ns=None) sg modname filename =
-  save_signature_with_imports ~ns sg modname filename (imports())
+let save_signature ns sg modname filename =
+  save_signature_with_imports ns sg modname filename (imports())
 
 (* Folding on environments *)
 

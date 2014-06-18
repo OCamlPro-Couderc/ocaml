@@ -100,7 +100,7 @@ let () =
     Filename.concat Config.standard_library "compiler-libs" in
   let topdirs =
     Filename.concat compiler_libs "topdirs.cmi" in
-  ignore (Env.read_signature "Topdirs" topdirs)
+  ignore (Env.read_signature None "Topdirs" topdirs)
 
 let match_printer_type desc typename =
   let (printer_type, _) =

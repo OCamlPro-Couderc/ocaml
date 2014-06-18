@@ -228,7 +228,7 @@ let write_unit_info info filename =
   close_out oc
 
 let save_unit_info filename =
-  current_unit.ui_imports_cmi <- Env.imports();
+  current_unit.ui_imports_cmi <- List.map (fun (x, _, y) -> x, y) (Env.imports());
   write_unit_info current_unit filename
 
 

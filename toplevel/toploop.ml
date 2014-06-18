@@ -424,16 +424,18 @@ let refill_lexbuf buffer len =
    can call directives from Topdirs. *)
 
 let _ =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Toploop entry point set namespaces to None@.";
   Sys.interactive := true;
   let crc_intfs = Symtable.init_toplevel() in
   Compmisc.init_path false;
   List.iter
     (fun (name, crco) ->
-      Env.imported_units := name :: !Env.imported_units;
+      Env.imported_units := (name, None) :: !Env.imported_units;
       match crco with
         None -> ()
       | Some crc->
-          Consistbl.set Env.crc_units name crc Sys.executable_name)
+          Consistbl.set Env.crc_units name None crc Sys.executable_name)
     crc_intfs
 
 let load_ocamlinit ppf =

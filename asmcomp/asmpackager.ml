@@ -108,6 +108,8 @@ let make_package_object ppf members targetobj targetname coercion =
 (* Make the .cmx file for the package *)
 
 let build_package_cmx members cmxfile =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Asmpackager.build_package_cmx sets namespace to None@.";
   let unit_names =
     List.map (fun m -> m.pm_name) members in
   let filter lst =
@@ -130,7 +132,7 @@ let build_package_cmx members cmxfile =
           List.flatten (List.map (fun info -> info.ui_defines) units) @
           [ui.ui_symbol];
       ui_imports_cmi =
-          (ui.ui_name, Some (Env.crc_of_unit ui.ui_name)) ::
+          (ui.ui_name, Some (Env.crc_of_unit ui.ui_name None)) ::
           filter(Asmlink.extract_crc_interfaces());
       ui_imports_cmx =
           filter(Asmlink.extract_crc_implementations());

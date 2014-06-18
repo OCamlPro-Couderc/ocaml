@@ -1564,6 +1564,8 @@ let () =
 (* Typecheck an implementation file *)
 
 let type_implementation sourcefile outputprefix modulename initial_env ast =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Typemod.type_implementation gives a None namespace@.";
   Cmt_format.clear ();
   try
   Typecore.reset_delayed_checks ();
@@ -1598,7 +1600,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         with Not_found ->
           raise(Error(Location.in_file sourcefile, Env.empty,
                       Interface_not_compiled sourceintf)) in
-      let dclsig = Env.read_signature modulename intf_file in
+      let dclsig = Env.read_signature None modulename intf_file in
       let coercion =
         Includemod.compunit initial_env sourcefile sg intf_file dclsig in
       Typecore.force_delayed_checks ();
@@ -1621,7 +1623,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
          case, the inferred signature contains only the last declaration. *)
       if not !Clflags.dont_write_files then begin
         let sg =
-          Env.save_signature simple_sg modulename (outputprefix ^ ".cmi") in
+          Env.save_signature None simple_sg modulename (outputprefix ^ ".cmi") in
         Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
           (Cmt_format.Implementation str)
           (Some sourcefile) initial_env (Some sg);
@@ -1653,7 +1655,9 @@ let type_interface env ast =
 
 let rec package_signatures subst = function
     [] -> []
-  | (name, sg) :: rem ->
+  | (name, ns, sg) :: rem ->
+      if !Clflags.ns_debug then
+        Format.printf "Typemod.package_signature@.";
       let sg' = Subst.signature subst sg in
       let oldid = Ident.create_persistent name
       and newid = Ident.create name in
@@ -1664,19 +1668,21 @@ let rec package_signatures subst = function
                  Trec_not) ::
       package_signatures (Subst.add_module oldid (Pident newid) subst) rem
 
-let package_units initial_env objfiles cmifile modulename =
+let package_units initial_env objfiles cmifile (modulename: string) =
   (* Read the signatures of the units *)
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Typemod.package_units gives a None namespace@.";
   let units =
     List.map
       (fun f ->
          let pref = chop_extensions f in
          let modname = String.capitalize(Filename.basename pref) in
-         let sg = Env.read_signature modname (pref ^ ".cmi") in
+         let sg = Env.read_signature None modname (pref ^ ".cmi") in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
-         (modname, Env.read_signature modname (pref ^ ".cmi")))
+         (modname, None, Env.read_signature None modname (pref ^ ".cmi")))
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
@@ -1689,21 +1695,22 @@ let package_units initial_env objfiles cmifile modulename =
       raise(Error(Location.in_file mlifile, Env.empty,
                   Interface_not_compiled mlifile))
     end;
-    let dclsig = Env.read_signature modulename cmifile in
+    let dclsig = Env.read_signature None modulename cmifile in
     Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
       (Cmt_format.Packed (sg, objfiles)) None initial_env  None ;
     Includemod.compunit initial_env "(obtained by packing)" sg mlifile dclsig
   end else begin
     (* Determine imports *)
-    let unit_names = List.map fst units in
+    let unit_names = List.map (fun (x, y, _) -> x, y) units in
     let imports =
       List.filter
-        (fun (name, crc) -> not (List.mem name unit_names))
+        (fun (name, ns, crc) ->
+           not (List.mem (name, ns) unit_names))
         (Env.imports()) in
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin
       let sg =
-        Env.save_signature_with_imports sg modulename
+        Env.save_signature_with_imports None sg modulename
           (prefix ^ ".cmi") imports in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
         (Cmt_format.Packed (sg, objfiles)) None initial_env (Some sg)

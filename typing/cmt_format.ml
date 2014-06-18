@@ -54,7 +54,7 @@ type cmt_infos = {
   cmt_loadpath : string list;
   cmt_source_digest : Digest.t option;
   cmt_initial_env : Env.t;
-  cmt_imports : (string * Digest.t option) list;
+  cmt_imports : (string * Longident.t option * Digest.t option) list;
   cmt_interface_digest : Digest.t option;
   cmt_use_summaries : bool;
 }
