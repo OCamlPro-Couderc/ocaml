@@ -299,6 +299,8 @@ let md md_type =
 
 let current_unit = ref ""
 
+let current_unit_namespace = ref None
+
 (* Persistent structure descriptions *)
 (* Adding a field about namespace ? Or simply prefixing the name ?
    -> second option does not change the type and the hashtbl, but the first
@@ -409,6 +411,7 @@ let find_pers_struct ns name =
 
 let reset_cache () =
   current_unit := "";
+  current_unit_namespace := None;
   Hashtbl.clear persistent_structures;
   clear_imports ();
   Hashtbl.clear value_declarations;
@@ -432,6 +435,9 @@ let reset_cache_toplevel () =
 
 let set_unit_name name =
   current_unit := name
+
+let set_namespace_unit olid =
+  current_unit_namespace := olid
 
 (* Lookup by identifier *)
 

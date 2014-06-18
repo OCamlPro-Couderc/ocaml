@@ -153,7 +153,7 @@ let compute_prelude prl =
       | Some nd -> Some nd.ns_name
     end;
   let hierarchy = mk_nsenv prl.prl_imports in
-  List.map elaborate_import hierarchy
+  List.map elaborate_import hierarchy, !cu_ns
   (* Namespaces and modules share the same namespace *)
   (* List.iter *)
   (*   (function Ns (n, _) | Mod (n, _) -> check_names n *)

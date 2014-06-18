@@ -143,6 +143,7 @@ world.opt:
 # Hard bootstrap how-to:
 # (only necessary in some cases, for example if you remove some primitive)
 #
+
 # make coreboot     [old system -- you were in a stable state]
 # <change the source>
 # make clean runtime coreall

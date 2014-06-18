@@ -191,7 +191,7 @@ let allow_only names =
   let old = !global_state.ifaces in
   let ifaces =
     List.fold_left
-      (fun ifaces name ->
+      (fun ifaces (name, _) ->
          try StrMap.add name (StrMap.find name old) ifaces
          with Not_found -> ifaces)
       StrMap.empty names in
@@ -200,7 +200,8 @@ let allow_only names =
 
 let prohibit names =
   init();
-  let ifaces = List.fold_right StrMap.remove names !global_state.ifaces in
+  let ifaces = List.fold_right (fun (name, _) acc -> StrMap.remove name acc)
+      names !global_state.ifaces in
   global_state := { !global_state with ifaces = ifaces };
   allow_extension := false
 

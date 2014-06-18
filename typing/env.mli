@@ -146,6 +146,9 @@ val reset_cache_toplevel: unit -> unit
 (* Remember the name of the current compilation unit. *)
 val set_unit_name: string -> unit
 
+(* Remember the namespace of the current compilation unit *)
+val set_namespace_unit: Longident.t option -> unit
+
 (* Read, save a signature to/from a file *)
 
 val read_signature: Longident.t option -> string -> string -> signature

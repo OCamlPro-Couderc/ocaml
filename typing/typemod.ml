@@ -1576,15 +1576,16 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
   end;
 
   let Pimpl (prl, ast) = ast in
-  let (str, sg, finalenv) =
-    let ast = Typens.compute_prelude prl @ ast in
+  let (str, sg, finalenv), ns =
+    let prlast, ns = Typens.compute_prelude prl in
+    let ast = prlast @ ast in
     (* let out = open_out "pretty_ast_result" in *)
     (* let out' = open_out "ast_result" in *)
     (* Pprintast.structure (Format.formatter_of_out_channel out) ast; *)
     (* Printast.structure 0 (Format.formatter_of_out_channel out') ast; *)
     (* close_out out; *)
     (* close_out out'; *)
-    type_structure initial_env ast (Location.in_file sourcefile) in
+    type_structure initial_env ast (Location.in_file sourcefile), ns in
   let simple_sg = simplify_signature sg in
   if !Clflags.print_types then begin
     Printtyp.wrap_printing_env initial_env
@@ -1600,7 +1601,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         with Not_found ->
           raise(Error(Location.in_file sourcefile, Env.empty,
                       Interface_not_compiled sourceintf)) in
-      let dclsig = Env.read_signature None modulename intf_file in
+      let dclsig = Env.read_signature ns modulename intf_file in
       let coercion =
         Includemod.compunit initial_env sourcefile sg intf_file dclsig in
       Typecore.force_delayed_checks ();

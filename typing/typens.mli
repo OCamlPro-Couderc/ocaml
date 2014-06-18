@@ -21,4 +21,4 @@ val elaborate_import: namespace_env -> Parsetree.structure_item
 
 (** Checks the prelude, takes a function that add the namespaces into the
     modules names *)
-val compute_prelude: Parsetree.prelude -> Parsetree.structure
+val compute_prelude: Parsetree.prelude -> Parsetree.structure * Longident.t option
