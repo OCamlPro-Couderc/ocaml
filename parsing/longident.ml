@@ -45,16 +45,20 @@ let parse s =
                         so as not to crash the toplevel (see Genprintval) *)
   | hd :: tl -> List.fold_left (fun p s -> Ldot(p, s)) (Lident hd) tl
 
-let rec to_string acc = function
-    Lident s -> Format.sprintf "%s%s" s acc
-  | Ldot (s, l) -> let acc = Format.sprintf ".%s%s" l acc in to_string acc s
-  | Lapply (_, _) -> failwith "Misc.to_string: nope"
 
-let string_of_longident = to_string ""
+(* let rec to_string acc = function *)
+(*     Lident s -> Format.sprintf "%s%s" s acc *)
+(*   | Ldot (s, l) -> let acc = Format.sprintf ".%s%s" l acc in to_string acc s *)
+(*   | Lapply (_, _) -> failwith "Misc.to_string: nope" *)
+
+(* let string_of_longident = to_string "" *)
+
+
+let string_of_longident l = String.concat "." @@ flatten l
 
 let optstring = function
-    None -> Format.printf "optstring fails with None ?@."; None
-  | Some ns -> Format.printf "optstring fails with Some ?@."; Some (string_of_longident ns)
+    None -> None
+  | Some ns -> Some (string_of_longident ns)
 
 let from_optstring = function
     None -> None

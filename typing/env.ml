@@ -347,12 +347,9 @@ let check_consistency ps =
          match crco with
             None -> ()
           | Some crc ->
-              Format.printf "Before optstring...@.";
               let ns = Longident.optstring ns in
-              Format.printf "After optstring@.";
               Consistbl.check crc_units name ns crc ps.ps_filename)
-      ps.ps_crcs;
-    Format.printf "Out of check_consistency@.";
+      ps.ps_crcs
   with Consistbl.Inconsistency(name, source, auth) ->
     error (Inconsistent_import(name, auth, source))
 
@@ -362,8 +359,9 @@ let read_pers_struct ns modname filename : pers_struct =
   if !Clflags.ns_debug then Format.printf "Env.read_pers_struct@.";
   let cmi = read_cmi filename in
   let name = cmi.cmi_name in
+  let ns = cmi.cmi_namespace in
   let sign = cmi.cmi_sign in
-  let crcs = cmi.cmi_crcs in
+  let crcs : (string * Longident.t option * Digest.t option) list = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
   let comps =
       !components_of_module' empty Subst.identity

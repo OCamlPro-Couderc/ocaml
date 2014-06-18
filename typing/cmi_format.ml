@@ -30,7 +30,8 @@ type cmi_infos = {
 let input_cmi ic =
   let (name, sign) = input_value ic in
   let ns = input_value ic in
-  let crcs = input_value ic in
+  if !Clflags.ns_debug then Format.printf "In input cmi of %s@." name;
+  let crcs : (string * Longident.t option * Digest.t option) list = input_value ic in
   let flags = input_value ic in
   {
       cmi_name = name;

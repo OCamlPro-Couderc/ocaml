@@ -23,7 +23,7 @@ exception Inconsistency of string * string * string
 exception Not_available of string
 
 let check tbl name ns crc source =
-  if true then Format.printf "Consistbl.check@.";
+  if !Misc.ns_debug then Format.printf "Consistbl.check@.";
   try
     let (old_crc, old_source) = Hashtbl.find tbl (name, ns)  in
     if crc <> old_crc then raise(Inconsistency(name, source, old_source))
