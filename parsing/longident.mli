@@ -22,3 +22,5 @@ val first: t -> string
 val last: t -> string
 val parse: string -> t
 val string_of_longident: t -> string
+val optstring: t option -> string option
+val from_optstring: string option -> t option

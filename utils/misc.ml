@@ -211,6 +211,9 @@ let get_ref r =
   let v = !r in
   r := []; v
 
+let assoc2 (x, y) =
+  List.exists (fun (x', y', _) -> x = x' && y = y')
+
 let fst3 (x, _, _) = x
 let snd3 (_,x,_) = x
 let thd3 (_,_,x) = x

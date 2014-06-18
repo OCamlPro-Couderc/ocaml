@@ -311,7 +311,7 @@ type pers_struct =
     ps_namespace: Longident.t option;
     ps_sig: signature;
     ps_comps: module_components;
-    ps_crcs: (string * Digest.t option) list;
+    ps_crcs: (string * Longident.t option * Digest.t option) list;
     ps_filename: string;
     ps_flags: pers_flags list }
 
@@ -325,7 +325,7 @@ let crc_units = Consistbl.create()
 let imported_units =
   if !Clflags.ns_debug then
     Format.printf "Env.imported_units: add namespace information@.";
-  ref ([] : string list)
+  ref ([] : (string * Longident.t option) list)
 
 let clear_imports () =
   Consistbl.clear crc_units;
@@ -335,23 +335,28 @@ let add_imports ps =
   if !Clflags.ns_debug then
     Format.printf "Env.add_imports to modifiy@.";
   List.iter
-    (fun (name, _) -> imported_units := name :: !imported_units)
+    (fun (name, ns, _) -> imported_units := (name, ns) :: !imported_units)
     ps.ps_crcs
 
 let check_consistency ps =
+  if !Clflags.ns_debug then
+    Format.printf "Env.check_consistency@.";
   try
     List.iter
-      (fun (name, crco) ->
+      (fun (name, ns, crco) ->
          match crco with
             None -> ()
-          | Some crc -> Consistbl.check crc_units name crc ps.ps_filename)
+          | Some crc ->
+              let ns = Longident.optstring ns in
+              Consistbl.check crc_units name ns crc ps.ps_filename)
       ps.ps_crcs
   with Consistbl.Inconsistency(name, source, auth) ->
     error (Inconsistent_import(name, auth, source))
 
 (* Reading persistent structures from .cmi files *)
 (* CMI format should be modified then to capture the namespace information *)
-let read_pers_struct ?(ns=None) modname filename : pers_struct =
+let read_pers_struct ns modname filename : pers_struct =
+  if !Clflags.ns_debug then Format.printf "Env.read_pers_struct@.";
   let cmi = read_cmi filename in
   let name = cmi.cmi_name in
   let sign = cmi.cmi_sign in
@@ -381,7 +386,8 @@ let read_pers_struct ?(ns=None) modname filename : pers_struct =
   Hashtbl.add persistent_structures (modname, ns) (Some ps);
   ps
 
-let find_pers_struct ?(ns=None) name =
+let find_pers_struct ns name =
+  if !Clflags.ns_debug then Format.printf "Env.find_pers_struct@.";
   if name = "*predef*" then raise Not_found;
   let r =
     try Some (Hashtbl.find persistent_structures (name, ns))
@@ -398,7 +404,7 @@ let find_pers_struct ?(ns=None) name =
           Hashtbl.add persistent_structures (name, ns) None;
           raise Not_found
       in
-      read_pers_struct ~ns name filename
+      read_pers_struct ns name filename
 
 let reset_cache () =
   current_unit := "";

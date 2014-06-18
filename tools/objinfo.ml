@@ -76,8 +76,12 @@ let print_cma_infos (lib : Cmo_format.library) =
   printf "\n";
   List.iter print_cmo_infos lib.lib_units
 
-let print_cmi_infos name crcs =
+let print_cmi_infos name ns crcs =
+  let ns = match ns with
+      None -> "ROOT"
+    | Some ns -> Longident.string_of_longident ns in
   printf "Unit name: %s\n" name;
+  printf "Namespace: %s\n" ns;
   printf "Interfaces imported:\n";
   List.iter print_name_crc crcs
 
@@ -212,7 +216,8 @@ let dump_obj filename =
   end else if magic_number = cmi_magic_number then begin
     let cmi = Cmi_format.input_cmi ic in
     close_in ic;
-    print_cmi_infos cmi.Cmi_format.cmi_name cmi.Cmi_format.cmi_crcs
+    print_cmi_infos
+      cmi.Cmi_format.cmi_name cmi.Cmi_format.cmi_namespace cmi.Cmi_format.cmi_crcs
   end else if magic_number = cmx_magic_number then begin
     let ui = (input_value ic : unit_infos) in
     let crc = Digest.input ic in

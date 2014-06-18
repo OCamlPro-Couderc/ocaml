@@ -23,7 +23,7 @@ type cmi_infos = {
     cmi_name : string;
     cmi_sign : Types.signature_item list;
     cmi_namespace : Longident.t option;
-    cmi_crcs : (string * Digest.t option) list;
+    cmi_crcs : (string * Longident.t option * Digest.t option) list;
     cmi_flags : pers_flags list;
 }
 
@@ -76,7 +76,7 @@ let output_cmi filename oc cmi =
   output_value oc (cmi.cmi_namespace);
   flush oc;
   let crc = Digest.file filename in
-  let crcs = (cmi.cmi_name, Some crc) :: cmi.cmi_crcs in
+  let crcs = (cmi.cmi_name, cmi.cmi_namespace, Some crc) :: cmi.cmi_crcs in
   output_value oc crcs;
   output_value oc cmi.cmi_flags;
   crc

@@ -19,7 +19,7 @@ type cmi_infos = {
     cmi_namespace : Longident.t option;
     (* Adding the namespace information for each imported unit ? A string
     option ? A longident option ? *)
-    cmi_crcs : (string * Digest.t option) list;
+    cmi_crcs : (string * Longident.t option * Digest.t option) list;
     cmi_flags : pers_flags list;
 }
 
