@@ -126,7 +126,8 @@ let add_available_units units =
 let default_crcs = ref []
 
 let default_available_units () =
-  Format.printf "BEWARE: Dynlink.default_available_units set namespace to None@.";
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Dynlink.default_available_units set namespace to None@.";
   clear_available_units();
   List.iter
     (fun (unit, crco) ->
