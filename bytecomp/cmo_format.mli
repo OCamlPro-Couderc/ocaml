@@ -29,7 +29,7 @@ type compilation_unit =
     cu_codesize: int;                   (* Size of code block *)
     cu_reloc: (reloc_info * int) list;  (* Relocation information *)
     cu_imports:
-      (string * Digest.t option) list; (* Names and CRC of intfs imported *)
+      (string * Longident.t option * Digest.t option) list; (* Names and CRC of intfs imported *)
     (* cu_imports:
          (string * string * Digest.t option) list *)
                                         (* Names with namespace and CRC of intfs

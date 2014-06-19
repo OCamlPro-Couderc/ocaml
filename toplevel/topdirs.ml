@@ -64,12 +64,12 @@ let check_consistency ppf filename cu =
   when Cmo format changes)@.";
   try
     List.iter
-      (fun (name, crco) ->
-       Env.imported_units := (name, None) :: !Env.imported_units;
+      (fun (name, ns, crco) ->
+       Env.imported_units := (name, ns) :: !Env.imported_units;
        match crco with
          None -> ()
        | Some crc->
-           Consistbl.check Env.crc_units name None crc filename)
+           Consistbl.check Env.crc_units name (Longident.optstring ns) crc filename)
       cu.cu_imports
   with Consistbl.Inconsistency(name, user, auth) ->
     fprintf ppf "@[<hv 0>The files %s@ and %s@ \

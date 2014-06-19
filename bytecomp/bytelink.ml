@@ -158,7 +158,7 @@ let scan_file obj_name tolink =
 (* Consistency check between interfaces *)
 
 let crc_interfaces = Consistbl.create ()
-let interfaces = ref ([] : string list)
+let interfaces = ref ([] : (string * Longident.t option) list)
 let implementations_defined = ref ([] : (string * string) list)
 
 let check_consistency ppf file_name cu =
@@ -166,16 +166,18 @@ let check_consistency ppf file_name cu =
     Format.printf "BEWARE: Bytelink.check_consistency gives a None namespace\
   (hint: should be modified when the cmo format will change)@.";
   begin try
+    (* Format.printf "Segfault when reading %s crc?@." cu.cu_name; *)
     List.iter
-      (fun (name, crco) ->
-        interfaces := name :: !interfaces;
+      (fun (name, ns, crco) ->
+        interfaces := (name, ns) :: !interfaces;
         match crco with
           None -> ()
         | Some crc ->
             if name = cu.cu_name
-            then Consistbl.set crc_interfaces name None crc file_name
-            else Consistbl.check crc_interfaces name None crc file_name)
-      cu.cu_imports
+            then Consistbl.set crc_interfaces name (Longident.optstring ns) crc file_name
+            else Consistbl.check crc_interfaces name (Longident.optstring ns) crc file_name)
+      cu.cu_imports;
+    (* Format.printf "Not here@."; *)
   with Consistbl.Inconsistency(name, user, auth) ->
     raise(Error(Inconsistent_import(name, user, auth)))
   end;
@@ -191,8 +193,8 @@ let check_consistency ppf file_name cu =
     (cu.cu_name, file_name) :: !implementations_defined
 
 let extract_crc_interfaces () =
-  let interfaces = List.map (fun n -> n, None) !interfaces in
-  List.map (fun (x, _, y) -> x, y) @@
+  let interfaces = List.map (fun (n, ns) -> n, Longident.optstring ns) !interfaces in
+  List.map (fun (n, ns, crc) -> n, Longident.from_optstring ns, crc) @@
   Consistbl.extract interfaces crc_interfaces
 
 let clear_crc_interfaces () =

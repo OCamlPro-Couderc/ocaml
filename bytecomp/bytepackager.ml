@@ -231,7 +231,7 @@ let package_object_files ppf files targetfile targetname coercion =
     let pos_final = pos_out oc in
     let imports =
       List.filter
-        (fun (name, crc) -> not (List.mem name unit_names))
+        (fun (name, ns, crc) -> not (List.mem name unit_names))
         (Bytelink.extract_crc_interfaces()) in
     let compunit =
       { cu_name = targetname;
@@ -239,7 +239,7 @@ let package_object_files ppf files targetfile targetname coercion =
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev !relocs;
         cu_imports =
-          (targetname, Some (Env.crc_of_unit targetname None)) :: imports;
+          (targetname, None, Some (Env.crc_of_unit targetname None)) :: imports;
         cu_primitives = !primitives;
         cu_force_link = !force_link;
         cu_debug = if pos_final > pos_debug then pos_debug else 0;

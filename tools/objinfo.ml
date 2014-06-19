@@ -55,7 +55,7 @@ let print_line name =
 let print_cmo_infos cu =
   printf "Unit name: %s\n" cu.cu_name;
   print_string "Interfaces imported:\n";
-  List.iter (fun (x, y) -> print_name_crc (x, None, y)) cu.cu_imports;
+  List.iter print_name_crc cu.cu_imports;
   printf "Uses unsafe features: ";
   (match cu.cu_primitives with
     | [] -> printf "no\n"

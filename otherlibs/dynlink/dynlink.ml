@@ -77,19 +77,21 @@ let allow_extension = ref true
    only authorized compilation units are referenced. *)
 
 let check_consistency file_name cu =
-  Format.printf "BEWARE: Dynlink.check_consistency sets namespace to None@.";
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Dynlink.check_consistency sets namespace to None@.";
   try
     List.iter
-      (fun (name, crco) ->
+      (fun (name, ns, crco) ->
          match crco with
            None -> ()
          | Some crc ->
+             let ns = Longident.optstring ns in
              if name = cu.cu_name then
-               Consistbl.set !crc_interfaces name None crc file_name
+               Consistbl.set !crc_interfaces name ns crc file_name
              else if !allow_extension then
-               Consistbl.check !crc_interfaces name None crc file_name
+               Consistbl.check !crc_interfaces name ns crc file_name
              else
-               Consistbl.check_noadd !crc_interfaces name None crc file_name)
+               Consistbl.check_noadd !crc_interfaces name ns crc file_name)
       cu.cu_imports
   with Consistbl.Inconsistency(name, user, auth) ->
          raise(Error(Inconsistent_import name))
