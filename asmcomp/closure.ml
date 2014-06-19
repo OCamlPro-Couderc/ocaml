@@ -48,7 +48,9 @@ let rec build_closure_env env_param pos = function
    contain the right names if the -for-pack option is active. *)
 
 let getglobal id =
-  Uprim(Pgetglobal (Ident.create_persistent (Compilenv.symbol_for_global id)),
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Closure.getglobal sets a namespace to None@.";
+  Uprim(Pgetglobal (Ident.create_persistent (Compilenv.symbol_for_global id) None),
         [], Debuginfo.none)
 
 (* Check if a variable occurs in a [clambda] term. *)
@@ -704,6 +706,8 @@ let strengthen_approx appl approx =
    replace it by an integer constant *)
 
 let check_constant_result lam ulam approx =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Closure.check_constant_result sets namespace arg to None@.";
   match approx with
     Value_const c when is_pure lam -> make_const c
   | Value_global_field (id, i) when is_pure lam ->
@@ -711,7 +715,7 @@ let check_constant_result lam ulam approx =
       | Uprim(Pfield _, [Uprim(Pgetglobal _, _, _)], _) -> (ulam, approx)
       | _ ->
           let glb =
-            Uprim(Pgetglobal (Ident.create_persistent id), [], Debuginfo.none)
+            Uprim(Pgetglobal (Ident.create_persistent id None), [], Debuginfo.none)
           in
           Uprim(Pfield i, [glb], Debuginfo.none), approx
       end

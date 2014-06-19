@@ -456,7 +456,7 @@ let _ =
 let transl_implementation module_name (str, cc) =
   reset_labels ();
   primitive_declarations := [];
-  let module_id = Ident.create_persistent module_name in
+  let module_id = Ident.create_persistent module_name None in
   Lprim(Psetglobal module_id,
         [transl_label_init
             (transl_struct [] cc (global_path module_id) str)])
@@ -738,7 +738,9 @@ let build_ident_map restr idlist more_ids =
 let transl_store_gen module_name ({ str_items = str }, restr) topl =
   reset_labels ();
   primitive_declarations := [];
-  let module_id = Ident.create_persistent module_name in
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Translmod.transl_store_gen sets a namespace arg to None@.";
+  let module_id = Ident.create_persistent module_name None in (* here *)
   let (map, prims, size) =
     build_ident_map restr (defined_idents str) (more_idents str) in
   let f = function
@@ -761,7 +763,7 @@ let transl_store_implementation module_name (str, restr) =
 
 (* Compile a toplevel phrase *)
 
-let toploop_ident = Ident.create_persistent "Toploop"
+let toploop_ident = Ident.create_persistent "Toploop" None
 let toploop_getvalue_pos = 0 (* position of getvalue in module Toploop *)
 let toploop_setvalue_pos = 1 (* position of setvalue in module Toploop *)
 

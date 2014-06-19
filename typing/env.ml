@@ -367,7 +367,7 @@ let read_pers_struct ns modname filename : pers_struct =
   let flags = cmi.cmi_flags in
   let comps =
       !components_of_module' empty Subst.identity
-                             (Pident(Ident.create_persistent name))
+                             (Pident(Ident.create_persistent name ns))
                              (Mty_signature sign)
   in
   let ps = { ps_name = name;
@@ -648,7 +648,7 @@ let rec is_functor_arg path env =
 
 exception Recmodule
 
-let rec lookup_module_descr lid env =
+let rec lookup_module_descr lid ns env =
   if !Clflags.ns_debug then
     Format.printf "BEWARE: Env.lookup_module_descr gives None to find_pers_struct@.";
   match lid with
@@ -657,11 +657,11 @@ let rec lookup_module_descr lid env =
         EnvTbl.find_name s env.components
       with Not_found ->
         if s = !current_unit then raise Not_found;
-        let ps = find_pers_struct None s in
-        (Pident(Ident.create_persistent s), ps.ps_comps)
+        let ps = find_pers_struct ns s in
+        (Pident(Ident.create_persistent s ns), ps.ps_comps)
       end
   | Ldot(l, s) ->
-      let (p, descr) = lookup_module_descr l env in
+      let (p, descr) = lookup_module_descr l None env in
       begin match EnvLazy.force !components_of_module_maker' descr with
         Structure_comps c ->
           let (descr, pos) = Tbl.find s c.comp_components in
@@ -670,7 +670,7 @@ let rec lookup_module_descr lid env =
           raise Not_found
       end
   | Lapply(l1, l2) ->
-      let (p1, desc1) = lookup_module_descr l1 env in
+      let (p1, desc1) = lookup_module_descr l1 None env in
       let p2 = lookup_module true None l2 env in
       let {md_type=mty2} = find_module None p2 env in
       begin match EnvLazy.force !components_of_module_maker' desc1 with
@@ -707,10 +707,10 @@ and lookup_module ~load ns lid env : Path.t =
           with Not_found ->
 	    Location.prerr_warning Location.none (Warnings.No_cmi_file s)
 	else ignore (find_pers_struct ns s);
-        Pident(Ident.create_persistent s)
+        Pident(Ident.create_persistent s ns)
       end
   | Ldot(l, s) ->
-      let (p, descr) = lookup_module_descr l env in
+      let (p, descr) = lookup_module_descr l None env in
       begin match EnvLazy.force !components_of_module_maker' descr with
         Structure_comps c ->
           let (data, pos) = Tbl.find s c.comp_modules in
@@ -719,7 +719,7 @@ and lookup_module ~load ns lid env : Path.t =
           raise Not_found
       end
   | Lapply(l1, l2) ->
-      let (p1, desc1) = lookup_module_descr l1 env in
+      let (p1, desc1) = lookup_module_descr l1 None env in
       let p2 = lookup_module true None l2 env in
       let {md_type=mty2} = find_module None p2 env in
       let p = Papply(p1, p2) in
@@ -736,7 +736,7 @@ let lookup proj1 proj2 lid env =
     Lident s ->
       EnvTbl.find_name s (proj1 env)
   | Ldot(l, s) ->
-      let (p, desc) = lookup_module_descr l env in
+      let (p, desc) = lookup_module_descr l None env in
       begin match EnvLazy.force !components_of_module_maker' desc with
         Structure_comps c ->
           let (data, pos) = Tbl.find s (proj2 c) in
@@ -752,7 +752,7 @@ let lookup_simple proj1 proj2 lid env =
     Lident s ->
       EnvTbl.find_name s (proj1 env)
   | Ldot(l, s) ->
-      let (p, desc) = lookup_module_descr l env in
+      let (p, desc) = lookup_module_descr l None env in
       begin match EnvLazy.force !components_of_module_maker' desc with
         Structure_comps c ->
           let (data, pos) = Tbl.find s (proj2 c) in
@@ -776,7 +776,7 @@ let lookup_all_simple proj1 proj2 shadow lid env =
       in
         do_shadow xl
   | Ldot(l, s) ->
-      let (p, desc) = lookup_module_descr l env in
+      let (p, desc) = lookup_module_descr l None env in
       begin match EnvLazy.force !components_of_module_maker' desc with
         Structure_comps c ->
           let comps =
@@ -982,7 +982,7 @@ let iter_env proj1 proj2 f env =
     (fun (s, ns) pso ->
       match pso with None -> ()
       | Some ps ->
-          let id = Pident (Ident.create_persistent s) in
+          let id = Pident (Ident.create_persistent s ns) in
           iter_components id id ps.ps_comps)
     persistent_structures;
   Ident.iter
@@ -1589,7 +1589,7 @@ let open_signature slot root sg env0 =
 
 let open_pers_signature ns name env =
   let ps = find_pers_struct ns name in
-  open_signature None (Pident(Ident.create_persistent name)) ps.ps_sig env
+  open_signature None (Pident(Ident.create_persistent name ns)) ps.ps_sig env
 
 let open_signature ?(loc = Location.none) ?(toplevel = false) ovf root sg env =
   if not toplevel && ovf = Asttypes.Fresh && not loc.Location.loc_ghost
@@ -1677,7 +1677,7 @@ let save_signature_with_imports ns sg modname filename imports =
        will also return its crc *)
     let comps =
       components_of_module empty Subst.identity
-        (Pident(Ident.create_persistent modname)) (Mty_signature sg) in
+        (Pident(Ident.create_persistent modname ns)) (Mty_signature sg) in
     let ps =
       { ps_name = modname;
         ps_namespace = ns;
@@ -1701,13 +1701,15 @@ let save_signature ns sg modname filename =
 (* Folding on environments *)
 
 let find_all proj1 proj2 f lid env acc =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Env.find_all set a namespacce arg to None@.";
   match lid with
     | None ->
       EnvTbl.fold_name
         (fun id (p, data) acc -> f (Ident.name id) p data acc)
         (proj1 env) acc
     | Some l ->
-      let p, desc = lookup_module_descr l env in
+      let p, desc = lookup_module_descr l None env in
       begin match EnvLazy.force components_of_module_maker desc with
           Structure_comps c ->
             Tbl.fold
@@ -1718,13 +1720,15 @@ let find_all proj1 proj2 f lid env acc =
       end
 
 let find_all_simple_list proj1 proj2 f lid env acc =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Env.find_all_simple_list set a namespace arg to None@.";
   match lid with
     | None ->
       EnvTbl.fold_name
         (fun id data acc -> f data acc)
         (proj1 env) acc
     | Some l ->
-      let p, desc = lookup_module_descr l env in
+      let p, desc = lookup_module_descr l None env in
       begin match EnvLazy.force components_of_module_maker desc with
           Structure_comps c ->
             Tbl.fold
@@ -1752,12 +1756,15 @@ let fold_modules f lid env acc =
           match ps with
               None -> acc
             | Some ps ->
-              f name (Pident(Ident.create_persistent name))
+              f name (Pident(Ident.create_persistent name ns))
                      (md (Mty_signature ps.ps_sig)) acc)
         persistent_structures
         acc
     | Some l ->
-      let p, desc = lookup_module_descr l env in
+        if !Clflags.ns_debug then
+          Format.printf "BEWARE: Env.fold_modules sets a namespace arg to None
+  (`Some` branch of pattern matching)@.";
+      let p, desc = lookup_module_descr l None env in
       begin match EnvLazy.force components_of_module_maker desc with
           Structure_comps c ->
             Tbl.fold

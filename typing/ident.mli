@@ -12,10 +12,10 @@
 
 (* Identifiers (unique names) *)
 
-type t = { stamp: int; name: string; mutable flags: int }
+type t = { stamp: int; name: string; ns: Longident.t option; mutable flags: int }
 
 val create: string -> t
-val create_persistent: string -> t
+val create_persistent: string -> Longident.t option -> t
 val create_predef_exn: string -> t
 val rename: t -> t
 val name: t -> string
