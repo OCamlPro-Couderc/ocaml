@@ -76,9 +76,6 @@ let check_units members =
 (* Make the .o file for the package *)
 
 let make_package_object ppf members targetobj targetname coercion =
-  if !Clflags.ns_debug then
-    Format.printf "BEWARE: Asmpackager..make_package_object sets a namespace arg
-  to None@.";
   let objtemp =
     if !Clflags.keep_asm_file
     then chop_extension_if_any targetobj ^ ".pack" ^ Config.ext_obj
@@ -92,12 +89,12 @@ let make_package_object ppf members targetobj targetname coercion =
       (fun m ->
         match m.pm_kind with
         | PM_intf -> None
-        | PM_impl _ -> Some(Ident.create_persistent m.pm_name None))
+        | PM_impl _ -> Some(Ident.create_persistent m.pm_name))
       members in
   Asmgen.compile_implementation
     (chop_extension_if_any objtemp) ppf
     (Translmod.transl_store_package
-       components (Ident.create_persistent targetname None) coercion);
+       components (Ident.create_persistent targetname) coercion);
   let objfiles =
     List.map
       (fun m -> chop_extension_if_any m.pm_file ^ Config.ext_obj)

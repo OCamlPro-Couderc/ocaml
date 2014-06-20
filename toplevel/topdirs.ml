@@ -360,9 +360,7 @@ let show_prim to_sig ppf lid =
           fprintf ppf "Invalid path %a@." Printtyp.longident lid;
           raise Exit
     in
-    if !Clflags.ns_debug then
-      Format.printf "BEWARE: Topdirs.show_prim sets a namespace arg to None@.";
-    let id = Ident.create_persistent s None in
+    let id = Ident.create_persistent s in
     let sg = to_sig env loc id lid in
     fprintf ppf "@[%a@]@." Printtyp.signature sg
   with
@@ -378,7 +376,7 @@ let reg_show_prim name to_sig =
 
 let () =
   reg_show_prim "show_val"
-    (fun env loc (id: Ident.t) lid ->
+    (fun env loc id lid ->
        let path, desc = Typetexp.find_value env loc lid in
        [ Sig_value (id, desc) ]
     )

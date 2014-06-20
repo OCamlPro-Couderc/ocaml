@@ -41,9 +41,6 @@ let force_link = ref false
    consolidated. *)
 
 let rename_relocation packagename objfile mapping defined base (rel, ofs) =
-  if !Clflags.ns_debug then
-    Format.printf "BEWARE: Bytepackager.rename_relocation sets a namespace arg
-  to None@.";
   let rel' =
     match rel with
       Reloc_getglobal id ->
@@ -58,7 +55,7 @@ let rename_relocation packagename objfile mapping defined base (rel, ofs) =
              module. *)
           let name = Ident.name id in
           if String.contains name '.' then
-            Reloc_getglobal (Ident.create_persistent (packagename ^ "." ^ name) None)
+            Reloc_getglobal (Ident.create_persistent (packagename ^ "." ^ name))
           else
             rel
         end
@@ -72,7 +69,7 @@ let rename_relocation packagename objfile mapping defined base (rel, ofs) =
           (* PR#5276, as above *)
           let name = Ident.name id in
           if String.contains name '.' then
-            Reloc_setglobal (Ident.create_persistent (packagename ^ "." ^ name) None)
+            Reloc_setglobal (Ident.create_persistent (packagename ^ "." ^ name))
           else
             rel
         end
@@ -165,9 +162,6 @@ let rec rename_append_bytecode_list ppf packagename oc mapping defined ofs
     [] ->
       ofs
   | m :: rem ->
-      if !Clflags.ns_debug then
-        Format.printf "BEWARE: Bytepackager.rename_append_bytecode_list sets a
-                                    namespace argument to None@.";
       match m.pm_kind with
       | PM_intf ->
           rename_append_bytecode_list ppf packagename oc mapping defined ofs
@@ -176,8 +170,8 @@ let rec rename_append_bytecode_list ppf packagename oc mapping defined ofs
           let size =
             rename_append_bytecode ppf packagename oc mapping defined ofs
                                    prefix subst m.pm_file compunit in
-          let id = Ident.create_persistent m.pm_name None in
-          let root = Path.Pident (Ident.create_persistent prefix None) in
+          let id = Ident.create_persistent m.pm_name in
+          let root = Path.Pident (Ident.create_persistent prefix) in
           rename_append_bytecode_list ppf packagename oc mapping (id :: defined)
             (ofs + size) prefix
             (Subst.add_module id (Path.Pdot (root, Ident.name id, Path.nopos))
@@ -187,9 +181,6 @@ let rec rename_append_bytecode_list ppf packagename oc mapping defined ofs
 (* Generate the code that builds the tuple representing the package module *)
 
 let build_global_target oc target_name members mapping pos coercion =
-  if !Clflags.ns_debug then
-    Format.printf "BEWARE: Bytepackager.build_global_target sets a namespace arg
-  to None@.";
   let components =
     List.map2
       (fun m (id1, id2) ->
@@ -199,7 +190,7 @@ let build_global_target oc target_name members mapping pos coercion =
       members mapping in
   let lam =
     Translmod.transl_package
-      components (Ident.create_persistent target_name None) coercion in
+      components (Ident.create_persistent target_name) coercion in
   if !Clflags.dump_lambda then
     Format.printf "%a@." Printlambda.lambda lam;
   let instrs =
@@ -221,8 +212,8 @@ let package_object_files ppf files targetfile targetname coercion =
   let mapping =
     List.map
       (fun name ->
-          (Ident.create_persistent name None,
-           Ident.create_persistent(targetname ^ "." ^ name) None))
+          (Ident.create_persistent name,
+           Ident.create_persistent(targetname ^ "." ^ name)))
       unit_names in
   let oc = open_out_bin targetfile in
   try

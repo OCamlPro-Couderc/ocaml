@@ -12,7 +12,7 @@
 
 open Format
 
-type t = { stamp: int; name: string; ns: Longident.t option; mutable flags: int }
+type t = { stamp: int; name: string; mutable flags: int }
 
 let global_flag = 1
 let predef_exn_flag = 2
@@ -23,14 +23,14 @@ let currentstamp = ref 0
 
 let create s =
   incr currentstamp;
-  { name = s; ns = None; stamp = !currentstamp; flags = 0 }
+  { name = s; stamp = !currentstamp; flags = 0 }
 
 let create_predef_exn s =
   incr currentstamp;
-  { name = s; ns = None; stamp = !currentstamp; flags = predef_exn_flag }
+  { name = s; stamp = !currentstamp; flags = predef_exn_flag }
 
-let create_persistent s ns =
-  { name = s; ns; stamp = 0; flags = global_flag }
+let create_persistent s =
+  { name = s; stamp = 0; flags = global_flag }
 
 let rename i =
   incr currentstamp;

@@ -1792,7 +1792,7 @@ and type_expect_ ?in_function env sexp ty_expected =
     (* Terrible hack for format strings *)
     let ty_exp = expand_head env ty_expected in
     let fmt6_path =
-      Path.(Pdot (Pident (Ident.create_persistent "CamlinternalFormatBasics" None),
+      Path.(Pdot (Pident (Ident.create_persistent "CamlinternalFormatBasics"),
                   "format6", 0)) in
     let is_format = match ty_exp.desc with
       | Tconstr(path, _, _) when Path.same path fmt6_path ->

@@ -45,7 +45,7 @@ let ident ppf id = pp_print_string ppf (ident_name id)
 
 (* Print a path *)
 
-let ident_pervasive = Ident.create_persistent "Pervasives" None
+let ident_pervasive = Ident.create_persistent "Pervasives"
 
 let rec tree_of_path = function
   | Pident id ->
