@@ -146,6 +146,8 @@ val reset_cache_toplevel: unit -> unit
 (* Remember the name of the current compilation unit. *)
 val set_unit_name: string -> unit
 
+val get_namespace_unit: unit -> Longident.t option
+
 (* Remember the namespace of the current compilation unit *)
 val set_namespace_unit: Longident.t option -> unit
 
@@ -260,3 +262,5 @@ val fold_cltypes:
 
 (** Utilities *)
 val scrape_alias: t -> module_type -> module_type
+
+val longident_to_filepath: Longident.t option -> string

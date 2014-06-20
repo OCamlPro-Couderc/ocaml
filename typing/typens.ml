@@ -17,8 +17,6 @@ open Parsetree
 open Typedtree
 open Asttypes
 
-let cu_ns = ref None
-
 type namespaces = namespace_env list
 
 and namespace_env =
@@ -146,18 +144,11 @@ let verify_import i check_ns_names =
 
 
 let compute_prelude prl =
-  cu_ns :=
-    begin
+  let ns =
       match prl.prl_ns with
       | None -> None
       | Some nd -> Some nd.ns_name
-    end;
+  in
+  Env.set_namespace_unit ns;
   let hierarchy = mk_nsenv prl.prl_imports in
-  List.map elaborate_import hierarchy, !cu_ns
-  (* Namespaces and modules share the same namespace *)
-  (* List.iter *)
-  (*   (function Ns (n, _) | Mod (n, _) -> check_names n *)
-  (*           | Shadowed (_) | Wildcard -> ()) *)
-  (*   hierarchy; *)
-  (* Format.printf "Resulting namespace hierarchy:\n%s@." @@ print_namespace hierarchy *)
-  (* List.iter (fun i -> verify_import i check_names) prl.prl_imports *)
+  List.map elaborate_import hierarchy, ns

@@ -1,9 +1,4 @@
 
-(** The namespace of the currently compiled unit
-    Only temporary, should move in proper place (Env certainly)
-*)
-val cu_ns: Longident.t option ref
-
 (** Representation of the environment builded by the prelude *)
 type namespaces = namespace_env list
 

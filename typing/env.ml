@@ -335,9 +335,13 @@ let clear_imports () =
 
 let add_imports ps =
   if !Clflags.ns_debug then
-    Format.printf "Env.add_imports to modifiy@.";
+    Format.printf "Env.add_imports of %s@." ps.ps_name;
   List.iter
-    (fun (name, ns, _) -> imported_units := (name, ns) :: !imported_units)
+    (fun (name, ns, _) ->
+       (if !Clflags.ns_debug then
+          Format.printf "Adding %s from %s@." name
+            (match ns with None -> "ROOT" | Some ns -> Longident.string_of_longident ns));
+       imported_units := (name, ns) :: !imported_units)
     ps.ps_crcs
 
 let check_consistency ps =
@@ -436,12 +440,15 @@ let reset_cache_toplevel () =
 let set_unit_name name =
   current_unit := name
 
+let get_namespace_unit () =
+  !current_unit_namespace
+
 let set_namespace_unit olid =
   current_unit_namespace := olid
 
 (* Lookup by identifier *)
 
-let rec find_module_descr path env =
+let rec find_module_descr ns path env =
   if !Clflags.ns_debug then
     Format.printf "BEWARE: Env.find_module_desc gives None to find_pers_struct@.";
   match path with
@@ -451,12 +458,12 @@ let rec find_module_descr path env =
         in desc
       with Not_found ->
         if Ident.persistent id
-        then (find_pers_struct None (Ident.name id)).ps_comps
+        then (find_pers_struct ns (Ident.name id)).ps_comps
         else raise Not_found
       end
   | Pdot(p, s, pos) ->
       begin match
-        EnvLazy.force !components_of_module_maker' (find_module_descr p env)
+        EnvLazy.force !components_of_module_maker' (find_module_descr ns p env)
       with
         Structure_comps c ->
           let (descr, pos) = Tbl.find s c.comp_components in
@@ -466,7 +473,7 @@ let rec find_module_descr path env =
       end
   | Papply(p1, p2) ->
       begin match
-        EnvLazy.force !components_of_module_maker' (find_module_descr p1 env)
+        EnvLazy.force !components_of_module_maker' (find_module_descr None p1 env)
       with
         Functor_comps f ->
           !components_of_functor_appl' f p1 p2
@@ -481,7 +488,7 @@ let find proj1 proj2 path env =
       in data
   | Pdot(p, s, pos) ->
       begin match
-        EnvLazy.force !components_of_module_maker' (find_module_descr p env)
+        EnvLazy.force !components_of_module_maker' (find_module_descr None p env)
       with
         Structure_comps c ->
           let (data, pos) = Tbl.find s (proj2 c) in data
@@ -521,7 +528,7 @@ let find_module ~alias ns path env =
       end
   | Pdot(p, s, pos) ->
       begin match
-        EnvLazy.force !components_of_module_maker' (find_module_descr p env)
+        EnvLazy.force !components_of_module_maker' (find_module_descr None p env)
       with
         Structure_comps c ->
           let (data, pos) = Tbl.find s c.comp_modules in
@@ -530,7 +537,7 @@ let find_module ~alias ns path env =
           raise Not_found
       end
   | Papply(p1, p2) ->
-      let desc1 = find_module_descr p1 env in
+      let desc1 = find_module_descr None p1 env in
       begin match EnvLazy.force !components_of_module_maker' desc1 with
         Functor_comps f ->
           md begin match f.fcomp_res with
@@ -648,7 +655,7 @@ let rec is_functor_arg path env =
 
 exception Recmodule
 
-let rec lookup_module_descr lid env =
+let rec lookup_module_descr ns lid env =
   if !Clflags.ns_debug then
     Format.printf "BEWARE: Env.lookup_module_descr gives None to find_pers_struct@.";
   match lid with
@@ -657,11 +664,11 @@ let rec lookup_module_descr lid env =
         EnvTbl.find_name s env.components
       with Not_found ->
         if s = !current_unit then raise Not_found;
-        let ps = find_pers_struct None s in
+        let ps = find_pers_struct ns s in
         (Pident(Ident.create_persistent s), ps.ps_comps)
       end
   | Ldot(l, s) ->
-      let (p, descr) = lookup_module_descr l env in
+      let (p, descr) = lookup_module_descr None l env in
       begin match EnvLazy.force !components_of_module_maker' descr with
         Structure_comps c ->
           let (descr, pos) = Tbl.find s c.comp_components in
@@ -670,7 +677,7 @@ let rec lookup_module_descr lid env =
           raise Not_found
       end
   | Lapply(l1, l2) ->
-      let (p1, desc1) = lookup_module_descr l1 env in
+      let (p1, desc1) = lookup_module_descr None l1 env in
       let p2 = lookup_module true None l2 env in
       let {md_type=mty2} = find_module None p2 env in
       begin match EnvLazy.force !components_of_module_maker' desc1 with
@@ -710,7 +717,7 @@ and lookup_module ~load ns lid env : Path.t =
         Pident(Ident.create_persistent s)
       end
   | Ldot(l, s) ->
-      let (p, descr) = lookup_module_descr l env in
+      let (p, descr) = lookup_module_descr None l env in
       begin match EnvLazy.force !components_of_module_maker' descr with
         Structure_comps c ->
           let (data, pos) = Tbl.find s c.comp_modules in
@@ -719,7 +726,7 @@ and lookup_module ~load ns lid env : Path.t =
           raise Not_found
       end
   | Lapply(l1, l2) ->
-      let (p1, desc1) = lookup_module_descr l1 env in
+      let (p1, desc1) = lookup_module_descr None l1 env in
       let p2 = lookup_module true None l2 env in
       let {md_type=mty2} = find_module None p2 env in
       let p = Papply(p1, p2) in
@@ -736,7 +743,7 @@ let lookup proj1 proj2 lid env =
     Lident s ->
       EnvTbl.find_name s (proj1 env)
   | Ldot(l, s) ->
-      let (p, desc) = lookup_module_descr l env in
+      let (p, desc) = lookup_module_descr None l env in
       begin match EnvLazy.force !components_of_module_maker' desc with
         Structure_comps c ->
           let (data, pos) = Tbl.find s (proj2 c) in
@@ -752,7 +759,7 @@ let lookup_simple proj1 proj2 lid env =
     Lident s ->
       EnvTbl.find_name s (proj1 env)
   | Ldot(l, s) ->
-      let (p, desc) = lookup_module_descr l env in
+      let (p, desc) = lookup_module_descr None l env in
       begin match EnvLazy.force !components_of_module_maker' desc with
         Structure_comps c ->
           let (data, pos) = Tbl.find s (proj2 c) in
@@ -776,7 +783,7 @@ let lookup_all_simple proj1 proj2 shadow lid env =
       in
         do_shadow xl
   | Ldot(l, s) ->
-      let (p, desc) = lookup_module_descr l env in
+      let (p, desc) = lookup_module_descr None l env in
       begin match EnvLazy.force !components_of_module_maker' desc with
         Structure_comps c ->
           let comps =
@@ -1701,13 +1708,15 @@ let save_signature ns sg modname filename =
 (* Folding on environments *)
 
 let find_all proj1 proj2 f lid env acc =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Env.find_all sets a namespace arg to None@.";
   match lid with
     | None ->
       EnvTbl.fold_name
         (fun id (p, data) acc -> f (Ident.name id) p data acc)
         (proj1 env) acc
     | Some l ->
-      let p, desc = lookup_module_descr l env in
+      let p, desc = lookup_module_descr None l env in
       begin match EnvLazy.force components_of_module_maker desc with
           Structure_comps c ->
             Tbl.fold
@@ -1718,13 +1727,15 @@ let find_all proj1 proj2 f lid env acc =
       end
 
 let find_all_simple_list proj1 proj2 f lid env acc =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Env.find_all_simple_list sets a namespace arg to None@.";
   match lid with
     | None ->
       EnvTbl.fold_name
         (fun id data acc -> f data acc)
         (proj1 env) acc
     | Some l ->
-      let p, desc = lookup_module_descr l env in
+      let p, desc = lookup_module_descr None l env in
       begin match EnvLazy.force components_of_module_maker desc with
           Structure_comps c ->
             Tbl.fold
@@ -1739,6 +1750,8 @@ let find_all_simple_list proj1 proj2 f lid env acc =
       end
 
 let fold_modules f lid env acc =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: fold_modules sets a namespace arg to None@.";
   match lid with
     | None ->
       let acc =
@@ -1757,7 +1770,7 @@ let fold_modules f lid env acc =
         persistent_structures
         acc
     | Some l ->
-      let p, desc = lookup_module_descr l env in
+      let p, desc = lookup_module_descr None l env in
       begin match EnvLazy.force components_of_module_maker desc with
           Structure_comps c ->
             Tbl.fold

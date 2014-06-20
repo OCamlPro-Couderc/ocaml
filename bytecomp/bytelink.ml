@@ -163,8 +163,7 @@ let implementations_defined = ref ([] : (string * string) list)
 
 let check_consistency ppf file_name cu =
   if !Clflags.ns_debug then
-    Format.printf "BEWARE: Bytelink.check_consistency gives a None namespace\
-  (hint: should be modified when the cmo format will change)@.";
+    Format.printf "Bytelink.check_consistency@.";
   begin try
     (* Format.printf "Segfault when reading %s crc?@." cu.cu_name; *)
     List.iter
@@ -177,7 +176,6 @@ let check_consistency ppf file_name cu =
             then Consistbl.set crc_interfaces name (Longident.optstring ns) crc file_name
             else Consistbl.check crc_interfaces name (Longident.optstring ns) crc file_name)
       cu.cu_imports;
-    (* Format.printf "Not here@."; *)
   with Consistbl.Inconsistency(name, user, auth) ->
     raise(Error(Inconsistent_import(name, user, auth)))
   end;

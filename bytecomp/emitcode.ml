@@ -380,7 +380,7 @@ let to_file outchan unit_name code =
     Format.printf "BEWARE: Emitcode.to_file -> cu_namespace set to None@.";
   let compunit =
     { cu_name = unit_name;
-      cu_namespace = None;
+      cu_namespace = Env.get_namespace_unit();
       cu_pos = pos_code;
       cu_codesize = !out_position;
       cu_reloc = List.rev !reloc_info;
