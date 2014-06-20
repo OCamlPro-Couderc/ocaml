@@ -1565,7 +1565,7 @@ let () =
 
 let type_implementation sourcefile outputprefix modulename initial_env ast =
   if !Clflags.ns_debug then
-    Format.printf "BEWARE: Typemod.type_implementation gives a None namespace@.";
+    Format.printf "Typemod.type_implementation@.";
   Cmt_format.clear ();
   try
   Typecore.reset_delayed_checks ();
@@ -1624,7 +1624,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
          case, the inferred signature contains only the last declaration. *)
       if not !Clflags.dont_write_files then begin
         let sg =
-          Env.save_signature None simple_sg modulename (outputprefix ^ ".cmi") in
+          Env.save_signature ns simple_sg modulename (outputprefix ^ ".cmi") in
         Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
           (Cmt_format.Implementation str)
           (Some sourcefile) initial_env (Some sg);

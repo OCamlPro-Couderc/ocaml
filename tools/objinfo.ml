@@ -36,6 +36,13 @@ let input_stringlist ic len =
 
 let dummy_crc = String.make 32 '-'
 
+let print_namespace ns =
+  let ns = match ns with
+    None -> "ROOT"
+  | Some ns -> Longident.string_of_longident ns
+  in
+  printf "Namespace: %s\n" ns
+
 let print_name_crc (name, ns, crco) =
   let crc =
     match crco with
@@ -54,6 +61,7 @@ let print_line name =
 
 let print_cmo_infos cu =
   printf "Unit name: %s\n" cu.cu_name;
+  print_namespace cu.cu_namespace;
   print_string "Interfaces imported:\n";
   List.iter print_name_crc cu.cu_imports;
   printf "Uses unsafe features: ";

@@ -376,8 +376,11 @@ let to_file outchan unit_name code =
       (p, pos_out outchan - p)
     end else
       (0, 0) in
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Emitcode.to_file -> cu_namespace set to None@.";
   let compunit =
     { cu_name = unit_name;
+      cu_namespace = None;
       cu_pos = pos_code;
       cu_codesize = !out_position;
       cu_reloc = List.rev !reloc_info;

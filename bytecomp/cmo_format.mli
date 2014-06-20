@@ -24,7 +24,7 @@ type reloc_info =
 
 type compilation_unit =
   { cu_name: string;                    (* Name of compilation unit *)
-    (* cu_namespace: string; *)         (* Namespace of compilation unit *)
+    cu_namespace: Longident.t option;   (* Namespace of compilation unit *)
     mutable cu_pos: int;                (* Absolute position in file *)
     cu_codesize: int;                   (* Size of code block *)
     cu_reloc: (reloc_info * int) list;  (* Relocation information *)

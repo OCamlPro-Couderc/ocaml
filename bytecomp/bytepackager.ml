@@ -235,6 +235,7 @@ let package_object_files ppf files targetfile targetname coercion =
         (Bytelink.extract_crc_interfaces()) in
     let compunit =
       { cu_name = targetname;
+        cu_namespace = None;
         cu_pos = pos_code;
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev !relocs;
