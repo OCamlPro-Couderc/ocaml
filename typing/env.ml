@@ -1666,9 +1666,10 @@ let save_signature_with_imports ns sg modname filename imports =
   Btype.cleanup_abbrev ();
   Subst.reset_for_saving ();
   if !Clflags.ns_debug then
-    Format.printf "save_signature_with_imports: filename already contains the\
-  namespace folder?@.";
+    Format.printf "save_signature_with_imports@.";
   let sg = Subst.signature (Subst.for_saving Subst.identity) sg in
+  let dir = longident_to_filepath ns in
+  let filename = Filename.concat dir filename in
   let oc = open_out_bin filename in
   try
     let cmi = {
@@ -1680,6 +1681,8 @@ let save_signature_with_imports ns sg modname filename imports =
     } in
     let crc = output_cmi filename oc cmi in
     close_out oc;
+    if !Clflags.ns_debug then
+      Format.printf "save_signature_with_imports: correctly wrote cmi@.";
     (* Enter signature in persistent table so that imported_unit()
        will also return its crc *)
     let comps =
@@ -1696,6 +1699,8 @@ let save_signature_with_imports ns sg modname filename imports =
     Hashtbl.add persistent_structures (modname, ns) (Some ps);
     Consistbl.set crc_units modname (optstring ns) crc filename;
     imported_units := (modname, ns) :: !imported_units;
+    if !Clflags.ns_debug then
+      Format.printf "Signature ok@.";
     sg
   with exn ->
     close_out oc;

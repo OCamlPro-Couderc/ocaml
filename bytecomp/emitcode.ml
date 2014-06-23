@@ -360,44 +360,52 @@ let rec emit = function
 
 (* Emission to a file *)
 
-let to_file outchan unit_name code =
-  init();
-  output_string outchan cmo_magic_number;
-  let pos_depl = pos_out outchan in
-  output_binary_int outchan 0;
-  let pos_code = pos_out outchan in
-  emit code;
-  LongString.output outchan !out_buffer 0 !out_position;
-  let (pos_debug, size_debug) =
-    if !Clflags.debug then begin
-      let p = pos_out outchan in
-      output_value outchan !events;
-      output_value outchan (StringSet.elements !debug_dirs);
-      (p, pos_out outchan - p)
-    end else
-      (0, 0) in
+let to_file ns objfile unit_name code =
+  let dir = Env.longident_to_filepath ns in
   if !Clflags.ns_debug then
-    Format.printf "BEWARE: Emitcode.to_file -> cu_namespace set to None@.";
-  let compunit =
-    { cu_name = unit_name;
-      cu_namespace = Env.get_namespace_unit();
-      cu_pos = pos_code;
-      cu_codesize = !out_position;
-      cu_reloc = List.rev !reloc_info;
-      cu_imports = (* List.map (fun (x, _, y) -> x, y) *) (Env.imports());
-      cu_primitives = List.map Primitive.byte_name
-                               !Translmod.primitive_declarations;
-      cu_force_link = false;
-      cu_debug = pos_debug;
-      cu_debugsize = size_debug } in
-  init();                               (* Free out_buffer and reloc_info *)
-  Btype.cleanup_abbrev ();              (* Remove any cached abbreviation
-                                           expansion before saving *)
-  let pos_compunit = pos_out outchan in
-  output_value outchan compunit;
-  seek_out outchan pos_depl;
-  output_binary_int outchan pos_compunit
-
+    Format.printf "Emitcode.to_file: dir: %s@." dir;
+  let outchan = open_out_bin @@ Filename.concat dir objfile in
+  init();
+  try
+    output_string outchan cmo_magic_number;
+    let pos_depl = pos_out outchan in
+    output_binary_int outchan 0;
+    let pos_code = pos_out outchan in
+    emit code;
+    LongString.output outchan !out_buffer 0 !out_position;
+    let (pos_debug, size_debug) =
+      if !Clflags.debug then begin
+        let p = pos_out outchan in
+        output_value outchan !events;
+        output_value outchan (StringSet.elements !debug_dirs);
+        (p, pos_out outchan - p)
+      end else
+        (0, 0) in
+    if !Clflags.ns_debug then
+      Format.printf "BEWARE: Emitcode.to_file -> cu_namespace set to None@.";
+    let compunit =
+      { cu_name = unit_name;
+        cu_namespace = Env.get_namespace_unit();
+        cu_pos = pos_code;
+        cu_codesize = !out_position;
+        cu_reloc = List.rev !reloc_info;
+        cu_imports = (* List.map (fun (x, _, y) -> x, y) *) (Env.imports());
+        cu_primitives = List.map Primitive.byte_name
+            !Translmod.primitive_declarations;
+        cu_force_link = false;
+        cu_debug = pos_debug;
+        cu_debugsize = size_debug } in
+    init();                               (* Free out_buffer and reloc_info *)
+    Btype.cleanup_abbrev ();              (* Remove any cached abbreviation
+                                             expansion before saving *)
+    let pos_compunit = pos_out outchan in
+    output_value outchan compunit;
+    seek_out outchan pos_depl;
+    output_binary_int outchan pos_compunit;
+    close_out outchan
+  with x ->
+    close_out outchan;
+    raise x
 (* Emission to a memory block *)
 
 let to_memory init_code fun_code =

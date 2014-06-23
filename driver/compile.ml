@@ -78,7 +78,6 @@ let implementation ppf sourcefile outputprefix =
       raise x
   end else begin
     let objfile = outputprefix ^ ".cmo" in
-    let oc = open_out_bin objfile in
     let comp ast =
       ast
       ++ print_if ppf Clflags.dump_parsetree Printast.implementation
@@ -92,14 +91,12 @@ let implementation ppf sourcefile outputprefix =
       ++ print_if ppf Clflags.dump_lambda Printlambda.lambda
       ++ Bytegen.compile_implementation modulename
       ++ print_if ppf Clflags.dump_instr Printinstr.instrlist
-      ++ Emitcode.to_file oc modulename;
+      ++ Emitcode.to_file (Env.get_namespace_unit()) objfile modulename;
       Warnings.check_fatal ();
-      close_out oc;
       Stypes.dump (Some (outputprefix ^ ".annot"))
     in
     try comp (Pparse.parse_implementation ppf sourcefile)
     with x ->
-      close_out oc;
       remove_file objfile;
       Stypes.dump (Some (outputprefix ^ ".annot"));
       raise x
