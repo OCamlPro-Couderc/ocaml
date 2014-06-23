@@ -444,6 +444,8 @@ let get_namespace_unit () =
   !current_unit_namespace
 
 let set_namespace_unit olid =
+  if !Clflags.ns_debug then
+    Format.printf "Setting namespace unit@.";
   current_unit_namespace := olid
 
 (* Lookup by identifier *)

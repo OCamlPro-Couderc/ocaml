@@ -91,7 +91,7 @@ let implementation ppf sourcefile outputprefix =
       ++ print_if ppf Clflags.dump_lambda Printlambda.lambda
       ++ Bytegen.compile_implementation modulename
       ++ print_if ppf Clflags.dump_instr Printinstr.instrlist
-      ++ Emitcode.to_file (Env.get_namespace_unit()) objfile modulename;
+      ++ Emitcode.to_file objfile modulename;
       Warnings.check_fatal ();
       Stypes.dump (Some (outputprefix ^ ".annot"))
     in
