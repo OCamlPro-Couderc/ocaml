@@ -11,7 +11,7 @@
 (***********************************************************************)
 
 let ns_debug = ref false
-let root = ref (Sys.getcwd())
+let root = ref ""
 (* Errors *)
 
 exception Fatal_error
@@ -76,6 +76,27 @@ let may_map f = function
   | None -> None
 
 (* File functions *)
+
+let path_to_list =
+  let rec step acc p =
+    let d, n = Filename.dirname p, Filename.basename p in
+    if d = n then n :: acc
+    else step (n :: acc) d
+  in
+  step []
+
+let mk_path p =
+  let ld = path_to_list p in
+  let rec step acc = function
+      [] -> ()
+    | d :: l -> let dir = Filename.concat acc d in
+        if not (Sys.file_exists dir) then
+          (Format.printf "Should I `Unix.mkdir %s 0o640` ?@." dir;
+           step dir l)
+        else
+          step dir l
+  in
+  step "" ld
 
 let find_in_path ?(subdir="") path name =
   if not (Filename.is_implicit name) then

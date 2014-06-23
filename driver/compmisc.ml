@@ -30,7 +30,7 @@ let init_path native =
   in
   let exp_dirs =
     List.map (Misc.expand_directory Config.standard_library) dirs in
-  Config.load_path := !Clflags.root :: "" ::
+  Config.load_path := !Clflags.root ::
       List.rev_append exp_dirs (Clflags.std_include_dir ());
   Env.reset_cache ()
 

@@ -43,6 +43,8 @@ val samelist: ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
 val may: ('a -> unit) -> 'a option -> unit
 val may_map: ('a -> 'b) -> 'a option -> 'b option
 
+val mk_path: string -> unit
+
 val find_in_path: ?subdir: string -> string list -> string -> string
         (* Search a file in a list of directories. *)
 val find_in_path_uncap: ?subdir: string -> string list -> string -> string

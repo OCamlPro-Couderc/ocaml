@@ -1565,7 +1565,7 @@ let () =
 
 let type_implementation sourcefile outputprefix modulename initial_env ast =
   if !Clflags.ns_debug then
-    Format.printf "Typemod.type_implementation@.";
+    Format.printf "Typemod.type_implementation; outputpref: %s@." outputprefix;
   Cmt_format.clear ();
   try
   Typecore.reset_delayed_checks ();
