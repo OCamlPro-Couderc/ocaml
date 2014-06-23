@@ -106,6 +106,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let anonymous = process_file
 
   let _nsd = option "-nsd"
+  let _root s = option_with_arg "-root" s
 end);;
 
 let add_profarg s =

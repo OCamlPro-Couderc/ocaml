@@ -1670,7 +1670,7 @@ let save_signature_with_imports ns sg modname filename imports =
   if !Clflags.ns_debug then
     Format.printf "save_signature_with_imports@.";
   let sg = Subst.signature (Subst.for_saving Subst.identity) sg in
-  let dir = longident_to_filepath ns in
+  let dir = Filename.concat !Clflags.root @@ longident_to_filepath ns in
   let filename = Filename.concat dir filename in
   let oc = open_out_bin filename in
   try

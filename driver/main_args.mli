@@ -35,6 +35,7 @@ module type Common_options = sig
   val _warn_help : unit -> unit
 
   val _nsd : unit -> unit
+  val _root : string -> unit
 
   val _dsource : unit -> unit
   val _dparsetree : unit -> unit

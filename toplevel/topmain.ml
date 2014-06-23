@@ -97,6 +97,7 @@ module Options = Main_args.Make_bytetop_options (struct
   let _dinstr = set dump_instr
 
   let _nsd = set ns_debug
+  let _root s = root := s
 
   let anonymous s = file_argument s
 end);;

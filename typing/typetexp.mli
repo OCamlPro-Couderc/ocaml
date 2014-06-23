@@ -58,6 +58,7 @@ type error =
   | Unbound_constructor of Longident.t
   | Unbound_label of Longident.t
   | Unbound_module of Longident.t
+  | Unbound_module_from_ns of Longident.t * Longident.t
   | Unbound_class of Longident.t
   | Unbound_modtype of Longident.t
   | Unbound_cltype of Longident.t

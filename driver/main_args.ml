@@ -455,6 +455,10 @@ let mk_nsd f =
   "-nsd", Arg.Unit f, "(undocumented)"
 ;;
 
+let mk_root f =
+  "-root", Arg.String f, "(undocumented)"
+;;
+
 module type Common_options = sig
   val _absname : unit -> unit
   val _I : string -> unit
@@ -480,6 +484,7 @@ module type Common_options = sig
   val _warn_help : unit -> unit
 
   val _nsd : unit -> unit
+  val _root : string -> unit
 
   val _dsource : unit -> unit
   val _dparsetree : unit -> unit
@@ -667,6 +672,7 @@ struct
     mk__ F.anonymous;
 
     mk_nsd F._nsd;
+    mk_root F._root;
 
     mk_nopervasives F._nopervasives;
     mk_use_prims F._use_prims;
@@ -782,6 +788,7 @@ struct
     mk__ F.anonymous;
 
     mk_nsd F._nsd;
+    mk_root F._root;
 
     mk_nopervasives F._nopervasives;
     mk_dsource F._dsource;

@@ -111,3 +111,4 @@ let keep_locs = ref false              (* -keep-locs *)
 let unsafe_string = ref true;;         (* -safe-string / -unsafe-string *)
 
 let ns_debug = Misc.ns_debug;;             (* -nsd *)
+let root = Misc.root;;        (* -root *)

@@ -46,6 +46,7 @@ type error =
   | Unbound_constructor of Longident.t
   | Unbound_label of Longident.t
   | Unbound_module of Longident.t
+  | Unbound_module_from_ns of Longident.t * Longident.t
   | Unbound_class of Longident.t
   | Unbound_modtype of Longident.t
   | Unbound_cltype of Longident.t
@@ -253,9 +254,13 @@ let find_value env loc lid =
   r
 
 let lookup_module ?(load=false) env loc lid ns =
+  let f = match ns with
+      None -> (fun lid -> Unbound_module lid)
+    | Some ns -> (fun lid -> Unbound_module_from_ns (lid, ns))
+  in
   let (path, decl) as r =
     find_component (fun lid env -> (Env.lookup_module ~load ns lid env, ()))
-      (fun lid -> Unbound_module lid) env loc lid
+      (* (fun lid -> Unbound_module lid) *) f env loc lid
   in path
 
 let find_module env loc lid ns =
@@ -987,6 +992,9 @@ let report_error env ppf = function
   | Unbound_module lid ->
       fprintf ppf "Unbound module %a" longident lid;
       spellcheck ppf Env.fold_modules env lid;
+  | Unbound_module_from_ns (lid, ns) ->
+      fprintf ppf "Unbound module %a from namespace %a" longident lid longident ns;
+        spellcheck ppf Env.fold_modules env lid;
   | Unbound_constructor lid ->
       fprintf ppf "Unbound constructor %a" longident lid;
       spellcheck_simple ppf Env.fold_constructors (fun d -> d.cstr_name)

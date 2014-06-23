@@ -11,7 +11,7 @@
 (***********************************************************************)
 
 let ns_debug = ref false
-
+let root = ref (Sys.getcwd())
 (* Errors *)
 
 exception Fatal_error
@@ -96,6 +96,7 @@ let find_in_path_uncap ?(subdir="") path name =
   let rec try_dir = function
     [] -> raise Not_found
   | dir::rem ->
+      (* let dir = Filename.concat !root dir in *)
       let fullname = Filename.concat dir @@ Filename.concat subdir name
       and ufullname = Filename.concat dir @@ Filename.concat subdir uname in
       if !ns_debug then

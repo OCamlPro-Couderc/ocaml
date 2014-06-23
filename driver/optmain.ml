@@ -153,6 +153,7 @@ module Options = Main_args.Make_optcomp_options (struct
   let anonymous = anonymous
 
   let _nsd = set ns_debug
+  let _root s = root := s
 end);;
 
 let main () =

@@ -11,6 +11,7 @@
 (***********************************************************************)
 
 val ns_debug : bool ref
+val root : string ref
 
 (* Miscellaneous useful types and functions *)
 
