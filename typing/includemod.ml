@@ -222,7 +222,7 @@ let rec modtypes env cxt subst mty1 mty2 =
 
 and try_modtypes env cxt subst mty1 mty2 =
   match (mty1, mty2) with
-  | (Mty_alias p1, Mty_alias p2) ->
+  | (Mty_alias (p1, _), Mty_alias (p2, _)) ->
       if Env.is_functor_arg p2 env then
         raise (Error[cxt, env, Invalid_module_alias p2]);
       if Path.same p1 p2 then Tcoerce_none else
@@ -230,7 +230,7 @@ and try_modtypes env cxt subst mty1 mty2 =
       and p2 = Env.normalize_path None env (Subst.module_path subst p2) in
       (* Should actually be Tcoerce_ignore, if it existed *)
       if Path.same p1 p2 then Tcoerce_none else raise Dont_match
-  | (Mty_alias p1, _) ->
+  | (Mty_alias (p1, _), _) ->
       let p1 = try
         Env.normalize_path (Some Location.none) env p1
       with Env.Error (Env.Missing_module (_, _, path)) ->

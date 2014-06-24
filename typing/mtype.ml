@@ -102,9 +102,9 @@ let nondep_supertype env mid mty =
         if Path.isfree mid p then
           nondep_mty env va (Env.find_modtype_expansion p env)
         else mty
-    | Mty_alias p ->
+    | Mty_alias (p, ns) ->
         if Path.isfree mid p then
-          nondep_mty env va (Env.find_module None p env).md_type
+          nondep_mty env va (Env.find_module ns p env).md_type
         else mty
     | Mty_signature sg ->
         Mty_signature(nondep_sig env va sg)
@@ -191,7 +191,7 @@ and enrich_item env p = function
 let rec type_paths env p mty =
   match scrape env mty with
     Mty_ident p -> []
-  | Mty_alias p -> []
+  | Mty_alias (p, _) -> []
   | Mty_signature sg -> type_paths_sig env p 0 sg
   | Mty_functor(param, arg, res) -> []
 
@@ -218,7 +218,7 @@ let rec no_code_needed env mty =
     Mty_ident p -> false
   | Mty_signature sg -> no_code_needed_sig env sg
   | Mty_functor(_, _, _) -> false
-  | Mty_alias p -> true
+  | Mty_alias (p, _) -> true
 
 and no_code_needed_sig env sg =
   match sg with
@@ -328,7 +328,7 @@ let collect_arg_paths mty =
   and it_signature_item it si =
     type_iterators.it_signature_item it si;
     match si with
-      Sig_module (id, {md_type=Mty_alias p}, _) ->
+      Sig_module (id, {md_type=Mty_alias (p, _)}, _) ->
         bindings := Ident.add id p !bindings
     | Sig_module (id, {md_type=Mty_signature sg}, _) ->
         List.iter

@@ -215,7 +215,7 @@ let find_component lookup make_error env loc lid =
     if !Clflags.ns_debug then
       begin
         Format.printf "find_component calling narrow_unbound\n";
-        Format.printf "Cannot fint %s@." @@ Longident.string_of_longident lid
+        Format.printf "Cannot find %s@." @@ Longident.string_of_longident lid
       end;
     narrow_unbound_lid_error env loc lid make_error
   | Env.Recmodule ->

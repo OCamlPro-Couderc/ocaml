@@ -269,7 +269,8 @@ type module_type =
     Mty_ident of Path.t
   | Mty_signature of signature
   | Mty_functor of Ident.t * module_type option * module_type
-  | Mty_alias of Path.t
+  | Mty_alias of Path.t * Longident.t option
+    (* Mty_alias extended with namespace information *)
 
 and signature = signature_item list
 

@@ -68,6 +68,8 @@ let extract_sig_open env loc mty =
 (* Compute the environment after opening a module *)
 
 let type_open_ ?toplevel ovf env loc lid =
+  if !Clflags.ns_debug then
+    Format.printf "Typemod.type_open_@.";
   let path, md = Typetexp.find_module env lid.loc lid.txt None in
   let sg = extract_sig_open env lid.loc md.md_type in
   path, Env.open_signature ~loc ?toplevel ovf path sg env
@@ -312,13 +314,15 @@ let map_ext fn exts rem =
    making them abstract otherwise. *)
 
 let rec approx_modtype env smty =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: typemod.approx_modtype gives a None namespace@.";
   match smty.pmty_desc with
     Pmty_ident lid ->
       let (path, info) = Typetexp.find_modtype env smty.pmty_loc lid.txt in
       Mty_ident path
-  | Pmty_alias lid ->
+  | Pmty_alias lid -> (* Pmmty_alias should clearly use a namespace information *)
       let path = Typetexp.lookup_module env smty.pmty_loc lid.txt None in
-      Mty_alias path
+      Mty_alias (path, None)
   | Pmty_signature ssg ->
       Mty_signature(approx_sig env ssg)
   | Pmty_functor(param, sarg, sres) ->
@@ -491,6 +495,8 @@ let mksig desc env loc =
 (* let signature sg = List.map (fun item -> item.sig_type) sg *)
 
 let rec transl_modtype env smty =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Typemod.transl_modtype gives a None namespace@.";
   let loc = smty.pmty_loc in
   match smty.pmty_desc with
     Pmty_ident lid ->
@@ -499,7 +505,7 @@ let rec transl_modtype env smty =
         smty.pmty_attributes
   | Pmty_alias lid ->
       let path = transl_module_alias loc env lid.txt None in
-      mkmty (Tmty_alias (path, lid)) (Mty_alias path) env loc
+      mkmty (Tmty_alias (path, lid)) (Mty_alias (path, None)) env loc
         smty.pmty_attributes
   | Pmty_signature ssg ->
       let sg = transl_signature env ssg in
@@ -840,7 +846,7 @@ let rec path_of_module mexp =
 
 let rec closed_modtype = function
     Mty_ident p -> true
-  | Mty_alias p -> true
+  | Mty_alias (p, _) -> true
   | Mty_signature sg -> List.for_all closed_signature_item sg
   | Mty_functor(id, param, body) -> closed_modtype body
 
@@ -1047,6 +1053,8 @@ let wrap_constraint env arg mty explicit =
 (* Type a module value expression *)
 
 let rec type_module ?(alias=false) sttn funct_body anchor env smod =
+  if !Clflags.ns_debug then
+    Format.printf "Typemod.type_module@.";
   match smod.pmod_desc with
     Pmod_ident (lid, ns) ->
       let ns =
@@ -1056,7 +1064,7 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
       let path =
         Typetexp.lookup_module ~load:(not alias) env smod.pmod_loc lid.txt ns in
       let md = { mod_desc = Tmod_ident (path, lid);
-                 mod_type = Mty_alias path;
+                 mod_type = Mty_alias (path, ns);
                  mod_env = env;
                  mod_attributes = smod.pmod_attributes;
                  mod_loc = smod.pmod_loc } in
@@ -1064,7 +1072,7 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
         if alias && not (Env.is_functor_arg path env) then
           (Env.add_required_global (Path.head path); md)
         else match (Env.find_module ns path env).md_type with
-          Mty_alias p1 when not alias ->
+          Mty_alias (p1, _) when not alias ->
             let p1 = Env.normalize_path (Some smod.pmod_loc) env p1 in
             let mty = Includemod.expand_module_alias env [] p1 in
             { md with
@@ -1393,6 +1401,8 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr scope =
              classes []),
         new_env
     | Pstr_include sincl ->
+        if !Clflags.ns_debug then
+          Format.printf "BEWARE: Typemod.[..] on Pstr_include branch@.";
         let smodl = sincl.pincl_mod in
         let modl = type_module true funct_body None env smodl in
         (* Rename all identifiers bound by this signature to avoid clashes *)
@@ -1408,7 +1418,7 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr scope =
                   | Sig_module (id, md, rs) ->
                       let n = !pos in incr pos;
                       Sig_module (id, {md with md_type =
-                                       Mty_alias (Pdot(p,Ident.name id,n))},
+                                       Mty_alias (Pdot(p,Ident.name id,n), None)},
                                   rs)
                   | Sig_value (_, {val_kind=Val_reg})
                   | Sig_typext _ | Sig_class _ as it ->
@@ -1472,7 +1482,7 @@ let type_structure = type_structure false None
 
 let rec normalize_modtype env = function
     Mty_ident p -> ()
-  | Mty_alias p -> ()
+  | Mty_alias (p, _) -> ()
   | Mty_signature sg -> normalize_signature env sg
   | Mty_functor(id, param, body) -> normalize_modtype env body
 

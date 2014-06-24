@@ -543,8 +543,8 @@ let find_module ~alias ns path env =
       begin match EnvLazy.force !components_of_module_maker' desc1 with
         Functor_comps f ->
           md begin match f.fcomp_res with
-          | Mty_alias p ->
-              Mty_alias (Subst.module_path f.fcomp_subst p)
+          | Mty_alias (p, ns) ->
+              Mty_alias (Subst.module_path f.fcomp_subst p, ns)
           | mty ->
               if alias then mty else
               try
@@ -570,6 +570,8 @@ let add_required_global id =
   then required_globals := id :: !required_globals
 
 let rec normalize_path lax env path =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Env.normalize path gives a None namespace@.";
   let path =
     match path with
       Pdot(p, s, pos) ->
@@ -579,7 +581,7 @@ let rec normalize_path lax env path =
     | _ -> path
   in
   try match find_module ~alias:true None path env with
-    {md_type=Mty_alias path1} ->
+    {md_type=Mty_alias (path1, _)} ->
       let path' = normalize_path lax env path1 in
       if lax || !Clflags.transparent_modules then path' else
       let id = Path.head path in
@@ -1100,7 +1102,9 @@ let rec scrape_alias env ?path mty =
       with Not_found ->
         mty
       end
-  | Mty_alias path, _ ->
+  | Mty_alias (path, _), _ ->
+      if !Clflags.ns_debug then
+        Format.printf "In second case of scrape_alias@.";
       begin try
         scrape_alias env (find_module None path env).md_type ~path
       with Not_found ->
@@ -1109,6 +1113,8 @@ let rec scrape_alias env ?path mty =
         mty
       end
   | mty, Some path ->
+      if !Clflags.ns_debug then
+        Format.printf "In third case of scrape_alias@.";
       !strengthen env mty path
   | _ -> mty
 
