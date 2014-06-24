@@ -69,7 +69,8 @@ let extract_sig_open env loc mty =
 
 let type_open_ ?toplevel ovf env loc lid =
   if !Clflags.ns_debug then
-    Format.printf "Typemod.type_open_@.";
+    Format.printf "Typemod.type_open looking for %s@."
+    @@ string_of_longident lid.txt;
   let path, md = Typetexp.find_module env lid.loc lid.txt None in
   let sg = extract_sig_open env lid.loc md.md_type in
   path, Env.open_signature ~loc ?toplevel ovf path sg env

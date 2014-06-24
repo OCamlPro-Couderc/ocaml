@@ -309,7 +309,6 @@ let current_unit_namespace = ref None
 *)
 type pers_struct =
   { ps_name: string;
-    (* ps_namespace: string; *)
     ps_namespace: Longident.t option;
     ps_sig: signature;
     ps_comps: module_components;
@@ -318,7 +317,6 @@ type pers_struct =
     ps_flags: pers_flags list }
 
 let persistent_structures =
-  (* (Hashtbl.create 17 : (string, pers_struct option) Hashtbl.t) *)
   (Hashtbl.create 17 : (string * Longident.t option, pers_struct option) Hashtbl.t)
 
 (* Consistency between persistent structures *)
@@ -455,6 +453,11 @@ let rec find_module_descr ns path env =
     Format.printf "BEWARE: Env.find_module_desc gives None to find_pers_struct@.";
   match path with
     Pident id ->
+      if !Clflags.ns_debug then
+        Format.printf "Looking for %s in %s@." (Ident.name id)
+        @@ (match ns with
+              None -> "ROOT"
+            | Some ns -> string_of_longident ns);
       begin try
         let (p, desc) = EnvTbl.find_same id env.components
         in desc
@@ -519,6 +522,11 @@ let find_type_descrs p env =
 let find_module ~alias ns path env =
   match path with
     Pident id ->
+      if !Clflags.ns_debug then
+        Format.printf "In find_module, Pident branch, looking for %s in %s@."
+          (Ident.name id) (match ns with
+                None -> "ROOT"
+              | Some ns -> string_of_longident ns);
       begin try
         let (p, data) = EnvTbl.find_same id env.modules
         in data
@@ -571,14 +579,14 @@ let add_required_global id =
 
 let rec normalize_path lax env path =
   if !Clflags.ns_debug then
-    Format.printf "BEWARE: Env.normalize path gives a None namespace@.";
+    Format.printf "BEWARE: Env.normalize path gives a None namespace -->HEEEEERE@.";
   let path =
     match path with
       Pdot(p, s, pos) ->
         Pdot(normalize_path lax env p, s, pos)
     | Papply(p1, p2) ->
         Papply(normalize_path lax env p1, normalize_path true env p2)
-    | _ -> path
+    | Pident _ -> path
   in
   try match find_module ~alias:true None path env with
     {md_type=Mty_alias (path1, _)} ->
@@ -618,6 +626,8 @@ let find_type_expansion path env =
      purely abstract data types without manifest type definition. *)
   | _ ->
       (* another way to expand is to normalize the path itself *)
+      if !Clflags.ns_debug then
+        Format.printf "From Env.find_type_expansion ?@.";
       let path' = normalize_path None env path in
       if Path.same path path' then raise Not_found else
       (decl.type_params,
@@ -883,6 +893,8 @@ let lookup_type lid env =
 
 (* [path] must be the path to a type, not to a module ! *)
 let path_subst_last path id =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Env.path_subst_last sets a namespace to None@.";
   match path with
     Pident _ -> Pident id
   | Pdot (p, name, pos) -> Pdot(p, Ident.name id, pos)
@@ -975,6 +987,8 @@ let lookup_cltype lid env =
    not yet evaluated structures) *)
 
 let iter_env proj1 proj2 f env =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Env.iter_env sets a namespace to NONE@.";
   Ident.iter (fun id (x,_) -> f (Pident id) x) (proj1 env);
   let rec iter_components path path' mcomps =
     (* if EnvLazy.is_val mcomps then *)
@@ -1102,11 +1116,11 @@ let rec scrape_alias env ?path mty =
       with Not_found ->
         mty
       end
-  | Mty_alias (path, _), _ ->
+  | Mty_alias (path, ns), _ ->
       if !Clflags.ns_debug then
         Format.printf "In second case of scrape_alias@.";
       begin try
-        scrape_alias env (find_module None path env).md_type ~path
+        scrape_alias env (find_module ns path env).md_type ~path
       with Not_found ->
         (*Location.prerr_warning Location.none
 	  (Warnings.No_cmi_file (Path.name path));*)
@@ -1502,6 +1516,8 @@ and add_extension ~check id ext env =
   store_extension ~check None id (Pident id) ext env env
 
 and add_module_declaration ?arg id md env =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Env.add_module_declaration sets a namespace to None@.";
   let path =
     (*match md.md_type with
       Mty_alias path -> normalize_path env path

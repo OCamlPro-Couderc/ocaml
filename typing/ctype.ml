@@ -368,6 +368,8 @@ let row_variable ty =
 (* +++ Bientot obsolete *)
 
 let set_object_name id rv params ty =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Ctype.set_object_name sets a namespace to None@.";
   match (repr ty).desc with
     Tobject (fi, nm) ->
       set_name nm (Some (Path.Pident id, rv::params))
@@ -1147,6 +1149,8 @@ let new_declaration newtype manifest =
   }
 
 let instance_constructor ?in_pattern cstr =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Ctype.instance_constructor sets a namespace to None@.";
   begin match in_pattern with
   | None -> ()
   | Some (env, newtype_lev) ->

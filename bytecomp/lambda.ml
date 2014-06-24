@@ -446,7 +446,10 @@ let rec transl_normal_path = function
 (* Translation of value identifiers *)
 
 let transl_path ?(loc=Location.none) env path =
-  transl_normal_path (Env.normalize_path (Some loc) env path)
+  if !Clflags.ns_debug then Format.printf "In transl_path@.";
+  let r = transl_normal_path (Env.normalize_path (Some loc) env path) in
+  if !Clflags.ns_debug then Format.printf "Out of transl_path@.";
+  r
 
 (* Compile a sequence of expressions *)
 

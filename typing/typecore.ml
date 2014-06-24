@@ -578,6 +578,8 @@ let rec expand_path env p =
          (* PR#6394: recursive module may introduce incoherent manifest *)
       end
   | _ ->
+      if !Clflags.ns_debug then
+        Format.printf "From Typecore.expand_path ?@.";
       let p' = Env.normalize_path None env p in
       if Path.same p p' then p else expand_path env p'
 

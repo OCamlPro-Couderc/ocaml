@@ -312,7 +312,10 @@ let extension_constructor s ext =
     cleanup_types ();
     ext
 
-let rec rename_bound_idents s idents = function
+let rec rename_bound_idents s idents =
+  if !Clflags.ns_debug then
+    Format.printf "BEWARE: Subst.rename_bound_ident sets namespacec to NONE@.";
+  function
     [] -> (List.rev idents, s)
   | Sig_type(id, d, _) :: sg ->
       let id' = Ident.rename id in
