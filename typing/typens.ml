@@ -17,6 +17,12 @@ open Parsetree
 open Typedtree
 open Asttypes
 
+(* type namespace = Longident.t option *)
+
+(* let name = function *)
+(*     None -> "ROOT" *)
+(*   | Some ns -> string_of_longident ns *)
+
 type namespaces = namespace_env list
 
 and namespace_env =

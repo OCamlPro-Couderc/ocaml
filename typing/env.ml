@@ -29,6 +29,10 @@ let longident_to_filepath = function
         @@ List.map String.uncapitalize
         @@ Longident.flatten lid
 
+let namespace_name = function
+    None -> "ROOT"
+  | Some ns -> string_of_longident ns
+
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
 let value_declarations : ((string * Location.t), (unit -> unit)) Hashtbl.t =
@@ -309,23 +313,20 @@ let current_unit_namespace = ref None
 *)
 type pers_struct =
   { ps_name: string;
-    ps_namespace: Longident.t option;
+    ps_namespace: namespace_info;
     ps_sig: signature;
     ps_comps: module_components;
-    ps_crcs: (string * Longident.t option * Digest.t option) list;
+    ps_crcs: (string * namespace_info * Digest.t option) list;
     ps_filename: string;
     ps_flags: pers_flags list }
 
 let persistent_structures =
-  (Hashtbl.create 17 : (string * Longident.t option, pers_struct option) Hashtbl.t)
+  (Hashtbl.create 17 : (string * namespace_info, pers_struct option) Hashtbl.t)
 
 (* Consistency between persistent structures *)
 
 let crc_units = Consistbl.create()
-let imported_units =
-  if !Clflags.ns_debug then
-    Format.printf "Env.imported_units: add namespace information@.";
-  ref ([] : (string * Longident.t option) list)
+let imported_units = ref ([] : (string * namespace_info) list)
 
 let clear_imports () =
   Consistbl.clear crc_units;
@@ -365,7 +366,7 @@ let read_pers_struct ns modname filename : pers_struct =
   let name = cmi.cmi_name in
   let ns = cmi.cmi_namespace in
   let sign = cmi.cmi_sign in
-  let crcs : (string * Longident.t option * Digest.t option) list = cmi.cmi_crcs in
+  let crcs : (string * namespace_info * Digest.t option) list = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
   let comps =
       !components_of_module' empty Subst.identity
@@ -577,36 +578,40 @@ let add_required_global id =
   && not (List.exists (Ident.same id) !required_globals)
   then required_globals := id :: !required_globals
 
-let rec normalize_path lax env path =
+let rec normalize_path ns lax env path =
   if !Clflags.ns_debug then
-    Format.printf "BEWARE: Env.normalize path gives a None namespace -->HEEEEERE@.";
+    Format.printf "BEWARE: Env.normalize path gives a None namespace
+  -->HEEEEERE\n
+      Looking for %s (ns: %s)@." (Path.name path) (namespace_name ns);
   let path =
     match path with
       Pdot(p, s, pos) ->
-        Pdot(normalize_path lax env p, s, pos)
+        Pdot(normalize_path ns lax env p, s, pos)
     | Papply(p1, p2) ->
-        Papply(normalize_path lax env p1, normalize_path true env p2)
+        Papply(normalize_path ns lax env p1, normalize_path ns true env p2)
     | Pident _ -> path
   in
-  try match find_module ~alias:true None path env with
-    {md_type=Mty_alias (path1, _)} ->
-      let path' = normalize_path lax env path1 in
-      if lax || !Clflags.transparent_modules then path' else
-      let id = Path.head path in
-      if Ident.global id && not (Ident.same id (Path.head path'))
-      then add_required_global id;
-      path'
-  | _ -> path
+  try match find_module ~alias:true ns path env with
+      {md_type=Mty_alias (path1, ns1)} ->
+        if !Clflags.ns_debug then
+          Format.printf "It is an alias@.";
+        let path' = normalize_path ns1 lax env path1 in
+        if lax || !Clflags.transparent_modules then path' else
+          let id = Path.head path in
+          if Ident.global id && not (Ident.same id (Path.head path'))
+          then add_required_global id;
+          path'
+    | _ -> path
   with Not_found when lax
   || (match path with Pident id -> not (Ident.persistent id) | _ -> true) ->
       path
 
-let normalize_path oloc env path =
-  try normalize_path (oloc = None) env path
+let normalize_path ?(ns=None) oloc env path =
+  try normalize_path ns (oloc = None) env path
   with Not_found ->
     match oloc with None -> assert false
     | Some loc ->
-        raise (Error(Missing_module(loc, path, normalize_path true env path)))
+        raise (Error(Missing_module(loc, path, normalize_path ns true env path)))
 
 let find_module = find_module ~alias:false
 

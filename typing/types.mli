@@ -255,11 +255,13 @@ type class_type_declaration =
 
 (* Type expressions for the module language *)
 
+type namespace_info = Longident.t option
+
 type module_type =
     Mty_ident of Path.t
   | Mty_signature of signature
   | Mty_functor of Ident.t * module_type option * module_type
-  | Mty_alias of Path.t * Longident.t option
+  | Mty_alias of Path.t * namespace_info
   (*
      Special kind of modules, that represent an elaborated namespace
     | Mty_namespace of Path.t

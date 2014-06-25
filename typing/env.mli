@@ -49,7 +49,7 @@ val find_shadowed_types: Path.t -> t -> Path.t list
 val find_value: Path.t -> t -> value_description
 val find_type: Path.t -> t -> type_declaration
 val find_type_descrs: Path.t -> t -> type_descriptions
-val find_module: Longident.t option -> Path.t -> t -> module_declaration
+val find_module: namespace_info -> Path.t -> t -> module_declaration
 val find_modtype: Path.t -> t -> modtype_declaration
 val find_class: Path.t -> t -> class_declaration
 val find_cltype: Path.t -> t -> class_type_declaration
@@ -62,7 +62,7 @@ val find_type_expansion_opt:
    of the compiler's type-based optimisations. *)
 val find_modtype_expansion: Path.t -> t -> module_type
 val is_functor_arg: Path.t -> t -> bool
-val normalize_path: Location.t option -> t -> Path.t -> Path.t
+val normalize_path: ?ns: namespace_info -> Location.t option -> t -> Path.t -> Path.t
 (* Normalize the path to a concrete value or module.
    If the option is None, allow returning dangling paths.
    Otherwise raise a Missing_module error, and may add forgotten
@@ -87,7 +87,7 @@ val lookup_label: Longident.t -> t -> label_description
 val lookup_all_labels:
   Longident.t -> t -> (label_description * (unit -> unit)) list
 val lookup_type: Longident.t -> t -> Path.t * type_declaration
-val lookup_module: load:bool -> Longident.t option -> Longident.t -> t -> Path.t
+val lookup_module: load:bool -> namespace_info -> Longident.t -> t -> Path.t
 val lookup_modtype: Longident.t -> t -> Path.t * modtype_declaration
 val lookup_class: Longident.t -> t -> Path.t * class_declaration
 val lookup_cltype: Longident.t -> t -> Path.t * class_type_declaration
@@ -121,7 +121,7 @@ val add_signature: signature -> t -> t
 val open_signature:
     ?loc:Location.t -> ?toplevel:bool -> Asttypes.override_flag -> Path.t ->
       signature -> t -> t
-val open_pers_signature: Longident.t option -> string -> t -> t
+val open_pers_signature: namespace_info -> string -> t -> t
 
 (* Insertion by name *)
 
@@ -146,35 +146,35 @@ val reset_cache_toplevel: unit -> unit
 (* Remember the name of the current compilation unit. *)
 val set_unit_name: string -> unit
 
-val get_namespace_unit: unit -> Longident.t option
+val get_namespace_unit: unit -> namespace_info
 
 (* Remember the namespace of the current compilation unit *)
-val set_namespace_unit: Longident.t option -> unit
+val set_namespace_unit: namespace_info -> unit
 
 (* Read, save a signature to/from a file *)
 
-val read_signature: Longident.t option -> string -> string -> signature
+val read_signature: namespace_info -> string -> string -> signature
         (* Arguments: module name, file name. Results: signature. *)
-val save_signature: Longident.t option -> signature -> string -> string -> signature
+val save_signature: namespace_info -> signature -> string -> string -> signature
         (* Arguments: signature, module name, file name. *)
 val save_signature_with_imports:
-    Longident.t option -> signature -> string -> string
-    -> (string * Longident.t option * Digest.t option) list -> signature
-        (* Arguments: signature, module name, file name,
+    namespace_info -> signature -> string -> string
+    -> (string * namespace_info * Digest.t option) list -> signature
+        (* Arguments: namespace, signature, module name, file name,
            imported units with their CRCs. *)
 
 (* Return the CRC of the interface of the given compilation unit *)
 
-val crc_of_unit: string -> Longident.t option -> Digest.t
+val crc_of_unit: string -> namespace_info -> Digest.t
 
 (* Return the set of compilation units imported, with their CRC *)
 
-val imports: unit -> (string * Longident.t option * Digest.t option) list
+val imports: unit -> (string * namespace_info * Digest.t option) list
 
 (* Direct access to the table of imported compilation units with their CRC *)
 
 val crc_units: Consistbl.t
-val imported_units: (string * Longident.t option) list ref
+val imported_units: (string * namespace_info) list ref
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)
