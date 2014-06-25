@@ -401,7 +401,9 @@ let find_pers_struct ns name =
   in
   match r with
   | Some None -> raise Not_found
-  | Some (Some sg) -> sg
+  | Some (Some sg) -> if! Clflags.ns_debug then
+        Format.printf "find_pers_struct: already loaded@.";
+      sg
   | None ->
       let subdir = longident_to_filepath ns in
       let filename =
@@ -451,14 +453,12 @@ let set_namespace_unit olid =
 
 let rec find_module_descr ns path env =
   if !Clflags.ns_debug then
-    Format.printf "BEWARE: Env.find_module_desc gives None to find_pers_struct@.";
+    Format.printf "Env.find_module_desc@.";
   match path with
     Pident id ->
       if !Clflags.ns_debug then
         Format.printf "Looking for %s in %s@." (Ident.name id)
-        @@ (match ns with
-              None -> "ROOT"
-            | Some ns -> string_of_longident ns);
+        @@ (namespace_name ns);
       begin try
         let (p, desc) = EnvTbl.find_same id env.components
         in desc
@@ -479,7 +479,7 @@ let rec find_module_descr ns path env =
       end
   | Papply(p1, p2) ->
       begin match
-        EnvLazy.force !components_of_module_maker' (find_module_descr None p1 env)
+        EnvLazy.force !components_of_module_maker' (find_module_descr ns p1 env)
       with
         Functor_comps f ->
           !components_of_functor_appl' f p1 p2
@@ -493,6 +493,8 @@ let find proj1 proj2 path env =
       let (p, data) = EnvTbl.find_same id (proj1 env)
       in data
   | Pdot(p, s, pos) ->
+      if !Clflags.ns_debug then
+        Format.printf "Env.find: pdot branch@.";
       begin match
         EnvLazy.force !components_of_module_maker' (find_module_descr None p env)
       with
@@ -525,9 +527,7 @@ let find_module ~alias ns path env =
     Pident id ->
       if !Clflags.ns_debug then
         Format.printf "In find_module, Pident branch, looking for %s in %s@."
-          (Ident.name id) (match ns with
-                None -> "ROOT"
-              | Some ns -> string_of_longident ns);
+          (Ident.name id) (namespace_name ns);
       begin try
         let (p, data) = EnvTbl.find_same id env.modules
         in data
@@ -539,7 +539,7 @@ let find_module ~alias ns path env =
       end
   | Pdot(p, s, pos) ->
       begin match
-        EnvLazy.force !components_of_module_maker' (find_module_descr None p env)
+        EnvLazy.force !components_of_module_maker' (find_module_descr ns p env)
       with
         Structure_comps c ->
           let (data, pos) = Tbl.find s c.comp_modules in
@@ -548,6 +548,8 @@ let find_module ~alias ns path env =
           raise Not_found
       end
   | Papply(p1, p2) ->
+      if !Clflags.ns_debug then
+        Format.printf "Env.find_module: Papply branch@.";
       let desc1 = find_module_descr None p1 env in
       begin match EnvLazy.force !components_of_module_maker' desc1 with
         Functor_comps f ->
@@ -578,40 +580,53 @@ let add_required_global id =
   && not (List.exists (Ident.same id) !required_globals)
   then required_globals := id :: !required_globals
 
-let rec normalize_path ns lax env path =
-  if !Clflags.ns_debug then
-    Format.printf "BEWARE: Env.normalize path gives a None namespace
-  -->HEEEEERE\n
-      Looking for %s (ns: %s)@." (Path.name path) (namespace_name ns);
-  let path =
+let rec normalize_path i ns lax env path =
+  (* if !Clflags.ns_debug then *)
+  (*   Format.printf "\n------------\nEnv.normalize nb %d *)
+  (* -->HEEEEERE\n *)
+  (*     Looking for %s (ns: %s)@." i (Path.name path) (namespace_name ns); *)
+  let path, ns =
     match path with
       Pdot(p, s, pos) ->
-        Pdot(normalize_path ns lax env p, s, pos)
+        let p, ns = normalize_path (i+1) ns lax env p in
+        Pdot(p, s, pos), ns
     | Papply(p1, p2) ->
-        Papply(normalize_path ns lax env p1, normalize_path ns true env p2)
-    | Pident _ -> path
+        let p1, ns1 = normalize_path (i+1) ns lax env p1 in
+        let p2, ns2 = normalize_path (i+1) ns true env p2 in
+        Papply(p1, p2), ns1
+    | Pident _ -> path, ns
   in
-  try match find_module ~alias:true ns path env with
-      {md_type=Mty_alias (path1, ns1)} ->
-        if !Clflags.ns_debug then
-          Format.printf "It is an alias@.";
-        let path' = normalize_path ns1 lax env path1 in
-        if lax || !Clflags.transparent_modules then path' else
-          let id = Path.head path in
-          if Ident.global id && not (Ident.same id (Path.head path'))
-          then add_required_global id;
-          path'
-    | _ -> path
-  with Not_found when lax
-  || (match path with Pident id -> not (Ident.persistent id) | _ -> true) ->
-      path
+  (* if !Clflags.ns_debug then *)
+  (*   Format.printf "First normalization, lets find: %s in %s@." *)
+  (*     (Path.name path) (namespace_name ns); *)
+  let path, ns =
+    try match find_module ~alias:true ns path env with
+        {md_type=Mty_alias (path1, ns1)} ->
+          (* if !Clflags.ns_debug then *)
+          (*   Format.printf "It is an alias, with namespace: %s and path : %s@." *)
+          (*     (namespace_name ns1) (Path.name path1); *)
+          let path', ns' = normalize_path (i+1) ns1 lax env path1 in
+          if lax || !Clflags.transparent_modules then path', ns' else
+            let id = Path.head path in
+            if Ident.global id && not (Ident.same id (Path.head path'))
+            then add_required_global id;
+            path', ns'
+      | _ -> path, ns
+    with Not_found when lax
+                     || (match path with Pident id -> not (Ident.persistent id) | _ -> true) ->
+        path, ns
+  in
+  (* if !Clflags.ns_debug then *)
+  (*   Format.printf "End of normalize with %d with %s in %s\n--------------@." *)
+  (*     i (Path.name path) (namespace_name ns); *)
+  path, ns
 
 let normalize_path ?(ns=None) oloc env path =
-  try normalize_path ns (oloc = None) env path
+  try fst @@ normalize_path 0 ns (oloc = None) env path
   with Not_found ->
     match oloc with None -> assert false
     | Some loc ->
-        raise (Error(Missing_module(loc, path, normalize_path ns true env path)))
+        raise (Error(Missing_module(loc, path, fst @@ normalize_path 0 ns true env path)))
 
 let find_module = find_module ~alias:false
 
@@ -676,7 +691,8 @@ exception Recmodule
 
 let rec lookup_module_descr ns lid env =
   if !Clflags.ns_debug then
-    Format.printf "BEWARE: Env.lookup_module_descr gives None to find_pers_struct@.";
+    Format.printf "Env.lookup_module_descr (gives None to find_pers_struct for
+  impossible ns cases)@.";
   match lid with
     Lident s ->
       begin try
