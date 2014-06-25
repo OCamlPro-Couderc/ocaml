@@ -17,12 +17,6 @@ open Parsetree
 open Typedtree
 open Asttypes
 
-(* type namespace = Longident.t option *)
-
-(* let name = function *)
-(*     None -> "ROOT" *)
-(*   | Some ns -> string_of_longident ns *)
-
 type namespaces = namespace_env list
 
 and namespace_env =
@@ -51,15 +45,78 @@ let mod_of_cstr loc = function
   | Cstr_mod s -> Mod (mkloc s loc, s)
   | Cstr_alias (s, al) -> Mod (mkloc al loc, s)
   | Cstr_shadow (s) -> Shadowed (mkloc s loc)
-  | Cstr_wildcard -> failwith "Wildcard: not yet implemented"
+  | Cstr_wildcard -> Wildcard
 
-let add_constraints loc env (ns: Longident.t) cstrs =
-  let ns = flatten ns in
+let find_all_compunits path =
+  let rec scan_loadpath acc = function
+      [] -> acc
+    | dir :: tl ->
+        let fullpath = Filename.concat dir path in
+        if !Clflags.ns_debug then
+          Format.printf "Looking for %s@." fullpath;
+        if Sys.file_exists fullpath then
+          let files = Sys.readdir fullpath in
+          let acc = Array.fold_left (fun acc f ->
+              if !Clflags.ns_debug then
+                  Format.printf "Found %s@." f;
+              let fullname = Filename.concat fullpath f in
+              if not (Sys.is_directory fullname) && Filename.check_suffix ".cmi" f then
+                let m = Filename.chop_extension f |> String.capitalize in
+                let res = Mod (mknoloc m, m) in
+                if not (List.exists
+                          (function Mod (_, s) -> s = m | _ -> false) acc) then
+                  res :: acc
+                else acc
+              else acc) acc files
+          in
+          scan_loadpath acc tl
+        else scan_loadpath acc tl
+  in
+  scan_loadpath [] !Config.load_path
+
+let rec remove_duplicates l1 = function
+    [] -> l1
+  | (Mod (_, m) as mo) :: tl -> if List.exists
+      (function Mod (_, s) -> s = m | _ -> false) l1 then
+        remove_duplicates l1 tl
+      else
+        remove_duplicates (mo :: l1) tl
+  | _ :: tl -> assert false
+
+let expand_wildcard ns l =
+  let path = Env.longident_to_filepath ns in
+  let expand l =
+    find_all_compunits path
+    |> remove_duplicates l
+    |> List.filter (fun x -> x <> Wildcard)
+  in
+  if List.mem Wildcard l then
+    expand l
+  else l
+
+let remove_shadowed mods =
+  let rec step l acc =
+    match l with
+      Shadowed s :: tl ->
+        List.filter (function
+              Mod (_, m) -> s.txt <> m
+            | Shadowed m -> s.txt <> m.txt (* technically shadowing two times a
+                                            module shouldn't be accepted *)
+            | _ -> true) acc
+        |> step tl
+    | _ -> acc
+  in
+  step mods mods
+
+let add_constraints loc env (orig: Longident.t) cstrs =
+  let ns = flatten orig in
   let rec step env ns =
     match env, ns with
     | content, [] ->
         List.fold_left (fun acc c ->
             mod_of_cstr (c.imp_cstr_loc) (c.imp_cstr_desc) :: acc) content cstrs
+        |> expand_wildcard (Some orig)
+        (* |> remove_shadowed *)
     | l, ns :: path ->
         let l = if List.exists (is_namespace ns) l then l
           else Ns (mkloc ns loc, []) :: l in
@@ -81,9 +138,9 @@ let check_import_constraints cstr =
   List.fold_left (fun tree cstr -> ()) () cstr
 
 (*
-   First step of elaboration: when looking for List in Core, look directly for
-   Core_list
-   Once it is working, looking for list.cmi/cmo in core directory instead
+   First step of elaboration: when looking for List in Std, look directly for
+   Std_list
+   Once it is working, looking for list.cmi/cmo in std directory instead
    Finally, extend compilation units to add the possibility to link two cu with
    the same name: i.e. add a namespace information into it
 *)
@@ -157,4 +214,7 @@ let compute_prelude prl =
   in
   Env.set_namespace_unit ns;
   let hierarchy = mk_nsenv prl.prl_imports in
+  if !Clflags.ns_debug then
+    Format.printf "Resulting hierarchy of namespaces:\n%s@."
+    @@ print_namespace hierarchy;
   List.map elaborate_import hierarchy, ns
