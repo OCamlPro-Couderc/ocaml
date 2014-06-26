@@ -45,7 +45,8 @@ let mod_of_cstr loc = function
   | Cstr_mod s -> Mod (mkloc s loc, s)
   | Cstr_alias (s, al) -> Mod (mkloc al loc, s)
   | Cstr_shadow (s) -> Shadowed (mkloc s loc)
-  | Cstr_wildcard -> Wildcard
+  | Cstr_wildcard -> Wildcard (* Should raise a warning at expansion, should
+                                 be used with -no-alias-deps for better efficiency *)
 
 let find_all_compunits path =
   let rec scan_loadpath acc = function
@@ -57,10 +58,13 @@ let find_all_compunits path =
         if Sys.file_exists fullpath then
           let files = Sys.readdir fullpath in
           let acc = Array.fold_left (fun acc f ->
-              if !Clflags.ns_debug then
-                  Format.printf "Found %s@." f;
               let fullname = Filename.concat fullpath f in
-              if not (Sys.is_directory fullname) && Filename.check_suffix ".cmi" f then
+              if !Clflags.ns_debug then
+                  Format.printf "Found %s; is_dir: %b; is_cmi: %b@."
+                    fullname
+                    (Sys.is_directory fullname)
+                    (Filename.check_suffix f ".cmi");
+              if not (Sys.is_directory fullname) && Filename.check_suffix f ".cmi" then
                 let m = Filename.chop_extension f |> String.capitalize in
                 let res = Mod (mknoloc m, m) in
                 if not (List.exists
@@ -97,14 +101,20 @@ let expand_wildcard ns l =
 let remove_shadowed mods =
   let rec step l acc =
     match l with
-      Shadowed s :: tl ->
+      [] -> acc
+    | Shadowed s :: tl ->
         List.filter (function
-              Mod (_, m) -> s.txt <> m
-            | Shadowed m -> s.txt <> m.txt (* technically shadowing two times a
-                                            module shouldn't be accepted *)
+              Mod (_, m) ->
+                if !Clflags.ns_debug then
+                  Format.printf "Removing module %s?@." m;
+                s.txt <> m
+            | Shadowed m ->
+                if !Clflags.ns_debug then
+                  Format.printf "Removing shadowing %s?@." m.txt;
+                s.txt <> m.txt (* removes itself *)
             | _ -> true) acc
         |> step tl
-    | _ -> acc
+    | _ :: tl -> step tl acc
   in
   step mods mods
 
@@ -116,7 +126,7 @@ let add_constraints loc env (orig: Longident.t) cstrs =
         List.fold_left (fun acc c ->
             mod_of_cstr (c.imp_cstr_loc) (c.imp_cstr_desc) :: acc) content cstrs
         |> expand_wildcard (Some orig)
-        (* |> remove_shadowed *)
+        |> remove_shadowed
     | l, ns :: path ->
         let l = if List.exists (is_namespace ns) l then l
           else Ns (mkloc ns loc, []) :: l in
