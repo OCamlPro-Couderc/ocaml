@@ -1619,9 +1619,11 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         with Not_found ->
           raise(Error(Location.in_file sourcefile, Env.empty,
                       Interface_not_compiled sourceintf)) in
+      (* The next two should be factorized *)
       let dclsig = Env.read_signature ns modulename intf_file in
+      let dclns = Env.read_namespace ns modulename intf_file in
       let coercion =
-        Includemod.compunit initial_env sourcefile sg intf_file dclsig in
+        Includemod.compunit initial_env sourcefile ns sg intf_file dclns dclsig in
       Typecore.force_delayed_checks ();
       (* It is important to run these checks after the inclusion test above,
          so that value declarations which are not used internally but exported
@@ -1633,8 +1635,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       check_nongen_schemes finalenv str.str_items;
       normalize_signature finalenv simple_sg;
       let coercion =
-        Includemod.compunit initial_env sourcefile sg
-                            "(inferred signature)" simple_sg in
+        Includemod.compunit initial_env sourcefile ns sg
+                            "(inferred signature)" ns simple_sg in
       Typecore.force_delayed_checks ();
       (* See comment above. Here the target signature contains all
          the value being exported. We can still capture unused
@@ -1724,7 +1726,7 @@ let package_units initial_env objfiles cmifile (modulename: string) =
     let dclsig = Env.read_signature None modulename cmifile in
     Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
       (Cmt_format.Packed (sg, objfiles)) None initial_env  None ;
-    Includemod.compunit initial_env "(obtained by packing)" sg mlifile dclsig
+    Includemod.compunit initial_env "(obtained by packing)" None sg mlifile None dclsig
   end else begin
     (* Determine imports *)
     let unit_names = List.map (fun (x, y, _) -> x, y) units in

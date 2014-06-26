@@ -37,6 +37,7 @@ type symptom =
   | Unbound_modtype_path of Path.t
   | Unbound_module_path of Path.t
   | Invalid_module_alias of Path.t
+  | Namespace_mismatch of namespace_info * namespace_info
 
 type pos =
     Module of Ident.t | Modtype of Ident.t | Arg of Ident.t | Body of Ident.t
@@ -438,8 +439,10 @@ let _ = Env.check_modtype_inclusion := check_modtype_inclusion
 (* Check that an implementation of a compilation unit meets its
    interface. *)
 
-let compunit env impl_name impl_sig intf_name intf_sig =
+let compunit env impl_name impl_ns impl_sig intf_name intf_ns intf_sig =
   try
+    if intf_ns <> impl_ns then
+      raise (Error [[], Env.empty, Namespace_mismatch (impl_ns, intf_ns)]);
     signatures env [] Subst.identity impl_sig intf_sig
   with Error reasons ->
     raise(Error(([], Env.empty,Interface_mismatch(impl_name, intf_name))
@@ -537,6 +540,12 @@ let include_err ppf = function
       fprintf ppf "Unbound module %a" Printtyp.path path
   | Invalid_module_alias path ->
       fprintf ppf "Module %a cannot be aliased" Printtyp.path path
+  | Namespace_mismatch(impl_ns, intf_ns) ->
+      fprintf ppf
+        "@[<hv 2>Namespace declarations do not match:@ \
+        %s@;<1 -2>does not match@ %s@]"
+       (Env.namespace_name impl_ns) (Env.namespace_name intf_ns)
+
 
 let rec context ppf = function
     Module id :: rem ->

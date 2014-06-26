@@ -1677,7 +1677,13 @@ let open_signature ?(loc = Location.none) ?(toplevel = false) ovf root sg env =
 
 let read_signature ns modname filename =
   let ps = read_pers_struct ns modname filename in
+  (* if ps.ps_namespace <> ns then *)
+  (*   failwith @@ Format.sprintf "Signature of %s does not match the namespace %s" *)
   ps.ps_sig
+
+let read_namespace ns modname filename =
+  let ps = read_pers_struct ns modname filename in
+  ps.ps_namespace
 
 (* Return the CRC of the interface of the given compilation unit *)
 

@@ -19,7 +19,8 @@ open Format
 val modtypes: Env.t -> module_type -> module_type -> module_coercion
 val signatures: Env.t -> signature -> signature -> module_coercion
 val compunit:
-      Env.t -> string -> signature -> string -> signature -> module_coercion
+      Env.t -> string -> namespace_info -> signature -> string -> namespace_info
+      -> signature -> module_coercion
 val type_declarations:
       Env.t -> Ident.t -> type_declaration -> type_declaration -> unit
 val print_coercion: formatter -> module_coercion -> unit
@@ -44,6 +45,7 @@ type symptom =
   | Unbound_modtype_path of Path.t
   | Unbound_module_path of Path.t
   | Invalid_module_alias of Path.t
+  | Namespace_mismatch of namespace_info * namespace_info
 
 type pos =
     Module of Ident.t | Modtype of Ident.t | Arg of Ident.t | Body of Ident.t
