@@ -164,7 +164,7 @@ let process_file ppf sourcefile =
       (
        Location.input_name := file;
        try
-         let (ast, signat, input_file) = process_interface_file ppf file in
+         let (ast, (signat, _), input_file) = process_interface_file ppf file in
          let Parsetree.Pinterf (_, ast) = ast in
          let file_module = Sig_analyser.analyse_signature file
              !Location.input_name ast signat.sig_type

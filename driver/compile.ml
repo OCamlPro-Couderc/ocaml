@@ -23,8 +23,11 @@ open Compenv
 
 let interface ppf sourcefile outputprefix =
   if !Clflags.ns_debug then
-    Format.printf "BEWARE: Compile.interface set namespace to None@.";
+    Format.printf "Compile.interface@.";
   Compmisc.init_path false;
+  let outputprefix =
+    if !Clflags.root <> "" then Filename.basename outputprefix
+    else outputprefix in
   let modulename = module_of_filename ppf sourcefile outputprefix in
   Env.set_unit_name modulename;
   let initial_env = Compmisc.initial_env () in
@@ -32,7 +35,7 @@ let interface ppf sourcefile outputprefix =
   let Parsetree.Pinterf (_, ast) = interf in
   if !Clflags.dump_parsetree then fprintf ppf "%a@." Printast.interface ast;
   if !Clflags.dump_source then fprintf ppf "%a@." Pprintast.signature ast;
-  let tsg = Typemod.type_interface initial_env interf in
+  let tsg, ns = Typemod.type_interface initial_env interf in
   if !Clflags.dump_typedtree then fprintf ppf "%a@." Printtyped.interface tsg;
   let sg = tsg.sig_type in
   if !Clflags.print_types then
@@ -43,7 +46,7 @@ let interface ppf sourcefile outputprefix =
   Typecore.force_delayed_checks ();
   Warnings.check_fatal ();
   if not !Clflags.print_types then begin
-    let sg = Env.save_signature None sg modulename (outputprefix ^ ".cmi") in
+    let sg = Env.save_signature ns sg modulename (outputprefix ^ ".cmi") in
     Typemod.save_signature modulename tsg outputprefix sourcefile
       initial_env sg ;
   end

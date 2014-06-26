@@ -889,7 +889,7 @@ class printer  ()= object(self:'self)
     match x.pmty_desc with
     | Pmty_ident li ->
         pp f "%a" self#longident_loc li;
-    | Pmty_alias li ->
+    | Pmty_alias (li, _) ->
         pp f "(module %a)" self#longident_loc li;
     | Pmty_signature (s) ->
         pp f "@[<hv0>@[<hv2>sig@ %a@]@ end@]" (* "@[<hov>sig@ %a@ end@]" *)
@@ -957,7 +957,7 @@ class printer  ()= object(self:'self)
                  (class_description "class") x
                  (self#list ~sep:"@," (class_description "and")) xs
         end
-    | Psig_module ({pmd_type={pmty_desc=Pmty_alias alias};_} as pmd) ->
+    | Psig_module ({pmd_type={pmty_desc=Pmty_alias (alias, _)};_} as pmd) ->
         pp f "@[<hov>module@ %s@ =@ %a@]%a" pmd.pmd_name.txt
           self#longident_loc alias
           self#item_attributes pmd.pmd_attributes

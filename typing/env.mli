@@ -264,3 +264,5 @@ val fold_cltypes:
 val scrape_alias: t -> module_type -> module_type
 
 val longident_to_filepath: Longident.t option -> string
+
+val namespace_name: namespace_info -> string

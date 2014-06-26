@@ -316,14 +316,17 @@ let map_ext fn exts rem =
 
 let rec approx_modtype env smty =
   if !Clflags.ns_debug then
-    Format.printf "BEWARE: typemod.approx_modtype gives a None namespace@.";
+    Format.printf "typemod.approx_modtype@.";
   match smty.pmty_desc with
     Pmty_ident lid ->
       let (path, info) = Typetexp.find_modtype env smty.pmty_loc lid.txt in
       Mty_ident path
-  | Pmty_alias lid -> (* Pmmty_alias should clearly use a namespace information *)
-      let path = Typetexp.lookup_module env smty.pmty_loc lid.txt None in
-      Mty_alias (path, None)
+  | Pmty_alias (lid, ns) -> (* Pmmty_alias should clearly use a namespace information *)
+      let ns = match ns with
+          None -> None
+        | Some ns -> Some ns.txt in
+      let path = Typetexp.lookup_module env smty.pmty_loc lid.txt ns in
+      Mty_alias (path, ns)
   | Pmty_signature ssg ->
       Mty_signature(approx_sig env ssg)
   | Pmty_functor(param, sarg, sres) ->
@@ -497,16 +500,19 @@ let mksig desc env loc =
 
 let rec transl_modtype env smty =
   if !Clflags.ns_debug then
-    Format.printf "BEWARE: Typemod.transl_modtype gives a None namespace@.";
+    Format.printf "Typemod.transl_modtype@.";
   let loc = smty.pmty_loc in
   match smty.pmty_desc with
     Pmty_ident lid ->
       let path = transl_modtype_longident loc env lid.txt in
       mkmty (Tmty_ident (path, lid)) (Mty_ident path) env loc
         smty.pmty_attributes
-  | Pmty_alias lid ->
-      let path = transl_module_alias loc env lid.txt None in
-      mkmty (Tmty_alias (path, lid)) (Mty_alias (path, None)) env loc
+  | Pmty_alias (lid, ns) ->
+      let ns = match ns with
+          None -> None
+        | Some ns -> Some ns.txt in
+      let path = transl_module_alias loc env lid.txt ns in
+      mkmty (Tmty_alias (path, lid)) (Mty_alias (path, ns)) env loc
         smty.pmty_attributes
   | Pmty_signature ssg ->
       let sg = transl_signature env ssg in
@@ -1608,7 +1614,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
     if Sys.file_exists sourceintf then begin
       let intf_file =
         try
-          find_in_path_uncap !Config.load_path (modulename ^ ".cmi")
+          let subdir = Env.longident_to_filepath ns in
+          find_in_path_uncap ~subdir !Config.load_path (modulename ^ ".cmi")
         with Not_found ->
           raise(Error(Location.in_file sourcefile, Env.empty,
                       Interface_not_compiled sourceintf)) in
@@ -1652,15 +1659,22 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
 
 
 let save_signature modname tsg outputprefix source_file initial_env cmi =
+  if !Clflags.ns_debug then
+    Format.printf "Typemod.save_signature ?@.";
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi)
 
 let type_interface env (Pinterf (prl, ast)) =
+  let prl, ns = Typens.compute_interface_prelude prl in
+  if !Clflags.ns_debug then
+    Format.printf "Interface is in namespace %s, result of elaboration:%a@."
+      (Env.namespace_name ns) Printast.interface prl;
+  (* Is the begin .. end really useful? *)
   begin
     let map = Typetexp.emit_external_warnings in
     ignore (map.Ast_mapper.signature map ast)
   end;
-  transl_signature env ast
+  transl_signature env (prl @ ast), ns
 
 (* "Packaging" of several compilation units into one unit
    having them as sub-modules.  *)

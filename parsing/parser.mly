@@ -785,7 +785,7 @@ signature_item:
                              $3 ~attrs:$4 ~loc:(symbol_rloc()))) }
   | MODULE UIDENT EQUAL mod_longident post_item_attributes
       { mksig(Psig_module (Md.mk (mkrhs $2 2)
-                             (Mty.alias ~loc:(rhs_loc 4) (mkrhs $4 4))
+                             (Mty.alias ~loc:(rhs_loc 4) None (mkrhs $4 4))
                              ~attrs:$5
                              ~loc:(symbol_rloc())
                           )) }

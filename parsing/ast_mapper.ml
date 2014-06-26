@@ -210,7 +210,7 @@ module MT = struct
     let attrs = sub.attributes sub attrs in
     match desc with
     | Pmty_ident s -> ident ~loc ~attrs (map_loc sub s)
-    | Pmty_alias s -> alias ~loc ~attrs (map_loc sub s)
+    | Pmty_alias (s, ns) -> alias ~loc ~attrs ns (map_loc sub s)
     | Pmty_signature sg -> signature ~loc ~attrs (sub.signature sub sg)
     | Pmty_functor (s, mt1, mt2) ->
         functor_ ~loc ~attrs (map_loc sub s)

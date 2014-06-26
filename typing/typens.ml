@@ -210,11 +210,58 @@ let elaborate_import h =
     pstr_loc = Location.none;
   }
 
+let elaborate_interface h =
+  let rec compute ns = function
+    | Mod (al, m) ->
+        let mty =
+          {
+            pmty_desc = Pmty_alias (mknoloc (Lident m), addnoloc ns);
+            pmty_loc = Location.none;
+            pmty_attributes = [];
+          } in
+        Psig_module {
+          pmd_name = al;
+          pmd_attributes = [];
+          pmd_type = mty;
+          pmd_loc = Location.none;
+        }
+    | Ns (n, sub) ->
+        let ns = update_ns ns n in
+        let sg = List.map (fun r ->
+            { psig_desc = compute ns r; psig_loc = Location.none}) sub in
+        let mty =
+          {
+            pmty_desc = Pmty_signature sg;
+            pmty_loc = Location.none;
+            pmty_attributes = [];
+          } in
+        Psig_module {
+          pmd_name = n;
+          pmd_attributes = [];
+          pmd_type = mty;
+          pmd_loc = Location.none;
+        }
+    | _ -> assert false
+  in
+  {
+    psig_desc = compute None h;
+    psig_loc = Location.none;
+  }
+
 let verify_import i check_ns_names =
   check_namespace_availability i.imp_namespace i.imp_loc check_ns_names;
   let _constraints = check_import_constraints i.imp_cstr in
   ()
 
+let compute_interface_prelude prl =
+  let ns =
+    match prl.prl_ns with
+      None -> None
+    | Some nd -> Some nd.ns_name
+  in
+  Env.set_namespace_unit ns;
+  let hierarchy = mk_nsenv prl.prl_imports in
+  List.map elaborate_interface hierarchy, ns
 
 let compute_prelude prl =
   let ns =
