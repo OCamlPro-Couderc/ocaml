@@ -274,7 +274,7 @@ let ml_file_dependencies source_file =
 
 let mli_file_dependencies source_file =
   let extracted_deps =
-    read_parse_and_extract Parse.interface Depend.add_signature
+    read_parse_and_extract Parse.interface Depend.add_interface
                            Config.ast_intf_magic_number source_file
   in
   if !sort_files then

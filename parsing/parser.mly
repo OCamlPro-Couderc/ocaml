@@ -491,7 +491,7 @@ The precedences must be listed from low to high.
 %start implementation                   /* for implementation files */
 %type <Parsetree.implementation> implementation
 %start interface                        /* for interface files */
-%type <Parsetree.signature> interface
+%type <Parsetree.interface> interface
 %start toplevel_phrase                  /* for interactive use */
 %type <Parsetree.toplevel_phrase> toplevel_phrase
 %start use_file                         /* for the #use directive */
@@ -511,7 +511,8 @@ implementation:
   | structure EOF                        { Pimpl (Ns.empty, $1) }
 ;
 interface:
-    signature EOF                        { $1 }
+    prelude SEMISEMI signature EOF       { Pinterf ($1, $3) }
+  | signature EOF                        { Pinterf (Ns.empty, $1) }
 ;
 toplevel_phrase:
     top_structure SEMISEMI               { Ptop_def $1 }

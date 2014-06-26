@@ -858,6 +858,8 @@ and module_binding =
 
 and implementation = Pimpl of prelude * structure
 
+and interface = Pinterf of prelude * signature
+
 (** {2 Toplevel} *)
 
 (* Toplevel phrases *)

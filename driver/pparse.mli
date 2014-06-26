@@ -26,4 +26,4 @@ val report_error : formatter -> error -> unit
 
 
 val parse_implementation: formatter -> string -> Parsetree.implementation
-val parse_interface: formatter -> string -> Parsetree.signature
+val parse_interface: formatter -> string -> Parsetree.interface

@@ -234,6 +234,9 @@ and add_signature bv = function
     [] -> ()
   | item :: rem -> add_signature (add_sig_item bv item) rem
 
+and add_interface bv (Pinterf (_, sg)) =
+  add_signature bv sg
+
 and add_sig_item bv item =
   match item.psig_desc with
     Psig_value vd ->
