@@ -1699,19 +1699,30 @@ let rec package_signatures subst = function
 let package_units initial_env objfiles cmifile (modulename: string) =
   (* Read the signatures of the units *)
   if !Clflags.ns_debug then
-    Format.printf "BEWARE: Typemod.package_units gives a None namespace@.";
-  let units =
-    List.map
-      (fun f ->
+    Format.printf "Typemod.package_units@.";
+  let units, ns =
+    List.fold_left
+      (fun (units, (ns : namespace_info option)) f ->
          let pref = chop_extensions f in
          let modname = String.capitalize(Filename.basename pref) in
-         let sg = Env.read_signature None modname (pref ^ ".cmi") in
+         let cmi = Cmi_format.read_cmi (pref ^ ".cmi") in
+         let sg = Env.read_signature cmi.Cmi_format.cmi_namespace modname (pref ^ ".cmi") in
+         let ns = match ns with
+             None -> Some cmi.Cmi_format.cmi_namespace
+           | Some ns' ->
+               if cmi.Cmi_format.cmi_namespace <> ns' then
+                 failwith "Namespaces should be equal"
+               else ns in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
-         (modname, None, Env.read_signature None modname (pref ^ ".cmi")))
-      objfiles in
+         (modname, None, Env.read_signature None modname (pref ^ ".cmi")) :: units, ns)
+      ([], None) objfiles in
+  let units = List.rev units in (* To keep original order *)
+  let ns = match ns with
+      None -> assert false
+    | Some ns' -> ns' in
   (* Compute signature of packaged unit *)
   Ident.reinit();
   let sg = package_signatures Subst.identity units in
@@ -1723,10 +1734,11 @@ let package_units initial_env objfiles cmifile (modulename: string) =
       raise(Error(Location.in_file mlifile, Env.empty,
                   Interface_not_compiled mlifile))
     end;
-    let dclsig = Env.read_signature None modulename cmifile in
+    let dclsig = Env.read_signature ns modulename cmifile in
+    let dclns = Env.read_namespace ns modulename cmifile in
     Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
       (Cmt_format.Packed (sg, objfiles)) None initial_env  None ;
-    Includemod.compunit initial_env "(obtained by packing)" None sg mlifile None dclsig
+    Includemod.compunit initial_env "(obtained by packing)" ns sg mlifile dclns dclsig, ns
   end else begin
     (* Determine imports *)
     let unit_names = List.map (fun (x, y, _) -> x, y) units in
@@ -1738,12 +1750,12 @@ let package_units initial_env objfiles cmifile (modulename: string) =
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin
       let sg =
-        Env.save_signature_with_imports None sg modulename
+        Env.save_signature_with_imports ns sg modulename
           (prefix ^ ".cmi") imports in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
         (Cmt_format.Packed (sg, objfiles)) None initial_env (Some sg)
     end;
-    Tcoerce_none
+    Tcoerce_none, ns
   end
 
 (* Error report *)

@@ -43,7 +43,7 @@ val save_signature:
   Env.t -> Types.signature_item list -> unit
 
 val package_units:
-  Env.t -> string list -> string -> string -> Typedtree.module_coercion
+  Env.t -> string list -> string -> string -> Typedtree.module_coercion * namespace_info
 
 type error =
     Cannot_apply of module_type

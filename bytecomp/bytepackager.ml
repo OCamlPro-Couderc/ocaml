@@ -201,7 +201,7 @@ let build_global_target oc target_name members mapping pos coercion =
 
 (* Build the .cmo file obtained by packaging the given .cmo files. *)
 
-let package_object_files ppf files targetfile targetname coercion =
+let package_object_files ppf files targetfile targetname ns coercion =
   if !Clflags.ns_debug then
     Format.printf "BEWARE: Bytepackager.package_object_files set namespace of cu
   to None (to update when changing the Cmo format)";
@@ -235,7 +235,7 @@ let package_object_files ppf files targetfile targetname coercion =
         (Bytelink.extract_crc_interfaces()) in
     let compunit =
       { cu_name = targetname;
-        cu_namespace = None;
+        cu_namespace = ns;
         cu_pos = pos_code;
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev !relocs;
@@ -266,9 +266,9 @@ let package_files ppf initial_env files targetfile =
     let targetcmi = prefix ^ ".cmi" in
     let targetname = String.capitalize(Filename.basename prefix) in
     try
-      let coercion =
+      let coercion, ns =
         Typemod.package_units initial_env files targetcmi targetname in
-      let ret = package_object_files ppf files targetfile targetname coercion in
+      let ret = package_object_files ppf files targetfile targetname ns coercion in
       ret
     with x ->
       remove_file targetfile; raise x

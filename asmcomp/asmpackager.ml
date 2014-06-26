@@ -179,7 +179,7 @@ let package_files ppf initial_env files targetcmx =
   (* Set the name of the current compunit *)
   Compilenv.reset ?packname:!Clflags.for_package targetname;
   try
-    let coercion =
+    let coercion, _ =
       Typemod.package_units initial_env files targetcmi targetname in
     package_object_files ppf files targetcmx targetobj targetname coercion
   with x ->
