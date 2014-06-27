@@ -361,6 +361,9 @@ let rec emit = function
 (* Emission to a file *)
 
 let to_file objfile unit_name code =
+  if  !Clflags.ns_debug then
+    Format.printf "Emitcode.to_file, Env.get_namespace = %s@."
+      @@ Env.namespace_name (Env.get_namespace_unit());
   let dir = Filename.concat !Clflags.root @@
     Env.longident_to_filepath (Env.get_namespace_unit()) in
   (* if !Clflags.ns_debug then *)

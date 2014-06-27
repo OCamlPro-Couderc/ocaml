@@ -95,7 +95,13 @@ let expand_wildcard ns l =
     |> List.filter (fun x -> x <> Wildcard)
   in
   if List.mem Wildcard l then
-    expand l
+    begin
+      if not !Clflags.transparent_modules then
+        Location.prerr_warning
+          Location.none
+          (Warnings.Wildcard_usage (Env.namespace_name ns));
+      expand l
+    end
   else l
 
 let remove_shadowed mods =

@@ -49,12 +49,10 @@ let print_name_crc (name, ns, crco) =
       None -> dummy_crc
     | Some crc -> Digest.to_hex crc
   in
-  let ns =
     match ns with
-      None -> "ROOT"
-    | Some ns -> Longident.string_of_longident ns
-  in
-  printf "\t%s\t%s\n(from %s)\n" crc name ns
+      None -> printf "\t%s\t%s\n" crc name
+    | Some ns ->
+        printf "\t%s\t%s %@ %s\n" crc name @@ Longident.string_of_longident ns
 
 let print_line name =
   printf "\t%s\n" name
