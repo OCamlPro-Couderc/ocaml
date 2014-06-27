@@ -1620,8 +1620,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           raise(Error(Location.in_file sourcefile, Env.empty,
                       Interface_not_compiled sourceintf)) in
       (* The next two should be factorized *)
-      let dclsig = Env.read_signature ns modulename intf_file in
-      let dclns = Env.read_namespace ns modulename intf_file in
+      let dclsig, dclns =
+        Env.read_signature_and_namespace ns modulename intf_file in
       let coercion =
         Includemod.compunit initial_env sourcefile ns sg intf_file dclns dclsig in
       Typecore.force_delayed_checks ();
@@ -1706,18 +1706,20 @@ let package_units initial_env objfiles cmifile (modulename: string) =
          let pref = chop_extensions f in
          let modname = String.capitalize(Filename.basename pref) in
          let cmi = Cmi_format.read_cmi (pref ^ ".cmi") in
-         let sg = Env.read_signature cmi.Cmi_format.cmi_namespace modname (pref ^ ".cmi") in
+         let dclns = cmi.Cmi_format.cmi_namespace in
+         let sg = Env.read_signature dclns modname (pref ^ ".cmi") in
          let ns = match ns with
-             None -> Some cmi.Cmi_format.cmi_namespace
+             None -> Some dclns
            | Some ns' ->
-               if cmi.Cmi_format.cmi_namespace <> ns' then
+               if dclns <> ns' then
                  failwith "Namespaces should be equal"
                else ns in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
-         (modname, None, Env.read_signature None modname (pref ^ ".cmi")) :: units, ns)
+         (modname, dclns, Env.read_signature None modname (pref ^ ".cmi"))
+         :: units, ns)
       ([], None) objfiles in
   let units = List.rev units in (* To keep original order *)
   let ns = match ns with
@@ -1734,17 +1736,24 @@ let package_units initial_env objfiles cmifile (modulename: string) =
       raise(Error(Location.in_file mlifile, Env.empty,
                   Interface_not_compiled mlifile))
     end;
-    let dclsig = Env.read_signature ns modulename cmifile in
-    let dclns = Env.read_namespace ns modulename cmifile in
+    let dclsig, dclns =
+      Env.read_signature_and_namespace ns modulename cmifile in
     Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
       (Cmt_format.Packed (sg, objfiles)) None initial_env  None ;
     Includemod.compunit initial_env "(obtained by packing)" ns sg mlifile dclns dclsig, ns
   end else begin
     (* Determine imports *)
     let unit_names = List.map (fun (x, y, _) -> x, y) units in
+    if !Clflags.ns_debug then
+      Format.printf "unit_names:[%s]@." @@ String.concat "; " @@
+      List.map (fun (n, ns) ->
+          Format.sprintf "%s%@%s" n (Env.namespace_name ns))
+        unit_names;
     let imports =
       List.filter
         (fun (name, ns, crc) ->
+           if !Clflags.ns_debug then
+             Format.printf "Keeping %s %@ %s?@." name (Env.namespace_name ns);
            not (List.mem (name, ns) unit_names))
         (Env.imports()) in
     (* Write packaged signature *)

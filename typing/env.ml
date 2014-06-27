@@ -1677,13 +1677,16 @@ let open_signature ?(loc = Location.none) ?(toplevel = false) ovf root sg env =
 
 let read_signature ns modname filename =
   let ps = read_pers_struct ns modname filename in
-  (* if ps.ps_namespace <> ns then *)
-  (*   failwith @@ Format.sprintf "Signature of %s does not match the namespace %s" *)
   ps.ps_sig
 
 let read_namespace ns modname filename =
   let ps = read_pers_struct ns modname filename in
   ps.ps_namespace
+
+(* Reads the signature of the file given and the namespace recorded in it *)
+let read_signature_and_namespace ns modname filename =
+  let ps = read_pers_struct ns modname filename in
+  ps.ps_sig, ps.ps_namespace
 
 (* Return the CRC of the interface of the given compilation unit *)
 
@@ -1702,12 +1705,10 @@ let crc_of_unit name ns =
 (* Return the list of imported interfaces with their CRCs *)
 
 let imports() =
-  if !Clflags.ns_debug then
-    Format.printf "Env.imports to modify to add ns information for each import@.";
   let imported_units =
     List.map (fun (name, ns) -> name, Longident.optstring ns) !imported_units in
-  List.map (fun (name, ns, crc) -> name, Longident.from_optstring ns, crc) @@
   Consistbl.extract imported_units crc_units
+  |> List.map (fun (name, ns, crc) -> name, Longident.from_optstring ns, crc)
 
 (* Save a signature to a file *)
 

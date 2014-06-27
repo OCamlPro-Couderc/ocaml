@@ -363,8 +363,8 @@ let rec emit = function
 let to_file objfile unit_name code =
   let dir = Filename.concat !Clflags.root @@
     Env.longident_to_filepath (Env.get_namespace_unit()) in
-  if !Clflags.ns_debug then
-    Format.printf "Cannot make the directories:@.";
+  (* if !Clflags.ns_debug then *)
+  (*   Format.printf "Cannot make the directories:@."; *)
   mk_path dir;
   if !Clflags.ns_debug then
     Format.printf "Emitcode.to_file: dir: %s@." dir;

@@ -203,8 +203,7 @@ let build_global_target oc target_name members mapping pos coercion =
 
 let package_object_files ppf files targetfile targetname ns coercion =
   if !Clflags.ns_debug then
-    Format.printf "BEWARE: Bytepackager.package_object_files set namespace of cu
-  to None (to update when changing the Cmo format)";
+    Format.printf "Bytepackager.package_object_files@.";
   let members =
     map_left_right read_member_info files in
   let unit_names =
@@ -215,7 +214,14 @@ let package_object_files ppf files targetfile targetname ns coercion =
           (Ident.create_persistent name,
            Ident.create_persistent(targetname ^ "." ^ name)))
       unit_names in
-  let oc = open_out_bin targetfile in
+  let targetfile =
+    if !Clflags.root <> "" then Filename.basename targetfile
+    else targetfile in
+  let dir = Filename.concat !Clflags.root @@
+    Env.longident_to_filepath ns in
+  if !Clflags.ns_debug then
+    Format.printf "Output the file %s in %s@." targetfile dir;
+  let oc = open_out_bin @@ Filename.concat dir targetfile in
   try
     output_string oc Config.cmo_magic_number;
     let pos_depl = pos_out oc in
@@ -229,6 +235,8 @@ let package_object_files ppf files targetfile targetname ns coercion =
       output_value oc (List.rev !events);
       output_value oc (StringSet.elements !debug_dirs);
     let pos_final = pos_out oc in
+    if !Clflags.ns_debug then
+      Format.printf "unit_names:[%s]@." @@ String.concat "; " unit_names;
     let imports =
       List.filter
         (fun (name, ns, crc) -> not (List.mem name unit_names))
@@ -240,7 +248,7 @@ let package_object_files ppf files targetfile targetname ns coercion =
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev !relocs;
         cu_imports =
-          (targetname, None, Some (Env.crc_of_unit targetname None)) :: imports;
+          (targetname, ns, Some (Env.crc_of_unit targetname ns)) :: imports;
         cu_primitives = !primitives;
         cu_force_link = !force_link;
         cu_debug = if pos_final > pos_debug then pos_debug else 0;
