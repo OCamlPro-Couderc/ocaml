@@ -1,20 +1,22 @@
 
 (** Representation of the environment builded by the prelude *)
-type namespaces = namespace_env list
+type namespaces = namespace_item list
 
-and namespace_env =
-  | Ns of string Asttypes.loc * namespace_env list
-  | Mod of string Asttypes.loc * string (* name to use * path to find it *)
-  | Shadowed of string Asttypes.loc
+and namespace_item = namespace_item_desc Location.loc
+
+and namespace_item_desc =
+  | Ns of string * namespaces
+  | Mod of string * string (* name/alias to use * original name *)
+  | Shadowed of string
   | Wildcard
 
 (** Builds the environment, using the prelude given. Exported to allow programs
   to use it to compute dependencies and build such an environment *)
 val mk_nsenv: Parsetree.imports -> namespaces
 
-val elaborate_import: namespace_env -> Parsetree.structure_item
+val elaborate_import: namespace_item -> Parsetree.structure_item
 
-val elaborate_interface: namespace_env -> Parsetree.signature_item
+val elaborate_interface: namespace_item -> Parsetree.signature_item
 
 val compute_interface_prelude: Parsetree.prelude -> Parsetree.signature * Longident.t option
 

@@ -289,10 +289,10 @@ let mkcf_attrs d attrs =
 let mkctf_attrs d attrs =
   Ctf.mk ~loc:(symbol_rloc()) ~attrs d
 
-let mk_prl = Ns.mk ~loc:(symbol_rloc())
-let mk_nsd = Ns.mk_nsd ~loc:(symbol_rloc())
-let mk_imp = Ns.mk_imp ~loc:(symbol_rloc())
-let mk_icstr = Ns.mk_icstr ~loc:(symbol_rloc())
+let mk_prl = Ns.mk
+let mk_nsd = Ns.mk_nsd
+let mk_imp = Ns.mk_imp
+let mk_icstr = Ns.mk_icstr
 
 
 %}
@@ -520,11 +520,12 @@ toplevel_phrase:
   | EOF                                  { raise End_of_file }
 ;
 prelude:
-    namespace_decl imports               { mk_prl (Some $1) $2 }
-  | imports                              { mk_prl None $1 }
+    namespace_decl imports               { mk_prl ~loc:(symbol_rloc())
+                                             (Some $1) $2 }
+  | imports                              { mk_prl ~loc:(symbol_rloc()) None $1 }
 ;
 namespace_decl:
-    IN NAMESPACE mod_longident           { mk_nsd $3 }
+    IN NAMESPACE mod_longident           { mk_nsd ~loc:(symbol_rloc()) $3 }
 ;
 imports:
     /* empty */                          { [] }
@@ -542,7 +543,7 @@ import_tail:
 ;
 import_arg:
     LPAREN import_constraints RPAREN OF mod_longident
-                                         { mk_imp $2 $5 }
+                                         { mk_imp ~loc:(symbol_rloc()) $2 $5 }
 ;
 import_constraints:
     import_constraint                    { [ $1 ] }
@@ -550,10 +551,14 @@ import_constraints:
                                          { $1 :: $3 }
 ;
 import_constraint:
-    UIDENT                               { mk_icstr (Cstr_mod $1) }
-  | UIDENT AS UIDENT                     { mk_icstr (Cstr_alias ($1, $3)) }
-  | UIDENT AS UNDERSCORE                 { mk_icstr (Cstr_shadow $1) }
-  | UNDERSCORE                           { mk_icstr (Cstr_wildcard) }
+    UIDENT                               { mk_icstr ~loc:(symbol_rloc())
+                                             (Cstr_mod $1) }
+  | UIDENT AS UIDENT                     { mk_icstr ~loc:(symbol_rloc())
+                                             (Cstr_alias ($1, $3)) }
+  | UIDENT AS UNDERSCORE                 { mk_icstr ~loc:(symbol_rloc())
+                                             (Cstr_shadow $1) }
+  | UNDERSCORE                           { mk_icstr ~loc:(symbol_rloc())
+                                             (Cstr_wildcard) }
 ;
 top_structure:
     seq_expr post_item_attributes { [mkstrexp $1 $2] }

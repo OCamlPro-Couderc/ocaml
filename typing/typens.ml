@@ -14,41 +14,44 @@
 
 open Longident
 open Parsetree
-open Typedtree
-open Asttypes
+open Location
 
-type namespaces = namespace_env list
+type namespaces = namespace_item list
 
-and namespace_env =
-  | Ns of string Asttypes.loc * namespace_env list
-  | Mod of string Asttypes.loc * string (* name to use * path to find it/original name *)
-  | Shadowed of string Asttypes.loc
+and namespace_item = namespace_item_desc loc
+
+and namespace_item_desc =
+  | Ns of string * namespaces
+  | Mod of string * string (* name to use * path to find it/original name *)
+  | Shadowed of string
   | Wildcard
 
 let print_namespace ns =
-  let rec print indent = function
-    | Shadowed m -> Format.sprintf "%s- %s as _" indent m.txt
-    | Mod (m, n) -> Format.sprintf "%s- %s as %s" indent m.txt n
+  let rec print indent m =
+    match m.txt with
+    | Shadowed m -> Printf.sprintf "%s- %s as _" indent m
+    | Mod (m, n) -> Printf.sprintf "%s- %s as %s" indent m n
     | Ns (n, sub) ->
-        let indent' = Format.sprintf "%s  " indent in
+        let indent' = Printf.sprintf "%s  " indent in
         let sub = List.map (print indent') sub in
-        Format.sprintf "%s| %s:\n%s" indent n.txt (String.concat "\n" sub)
-    | Wildcard -> Format.sprintf "%s- ..." indent
+        Printf.sprintf "%s| %s:\n%s" indent n (String.concat "\n" sub)
+    | Wildcard -> Printf.sprintf "%s- ..." indent
   in
-  List.fold_left (fun acc ns -> Format.sprintf "%s\n%s" acc @@ print "" ns) "" ns
+  List.fold_left (fun acc ns ->
+      Printf.sprintf "%s\n%s" acc @@ print "" ns) "" ns
 
-let is_namespace ns = function
-  | Ns (n, sub) -> n.txt = ns
+let is_namespace ns item =
+  match item.txt with
+  | Ns (n, sub) -> n = ns
   | _ -> false
 
 let mod_of_cstr loc = function
-  | Cstr_mod s -> Mod (mkloc s loc, s)
-  | Cstr_alias (s, al) -> Mod (mkloc al loc, s)
-  | Cstr_shadow (s) -> Shadowed (mkloc s loc)
-  | Cstr_wildcard -> Wildcard (* Should raise a warning at expansion, should
-                                 be used with -no-alias-deps for better efficiency *)
+  | Cstr_mod s -> mkloc (Mod (s, s)) loc
+  | Cstr_alias (s, al) -> mkloc (Mod (al, s)) loc
+  | Cstr_shadow (s) -> mkloc (Shadowed s) loc
+  | Cstr_wildcard -> mkloc Wildcard loc
 
-let find_all_compunits path =
+let find_all_compunits loc path =
   let rec scan_loadpath acc = function
       [] -> acc
     | dir :: tl ->
@@ -64,11 +67,15 @@ let find_all_compunits path =
                     fullname
                     (Sys.is_directory fullname)
                     (Filename.check_suffix f ".cmi");
-              if not (Sys.is_directory fullname) && Filename.check_suffix f ".cmi" then
+              if not (Sys.is_directory fullname)
+              && Filename.check_suffix f ".cmi" then
                 let m = Filename.chop_extension f |> String.capitalize in
-                let res = Mod (mknoloc m, m) in
+                let res = mkloc (Mod (m, m)) loc in
                 if not (List.exists
-                          (function Mod (_, s) -> s = m | _ -> false) acc) then
+                          (fun item -> match item.txt with
+                              Mod (_, s) -> s = m
+                            | _ -> false)
+                          acc) then
                   res :: acc
                 else acc
               else acc) acc files
@@ -80,26 +87,31 @@ let find_all_compunits path =
 
 let rec remove_duplicates l1 = function
     [] -> l1
-  | (Mod (_, m) as mo) :: tl -> if List.exists
-      (function Mod (_, s) -> s = m | _ -> false) l1 then
+  | ({ txt = Mod (_, m); _ } as mo):: tl ->
+      if List.exists
+          (fun item -> match item.txt with
+               Mod (_, s) -> s = m
+             | _ -> false)
+          l1 then
         remove_duplicates l1 tl
       else
         remove_duplicates (mo :: l1) tl
   | _ :: tl -> assert false
 
-let expand_wildcard ns l =
+let expand_wildcard loc ns (l: namespaces) =
   let path = Env.longident_to_filepath ns in
   let expand l =
-    find_all_compunits path
+    find_all_compunits loc path
     |> remove_duplicates l
-    |> List.filter (fun x -> x <> Wildcard)
+    |> List.filter (fun x ->
+        if x.txt = Wildcard && not !Clflags.transparent_modules then
+          Location.prerr_warning
+            x.loc
+            (Warnings.Wildcard_usage (Env.namespace_name ns));
+        x.txt <> Wildcard)
   in
-  if List.mem Wildcard l then
+  if List.exists (fun item -> item.txt = Wildcard) l then
     begin
-      if not !Clflags.transparent_modules then
-        Location.prerr_warning
-          Location.none
-          (Warnings.Wildcard_usage (Env.namespace_name ns));
       expand l
     end
   else l
@@ -108,16 +120,13 @@ let remove_shadowed mods =
   let rec step l acc =
     match l with
       [] -> acc
-    | Shadowed s :: tl ->
-        List.filter (function
+    | { txt = Shadowed s; _ } :: tl ->
+        List.filter (fun item ->
+            match item.txt with
               Mod (_, m) ->
-                if !Clflags.ns_debug then
-                  Format.printf "Removing module %s?@." m;
-                s.txt <> m
+                s <> m
             | Shadowed m ->
-                if !Clflags.ns_debug then
-                  Format.printf "Removing shadowing %s?@." m.txt;
-                s.txt <> m.txt (* removes itself *)
+                s <> m (* removes itself *)
             | _ -> true) acc
         |> step tl
     | _ :: tl -> step tl acc
@@ -130,20 +139,24 @@ let add_constraints loc env (orig: Longident.t) cstrs =
     match env, ns with
     | content, [] ->
         List.fold_left (fun acc c ->
-            mod_of_cstr (c.imp_cstr_loc) (c.imp_cstr_desc) :: acc) content cstrs
-        |> expand_wildcard (Some orig)
+            mod_of_cstr (c.imp_cstr_loc) (c.imp_cstr_desc) :: acc)
+          content cstrs
+        |> expand_wildcard loc (Some orig)
         |> remove_shadowed
     | l, ns :: path ->
         let l = if List.exists (is_namespace ns) l then l
-          else Ns (mkloc ns loc, []) :: l in
-        List.map (function
-            | Ns (n, sub) when n.txt = ns -> Ns (n, step sub path)
+          else (mkloc (Ns (ns, [])) loc) :: l in
+        List.map (fun item ->
+            match item with
+            | { txt = Ns (n, sub); loc } when n = ns ->
+                mkloc (Ns (n, step sub path)) loc
             | any -> any) l in
   step env ns
 
 let mk_nsenv imports =
   List.fold_left (fun env item ->
-      add_constraints item.imp_loc env item.imp_namespace item.imp_cstr) [] imports
+      add_constraints item.imp_loc env item.imp_namespace item.imp_cstr)
+    [] imports
 
 let string_of_longident l = String.concat "." (flatten l)
 
@@ -171,86 +184,90 @@ let mk_prefixed ns m =
 
 let update_ns ns sub =
   match ns with
-    None -> Some (Lident sub.txt)
-  | Some ns -> Some (Ldot (ns, sub.txt))
+    None -> Some (Lident sub)
+  | Some ns -> Some (Ldot (ns, sub))
 
-let addnoloc = function
+let addloc loc = function
     None -> None
-  | Some x -> Some (mknoloc x)
+  | Some x -> Some (mkloc x loc)
 
 let elaborate_import h =
-  let rec compute ns = function
+  let rec compute (ns: Longident.t option) nsloc item =
+    match item.txt with
     | Mod (al, m) ->
         let md =
           {
-            pmod_desc = Pmod_ident (mknoloc (Lident m), addnoloc ns);
-            pmod_loc = Location.none;
+            pmod_desc = Pmod_ident
+                (mkloc (Lident m) item.loc, addloc nsloc ns);
+            pmod_loc = item.loc;
             pmod_attributes = [];
           } in
         Pstr_module {
-          pmb_name = al;
+          pmb_name = mkloc al item.loc;
           pmb_attributes = [];
           pmb_expr = md;
-          pmb_loc = Location.none;
+          pmb_loc = item.loc;
         }
     | Ns (n, sub) ->
         let ns = update_ns ns n in
         let str = List.map (fun r ->
-            { pstr_desc = compute ns r; pstr_loc = Location.none}) sub in
+            { pstr_desc = compute ns item.loc r; pstr_loc = item.loc})
+            sub in
         let md =
           {
             pmod_desc = Pmod_structure str;
-            pmod_loc = Location.none;
+            pmod_loc = item.loc;
             pmod_attributes = [];
           } in
         Pstr_module {
-          pmb_name = n;
+          pmb_name = mkloc n item.loc;
           pmb_attributes = [];
           pmb_expr = md;
-          pmb_loc = Location.none;
+          pmb_loc = item.loc;
         }
     | _ -> assert false
   in
   {
-    pstr_desc = compute None h;
+    pstr_desc = compute None (Location.none) h;
     pstr_loc = Location.none;
   }
 
 let elaborate_interface h =
-  let rec compute ns = function
+  let rec compute ns nsloc item =
+    match item.txt with
     | Mod (al, m) ->
         let mty =
           {
-            pmty_desc = Pmty_alias (mknoloc (Lident m), addnoloc ns);
-            pmty_loc = Location.none;
+            pmty_desc = Pmty_alias (mkloc (Lident m) item.loc, addloc nsloc ns);
+            pmty_loc = item.loc;
             pmty_attributes = [];
           } in
         Psig_module {
-          pmd_name = al;
+          pmd_name = mkloc al item.loc;
           pmd_attributes = [];
           pmd_type = mty;
-          pmd_loc = Location.none;
+          pmd_loc = item.loc;
         }
     | Ns (n, sub) ->
         let ns = update_ns ns n in
         let sg = List.map (fun r ->
-            { psig_desc = compute ns r; psig_loc = Location.none}) sub in
+            { psig_desc = compute ns item.loc r; psig_loc = item.loc}) sub in
         let mty =
           {
             pmty_desc = Pmty_signature sg;
-            pmty_loc = Location.none;
+            pmty_loc = item.loc;
             pmty_attributes = [];
           } in
         Psig_module {
-          pmd_name = n;
+          pmd_name = mkloc n item.loc;
           pmd_attributes = [];
           pmd_type = mty;
-          pmd_loc = Location.none;
+          pmd_loc = item.loc;
         }
     | _ -> assert false
   in
   {
-    psig_desc = compute None h;
+    psig_desc = compute None (Location.none) h;
     psig_loc = Location.none;
   }
 
