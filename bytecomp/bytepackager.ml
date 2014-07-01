@@ -44,30 +44,40 @@ let rename_relocation packagename objfile mapping defined base (rel, ofs) =
   let rel' =
     match rel with
       Reloc_getglobal id ->
+        if !Clflags.ns_debug then
+          Format.printf "Getglobal: %s, short: %s@." (Ident.name id)
+            (Ident.shortname id);
         begin try
           let id' = List.assoc id mapping in
           if List.mem id defined
           then Reloc_getglobal id'
           else raise(Error(Forward_reference(objfile, id)))
         with Not_found ->
+          if !Clflags.ns_debug then
+            Format.printf "Not found@.";
           (* PR#5276: unique-ize dotted global names, which appear
              if one of the units being consolidated is itself a packed
              module. *)
-          let name = Ident.name id in
+          let name = Ident.shortname id in
           if String.contains name '.' then
             Reloc_getglobal (Ident.create_persistent (packagename ^ "." ^ name))
           else
             rel
         end
     | Reloc_setglobal id ->
+        if !Clflags.ns_debug then
+          Format.printf "Setglobal: %s, short: %s@." (Ident.name id)
+            (Ident.shortname id) ;
         begin try
           let id' = List.assoc id mapping in
           if List.mem id defined
           then raise(Error(Multiple_definition(objfile, id)))
           else Reloc_setglobal id'
         with Not_found ->
+          if !Clflags.ns_debug then
+            Format.printf "Not found@.";
           (* PR#5276, as above *)
-          let name = Ident.name id in
+          let name = Ident.shortname id in
           if String.contains name '.' then
             Reloc_setglobal (Ident.create_persistent (packagename ^ "." ^ name))
           else
@@ -180,7 +190,7 @@ let rec rename_append_bytecode_list ppf packagename oc mapping defined ofs
 
 (* Generate the code that builds the tuple representing the package module *)
 
-let build_global_target oc target_name members mapping pos coercion =
+let build_global_target oc target_name ns members mapping pos coercion =
   let components =
     List.map2
       (fun m (id1, id2) ->
@@ -190,7 +200,7 @@ let build_global_target oc target_name members mapping pos coercion =
       members mapping in
   let lam =
     Translmod.transl_package
-      components (Ident.create_persistent target_name) coercion in
+      components (Ident.create_persistent ~ns target_name) coercion in
   if !Clflags.dump_lambda then
     Format.printf "%a@." Printlambda.lambda lam;
   let instrs =
@@ -208,10 +218,14 @@ let package_object_files ppf files targetfile targetname ns coercion =
     map_left_right read_member_info files in
   let unit_names =
     List.map (fun m -> m.pm_name) members in
+  let ns_str = Longident.optstring ns in
+  (* let target_longname = match ns_str with *)
+  (*     None -> targetname *)
+  (*   | Some ns -> targetname ^ "@" ^ ns in *)
   let mapping =
     List.map
       (fun name ->
-          (Ident.create_persistent name,
+          (Ident.create_persistent ~ns:ns_str name,
            Ident.create_persistent(targetname ^ "." ^ name)))
       unit_names in
   let targetfile =
@@ -229,7 +243,7 @@ let package_object_files ppf files targetfile targetname ns coercion =
     let pos_code = pos_out oc in
     let ofs = rename_append_bytecode_list ppf targetname oc mapping [] 0
                                           targetname Subst.identity members in
-    build_global_target oc targetname members mapping ofs coercion;
+    build_global_target oc targetname ns_str members mapping ofs coercion;
     let pos_debug = pos_out oc in
     if !Clflags.debug && !events <> [] then
       output_value oc (List.rev !events);

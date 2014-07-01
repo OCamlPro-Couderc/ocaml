@@ -254,6 +254,9 @@ let find_value env loc lid =
   r
 
 let lookup_module ?(load=false) env loc lid ns =
+  if !Clflags.ns_debug then
+    Format.printf "Looking for %s in %s@."
+      (Longident.string_of_longident lid) (Env.namespace_name ns);
   let f = match ns with
       None -> (fun lid -> Unbound_module lid)
     | Some ns -> (fun lid -> Unbound_module_from_ns (lid, ns))

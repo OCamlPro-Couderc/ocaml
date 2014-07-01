@@ -1541,8 +1541,8 @@ and add_extension ~check id ext env =
   store_extension ~check None id (Pident id) ext env env
 
 and add_module_declaration ?arg id md env =
-  if !Clflags.ns_debug then
-    Format.printf "BEWARE: Env.add_module_declaration sets a namespace to None@.";
+  (* if !Clflags.ns_debug then *)
+  (*   Format.printf "BEWARE: Env.add_module_declaration sets a namespace to None@."; *)
   let path =
     (*match md.md_type with
       Mty_alias path -> normalize_path env path
@@ -1561,6 +1561,8 @@ and add_cltype id ty env =
   store_cltype None id (Pident id) ty env env
 
 let add_module ?arg id mty env =
+  (* if !Clflags.ns_debug then *)
+  (*   Format.printf "Env.add_module ?@."; *)
   add_module_declaration ?arg id (md mty) env
 
 let add_local_constraint id info elv env =

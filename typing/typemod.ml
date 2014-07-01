@@ -39,6 +39,7 @@ type error =
   | Scoping_pack of Longident.t * type_expr
   | Recursive_module_require_explicit_type
   | Apply_generative
+  | Namespace_clash of string * string
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -1696,18 +1697,21 @@ let package_units initial_env objfiles cmifile (modulename: string) =
     Format.printf "Typemod.package_units@.";
   let units, ns =
     List.fold_left
-      (fun (units, (ns : namespace_info option)) f ->
+      (fun (units, ns) f ->
          let pref = chop_extensions f in
          let modname = String.capitalize(Filename.basename pref) in
          let cmi = Cmi_format.read_cmi (pref ^ ".cmi") in
          let dclns = cmi.Cmi_format.cmi_namespace in
          let sg = Env.read_signature dclns modname (pref ^ ".cmi") in
-         let ns = match ns with
-             None -> Some dclns
-           | Some ns' ->
+         (* Checks the namespace of each packed unit is the same *)
+         let ns =
+           match ns with
+             None -> Some (dclns, f)
+           | Some (ns', f') ->
                if dclns <> ns' then
-                 failwith "Namespaces should be equal"
-               else ns in
+                 raise (Error(Location.none, Env.empty, Namespace_clash (f, f')))
+               else Some (dclns, f) in
+
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
@@ -1718,7 +1722,7 @@ let package_units initial_env objfiles cmifile (modulename: string) =
   let units = List.rev units in (* To keep original order *)
   let ns = match ns with
       None -> assert false
-    | Some ns' -> ns' in
+    | Some (ns', _) -> ns' in
   (* Compute signature of packaged unit *)
   Ident.reinit();
   let sg = package_signatures Subst.identity units in
@@ -1843,6 +1847,9 @@ let report_error ppf = function
       fprintf ppf "Recursive modules require an explicit module type."
   | Apply_generative ->
       fprintf ppf "This is a generative functor. It can only be applied to ()"
+  | Namespace_clash (f, f') ->
+      fprintf ppf "File %s and %s both belong to different namespace \
+                   where the same is expected." f f'
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env env (fun () -> report_error ppf err)

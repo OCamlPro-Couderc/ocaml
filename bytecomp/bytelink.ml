@@ -159,7 +159,7 @@ let scan_file obj_name tolink =
 
 let crc_interfaces = Consistbl.create ()
 let interfaces = ref ([] : (string * Longident.t option) list)
-let implementations_defined = ref ([] : (string * string) list)
+let implementations_defined = ref ([] : ((string * Longident.t option) * string) list)
 
 let check_consistency ppf file_name cu =
   if !Clflags.ns_debug then
@@ -180,7 +180,7 @@ let check_consistency ppf file_name cu =
     raise(Error(Inconsistent_import(name, user, auth)))
   end;
   begin try
-    let source = List.assoc cu.cu_name !implementations_defined in
+    let source = List.assoc (cu.cu_name, cu.cu_namespace) !implementations_defined in
     Location.print_warning (Location.in_file file_name) ppf
       (Warnings.Multiple_definition(cu.cu_name,
                                     Location.show_filename file_name,
@@ -188,7 +188,7 @@ let check_consistency ppf file_name cu =
   with Not_found -> ()
   end;
   implementations_defined :=
-    (cu.cu_name, file_name) :: !implementations_defined;
+    ((cu.cu_name, cu.cu_namespace), file_name) :: !implementations_defined;
   if !Clflags.ns_debug then
     Format.printf "End of check_consistency@."
 
