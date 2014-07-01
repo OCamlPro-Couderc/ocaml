@@ -390,6 +390,9 @@ let to_file objfile unit_name code =
         (0, 0) in
     (* if !Clflags.ns_debug then *)
     (*   Format.printf "BEWARE: Emitcode.to_file@."; *)
+    (* let longname = match Longident.optstring (Env.get_namespace_unit()) with *)
+    (*     None -> unit_name *)
+    (*   | Some ns -> unit_name ^ "@" ^ ns in *)
     let compunit =
       { cu_name = unit_name;
         cu_namespace = Env.get_namespace_unit();

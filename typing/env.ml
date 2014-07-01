@@ -370,7 +370,8 @@ let read_pers_struct ns modname filename : pers_struct =
   let flags = cmi.cmi_flags in
   let comps =
       !components_of_module' empty Subst.identity
-                             (Pident(Ident.create_persistent name))
+                             (Pident(Ident.create_persistent
+                                       ~ns:(Longident.optstring ns) name))
                              (Mty_signature sign)
   in
   let ps = { ps_name = name;
@@ -380,6 +381,9 @@ let read_pers_struct ns modname filename : pers_struct =
              ps_crcs = crcs;
              ps_filename = filename;
              ps_flags = flags } in
+  (* let longname = match Longident.optstring ns with *)
+  (*     None -> modname *)
+  (*   | Some ns -> modname ^ "@" ^ ns in *)
   if ps.ps_name <> modname then
     error (Illegal_renaming(modname, ps.ps_name, filename));
   add_imports ps;
@@ -457,14 +461,14 @@ let rec find_module_descr ns path env =
   match path with
     Pident id ->
       if !Clflags.ns_debug then
-        Format.printf "Looking for %s in %s@." (Ident.name id)
+        Format.printf "Looking for %s in %s@." (Ident.shortname id)
         @@ (namespace_name ns);
       begin try
         let (p, desc) = EnvTbl.find_same id env.components
         in desc
       with Not_found ->
         if Ident.persistent id
-        then (find_pers_struct ns (Ident.name id)).ps_comps
+        then (find_pers_struct ns (Ident.shortname id)).ps_comps
         else raise Not_found
       end
   | Pdot(p, s, pos) ->
@@ -527,13 +531,13 @@ let find_module ~alias ns path env =
     Pident id ->
       if !Clflags.ns_debug then
         Format.printf "In find_module, Pident branch, looking for %s in %s@."
-          (Ident.name id) (namespace_name ns);
+          (Ident.shortname id) (namespace_name ns);
       begin try
         let (p, data) = EnvTbl.find_same id env.modules
         in data
       with Not_found ->
         if Ident.persistent id then
-          let ps = find_pers_struct ns (Ident.name id) in
+          let ps = find_pers_struct ns (Ident.shortname id) in
           md (Mty_signature(ps.ps_sig))
         else raise Not_found
       end
@@ -700,7 +704,7 @@ let rec lookup_module_descr ns lid env =
       with Not_found ->
         if s = !current_unit then raise Not_found;
         let ps = find_pers_struct ns s in
-        (Pident(Ident.create_persistent s), ps.ps_comps)
+        (Pident(Ident.create_persistent ~ns:(Longident.optstring ns) s), ps.ps_comps)
       end
   | Ldot(l, s) ->
       let (p, descr) = lookup_module_descr None l env in
@@ -749,7 +753,7 @@ and lookup_module ~load ns lid env : Path.t =
           with Not_found ->
 	    Location.prerr_warning Location.none (Warnings.No_cmi_file s)
 	else ignore (find_pers_struct ns s);
-        Pident(Ident.create_persistent s)
+        Pident(Ident.create_persistent ~ns:(Longident.optstring ns) s)
       end
   | Ldot(l, s) ->
       let (p, descr) = lookup_module_descr None l env in
@@ -1028,7 +1032,7 @@ let iter_env proj1 proj2 f env =
     (fun (s, ns) pso ->
       match pso with None -> ()
       | Some ps ->
-          let id = Pident (Ident.create_persistent s) in
+          let id = Pident (Ident.create_persistent ~ns:(Longident.optstring ns) s) in
           iter_components id id ps.ps_comps)
     persistent_structures;
   Ident.iter
@@ -1641,7 +1645,8 @@ let open_signature slot root sg env0 =
 
 let open_pers_signature ns name env =
   let ps = find_pers_struct ns name in
-  open_signature None (Pident(Ident.create_persistent name)) ps.ps_sig env
+  open_signature None
+    (Pident(Ident.create_persistent ~ns:(Longident.optstring ns) name)) ps.ps_sig env
 
 let open_signature ?(loc = Location.none) ?(toplevel = false) ovf root sg env =
   if not toplevel && ovf = Asttypes.Fresh && not loc.Location.loc_ghost
@@ -1725,6 +1730,10 @@ let save_signature_with_imports ns sg modname filename imports =
   let filename = Filename.concat dir filename in
   let oc = open_out_bin filename in
   try
+    (* let longname = match Longident.optstring ns with *)
+    (*     None -> modname *)
+    (*   | Some ns -> modname ^ "@" ^ ns *)
+    (* in *)
     let cmi = {
       cmi_name = modname;
       cmi_sign = sg;
@@ -1740,13 +1749,14 @@ let save_signature_with_imports ns sg modname filename imports =
        will also return its crc *)
     let comps =
       components_of_module empty Subst.identity
-        (Pident(Ident.create_persistent modname)) (Mty_signature sg) in
+        (Pident(Ident.create_persistent ~ns:(Longident.optstring ns) modname))
+        (Mty_signature sg) in
     let ps =
       { ps_name = modname;
         ps_namespace = ns;
         ps_sig = sg;
         ps_comps = comps;
-        ps_crcs = (cmi.cmi_name, ns, Some crc) :: imports;
+        ps_crcs = (modname, ns, Some crc) :: imports;
         ps_filename = filename;
         ps_flags = cmi.cmi_flags } in
     Hashtbl.add persistent_structures (modname, ns) (Some ps);
@@ -1823,7 +1833,8 @@ let fold_modules f lid env acc =
           match ps with
               None -> acc
             | Some ps ->
-              f name (Pident(Ident.create_persistent name))
+              f name
+                (Pident(Ident.create_persistent ~ns:(Longident.optstring ns) name))
                      (md (Mty_signature ps.ps_sig)) acc)
         persistent_structures
         acc

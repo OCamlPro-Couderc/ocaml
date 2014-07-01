@@ -29,12 +29,21 @@ let create_predef_exn s =
   incr currentstamp;
   { name = s; stamp = !currentstamp; flags = predef_exn_flag }
 
-let create_persistent s =
-  { name = s; stamp = 0; flags = global_flag }
+let create_persistent ?(ns=None) s =
+  let name = match ns with
+      None -> s
+    | Some ns -> s ^ "@" ^ ns in
+  { name; stamp = 0; flags = global_flag }
 
 let rename i =
   incr currentstamp;
   { i with stamp = !currentstamp }
+
+let shortname i =
+  if String.contains i.name '@' then
+    let index = String.index i.name '@' in
+    String.sub i.name 0 index
+  else i.name
 
 let name i = i.name
 

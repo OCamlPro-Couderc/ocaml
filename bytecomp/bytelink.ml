@@ -188,7 +188,9 @@ let check_consistency ppf file_name cu =
   with Not_found -> ()
   end;
   implementations_defined :=
-    (cu.cu_name, file_name) :: !implementations_defined
+    (cu.cu_name, file_name) :: !implementations_defined;
+  if !Clflags.ns_debug then
+    Format.printf "End of check_consistency@."
 
 let extract_crc_interfaces () =
   let interfaces = List.map (fun (n, ns) -> n, Longident.optstring ns) !interfaces in
@@ -206,6 +208,8 @@ let debug_info = ref ([] : (int * LongString.t) list)
 (* Link in a compilation unit *)
 
 let link_compunit ppf output_fun currpos_fun inchan file_name compunit =
+  if !Clflags.ns_debug then
+    Format.printf "Bytelink.link_compunit@.";
   check_consistency ppf file_name compunit;
   seek_in inchan compunit.cu_pos;
   let code_block = LongString.input_bytes inchan compunit.cu_codesize in
@@ -217,8 +221,9 @@ let link_compunit ppf output_fun currpos_fun inchan file_name compunit =
   end;
   Array.iter output_fun code_block;
   if !Clflags.link_everything then
-    List.iter Symtable.require_primitive compunit.cu_primitives
-
+    List.iter Symtable.require_primitive compunit.cu_primitives;
+  if !Clflags.ns_debug then
+    Format.printf "End of link_compunit@."
 (* Link in a .cmo file *)
 
 let link_object ppf output_fun currpos_fun file_name compunit =
@@ -321,6 +326,8 @@ let link_bytecode ppf tolink exec_name standalone =
     (* The bytecode *)
     let start_code = pos_out outchan in
     Symtable.init();
+    if !Clflags.ns_debug then
+      Format.printf "Symtable OK@.";
     clear_crc_interfaces ();
     let sharedobjs = List.map Dll.extract_dll_name !Clflags.dllibs in
     let check_dlls = standalone && Config.target = Config.host in

@@ -456,7 +456,10 @@ let _ =
 let transl_implementation module_name (str, cc) =
   reset_labels ();
   primitive_declarations := [];
-  let module_id = Ident.create_persistent module_name in
+  let ns : Types.namespace_info = Env.get_namespace_unit () in
+  let ns : string option = Longident.optstring ns in
+  let module_id = Ident.create_persistent
+      ~ns module_name in
   Lprim(Psetglobal module_id,
         [transl_label_init
             (transl_struct [] cc (global_path module_id) str)])

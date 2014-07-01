@@ -57,12 +57,16 @@ let is_global_defined id =
   Tbl.mem id (!global_table).num_tbl
 
 let slot_for_getglobal id =
+  if !Clflags.ns_debug then
+    Format.printf "Symtable.slot_for_get_global ?: %s@." (Ident.name id);
   try
     find_numtable !global_table id
   with Not_found ->
     raise(Error(Undefined_global(Ident.name id)))
 
 let slot_for_setglobal id =
+  if !Clflags.ns_debug then
+    Format.printf "Symtable.slot_for_set_global ?: %s@." (Ident.name id);
   enter_numtable global_table id
 
 let slot_for_literal cst =
