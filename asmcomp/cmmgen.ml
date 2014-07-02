@@ -2660,6 +2660,8 @@ let entry_point namelist =
   let body =
     List.fold_right
       (fun name next ->
+         if !Clflags.ns_debug then
+           Format.printf "From Cmmgen.entry_point, with name: %s@." name;
         let entry_sym = Compilenv.make_symbol ~unitname:name (Some "entry") in
         Csequence(Cop(Capply(typ_void, Debuginfo.none),
                          [Cconst_symbol entry_sym]),
@@ -2677,6 +2679,8 @@ let cint_zero = Cint 0n
 
 let global_table namelist =
   let mksym name =
+    if !Clflags.ns_debug then
+      Format.printf "From Cmmgen.global_table, with name: %s@." name;
     Csymbol_address (Compilenv.make_symbol ~unitname:name None)
   in
   Cdata(Cglobal_symbol "caml_globals" ::
@@ -2685,7 +2689,10 @@ let global_table namelist =
         [cint_zero])
 
 let reference_symbols namelist =
-  let mksym name = Csymbol_address name in
+  let mksym name =
+    if !Clflags.ns_debug then
+      Format.printf "From Cmmgen.ref_symbol, with name: %s@." name;
+    Csymbol_address name in
   Cdata(List.map mksym namelist)
 
 let global_data name v =
@@ -2699,6 +2706,8 @@ let globals_map v = global_data "caml_globals_map" v
 
 let frame_table namelist =
   let mksym name =
+    if !Clflags.ns_debug then
+      Format.printf "From Cmmgen.frame_table, with name: %s@." name;
     Csymbol_address (Compilenv.make_symbol ~unitname:name (Some "frametable"))
   in
   Cdata(Cglobal_symbol "caml_frametable" ::

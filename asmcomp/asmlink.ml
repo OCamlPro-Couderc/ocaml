@@ -78,11 +78,14 @@ let check_consistency file_name unit crc =
   with Not_found -> ()
   end;
   let ns_str = Longident.optstring unit.ui_namespace in
+  let extended_name = match ns_str with
+      None -> unit.ui_name
+    | Some ns -> unit.ui_name ^ "@" ^ ns in
   implementations := (unit.ui_name, unit.ui_namespace) :: !implementations;
   Consistbl.set crc_implementations unit.ui_name ns_str crc file_name;
   implementations_defined :=
     (unit.ui_name, unit.ui_namespace, file_name) :: !implementations_defined;
-  if unit.ui_symbol <> unit.ui_name then
+  if unit.ui_symbol <> extended_name then
     cmx_required := unit.ui_name :: !cmx_required
 
 let extract_crc_interfaces () =

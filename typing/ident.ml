@@ -45,6 +45,12 @@ let shortname i =
     String.sub i.name 0 index
   else i.name
 
+let extract_namespace i =
+  if String.contains i.name '@' then
+    let index = String.index i.name '@' in
+    Some (String.sub i.name (index + 1) (String.length i.name - index - 1))
+  else None
+
 let name i = i.name
 
 let stamp i = i.stamp

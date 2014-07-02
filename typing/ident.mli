@@ -22,6 +22,7 @@ val shortname: t -> string
 val name: t -> string
 val unique_name: t -> string
 val unique_toplevel_name: t -> string
+val extract_namespace: t -> string option
 val persistent: t -> bool
 val equal: t -> t -> bool
         (* Compare identifiers by name. *)

@@ -48,7 +48,7 @@ let rec build_closure_env env_param pos = function
    contain the right names if the -for-pack option is active. *)
 
 let getglobal id =
-  Uprim(Pgetglobal (Ident.create_persistent (Compilenv.symbol_for_global id)),
+  Uprim(Pgetglobal (Ident.create_persistent ~ns:(Ident.extract_namespace id) (Compilenv.symbol_for_global id)),
         [], Debuginfo.none)
 
 (* Check if a variable occurs in a [clambda] term. *)

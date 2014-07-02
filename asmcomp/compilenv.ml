@@ -81,8 +81,12 @@ let symbolname_for_pack pack name =
 
 
 let reset ?packname name =
+  if !Clflags.ns_debug then
+    Format.printf "Compilenv.reset called with name: %s@." name;
   Hashtbl.clear global_infos_table;
   let symbol = symbolname_for_pack packname name in
+  if !Clflags.ns_debug then
+    Format.printf "Symbol: %s@." symbol;
   current_unit.ui_name <- name;
   current_unit.ui_symbol <- symbol;
   current_unit.ui_defines <- [symbol];
@@ -101,8 +105,22 @@ let current_unit_infos () =
 let current_unit_name () =
   current_unit.ui_name
 
+let set_current_unit_namespace ns =
+  let curr_symb = current_unit.ui_symbol in
+  let symbol = match ns with
+      None -> curr_symb
+    | Some ns -> curr_symb ^ "@" ^ Longident.string_of_longident ns
+  in
+  current_unit.ui_symbol <- symbol;
+  current_unit.ui_namespace <- ns;
+  current_unit.ui_defines <-
+    List.map (fun n -> if n = curr_symb then symbol else n)
+      current_unit.ui_defines
+
 let make_symbol ?(unitname = current_unit.ui_symbol) idopt =
   let prefix = "caml" ^ unitname in
+  if !Clflags.ns_debug then
+    Format.printf "Compilenv.make_symbol, prefix: %s@." prefix;
   match idopt with
   | None -> prefix
   | Some id -> prefix ^ "__" ^ id
@@ -144,8 +162,10 @@ let read_library_info filename =
 
 (* Read and cache info on global identifiers *)
 
-let get_global_info ?(ns=None) global_ident = (
-  let modname = Ident.name global_ident in
+let get_global_info global_ident = (
+  let modname = Ident.shortname global_ident in
+  let ns = Longident.from_optstring @@ Ident.extract_namespace global_ident in
+  let subdir = Env.longident_to_filepath ns in
   if modname = current_unit.ui_name then
     Some current_unit
   else begin
@@ -154,7 +174,6 @@ let get_global_info ?(ns=None) global_ident = (
     with Not_found ->
       let (infos, crc) =
         try
-          let subdir = Env.longident_to_filepath ns in
           let filename =
             find_in_path_uncap ~subdir !load_path (modname ^ ".cmx") in
           let (ui, crc) = read_unit_info filename in
@@ -196,7 +215,11 @@ let symbol_for_global id =
   else begin
     match get_global_info id with
     | None -> make_symbol ~unitname:(Ident.name id) None
-    | Some ui -> make_symbol ~unitname:ui.ui_symbol None
+    | Some ui ->
+        if !Clflags.ns_debug then
+          Format.printf "Compilenv.symbol_for_global, Some branch, symbol: %s@."
+            ui.ui_symbol;
+        make_symbol ~unitname:ui.ui_symbol None
   end
 
 (* Register the approximation of the module being compiled *)
@@ -234,7 +257,6 @@ let write_unit_info info filename =
 let save_unit_info filename =
   if !Clflags.ns_debug then
     Format.printf "in Compilenv.save_unit_info@.";
-  current_unit.ui_namespace <- Env.get_namespace_unit();
   current_unit.ui_imports_cmi <- Env.imports();
   write_unit_info current_unit filename;
   if !Clflags.ns_debug then

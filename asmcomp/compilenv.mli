@@ -24,6 +24,10 @@ val current_unit_infos: unit -> unit_infos
 val current_unit_name: unit -> string
         (* Return the name of the unit being compiled *)
 
+val set_current_unit_namespace: Longident.t option -> unit
+        (* Sets the namespace (and update the symbol) of the unit being
+           compiled *)
+
 val make_symbol: ?unitname:string -> string option -> string
         (* [make_symbol ~unitname:u None] returns the asm symbol that
            corresponds to the compilation unit [u] (default: the current unit).

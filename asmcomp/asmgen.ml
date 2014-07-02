@@ -104,6 +104,7 @@ let compile_implementation ?toplevel prefixname ppf (size, lam) =
     Format.printf "In Asmgen.compile_implementation@.";
   let dir = Filename.concat !Clflags.root @@
     Env.longident_to_filepath (Env.get_namespace_unit()) in
+  Compilenv.set_current_unit_namespace (Env.get_namespace_unit());
   let asmfile =
     if !keep_asm_file
     then Filename.concat dir (prefixname ^ ext_asm)
