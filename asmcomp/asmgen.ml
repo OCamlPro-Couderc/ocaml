@@ -100,9 +100,13 @@ let compile_genfuns ppf f =
     (Cmmgen.generic_functions true [Compilenv.current_unit_infos ()])
 
 let compile_implementation ?toplevel prefixname ppf (size, lam) =
+  if !Clflags.ns_debug then
+    Format.printf "In Asmgen.compile_implementation@.";
+  let dir = Filename.concat !Clflags.root @@
+    Env.longident_to_filepath (Env.get_namespace_unit()) in
   let asmfile =
     if !keep_asm_file
-    then prefixname ^ ext_asm
+    then Filename.concat dir (prefixname ^ ext_asm)
     else Filename.temp_file "camlasm" ext_asm in
   let oc = open_out asmfile in
   begin try
@@ -133,8 +137,10 @@ let compile_implementation ?toplevel prefixname ppf (size, lam) =
     if !keep_asm_file then () else remove_file asmfile;
     raise x
   end;
-  if Proc.assemble_file asmfile (prefixname ^ ext_obj) <> 0
+  if Proc.assemble_file asmfile (Filename.concat dir prefixname ^ ext_obj) <> 0
   then raise(Error(Assembler_error asmfile));
+  if !Clflags.ns_debug then
+    Format.printf "Out of Asmgen.compile_implementation@.";
   if !keep_asm_file then () else remove_file asmfile
 
 (* Error report *)

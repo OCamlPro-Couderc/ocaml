@@ -58,6 +58,8 @@ let read_member_info pack_path file = (
 (* Check absence of forward references *)
 
 let check_units members =
+  if !Clflags.ns_debug then
+    Format.printf "Todo: ASMPACKAGER@.";
   let rec check forbidden = function
     [] -> ()
   | mb :: tl ->
@@ -65,7 +67,7 @@ let check_units members =
       | PM_intf -> ()
       | PM_impl infos ->
           List.iter
-            (fun (unit, _) ->
+            (fun (unit, _, _) ->
               if List.mem unit forbidden
               then raise(Error(Forward_reference(mb.pm_file, unit))))
             infos.ui_imports_cmx
@@ -111,9 +113,9 @@ let build_package_cmx members cmxfile =
   if !Clflags.ns_debug then
     Format.printf "BEWARE: Asmpackager.build_package_cmx sets namespace to None@.";
   let unit_names =
-    List.map (fun m -> m.pm_name) members in
+    List.map (fun m -> m.pm_name, None) members in
   let filter lst =
-    List.filter (fun (name, crc) -> not (List.mem name unit_names)) lst in
+    List.filter (fun (name, ns, crc) -> not (List.mem (name, ns) unit_names)) lst in
   let union lst =
     List.fold_left
       (List.fold_left
@@ -127,12 +129,13 @@ let build_package_cmx members cmxfile =
   let ui = Compilenv.current_unit_infos() in
   let pkg_infos =
     { ui_name = ui.ui_name;
+      ui_namespace = None;
       ui_symbol = ui.ui_symbol;
       ui_defines =
           List.flatten (List.map (fun info -> info.ui_defines) units) @
           [ui.ui_symbol];
       ui_imports_cmi =
-          (ui.ui_name, Some (Env.crc_of_unit ui.ui_name None)) ::
+          (ui.ui_name, None, Some (Env.crc_of_unit ui.ui_name None)) ::
           filter(Asmlink.extract_crc_interfaces());
       ui_imports_cmx =
           filter(Asmlink.extract_crc_implementations());

@@ -63,6 +63,10 @@ let implementation ppf sourcefile outputprefix =
   Env.set_unit_name modulename;
   let env = Compmisc.initial_env() in
   Compilenv.reset ?packname:!Clflags.for_package modulename;
+
+  let outputprefix =
+    if !Clflags.root <> "" then Filename.basename outputprefix
+    else outputprefix in
   let cmxfile = outputprefix ^ ".cmx" in
   let objfile = outputprefix ^ ext_obj in
   let comp ast =
@@ -94,9 +98,13 @@ let implementation ppf sourcefile outputprefix =
   in
   try comp (Pparse.parse_implementation ppf sourcefile)
   with x ->
+    if !Clflags.ns_debug then
+      Format.printf "Error in optcompile.impl ?@.";
+    let dir = Filename.concat !Clflags.root @@
+    Env.longident_to_filepath (Env.get_namespace_unit()) in
     Stypes.dump (Some (outputprefix ^ ".annot"));
-    remove_file objfile;
-    remove_file cmxfile;
+    remove_file (Filename.concat dir objfile);
+    remove_file (Filename.concat dir cmxfile);
     raise x
 
 let c_file name =

@@ -25,7 +25,7 @@ type error =
 exception Error of error
 
 let global_infos_table =
-  (Hashtbl.create 17 : (string, unit_infos option) Hashtbl.t)
+  (Hashtbl.create 17 : ((string * Longident.t option), unit_infos option) Hashtbl.t)
 
 module CstMap =
   Map.Make(struct
@@ -54,6 +54,7 @@ let exported_constants = Hashtbl.create 17
 
 let current_unit =
   { ui_name = "";
+    ui_namespace = None;
     ui_symbol = "";
     ui_defines = [];
     ui_imports_cmi = [];
@@ -143,18 +144,19 @@ let read_library_info filename =
 
 (* Read and cache info on global identifiers *)
 
-let get_global_info global_ident = (
+let get_global_info ?(ns=None) global_ident = (
   let modname = Ident.name global_ident in
   if modname = current_unit.ui_name then
     Some current_unit
   else begin
     try
-      Hashtbl.find global_infos_table modname
+      Hashtbl.find global_infos_table (modname, ns)
     with Not_found ->
       let (infos, crc) =
         try
+          let subdir = Env.longident_to_filepath ns in
           let filename =
-            find_in_path_uncap !load_path (modname ^ ".cmx") in
+            find_in_path_uncap ~subdir !load_path (modname ^ ".cmx") in
           let (ui, crc) = read_unit_info filename in
           if ui.ui_name <> modname then
             raise(Error(Illegal_renaming(modname, ui.ui_name, filename)));
@@ -162,14 +164,14 @@ let get_global_info global_ident = (
         with Not_found ->
           (None, None) in
       current_unit.ui_imports_cmx <-
-        (modname, crc) :: current_unit.ui_imports_cmx;
-      Hashtbl.add global_infos_table modname infos;
+        (modname, ns, crc) :: current_unit.ui_imports_cmx;
+      Hashtbl.add global_infos_table (modname, ns) infos;
       infos
   end
 )
 
 let cache_unit_info ui =
-  Hashtbl.add global_infos_table ui.ui_name (Some ui)
+  Hashtbl.add global_infos_table (ui.ui_name, ui.ui_namespace) (Some ui)
 
 (* Return the approximation of a global identifier *)
 
@@ -219,17 +221,24 @@ let need_send_fun n =
 (* Write the description of the current unit *)
 
 let write_unit_info info filename =
-  let oc = open_out_bin filename in
+  let dir = Filename.concat !Clflags.root @@
+    Env.longident_to_filepath info.ui_namespace in
+  let oc = open_out_bin @@ Filename.concat dir filename in
   output_string oc cmx_magic_number;
   output_value oc info;
   flush oc;
-  let crc = Digest.file filename in
+  let crc = Digest.file @@ Filename.concat dir filename in
   Digest.output oc crc;
   close_out oc
 
 let save_unit_info filename =
-  current_unit.ui_imports_cmi <- List.map (fun (x, _, y) -> x, y) (Env.imports());
-  write_unit_info current_unit filename
+  if !Clflags.ns_debug then
+    Format.printf "in Compilenv.save_unit_info@.";
+  current_unit.ui_namespace <- Env.get_namespace_unit();
+  current_unit.ui_imports_cmi <- Env.imports();
+  write_unit_info current_unit filename;
+  if !Clflags.ns_debug then
+    Format.printf "Out of Compilenv.save_unit_info@."
 
 
 

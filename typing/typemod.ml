@@ -1644,6 +1644,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           (Cmt_format.Implementation str)
           (Some sourcefile) initial_env (Some sg);
       end;
+      if !Clflags.ns_debug then
+        Format.printf "Typemod.compile_implementation: done@.";
       (str, coercion)
     end
     end

@@ -110,7 +110,7 @@ let init () =
 
 let add_check_ifaces allow_ext filename ui ifaces =
   List.fold_left
-    (fun ifaces (name, crco) ->
+    (fun ifaces (name, ns, crco) ->
        match crco with
          None -> ifaces
        | Some crc ->
@@ -129,7 +129,7 @@ let add_check_ifaces allow_ext filename ui ifaces =
 
 let check_implems filename ui implems =
   List.iter
-    (fun (name, crco) ->
+    (fun (name, _, crco) ->
        match name with
          |"Out_of_memory"
          |"Sys_error"

@@ -96,21 +96,25 @@ let print_cmi_infos name ns crcs =
   printf "Interfaces imported:\n";
   List.iter print_name_crc crcs
 
-let print_general_infos name crc defines cmi cmx =
+let print_general_infos name ns crc defines cmi cmx =
+  let ns = match ns with
+      None -> "ROOT"
+    | Some ns -> Longident.string_of_longident ns in
   printf "Name: %s\n" name;
+  printf "Namespace: %s\n" ns;
   printf "CRC of implementation: %s\n" (Digest.to_hex crc);
   printf "Globals defined:\n";
   List.iter print_line defines;
   printf "Interfaces imported:\n";
-  List.iter (fun (x, y) -> print_name_crc (x, None, y)) cmi;
+  List.iter print_name_crc cmi;
   printf "Implementations imported:\n";
-  List.iter (fun (x, y) -> print_name_crc (x, None, y)) cmx
+  List.iter print_name_crc cmx
 
 open Cmx_format
 
 let print_cmx_infos (ui, crc) =
   print_general_infos
-    ui.ui_name crc ui.ui_defines ui.ui_imports_cmi ui.ui_imports_cmx;
+    ui.ui_name ui.ui_namespace crc ui.ui_defines ui.ui_imports_cmi ui.ui_imports_cmx;
   printf "Approximation:\n";
   Format.fprintf Format.std_formatter "  %a@." Printclambda.approx ui.ui_approx;
   let pr_funs _ fns =
@@ -133,6 +137,7 @@ let print_cmxs_infos header =
     (fun ui ->
        print_general_infos
          ui.dynu_name
+         ui.dynu_namespace
          ui.dynu_crc
          ui.dynu_defines
          ui.dynu_imports_cmi

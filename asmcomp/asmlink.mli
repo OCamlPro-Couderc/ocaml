@@ -22,13 +22,13 @@ val call_linker_shared: string list -> string -> unit
 
 val reset : unit -> unit
 val check_consistency: string -> Cmx_format.unit_infos -> Digest.t -> unit
-val extract_crc_interfaces: unit -> (string * Digest.t option) list
-val extract_crc_implementations: unit -> (string * Digest.t option) list
+val extract_crc_interfaces: unit -> (string * Longident.t option * Digest.t option) list
+val extract_crc_implementations: unit -> (string * Longident.t option * Digest.t option) list
 
 type error =
     File_not_found of string
   | Not_an_object_file of string
-  | Missing_implementations of (string * string list) list
+  | Missing_implementations of ((string * Longident.t option) * string list) list
   | Inconsistent_interface of string * string * string
   | Inconsistent_implementation of string * string * string
   | Assembler_error of string

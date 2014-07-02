@@ -20,7 +20,7 @@ open Compilenv
 type error =
     File_not_found of string
   | Not_an_object_file of string
-  | Missing_implementations of (string * string list) list
+  | Missing_implementations of ((string * Longident.t option) * string list) list
   | Inconsistent_interface of string * string * string
   | Inconsistent_implementation of string * string * string
   | Assembler_error of string
@@ -33,61 +33,67 @@ exception Error of error
 (* Consistency check between interfaces and implementations *)
 
 let crc_interfaces = Consistbl.create ()
-let interfaces = ref ([] : string list)
+let interfaces = ref ([] : (string * Longident.t option) list)
 let crc_implementations = Consistbl.create ()
-let implementations = ref ([] : string list)
-let implementations_defined = ref ([] : (string * string) list)
+let implementations = ref ([] : (string * Longident.t option) list)
+let implementations_defined = ref ([] : (string * Longident.t option * string) list)
 let cmx_required = ref ([] : string list)
 
 let check_consistency file_name unit crc =
   if !Clflags.ns_debug then
-    Format.printf "BEWARE: asmlink.check_consistency sets  namespace to None@.";
+    Format.printf "asmlink.check_consistency";
   begin try
     List.iter
-      (fun (name, crco) ->
-        interfaces := name :: !interfaces;
+      (fun (name, ns, crco) ->
+        interfaces := (name, ns) :: !interfaces;
         match crco with
           None -> ()
         | Some crc ->
+            let ns = Longident.optstring ns in
             if name = unit.ui_name
-            then Consistbl.set crc_interfaces name None crc file_name
-            else Consistbl.check crc_interfaces name None crc file_name)
+            then Consistbl.set crc_interfaces name ns crc file_name
+            else Consistbl.check crc_interfaces name ns crc file_name)
       unit.ui_imports_cmi
   with Consistbl.Inconsistency(name, user, auth) ->
     raise(Error(Inconsistent_interface(name, user, auth)))
   end;
   begin try
     List.iter
-      (fun (name, crco) ->
-        implementations := name :: !implementations;
+      (fun (name, ns, crco) ->
+        implementations := (name, ns) :: !implementations;
         match crco with
             None ->
               if List.mem name !cmx_required then
                 raise(Error(Missing_cmx(file_name, name)))
           | Some crc ->
-              Consistbl.check crc_implementations name None crc file_name)
+              let ns = Longident.optstring ns in
+              Consistbl.check crc_implementations name ns crc file_name)
       unit.ui_imports_cmx
   with Consistbl.Inconsistency(name, user, auth) ->
     raise(Error(Inconsistent_implementation(name, user, auth)))
   end;
   begin try
-    let source = List.assoc unit.ui_name !implementations_defined in
+    let source = Misc.assoc2 (unit.ui_name, unit.ui_namespace) !implementations_defined in
     raise (Error(Multiple_definition(unit.ui_name, file_name, source)))
   with Not_found -> ()
   end;
-  implementations := unit.ui_name :: !implementations;
-  Consistbl.set crc_implementations unit.ui_name None crc file_name;
+  let ns_str = Longident.optstring unit.ui_namespace in
+  implementations := (unit.ui_name, unit.ui_namespace) :: !implementations;
+  Consistbl.set crc_implementations unit.ui_name ns_str crc file_name;
   implementations_defined :=
-    (unit.ui_name, file_name) :: !implementations_defined;
+    (unit.ui_name, unit.ui_namespace, file_name) :: !implementations_defined;
   if unit.ui_symbol <> unit.ui_name then
     cmx_required := unit.ui_name :: !cmx_required
 
 let extract_crc_interfaces () =
-  let interfaces = List.map (fun n -> n, None) !interfaces in
-  List.map (fun (x, _, y) -> x, y) @@ Consistbl.extract interfaces crc_interfaces
+  let interfaces = List.map (fun (n, ns) -> n, Longident.optstring ns) !interfaces in
+  List.map (fun (n, ns, crc) -> n, Longident.from_optstring ns, crc) @@
+  Consistbl.extract interfaces crc_interfaces
+
 let extract_crc_implementations () =
-  let implementations = List.map (fun n -> n, None) !interfaces in
-  List.map (fun (x, _, y) -> x, y) @@ Consistbl.extract implementations crc_implementations
+  let implementations = List.map (fun (n, ns) -> n, Longident.optstring ns) !implementations in
+  List.map (fun (n, ns, crc) -> n, Longident.from_optstring ns, crc) @@
+  Consistbl.extract implementations crc_implementations
 
 (* Add C objects and options and "custom" info from a library descriptor.
    See bytecomp/bytelink.ml for comments on the order of C objects. *)
@@ -127,18 +133,19 @@ let object_file_name name =
 
 (* First pass: determine which units are needed *)
 
-let missing_globals = (Hashtbl.create 17 : (string, string list ref) Hashtbl.t)
+let missing_globals =
+  (Hashtbl.create 17 : ((string * Longident.t option), string list ref) Hashtbl.t)
 
 let is_required name =
   try ignore (Hashtbl.find missing_globals name); true
   with Not_found -> false
 
-let add_required by (name, crc) =
+let add_required by (name, ns, crc) =
   try
-    let rq = Hashtbl.find missing_globals name in
+    let rq = Hashtbl.find missing_globals (name, ns) in
     rq := by :: !rq
   with Not_found ->
-    Hashtbl.add missing_globals name (ref [by])
+    Hashtbl.add missing_globals (name, ns) (ref [by])
 
 let remove_required name =
   Hashtbl.remove missing_globals name
@@ -177,7 +184,7 @@ let read_file obj_name =
 let scan_file obj_name tolink = match read_file obj_name with
   | Unit (file_name,info,crc) ->
       (* This is a .cmx file. It must be linked in any case. *)
-      remove_required info.ui_name;
+      remove_required (info.ui_name, info.ui_namespace);
       List.iter (add_required file_name) info.ui_imports_cmx;
       (info, file_name, crc) :: tolink
   | Library (file_name,infos) ->
@@ -188,9 +195,9 @@ let scan_file obj_name tolink = match read_file obj_name with
         (fun (info, crc) reqd ->
            if info.ui_force_link
              || !Clflags.link_everything
-             || is_required info.ui_name
+             || is_required (info.ui_name, info.ui_namespace)
            then begin
-             remove_required info.ui_name;
+             remove_required (info.ui_name, info.ui_namespace);
              List.iter (add_required (Printf.sprintf "%s(%s)"
                                         file_name info.ui_name))
                info.ui_imports_cmx;
@@ -202,6 +209,8 @@ let scan_file obj_name tolink = match read_file obj_name with
 (* Second pass: generate the startup file and link it with everything else *)
 
 let make_startup_file ppf filename units_list =
+  if !Clflags.ns_debug then
+    Format.printf "Asmlink.make_startup_file@.";
   let compile_phrase p = Asmgen.compile_phrase ppf p in
   let oc = open_out filename in
   Emitaux.output_channel := oc;
@@ -223,7 +232,8 @@ let make_startup_file ppf filename units_list =
           (fun (unit,_,crc) ->
                let intf_crc =
                  try
-                   match List.assoc unit.ui_name unit.ui_imports_cmi with
+                   match Misc.assoc2 (unit.ui_name, unit.ui_namespace)
+                           unit.ui_imports_cmi with
                      None -> assert false
                    | Some crc -> crc
                  with Not_found -> assert false
@@ -317,7 +327,7 @@ let link ppf objfiles output_name =
     else if !Clflags.output_c_object then stdlib :: objfiles
     else stdlib :: (objfiles @ [stdexit]) in
   let units_tolink = List.fold_right scan_file objfiles [] in
-  Array.iter remove_required Runtimedef.builtin_exceptions;
+  Array.iter (fun e -> remove_required (e, None)) Runtimedef.builtin_exceptions;
   begin match extract_missing_globals() with
     [] -> ()
   | mg -> raise(Error(Missing_implementations mg))
@@ -361,7 +371,7 @@ let report_error ppf = function
            List.iter (fun r -> fprintf ppf ",@ %s" r) rl in
       let print_modules ppf =
         List.iter
-         (fun (md, rq) ->
+         (fun ((md, _), rq) ->
             fprintf ppf "@ @[<hov 2>%s referenced from %a@]" md
             print_references rq) in
       fprintf ppf

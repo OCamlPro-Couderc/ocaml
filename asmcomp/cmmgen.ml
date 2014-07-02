@@ -2746,6 +2746,7 @@ let mapflat f l = List.flatten (List.map f l)
 let plugin_header units =
   let mk (ui,crc) =
     { dynu_name = ui.ui_name;
+      dynu_namespace = ui.ui_namespace;
       dynu_crc = crc;
       dynu_imports_cmi = ui.ui_imports_cmi;
       dynu_imports_cmx = ui.ui_imports_cmx;
