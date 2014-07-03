@@ -99,16 +99,20 @@ let compile_genfuns ppf f =
        | _ -> ())
     (Cmmgen.generic_functions true [Compilenv.current_unit_infos ()])
 
-let compile_implementation ?toplevel prefixname ppf (size, lam) =
+let compile_implementation ?toplevel ?(tmp=false) prefixname ppf (size, lam) =
   if !Clflags.ns_debug then
     Format.printf "In Asmgen.compile_implementation@.";
   let dir = Filename.concat !Clflags.root @@
     Env.longident_to_filepath (Env.get_namespace_unit()) in
-  Compilenv.set_current_unit_namespace (Env.get_namespace_unit());
+  Compilenv.set_current_unit_namespace
+    ?packname:!Clflags.for_package
+    (Env.get_namespace_unit());
   let asmfile =
     if !keep_asm_file
     then Filename.concat dir (prefixname ^ ext_asm)
     else Filename.temp_file "camlasm" ext_asm in
+  if !Clflags.ns_debug then
+    Format.printf "Asmfile: %s@." asmfile;
   let oc = open_out asmfile in
   begin try
     Emitaux.output_channel := oc;
@@ -138,7 +142,8 @@ let compile_implementation ?toplevel prefixname ppf (size, lam) =
     if !keep_asm_file then () else remove_file asmfile;
     raise x
   end;
-  if Proc.assemble_file asmfile (Filename.concat dir prefixname ^ ext_obj) <> 0
+  let prefixname = if tmp then prefixname else Filename.concat dir prefixname in
+  if Proc.assemble_file asmfile (prefixname ^ ext_obj) <> 0
   then raise(Error(Assembler_error asmfile));
   if !Clflags.ns_debug then
     Format.printf "Out of Asmgen.compile_implementation@.";

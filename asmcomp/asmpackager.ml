@@ -44,6 +44,9 @@ let read_member_info pack_path file = (
       let (info, crc) = Compilenv.read_unit_info file in
       if info.ui_name <> name
       then raise(Error(Illegal_renaming(name, file, info.ui_name)));
+      if !Clflags.ns_debug then
+        Format.printf "symbol: %s, current_unit symbol: %s@."
+          info.ui_symbol (Compilenv.current_unit_infos()).ui_symbol;
       if info.ui_symbol <>
          (Compilenv.current_unit_infos()).ui_symbol ^ "__" ^ info.ui_name
       then raise(Error(Wrong_for_pack(file, pack_path)));
@@ -77,7 +80,8 @@ let check_units members =
 
 (* Make the .o file for the package *)
 
-let make_package_object ppf members targetobj targetname coercion =
+let make_package_object ppf members targetobj targetname ns coercion =
+  let ns_str = Longident.optstring ns in
   let objtemp =
     if !Clflags.keep_asm_file
     then chop_extension_if_any targetobj ^ ".pack" ^ Config.ext_obj
@@ -89,33 +93,39 @@ let make_package_object ppf members targetobj targetname coercion =
   let components =
     List.map
       (fun m ->
+         if !Clflags.ns_debug then
+           Format.printf "\nCreate persistent with name: %s\n@." m.pm_name;
         match m.pm_kind with
         | PM_intf -> None
-        | PM_impl _ -> Some(Ident.create_persistent m.pm_name))
+        | PM_impl _ -> Some(Ident.create_persistent ~ns:ns_str m.pm_name))
       members in
   Asmgen.compile_implementation
+    ~tmp:true
     (chop_extension_if_any objtemp) ppf
     (Translmod.transl_store_package
-       components (Ident.create_persistent targetname) coercion);
+       components (Ident.create_persistent ~ns:ns_str targetname) coercion);
   let objfiles =
     List.map
       (fun m -> chop_extension_if_any m.pm_file ^ Config.ext_obj)
       (List.filter (fun m -> m.pm_kind <> PM_intf) members) in
+  let dir = Filename.concat !Clflags.root @@
+    Env.longident_to_filepath ns in
   let ok =
-    Ccomp.call_linker Ccomp.Partial targetobj (objtemp :: objfiles) ""
+    Ccomp.call_linker Ccomp.Partial (Filename.concat dir targetobj)
+      (objtemp :: objfiles) ""
   in
   remove_file objtemp;
   if not ok then raise(Error Linking_error)
 
 (* Make the .cmx file for the package *)
 
-let build_package_cmx members cmxfile =
+let build_package_cmx members ns cmxfile =
   if !Clflags.ns_debug then
-    Format.printf "BEWARE: Asmpackager.build_package_cmx sets namespace to None@.";
+    Format.printf "Asmpackager.build_package_cmx@.";
   let unit_names =
-    List.map (fun m -> m.pm_name, None) members in
+    List.map (fun m -> m.pm_name) members in
   let filter lst =
-    List.filter (fun (name, ns, crc) -> not (List.mem (name, ns) unit_names)) lst in
+    List.filter (fun (name, ns, crc) -> not (List.mem name unit_names)) lst in
   let union lst =
     List.fold_left
       (List.fold_left
@@ -127,15 +137,18 @@ let build_package_cmx members cmxfile =
         match m.pm_kind with PM_intf -> accu | PM_impl info -> info :: accu)
       members [] in
   let ui = Compilenv.current_unit_infos() in
+  if !Clflags.ns_debug then
+    Format.printf "Namespace of curr_unit: %s"
+      (Env.namespace_name ui.ui_namespace);
   let pkg_infos =
     { ui_name = ui.ui_name;
-      ui_namespace = None;
+      ui_namespace = ui.ui_namespace;
       ui_symbol = ui.ui_symbol;
       ui_defines =
           List.flatten (List.map (fun info -> info.ui_defines) units) @
           [ui.ui_symbol];
       ui_imports_cmi =
-          (ui.ui_name, None, Some (Env.crc_of_unit ui.ui_name None)) ::
+          (ui.ui_name, ui.ui_namespace, Some (Env.crc_of_unit ui.ui_name ns)) ::
           filter(Asmlink.extract_crc_interfaces());
       ui_imports_cmx =
           filter(Asmlink.extract_crc_implementations());
@@ -153,16 +166,16 @@ let build_package_cmx members cmxfile =
 
 (* Make the .cmx and the .o for the package *)
 
-let package_object_files ppf files targetcmx
-                         targetobj targetname coercion =
+let package_object_files ppf files targetcmx targetobj targetname ns coercion =
   let pack_path =
     match !Clflags.for_package with
     | None -> targetname
     | Some p -> p ^ "." ^ targetname in
+  Env.set_namespace_unit ns;
+  Compilenv.set_current_unit_namespace ?packname:!Clflags.for_package ns;
   let members = map_left_right (read_member_info pack_path) files in
-  check_units members;
-  make_package_object ppf members targetobj targetname coercion;
-  build_package_cmx members targetcmx
+  make_package_object ppf members targetobj targetname ns coercion;
+  build_package_cmx members ns targetcmx
 
 (* The entry point *)
 
@@ -182,9 +195,9 @@ let package_files ppf initial_env files targetcmx =
   (* Set the name of the current compunit *)
   Compilenv.reset ?packname:!Clflags.for_package targetname;
   try
-    let coercion, _ =
+    let coercion, ns =
       Typemod.package_units initial_env files targetcmi targetname in
-    package_object_files ppf files targetcmx targetobj targetname coercion
+    package_object_files ppf files targetcmx targetobj targetname ns coercion
   with x ->
     remove_file targetcmx; remove_file targetobj;
     raise x

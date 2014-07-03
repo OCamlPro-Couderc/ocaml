@@ -65,16 +65,30 @@ let current_unit =
     ui_send_fun = [];
     ui_force_link = false }
 
-let symbolname_for_pack pack name =
+let symbol_of_namespace = function
+    None -> ""
+  | Some ns -> "@" ^ String.concat "$" @@ Longident.flatten ns
+
+let symbolname_for_pack ?(ns=None) pack name =
+  if !Clflags.ns_debug then
+    Format.printf "Calling symbolname_for_pack with %s and ns: %s@."
+      name (symbol_of_namespace ns);
   match pack with
-  | None -> name
+  | None -> name ^ symbol_of_namespace ns
   | Some p ->
       let b = Buffer.create 64 in
+      let first = ref true in
       for i = 0 to String.length p - 1 do
         match p.[i] with
+        | '.' when !first ->
+            first := false;
+            Buffer.add_string b (symbol_of_namespace ns);
+            Buffer.add_string b "__"
         | '.' -> Buffer.add_string b "__"
         |  c  -> Buffer.add_char b c
       done;
+      if !first then
+        Buffer.add_string b (symbol_of_namespace ns);
       Buffer.add_string b "__";
       Buffer.add_string b name;
       Buffer.contents b
@@ -105,16 +119,30 @@ let current_unit_infos () =
 let current_unit_name () =
   current_unit.ui_name
 
-let set_current_unit_namespace ns =
+let set_current_unit_namespace ?packname ns =
   let curr_symb = current_unit.ui_symbol in
-  let symbol = match ns with
-      None -> curr_symb
-    | Some ns -> curr_symb ^ "@" ^ Longident.string_of_longident ns
-  in
+  (* let update_symb symb = function *)
+  (*     None -> symb *)
+  (*   | Some ns -> symb ^ "@" ^ Longident.string_of_longident ns *)
+  (* in *)
+  (* let symbol = match packname with *)
+  (*     None -> *)
+  (*       if !Clflags.ns_debug then *)
+  (*         Format.printf "Not for pack@."; *)
+  (*       update_symb curr_symb ns *)
+  (*   | Some p -> *)
+  (*       if !Clflags.ns_debug then *)
+  (*         Format.printf "Forpack %s@." p; *)
+  (*       symbolname_for_pack (Some (update_symb p ns)) current_unit.ui_name *)
+  (* in *)
+  let symbol = symbolname_for_pack ~ns packname current_unit.ui_name in
   current_unit.ui_symbol <- symbol;
   current_unit.ui_namespace <- ns;
   current_unit.ui_defines <-
-    List.map (fun n -> if n = curr_symb then symbol else n)
+    List.map (fun n ->
+        if !Clflags.ns_debug then
+          Format.printf "%s corresponds to %s ?@." n curr_symb;
+        if n = curr_symb then symbol else n)
       current_unit.ui_defines
 
 let make_symbol ?(unitname = current_unit.ui_symbol) idopt =

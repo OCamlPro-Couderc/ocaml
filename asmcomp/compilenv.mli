@@ -24,7 +24,7 @@ val current_unit_infos: unit -> unit_infos
 val current_unit_name: unit -> string
         (* Return the name of the unit being compiled *)
 
-val set_current_unit_namespace: Longident.t option -> unit
+val set_current_unit_namespace: ?packname:string -> Longident.t option -> unit
         (* Sets the namespace (and update the symbol) of the unit being
            compiled *)
 
