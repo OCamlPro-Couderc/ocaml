@@ -219,9 +219,6 @@ let package_object_files ppf files targetfile targetname ns coercion =
   let unit_names =
     List.map (fun m -> m.pm_name) members in
   let ns_str = Longident.optstring ns in
-  (* let target_longname = match ns_str with *)
-  (*     None -> targetname *)
-  (*   | Some ns -> targetname ^ "@" ^ ns in *)
   let mapping =
     List.map
       (fun name ->
@@ -231,11 +228,8 @@ let package_object_files ppf files targetfile targetname ns coercion =
   let targetfile =
     if !Clflags.root <> "" then Filename.basename targetfile
     else targetfile in
-  let dir = Filename.concat !Clflags.root @@
-    Env.longident_to_filepath ns in
-  if !Clflags.ns_debug then
-    Format.printf "Output the file %s in %s@." targetfile dir;
-  let oc = open_out_bin @@ Filename.concat dir targetfile in
+  let targetfile = Env.output_name targetfile ns in
+  let oc = open_out_bin targetfile in
   try
     output_string oc Config.cmo_magic_number;
     let pos_depl = pos_out oc in

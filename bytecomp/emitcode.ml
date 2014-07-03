@@ -364,14 +364,10 @@ let to_file objfile unit_name code =
   if  !Clflags.ns_debug then
     Format.printf "Emitcode.to_file, Env.get_namespace = %s@."
       @@ Env.namespace_name (Env.get_namespace_unit());
-  let dir = Filename.concat !Clflags.root @@
-    Env.longident_to_filepath (Env.get_namespace_unit()) in
-  (* if !Clflags.ns_debug then *)
-  (*   Format.printf "Cannot make the directories:@."; *)
-  mk_path dir;
+  let objfile = Env.output_name objfile (Env.get_namespace_unit()) in
   if !Clflags.ns_debug then
-    Format.printf "Emitcode.to_file: dir: %s@." dir;
-  let outchan = open_out_bin @@ Filename.concat dir objfile in
+    Format.printf "Emitcode.to_file: objfile: %s@." objfile;
+  let outchan = open_out_bin objfile in
   init();
   try
     output_string outchan cmo_magic_number;
@@ -388,11 +384,6 @@ let to_file objfile unit_name code =
         (p, pos_out outchan - p)
       end else
         (0, 0) in
-    (* if !Clflags.ns_debug then *)
-    (*   Format.printf "BEWARE: Emitcode.to_file@."; *)
-    (* let longname = match Longident.optstring (Env.get_namespace_unit()) with *)
-    (*     None -> unit_name *)
-    (*   | Some ns -> unit_name ^ "@" ^ ns in *)
     let compunit =
       { cu_name = unit_name;
         cu_namespace = Env.get_namespace_unit();

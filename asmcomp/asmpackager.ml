@@ -108,11 +108,11 @@ let make_package_object ppf members targetobj targetname ns coercion =
     List.map
       (fun m -> chop_extension_if_any m.pm_file ^ Config.ext_obj)
       (List.filter (fun m -> m.pm_kind <> PM_intf) members) in
-  let dir = Filename.concat !Clflags.root @@
-    Env.longident_to_filepath ns in
+  (* let dir = Filename.concat !Clflags.root @@ *)
+  (*   Env.longident_to_filepath ns in *)
+  let targetobj = Env.output_name targetobj ns in
   let ok =
-    Ccomp.call_linker Ccomp.Partial (Filename.concat dir targetobj)
-      (objtemp :: objfiles) ""
+    Ccomp.call_linker Ccomp.Partial targetobj (objtemp :: objfiles) ""
   in
   remove_file objtemp;
   if not ok then raise(Error Linking_error)

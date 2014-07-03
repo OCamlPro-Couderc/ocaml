@@ -63,6 +63,7 @@ type t =
   | Eliminated_optional_arguments of string list (* 48 *)
   | No_cmi_file of string                   (* 49 *)
   | Wildcard_usage of string                (* 50 *)
+  | Directory_output_mismatch of string     (* 51 *)
 ;;
 
 val parse_options : bool -> string -> unit;;

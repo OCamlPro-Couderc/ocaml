@@ -1709,6 +1709,25 @@ let crc_of_unit name ns =
       None -> assert false
     | Some crc -> crc
 
+let output_name f ns =
+  let nspath = longident_to_filepath ns in
+  let filename, dirname = Filename.basename f, Filename.dirname f in
+  let subdir = Filename.basename dirname in
+  let nspath = if nspath = subdir then "" else nspath in
+  Filename.concat !Clflags.root @@
+  Filename.concat dirname @@
+  Filename.concat nspath filename
+  (* let subdir = Filename.dirname f in *)
+  (* if (nspath <> subdir || nspath <> "") && Filename.is_relative f then *)
+  (*   begin *)
+  (*     (\* Location.prerr_warning Location.none (Warning.Directory_output_mismatch f); *\) *)
+  (*     Filename.concat (\* !Clflags. *\)root f *)
+  (*   end *)
+  (* else if (dirname = ""  || nspath = "") && Filename.is_relative f then *)
+  (*   Filename.concat (\* !Clflags. *\)root @@ Filename.concat nspath filename *)
+  (* else *)
+  (*   f *)
+
 (* Return the list of imported interfaces with their CRCs *)
 
 let imports() =
@@ -1720,22 +1739,14 @@ let imports() =
 (* Save a signature to a file *)
 
 let save_signature_with_imports ns sg modname filename imports =
-  (*prerr_endline filename;
-  List.iter (fun (name, crc) -> prerr_endline name) imports;*)
   Btype.cleanup_abbrev ();
   Subst.reset_for_saving ();
   if !Clflags.ns_debug then
     Format.printf "save_signature_with_imports, filename: %s@." filename;
   let sg = Subst.signature (Subst.for_saving Subst.identity) sg in
-  let dir = Filename.concat !Clflags.root @@ longident_to_filepath ns in
-  (* mk_path dir; *)
-  let filename = Filename.concat dir filename in
+  let filename = output_name filename ns in
   let oc = open_out_bin filename in
   try
-    (* let longname = match Longident.optstring ns with *)
-    (*     None -> modname *)
-    (*   | Some ns -> modname ^ "@" ^ ns *)
-    (* in *)
     let cmi = {
       cmi_name = modname;
       cmi_sign = sg;
@@ -1764,8 +1775,6 @@ let save_signature_with_imports ns sg modname filename imports =
     Hashtbl.add persistent_structures (modname, ns) (Some ps);
     Consistbl.set crc_units modname (optstring ns) crc filename;
     imported_units := (modname, ns) :: !imported_units;
-    if !Clflags.ns_debug then
-      Format.printf "Signature ok@.";
     sg
   with exn ->
     close_out oc;

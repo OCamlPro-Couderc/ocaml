@@ -272,13 +272,14 @@ let need_send_fun n =
 (* Write the description of the current unit *)
 
 let write_unit_info info filename =
-  let dir = Filename.concat !Clflags.root @@
-    Env.longident_to_filepath info.ui_namespace in
-  let oc = open_out_bin @@ Filename.concat dir filename in
+  (* let dir = Filename.concat !Clflags.root @@ *)
+  (*   Env.longident_to_filepath info.ui_namespace in *)
+  let filename = Env.output_name filename info.ui_namespace in
+  let oc = open_out_bin filename in
   output_string oc cmx_magic_number;
   output_value oc info;
   flush oc;
-  let crc = Digest.file @@ Filename.concat dir filename in
+  let crc = Digest.file filename in
   Digest.output oc crc;
   close_out oc
 

@@ -69,6 +69,7 @@ type t =
   | Eliminated_optional_arguments of string list (* 48 *)
   | No_cmi_file of string                   (* 49 *)
   | Wildcard_usage of string                  (* 50 *)
+  | Directory_output_mismatch of string     (* 51 *)
 ;;
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
@@ -128,9 +129,10 @@ let number = function
   | Eliminated_optional_arguments _ -> 48
   | No_cmi_file _ -> 49
   | Wildcard_usage _ -> 50
+  | Directory_output_mismatch _ -> 51
 ;;
 
-let last_warning_number = 50
+let last_warning_number = 51
 (* Must be the max number returned by the [number] function. *)
 
 let letter = function
@@ -392,6 +394,10 @@ let message = function
         "This wildcard will link every modules found for namespace %s,\n\
          you should compile using `-no-alias-deps`"
         ns
+  | Directory_output_mismatch _ ->
+      Printf.sprintf
+        "The output directory differs from the namespace: the compiler will \
+         clash when linking the compilation unit."
 ;;
 
 let nerrors = ref 0;;

@@ -64,9 +64,9 @@ let implementation ppf sourcefile outputprefix =
   let env = Compmisc.initial_env() in
   Compilenv.reset ?packname:!Clflags.for_package modulename;
 
-  let outputprefix =
-    if !Clflags.root <> "" then Filename.basename outputprefix
-    else outputprefix in
+  (* let outputprefix = *)
+  (*   if !Clflags.root <> "" then Filename.basename outputprefix *)
+  (*   else outputprefix in *)
   let cmxfile = outputprefix ^ ".cmx" in
   let objfile = outputprefix ^ ext_obj in
   let comp ast =

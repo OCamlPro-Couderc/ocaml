@@ -154,6 +154,9 @@ val set_namespace_unit: namespace_info -> unit
 (* (\* Reads the namespace stored in the file *\) *)
 (* val read_namespace: namespace_info -> string -> string -> namespace_info *)
 
+(* Returns the correct output according to the namespace of the unit *)
+val output_name: string -> namespace_info -> string
+
 (* Reads the signature and the namespace recorded in the file given *)
 val read_signature_and_namespace:
   namespace_info -> string -> string -> signature * namespace_info

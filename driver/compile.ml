@@ -25,9 +25,9 @@ let interface ppf sourcefile outputprefix =
   if !Clflags.ns_debug then
     Format.printf "Compile.interface@.";
   Compmisc.init_path false;
-  let outputprefix =
-    if !Clflags.root <> "" then Filename.basename outputprefix
-    else outputprefix in
+  (* let outputprefix = *)
+  (*   if !Clflags.root <> "" then Filename.basename outputprefix *)
+  (*   else outputprefix in *)
   let modulename = module_of_filename ppf sourcefile outputprefix in
   Env.set_unit_name modulename;
   let initial_env = Compmisc.initial_env () in
