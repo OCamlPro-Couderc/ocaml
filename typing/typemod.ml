@@ -1596,8 +1596,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
   let Pimpl (prl, ast) = ast in
   let (str, sg, finalenv), ns =
     let prlast, ns = Typens.compute_prelude prl in
-    let ast = prlast @ ast in
-    type_structure initial_env ast (Location.in_file sourcefile), ns in
+    let _, _, env =
+      type_structure initial_env prlast (Location.in_file sourcefile) in
+    (* let ast = prlast @ ast in *)
+    type_structure env ast (Location.in_file sourcefile), ns in
   let simple_sg = simplify_signature sg in
   if !Clflags.print_types then begin
     Printtyp.wrap_printing_env initial_env
@@ -1664,16 +1666,17 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi)
 
 let type_interface env (Pinterf (prl, ast)) =
-  let prl, ns = Typens.compute_interface_prelude prl in
+  let prl_sg, ns = Typens.compute_interface_prelude prl in
   if !Clflags.ns_debug then
     Format.printf "Interface is in namespace %s, result of elaboration:%a@."
-      (Env.namespace_name ns) Printast.interface prl;
+      (Env.namespace_name ns) Printast.interface prl_sg;
   (* Is the begin .. end really useful? *)
   begin
     let map = Typetexp.emit_external_warnings in
     ignore (map.Ast_mapper.signature map ast)
   end;
-  transl_signature env (prl @ ast), ns
+  let prl_sg = transl_signature env prl_sg in
+  transl_signature prl_sg.sig_final_env ast, ns
 
 (* "Packaging" of several compilation units into one unit
    having them as sub-modules.  *)
