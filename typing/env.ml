@@ -746,7 +746,8 @@ and lookup_module ~load ns lid env : Path.t =
         end;
         p
       with Not_found ->
-        if s = !current_unit then raise Not_found;
+        if s = !current_unit && ns = !current_unit_namespace then
+          raise Not_found;
 	if !Clflags.transparent_modules && not load then
 	  try let subdir = longident_to_filepath ns in
      ignore (find_in_path_uncap !load_path ~subdir (s ^ ".cmi"))

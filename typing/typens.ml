@@ -128,8 +128,8 @@ let add_pervasives orig mods =
   else
     try
       ignore (find_in_path_uncap ~subdir:(Env.longident_to_filepath orig)
-                !Config.load_path "prelude.cmi");
-      let p = "Prelude" in
+                !Config.load_path "pervasives.cmi");
+      let p = "Pervasives" in
       (mknoloc (Mod (p, p, true))) :: mods
     with Not_found -> mods
 
