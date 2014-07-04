@@ -15,6 +15,7 @@
 open Longident
 open Parsetree
 open Location
+open Misc
 
 type namespaces = namespace_item list
 
@@ -22,7 +23,9 @@ and namespace_item = namespace_item_desc loc
 
 and namespace_item_desc =
   | Ns of string * namespaces
-  | Mod of string * string (* name to use * path to find it/original name *)
+  | Mod of string * string * bool (* name to use * path to find it/original name
+                                       * opened
+                                  *)
   | Shadowed of string
   | Wildcard
 
@@ -30,7 +33,7 @@ let print_namespace ns =
   let rec print indent m =
     match m.txt with
     | Shadowed m -> Printf.sprintf "%s- %s as _" indent m
-    | Mod (m, n) -> Printf.sprintf "%s- %s as %s" indent m n
+    | Mod (m, n, b) -> Printf.sprintf "%s- %s as %s (opened: %b)" indent m n b
     | Ns (n, sub) ->
         let indent' = Printf.sprintf "%s  " indent in
         let sub = List.map (print indent') sub in
@@ -46,8 +49,8 @@ let is_namespace ns item =
   | _ -> false
 
 let mod_of_cstr loc = function
-  | Cstr_mod s -> mkloc (Mod (s, s)) loc
-  | Cstr_alias (s, al) -> mkloc (Mod (al, s)) loc
+  | Cstr_mod s -> mkloc (Mod (s, s, false)) loc
+  | Cstr_alias (s, al) -> mkloc (Mod (al, s, false)) loc
   | Cstr_shadow (s) -> mkloc (Shadowed s) loc
   | Cstr_wildcard -> mkloc Wildcard loc
 
@@ -70,10 +73,10 @@ let find_all_compunits loc path =
               if not (Sys.is_directory fullname)
               && Filename.check_suffix f ".cmi" then
                 let m = Filename.chop_extension f |> String.capitalize in
-                let res = mkloc (Mod (m, m)) loc in
+                let res = mkloc (Mod (m, m, m = "Pervasives")) loc in
                 if not (List.exists
                           (fun item -> match item.txt with
-                              Mod (_, s) -> s = m
+                              Mod (_, s, _) -> s = m
                             | _ -> false)
                           acc) then
                   res :: acc
@@ -87,10 +90,10 @@ let find_all_compunits loc path =
 
 let rec remove_duplicates l1 = function
     [] -> l1
-  | ({ txt = Mod (_, m); _ } as mo):: tl ->
+  | ({ txt = Mod (_, m, _); _ } as mo):: tl ->
       if List.exists
           (fun item -> match item.txt with
-               Mod (_, s) -> s = m
+               Mod (_, s, _) -> s = m
              | _ -> false)
           l1 then
         remove_duplicates l1 tl
@@ -116,6 +119,20 @@ let expand_wildcard loc ns (l: namespaces) =
     end
   else l
 
+let add_pervasives orig mods =
+  if List.exists (fun m ->
+      match m.txt with
+        Mod (_, m, _) | Shadowed m -> true
+      | _ -> false) mods
+  then mods
+  else
+    try
+      ignore (find_in_path_uncap ~subdir:(Env.longident_to_filepath orig)
+                !Config.load_path "prelude.cmi");
+      let p = "Prelude" in
+      (mknoloc (Mod (p, p, true))) :: mods
+    with Not_found -> mods
+
 let remove_shadowed mods =
   let rec step l acc =
     match l with
@@ -123,7 +140,7 @@ let remove_shadowed mods =
     | { txt = Shadowed s; _ } :: tl ->
         List.filter (fun item ->
             match item.txt with
-              Mod (_, m) ->
+              Mod (_, m, _) ->
                 s <> m
             | Shadowed m ->
                 s <> m (* removes itself *)
@@ -141,6 +158,7 @@ let add_constraints loc env (orig: Longident.t) cstrs =
         List.fold_left (fun acc c ->
             mod_of_cstr (c.imp_cstr_loc) (c.imp_cstr_desc) :: acc)
           content cstrs
+        |> add_pervasives (Some orig)
         |> expand_wildcard loc (Some orig)
         |> remove_shadowed
     | l, ns :: path ->
@@ -194,25 +212,28 @@ let addloc loc = function
 let elaborate_import h =
   let rec compute (ns: Longident.t option) nsloc item =
     match item.txt with
-    | Mod (al, m) ->
+    | Mod (al, m, b) ->
+        let desc = Pmod_ident
+                (mkloc (Lident m) item.loc, addloc nsloc ns) in
         let md =
           {
-            pmod_desc = Pmod_ident
-                (mkloc (Lident m) item.loc, addloc nsloc ns);
+            pmod_desc = desc;
             pmod_loc = item.loc;
             pmod_attributes = [];
           } in
+        let desc = if b then [(m, ns)] else [] in
         Pstr_module {
           pmb_name = mkloc al item.loc;
           pmb_attributes = [];
           pmb_expr = md;
           pmb_loc = item.loc;
-        }
+        }, desc
     | Ns (n, sub) ->
         let ns = update_ns ns n in
-        let str = List.map (fun r ->
-            { pstr_desc = compute ns item.loc r; pstr_loc = item.loc})
-            sub in
+        let str, opened = List.fold_left (fun (descs, opened_acc) r ->
+            let desc, opened = compute ns item.loc r in
+            { pstr_desc = desc; pstr_loc = item.loc} :: descs, opened @ opened_acc)
+            ([], []) sub in
         let md =
           {
             pmod_desc = Pmod_structure str;
@@ -224,34 +245,75 @@ let elaborate_import h =
           pmb_attributes = [];
           pmb_expr = md;
           pmb_loc = item.loc;
-        }
+        }, opened
     | _ -> assert false
   in
+  let desc, opened = compute None (Location.none) h in
   {
-    pstr_desc = compute None (Location.none) h;
+    pstr_desc = desc;
     pstr_loc = Location.none;
+  }, opened
+
+let elaborate_open (id, ns) =
+  let lid = match ns with
+      Some ns -> Ldot(ns, id)
+    | None -> Lident (id) (* impossible case *)
+  in
+  let open_desc =
+    {
+      popen_lid = mknoloc lid;
+      popen_override = Asttypes.Fresh;
+      popen_loc = Location.none;
+      popen_attributes = [];
+    }
+  in
+  {
+    pstr_desc = Pstr_open open_desc;
+    pstr_loc = Location.none;
+  }
+
+let elaborate_sig_open (id, ns) =
+  let lid = match ns with
+      Some ns -> Ldot(ns, id)
+    | None -> Lident (id) (* impossible case *)
+  in
+  let open_desc =
+    {
+      popen_lid = mknoloc lid;
+      popen_override = Asttypes.Fresh;
+      popen_loc = Location.none;
+      popen_attributes = [];
+    }
+  in
+  {
+    psig_desc = Psig_open open_desc;
+    psig_loc = Location.none;
   }
 
 let elaborate_interface h =
   let rec compute ns nsloc item =
     match item.txt with
-    | Mod (al, m) ->
+    | Mod (al, m, b) ->
+        let desc = Pmty_alias (mkloc (Lident m) item.loc, addloc nsloc ns) in
         let mty =
           {
-            pmty_desc = Pmty_alias (mkloc (Lident m) item.loc, addloc nsloc ns);
+            pmty_desc = desc;
             pmty_loc = item.loc;
             pmty_attributes = [];
           } in
+        let opened = if b then [(m, ns)] else [] in
         Psig_module {
           pmd_name = mkloc al item.loc;
           pmd_attributes = [];
           pmd_type = mty;
           pmd_loc = item.loc;
-        }
+        }, opened
     | Ns (n, sub) ->
         let ns = update_ns ns n in
-        let sg = List.map (fun r ->
-            { psig_desc = compute ns item.loc r; psig_loc = item.loc}) sub in
+        let sg, opened = List.fold_left (fun (descs, opened_acc) r ->
+            let desc, opened = compute ns item.loc r in
+            { psig_desc = desc; psig_loc = item.loc} :: descs, opened @ opened_acc)
+            ([], []) sub in
         let mty =
           {
             pmty_desc = Pmty_signature sg;
@@ -263,13 +325,14 @@ let elaborate_interface h =
           pmd_attributes = [];
           pmd_type = mty;
           pmd_loc = item.loc;
-        }
+        }, opened
     | _ -> assert false
   in
+  let desc, opened = compute None (Location.none) h in
   {
-    psig_desc = compute None (Location.none) h;
+    psig_desc = desc;
     psig_loc = Location.none;
-  }
+  }, opened
 
 let verify_import i check_ns_names =
   check_namespace_availability i.imp_namespace i.imp_loc check_ns_names;
@@ -284,7 +347,8 @@ let compute_interface_prelude prl =
   in
   Env.set_namespace_unit ns;
   let hierarchy = mk_nsenv prl.prl_imports in
-  List.map elaborate_interface hierarchy, ns
+  let imports, opened = List.split @@ List.map elaborate_interface hierarchy in
+  imports @ (List.map elaborate_sig_open (List.flatten opened)), ns
 
 let compute_prelude prl =
   let ns =
@@ -297,4 +361,5 @@ let compute_prelude prl =
   if !Clflags.ns_debug then
     Format.printf "Resulting hierarchy of namespaces:\n%s@."
     @@ print_namespace hierarchy;
-  List.map elaborate_import hierarchy, ns
+  let imports, opened = List.split @@ List.map elaborate_import hierarchy in
+  imports @ (List.map elaborate_open (List.flatten opened)), ns

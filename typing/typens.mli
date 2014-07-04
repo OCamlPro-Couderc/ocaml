@@ -6,7 +6,7 @@ and namespace_item = namespace_item_desc Location.loc
 
 and namespace_item_desc =
   | Ns of string * namespaces
-  | Mod of string * string (* name/alias to use * original name *)
+  | Mod of string * string * bool (* name/alias to use * original name * opened *)
   | Shadowed of string
   | Wildcard
 
@@ -14,9 +14,11 @@ and namespace_item_desc =
   to use it to compute dependencies and build such an environment *)
 val mk_nsenv: Parsetree.imports -> namespaces
 
-val elaborate_import: namespace_item -> Parsetree.structure_item
+val elaborate_import: namespace_item ->
+  Parsetree.structure_item * (string * Longident.t option) list
 
-val elaborate_interface: namespace_item -> Parsetree.signature_item
+val elaborate_interface: namespace_item ->
+  Parsetree.signature_item * (string * Longident.t option) list
 
 val compute_interface_prelude: Parsetree.prelude -> Parsetree.signature * Longident.t option
 
