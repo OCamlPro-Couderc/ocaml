@@ -209,12 +209,20 @@ let addloc loc = function
     None -> None
   | Some x -> Some (mkloc x loc)
 
+(* let fold_hierarchy f acc item = *)
+(*   match item.txt with *)
+(*   | Ns (n, sub) -> *)
+(*       let acc = f acc item in *)
+(*       List.fold_left f acc sub *)
+(*   | _ -> f acc item *)
+
+(* Original function, that creates "namespaces structure" *)
 let elaborate_import h =
   let rec compute (ns: Longident.t option) nsloc item =
     match item.txt with
     | Mod (al, m, b) ->
         let desc = Pmod_ident
-                (mkloc (Lident m) item.loc, addloc nsloc ns) in
+            (mkloc (Lident m) item.loc, addloc nsloc ns) in
         let md =
           {
             pmod_desc = desc;
@@ -254,7 +262,8 @@ let elaborate_import h =
     pstr_loc = Location.none;
   }, opened
 
-let elaborate_open (id, ns) =
+
+let elaborate_open' (id, ns) =
   let lid = match ns with
       Some ns -> Ldot(ns, id)
     | None -> Lident (id) (* impossible case *)
@@ -271,6 +280,134 @@ let elaborate_open (id, ns) =
     pstr_desc = Pstr_open open_desc;
     pstr_loc = Location.none;
   }
+
+(** Impl *)
+
+let mk_open id ns =
+  let lid = match ns with
+      Some ns -> Ldot(ns, id)
+    | None -> Lident (id) (* impossible case *)
+  in
+  let open_desc =
+    {
+      popen_lid = mknoloc lid;
+      popen_override = Asttypes.Fresh;
+      popen_loc = Location.none;
+      popen_attributes = [];
+    }
+  in
+  {
+    pstr_desc = Pstr_open open_desc;
+    pstr_loc = Location.none;
+  }
+
+let mk_mod ns item =
+  match item.txt with
+    Mod (al, m, _) ->
+      let desc = Pmod_ident
+          (mkloc (Lident m) item.loc, addloc item.loc ns) in
+      let md =
+        {
+          pmod_desc = desc;
+          pmod_loc = item.loc;
+          pmod_attributes = [];
+        } in
+      let str = Pstr_module {
+          pmb_name = mkloc al item.loc;
+          pmb_attributes = [];
+          pmb_expr = md;
+          pmb_loc = item.loc;
+      } in
+      {
+        pstr_desc = str;
+        pstr_loc = item.loc;
+      }
+  | _ -> assert false
+
+let mod_to_parsetree acc ns item =
+  match item.txt with
+    Mod (al, m ,b) ->
+      let acc = mk_mod ns item :: acc in
+      if b then mk_open m ns :: acc
+      else acc
+  | _ -> assert false
+
+let import_to_parsetree h =
+  let rec f ns acc item =
+    match item.txt with
+      Mod _ -> mod_to_parsetree acc ns item
+    | Ns (n, sub) ->
+        let ns = update_ns ns n in
+        List.fold_left (f ns) acc sub
+    | _ -> assert false
+  in
+  f None [] h
+  |> List.rev
+
+(** Sig *)
+
+let mk_open_sig id ns =
+  let lid = match ns with
+      Some ns -> Ldot(ns, id)
+    | None -> Lident (id) (* impossible case *)
+  in
+  let open_desc =
+    {
+      popen_lid = mknoloc lid;
+      popen_override = Asttypes.Fresh;
+      popen_loc = Location.none;
+      popen_attributes = [];
+    }
+  in
+  {
+    psig_desc = Psig_open open_desc;
+    psig_loc = Location.none;
+  }
+
+let mk_mod_sig ns item =
+  match item.txt with
+    Mod (al, m, _) ->
+      let desc = Pmty_alias
+          (mkloc (Lident m) item.loc, addloc item.loc ns) in
+      let mty =
+        {
+          pmty_desc = desc;
+          pmty_loc = item.loc;
+          pmty_attributes = [];
+        } in
+      let sg = Psig_module {
+          pmd_name = mkloc al item.loc;
+          pmd_attributes = [];
+          pmd_type = mty;
+          pmd_loc = item.loc;
+      } in {
+        psig_desc = sg;
+        psig_loc = item.loc;
+      }
+  | _ -> assert false
+
+let mod_to_parsetree_sig acc ns item =
+  match item.txt with
+    Mod (al, m ,b) ->
+      let acc = mk_mod_sig ns item :: acc in
+      if b then mk_open_sig m ns :: acc
+      else acc
+  | _ -> assert false
+
+let import_to_parsetree_sig h =
+  let rec f ns acc item =
+    match item.txt with
+      Mod _ -> mod_to_parsetree_sig acc ns item
+    | Ns (n, sub) ->
+        let ns = update_ns ns n in
+        List.fold_left (f ns) acc sub
+    | _ -> assert false
+  in
+  f None [] h
+  |> List.rev
+
+
+(** *)
 
 let elaborate_sig_open (id, ns) =
   let lid = match ns with
@@ -347,8 +484,17 @@ let compute_interface_prelude prl =
   in
   Env.set_namespace_unit ns;
   let hierarchy = mk_nsenv prl.prl_imports in
-  let imports, opened = List.split @@ List.map elaborate_interface hierarchy in
-  imports @ (List.map elaborate_sig_open (List.flatten opened)), ns
+  let ast =
+    if not !Clflags.namespace_struct then
+      List.map import_to_parsetree_sig hierarchy
+      |> List.flatten
+    else
+      let imports, opened = List.split @@ List.map elaborate_interface hierarchy in
+      imports @ (List.map elaborate_sig_open (List.flatten opened))
+  in
+  if ! Clflags.ns_debug then
+    Format.printf "Resulting ast:\n%a@." Pprintast.signature ast;
+  ast, ns
 
 let compute_prelude prl =
   let ns =
@@ -361,5 +507,14 @@ let compute_prelude prl =
   if !Clflags.ns_debug then
     Format.printf "Resulting hierarchy of namespaces:\n%s@."
     @@ print_namespace hierarchy;
-  let imports, opened = List.split @@ List.map elaborate_import hierarchy in
-  imports @ (List.map elaborate_open (List.flatten opened)), ns
+  let ast =
+    if not !Clflags.namespace_struct then
+      List.map import_to_parsetree hierarchy
+      |> List.flatten
+    else
+      let imports, opened = List.split @@ List.map elaborate_import hierarchy in
+      imports @ (List.map elaborate_open' (List.flatten opened))
+  in
+  if ! Clflags.ns_debug then
+    Format.printf "Resulting ast:\n%a@." Pprintast.structure ast;
+  ast, ns

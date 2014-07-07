@@ -459,6 +459,10 @@ let mk_root f =
   "-root", Arg.String f, "(undocumented)"
 ;;
 
+let mk_ns_struct f =
+  "-namespace-struct", Arg.Unit f, "(undocumented)"
+;;
+
 module type Common_options = sig
   val _absname : unit -> unit
   val _I : string -> unit
@@ -485,6 +489,7 @@ module type Common_options = sig
 
   val _nsd : unit -> unit
   val _root : string -> unit
+  val _ns_struct : unit -> unit
 
   val _dsource : unit -> unit
   val _dparsetree : unit -> unit
@@ -673,6 +678,7 @@ struct
 
     mk_nsd F._nsd;
     mk_root F._root;
+    mk_ns_struct F._ns_struct;
 
     mk_nopervasives F._nopervasives;
     mk_use_prims F._use_prims;
@@ -789,6 +795,7 @@ struct
 
     mk_nsd F._nsd;
     mk_root F._root;
+    mk_ns_struct F._ns_struct;
 
     mk_nopervasives F._nopervasives;
     mk_dsource F._dsource;

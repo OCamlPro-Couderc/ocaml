@@ -94,3 +94,4 @@ val keep_locs : bool ref
 val unsafe_string : bool ref
 val ns_debug : bool ref
 val root : string ref
+val namespace_struct : bool ref

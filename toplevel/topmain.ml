@@ -98,6 +98,7 @@ module Options = Main_args.Make_bytetop_options (struct
 
   let _nsd = set ns_debug
   let _root s = root := s
+  let _ns_struct = set namespace_struct
 
   let anonymous s = file_argument s
 end);;
