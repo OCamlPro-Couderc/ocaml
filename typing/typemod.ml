@@ -1069,8 +1069,13 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
         match ns with
           None -> None
         | Some l -> Some l.txt in
+      if !Clflags.ns_debug then
+        Format.printf "Typing an ident: %s of %s@."
+          (Longident.string_of_longident lid.txt) (Env.namespace_name ns);
       let path =
         Typetexp.lookup_module ~load:(not alias) env smod.pmod_loc lid.txt ns in
+      if !Clflags.ns_debug then
+        Format.printf "Path: %s@." (Path.name path);
       let md = { mod_desc = Tmod_ident (path, lid);
                  mod_type = Mty_alias (path, ns);
                  mod_env = env;
@@ -1080,9 +1085,14 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
         if alias && not (Env.is_functor_arg path env) then
           (Env.add_required_global (Path.head path); md)
         else match (Env.find_module ns path env).md_type with
-          Mty_alias (p1, _) when not alias ->
-            let p1 = Env.normalize_path (Some smod.pmod_loc) env p1 in
-            let mty = Includemod.expand_module_alias env [] p1 in
+          Mty_alias (p1, ns1) when not alias ->
+              if !Clflags.ns_debug then
+                Format.printf "Found it, as an alias: %s %@ %s@."
+                  (Path.name p1) (Env.namespace_name ns1);
+            let p1 = Env.normalize_path ~ns:ns1 (Some smod.pmod_loc) env p1 in
+            if !Clflags.ns_debug then
+              Format.printf "Path normalized: %s@." (Path.name p1);
+            let mty = Includemod.expand_module_alias env [] ~ns:ns1 p1 in
             { md with
               mod_desc = Tmod_constraint (md, mty, Tmodtype_implicit,
                                           Tcoerce_alias (p1, Tcoerce_none));
@@ -1413,6 +1423,8 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr scope =
           Format.printf "BEWARE: Typemod.[..] on Pstr_include branch@.";
         let smodl = sincl.pincl_mod in
         let modl = type_module true funct_body None env smodl in
+        if !Clflags.ns_debug then
+          Format.printf "Module typed@.";
         (* Rename all identifiers bound by this signature to avoid clashes *)
         let sg = Subst.signature Subst.identity
             (extract_sig_open env smodl.pmod_loc modl.mod_type) in

@@ -349,6 +349,9 @@ let check_consistency ps =
   try
     List.iter
       (fun (name, ns, crco) ->
+         if !Clflags.ns_debug then
+           Format.printf "Check_consistency of %s %@ %s@."
+             name (namespace_name ns);
          match crco with
             None -> ()
           | Some crc ->
@@ -393,6 +396,9 @@ let read_pers_struct ns modname filename : pers_struct =
       if not !Clflags.recursive_types then
         error (Need_recursive_types(ps.ps_name, !current_unit)))
     ps.ps_flags;
+  if !Clflags.ns_debug then
+    Format.printf "Adding the ps: %s %@ %s@."
+      ps.ps_name (namespace_name ps.ps_namespace);
   Hashtbl.add persistent_structures (modname, ns) (Some ps);
   ps
 

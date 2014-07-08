@@ -54,4 +54,4 @@ type error = pos list * Env.t * symptom
 exception Error of error list
 
 val report_error: formatter -> error list -> unit
-val expand_module_alias: Env.t -> pos list -> Path.t -> Types.module_type
+val expand_module_alias: Env.t -> pos list -> ?ns:namespace_info -> Path.t -> Types.module_type
