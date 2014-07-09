@@ -701,7 +701,7 @@ exception Recmodule
 let rec lookup_module_descr ns lid env =
   if !Clflags.ns_debug then
     Format.printf "Env.lookup_module_descr (gives None to find_pers_struct for
-  impossible ns cases)@.";
+  impossible ns cases), lid: %s@." (Longident.string_of_longident lid);
   match lid with
     Lident s ->
       begin try

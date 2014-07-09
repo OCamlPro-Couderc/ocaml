@@ -25,3 +25,5 @@ val compute_interface_prelude: Parsetree.prelude -> Parsetree.signature * Longid
 (** Checks the prelude, takes a function that add the namespaces into the
     modules names *)
 val compute_prelude: Parsetree.prelude -> Parsetree.structure * Longident.t option
+
+val compute_prelude_no_alias: Parsetree.prelude -> Env.t -> Env.t * Longident.t option

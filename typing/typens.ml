@@ -476,6 +476,52 @@ let verify_import i check_ns_names =
   let _constraints = check_import_constraints i.imp_cstr in
   ()
 
+(* Experiment to add modules directly in the environment without using aliases *)
+
+let add_module_from_namespace env alias module_name ns =
+  let path = Env.lookup_module ~load:true ns (Lident module_name) env in
+  (* let decl = Env.find_module ns path env in *)
+  let id, env = Env.enter_module ~arg:false alias
+      (Types.Mty_alias (path, ns)) env in
+  Env.add_required_global id;
+  env
+  (* if !Clflags.ns_debug then *)
+  (*   Format.printf "Adding %s as an alias for %s" alias (Path.name path); *)
+  (* Env.add_module ~arg:false (Ident.create alias) (Types.Mty_ident path) env *)
+
+module StringSet = Set.Make(String)
+
+let add_modules hierarchy env =
+  let module_names = ref StringSet.empty in
+  let rec fold ns env item =
+    match item.txt with
+    | Mod (al, m, opened) ->
+        if StringSet.mem al !module_names then
+          failwith "Module with the same name already imported";
+        module_names := StringSet.add al !module_names;
+        let new_env = add_module_from_namespace env al m ns in
+        (* if opened then *)
+        (*   snd @@ *)
+        (*   Typemod.type_open_ Asttypes.Override new_env item.loc *)
+        (*     (mkloc (Lident al) item.loc) *)
+        (* else *) new_env
+    | Ns (n, sub) ->
+        let ns = update_ns ns n in
+        List.fold_left (fold ns) env sub
+    | _ -> assert false
+  in
+  List.fold_left (fold None) env hierarchy
+
+let compute_prelude_no_alias prl env =
+  let ns =
+    match prl.prl_ns with
+      None -> None
+    | Some nd -> Some nd.ns_name
+  in
+  Env.set_namespace_unit ns;
+  let hierarchy = mk_nsenv prl.prl_imports in
+  add_modules hierarchy env, ns
+
 let compute_interface_prelude prl =
   let ns =
     match prl.prl_ns with
