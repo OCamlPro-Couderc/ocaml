@@ -37,6 +37,7 @@ module type Common_options = sig
   val _nsd : unit -> unit
   val _root : string -> unit
   val _ns_struct : unit -> unit
+  val _import_as_env : unit -> unit
 
   val _dsource : unit -> unit
   val _dparsetree : unit -> unit

@@ -124,6 +124,7 @@ module Options = Main_args.Make_optcomp_options (struct
   let _nsd = option "-nsd"
   let _root s = option_with_arg "-root" s
   let _ns_struct = option "-namespace-struct"
+  let _import_as_env = option "-ns-env"
 
   let anonymous = process_file
 end);;
