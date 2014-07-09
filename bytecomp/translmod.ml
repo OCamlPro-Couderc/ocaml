@@ -738,10 +738,10 @@ let build_ident_map restr idlist more_ids =
 (* Compile an implementation using transl_store_structure
    (for the native-code compiler). *)
 
-let transl_store_gen module_name ({ str_items = str }, restr) topl =
+let transl_store_gen ?(ns=None) module_name ({ str_items = str }, restr) topl =
   reset_labels ();
   primitive_declarations := [];
-  let module_id = Ident.create_persistent module_name in
+  let module_id = Ident.create_persistent ~ns module_name in
   let (map, prims, size) =
     build_ident_map restr (defined_idents str) (more_idents str) in
   let f = function
@@ -753,12 +753,16 @@ let transl_store_gen module_name ({ str_items = str }, restr) topl =
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
 let transl_store_phrases module_name str =
+  if ! Clflags.ns_debug then
+    Format.printf "Translmod_transl_store_phrases: does not give a namespace to \
+                   transl_store_gen@.";
   transl_store_gen module_name (str,Tcoerce_none) true
 
 let transl_store_implementation module_name (str, restr) =
   let s = !transl_store_subst in
   transl_store_subst := Ident.empty;
-  let r = transl_store_gen module_name (str, restr) false in
+  let ns = Longident.optstring @@ Env.get_namespace_unit () in
+  let r = transl_store_gen ~ns module_name (str, restr) false in
   transl_store_subst := s;
   r
 

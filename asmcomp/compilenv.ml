@@ -147,8 +147,8 @@ let set_current_unit_namespace ?packname ns =
 
 let make_symbol ?(unitname = current_unit.ui_symbol) idopt =
   let prefix = "caml" ^ unitname in
-  if !Clflags.ns_debug then
-    Format.printf "Compilenv.make_symbol, prefix: %s@." prefix;
+  (* if !Clflags.ns_debug then *)
+  (*   Format.printf "Compilenv.make_symbol, prefix: %s@." prefix; *)
   match idopt with
   | None -> prefix
   | Some id -> prefix ^ "__" ^ id
@@ -194,7 +194,7 @@ let get_global_info global_ident = (
   let modname = Ident.shortname global_ident in
   let ns = Longident.from_optstring @@ Ident.extract_namespace global_ident in
   let subdir = Env.longident_to_filepath ns in
-  if modname = current_unit.ui_name then
+  if modname = current_unit.ui_name && ns = current_unit.ui_namespace then
     Some current_unit
   else begin
     try
@@ -209,6 +209,8 @@ let get_global_info global_ident = (
             raise(Error(Illegal_renaming(modname, ui.ui_name, filename)));
           (Some ui, Some crc)
         with Not_found ->
+          if !Clflags.ns_debug then
+            Format.printf "%s in namespace %s not found@." modname subdir;
           (None, None) in
       current_unit.ui_imports_cmx <-
         (modname, ns, crc) :: current_unit.ui_imports_cmx;
@@ -241,6 +243,8 @@ let symbol_for_global id =
   if Ident.is_predef_exn id then
     "caml_exn_" ^ Ident.name id
   else begin
+    if !Clflags.ns_debug then
+      Format.printf "Compilenv.get_global_info, id:%s@." (Ident.name id);
     match get_global_info id with
     | None -> make_symbol ~unitname:(Ident.name id) None
     | Some ui ->

@@ -30,6 +30,11 @@ let create_predef_exn s =
   { name = s; stamp = !currentstamp; flags = predef_exn_flag }
 
 let create_persistent ?(ns=None) s =
+  if !Clflags.ns_debug then
+    Format.printf "Create persistent %s with ns %s@."
+      s (match ns with
+            None -> "ROOT"
+          | Some ns -> ns);
   let name = match ns with
       None -> s
     | Some ns -> s ^ "@" ^ ns in

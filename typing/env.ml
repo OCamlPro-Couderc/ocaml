@@ -362,7 +362,6 @@ let check_consistency ps =
     error (Inconsistent_import(name, auth, source))
 
 (* Reading persistent structures from .cmi files *)
-(* CMI format should be modified then to capture the namespace information *)
 let read_pers_struct ns modname filename : pers_struct =
   if !Clflags.ns_debug then Format.printf "Env.read_pers_struct@.";
   let cmi = read_cmi filename in

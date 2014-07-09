@@ -1143,11 +1143,15 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
             if funct_body && Mtype.contains_type env funct.mod_type then
               raise (Error (smod.pmod_loc, env, Not_allowed_in_functor_body));
           end;
+          if !Clflags.ns_debug then
+            Format.printf "Attempting coercion@.";
           let coercion =
             try
               Includemod.modtypes env arg.mod_type mty_param
             with Includemod.Error msg ->
               raise(Error(sarg.pmod_loc, env, Not_included msg)) in
+          if !Clflags.ns_debug then
+            Format.printf "Coercion ok@.";
           let mty_appl =
             match path with
               Some path ->
