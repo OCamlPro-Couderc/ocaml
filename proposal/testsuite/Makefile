@@ -68,7 +68,7 @@ NAT_EXEC = $(addsuffix .nat, $(EXEC))
 
 CAMLC = ocamlc
 CAMLOPT = ocamlopt -S
-FLAGS =	-no-alias-deps -g -ns-env
+FLAGS =	-no-alias-deps -g
 
 %.cmo: %.ml
 	$(CAMLC) $(FLAGS) -c $<

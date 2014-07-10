@@ -445,6 +445,13 @@ let rec transl_type env policy styp =
     ctyp (Ttyp_tuple ctys) ty
   | Ptyp_constr(lid, stl) ->
       let (path, decl) = find_type env styp.ptyp_loc lid.txt in
+      if !Clflags.ns_debug then
+        Format.printf "Typetexp, for the lid %s, path found %s@."
+          (Longident.string_of_longident lid.txt) (Path.name path);
+      (* let path = Env.normalize_path None env path in *)
+      (* if !Clflags.ns_debug then *)
+      (*   Format.printf "Typetexp, path normalized: %s@." *)
+      (*     (Path.name path); *)
       let stl =
         match stl with
         | [ {ptyp_desc=Ptyp_any} as t ] when decl.type_arity > 1 ->

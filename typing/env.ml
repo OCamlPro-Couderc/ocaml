@@ -541,9 +541,16 @@ let find_module ~alias ns path env =
         let (p, data) = EnvTbl.find_same id env.modules
         in data
       with Not_found ->
-        if Ident.persistent id then
-          let ps = find_pers_struct ns (Ident.shortname id) in
-          md (Mty_signature(ps.ps_sig))
+         if !Clflags.ns_debug then
+           Format.printf "In find_module, Pident branch, looking for %s in %s@."
+             (Ident.shortname id) (namespace_name ns);
+         if Ident.persistent id then begin
+           if !Clflags.ns_debug then
+             Format.printf "In find_module, is persistent@.";
+           let ns = Longident.from_optstring @@ Ident.extract_namespace id in
+           let ps = find_pers_struct ns (Ident.shortname id) in
+           md (Mty_signature(ps.ps_sig))
+         end
         else raise Not_found
       end
   | Pdot(p, s, pos) ->
@@ -590,10 +597,10 @@ let add_required_global id =
   then required_globals := id :: !required_globals
 
 let rec normalize_path i ns lax env path =
-  (* if !Clflags.ns_debug then *)
-  (*   Format.printf "\n------------\nEnv.normalize nb %d *)
-  (* -->HEEEEERE\n *)
-  (*     Looking for %s (ns: %s)@." i (Path.name path) (namespace_name ns); *)
+  if !Clflags.ns_debug then
+    Format.printf "\n------------\nEnv.normalize nb %d
+  -->HEEEEERE\n
+      Looking for %s (ns: %s)@." i (Path.name path) (namespace_name ns);
   let path, ns =
     match path with
       Pdot(p, s, pos) ->
@@ -624,6 +631,10 @@ let rec normalize_path i ns lax env path =
     with Not_found when lax
                      || (match path with Pident id -> not (Ident.persistent id) | _ -> true) ->
         path, ns
+       | exn -> if !Clflags.ns_debug then
+             Format.printf "I couldn't found: %s, raising Not_found@."
+               (Path.name path);
+           raise exn
   in
   (* if !Clflags.ns_debug then *)
   (*   Format.printf "End of normalize with %d with %s in %s\n--------------@." *)
@@ -784,36 +795,54 @@ and lookup_module ~load ns lid env : Path.t =
       end
 
 let lookup proj1 proj2 lid env =
-  match lid with
-    Lident s ->
-      EnvTbl.find_name s (proj1 env)
-  | Ldot(l, s) ->
-      let (p, desc) = lookup_module_descr None l env in
-      begin match EnvLazy.force !components_of_module_maker' desc with
-        Structure_comps c ->
-          let (data, pos) = Tbl.find s (proj2 c) in
-          (Pdot(p, s, pos), data)
-      | Functor_comps f ->
-          raise Not_found
-      end
-  | Lapply(l1, l2) ->
-      raise Not_found
+  let path, v =
+    match lid with
+      Lident s ->
+        EnvTbl.find_name s (proj1 env)
+    | Ldot(l, s) ->
+        let (p, desc) = lookup_module_descr None l env in
+        begin match EnvLazy.force !components_of_module_maker' desc with
+          Structure_comps c ->
+            let (data, pos) = Tbl.find s (proj2 c) in
+            (Pdot(p, s, pos), data)
+        | Functor_comps f ->
+            raise Not_found
+        end
+    | Lapply(l1, l2) ->
+        raise Not_found
+  in
+  if !Clflags.import_as_env then
+    let norm_path = normalize_path None env path in
+    if !Clflags.ns_debug then
+      Format.printf "lookup normalize_path: Before: %s, after: %s@."
+        (Path.name path) (Path.name norm_path);
+    norm_path, v
+  else path, v
 
 let lookup_simple proj1 proj2 lid env =
-  match lid with
-    Lident s ->
-      EnvTbl.find_name s (proj1 env)
-  | Ldot(l, s) ->
-      let (p, desc) = lookup_module_descr None l env in
-      begin match EnvLazy.force !components_of_module_maker' desc with
-        Structure_comps c ->
-          let (data, pos) = Tbl.find s (proj2 c) in
-          data
-      | Functor_comps f ->
-          raise Not_found
-      end
-  | Lapply(l1, l2) ->
-      raise Not_found
+  let path, v =
+    match lid with
+      Lident s ->
+        EnvTbl.find_name s (proj1 env)
+    | Ldot(l, s) ->
+        let (p, desc) = lookup_module_descr None l env in
+        begin match EnvLazy.force !components_of_module_maker' desc with
+          Structure_comps c ->
+            let (data, pos) = Tbl.find s (proj2 c) in
+            data
+        | Functor_comps f ->
+            raise Not_found
+        end
+    | Lapply(l1, l2) ->
+        raise Not_found
+  in
+  if !Clflags.import_as_env then
+    let norm_path = normalize_path None env path in
+    if !Clflags.ns_debug then
+      Format.printf "lookup normalize_path: Before: %s, after: %s@."
+        (Path.name path) (Path.name norm_path);
+    path, v
+  else path, v
 
 let lookup_all_simple proj1 proj2 shadow lid env =
   match lid with
