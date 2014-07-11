@@ -465,16 +465,24 @@ let rec find_module_descr ns path env =
     Format.printf "Env.find_module_desc@.";
   match path with
     Pident id ->
-      if !Clflags.ns_debug then
-        Format.printf "Looking for %s in %s@." (Ident.shortname id)
+      let ns = Longident.from_optstring @@ Ident.extract_namespace id in
+      if !Clflags.ns_debug then begin
+        Format.printf "Looking for %s in %s@." (Ident.unique_name id)
         @@ (namespace_name ns);
+        Format.printf "Keys in components: %s@."
+        @@ String.concat ", " @@ List.map Ident.unique_name @@ EnvTbl.keys env.components;
+        end;
       begin try
         let (p, desc) = EnvTbl.find_same id env.components
         in desc
       with Not_found ->
         if Ident.persistent id
         then (find_pers_struct ns (Ident.shortname id)).ps_comps
-        else raise Not_found
+        else begin
+          if !Clflags.ns_debug then
+            Format.printf "Not found...@.";
+          raise Not_found
+        end
       end
   | Pdot(p, s, pos) ->
       begin match
@@ -1512,6 +1520,8 @@ and store_extension ~check slot id path ext env renv =
     summary = Env_extension(env.summary, id, ext) }
 
 and store_module slot id path md env renv =
+  if !Clflags.ns_debug then
+    Format.printf "Storing module %s with id %s@." (Path.name path) (Ident.name id);
   { env with
     modules = EnvTbl.add "module" slot id (path, md) env.modules renv.modules;
     components =

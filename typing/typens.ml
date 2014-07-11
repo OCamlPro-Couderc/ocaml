@@ -477,9 +477,21 @@ let verify_import i check_ns_names =
   ()
 
 (* Experiment to add modules directly in the environment without using aliases *)
+(* let modl = *)
+(*   type_module ~alias:true true funct_body *)
+(*     (anchor_submodule name.txt anchor) env smodl in *)
+(* let md = *)
+(*   { md_type = enrich_module_type anchor name.txt modl.mod_type env; *)
+(*     md_attributes = attrs; *)
+(*     md_loc = pmb_loc; *)
+(*   } *)
+(* in *)
+(* let (id, newenv) = Env.enter_module_declaration name.txt md env in *)
 
 let add_module_from_namespace env alias module_name ns =
-  let path = Env.lookup_module ~load:true ns (Lident module_name) env in
+  let path = Typetexp.lookup_module ~load:true env Location.none
+      (Lident module_name) ns in
+
   (* let decl = Env.find_module ns path env in *)
   let id, env = Env.enter_module ~arg:false alias
       (Types.Mty_alias (path, ns)) env in

@@ -222,6 +222,8 @@ let find_component lookup make_error env loc lid =
     raise (Error (loc, env, Illegal_reference_to_recursive_module))
 
 let find_type env loc lid =
+  if !Clflags.ns_debug then
+    Format.printf "Looking for type %s@." (Longident.string_of_longident lid);
   let (path, decl) as r =
     find_component Env.lookup_type (fun lid -> Unbound_type_constructor lid)
       env loc lid

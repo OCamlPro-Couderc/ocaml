@@ -1613,8 +1613,11 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
   let (str, sg, finalenv), ns =
     let env, ns, ast =
       if !Clflags.import_as_env then
-        let env, ns =
-          Typens.compute_prelude_no_alias prl initial_env in
+        let prlast, ns = Typens.compute_prelude prl in
+        let _, _, env = type_structure initial_env prlast (Location.in_file
+                                                             sourcefile) in
+        (* let env, ns = *)
+        (*   Typens.compute_prelude_no_alias prl initial_env in *)
           (* type_structure initial_env prlast (Location.in_file sourcefile) in *)
         env, ns, ast
       else
@@ -1694,15 +1697,15 @@ let type_interface env (Pinterf (prl, ast)) =
     ignore (map.Ast_mapper.signature map ast)
   end;
   if !Clflags.import_as_env then
-    let env, ns = Typens.compute_prelude_no_alias prl env in
-    (* let prl_sg = transl_signature env prl_sg in *)
-    transl_signature (* prl_sg.sig_final_ *)env ast, ns
+    (* let env, ns = Typens.compute_prelude_no_alias prl env in *)
+    let prl_sg, ns = Typens.compute_interface_prelude prl in
+    let prl_sg = transl_signature env prl_sg in
+    transl_signature prl_sg.sig_final_env ast, ns
   else
     let prl_sg, ns = Typens.compute_interface_prelude prl in
     if !Clflags.ns_debug then
       Format.printf "Interface is in namespace %s, result of elaboration:%a@."
       (Env.namespace_name ns) Printast.interface prl_sg;
-    (* Is the begin .. end really useful? *)
     transl_signature env (prl_sg @ ast), ns
 
 (* "Packaging" of several compilation units into one unit
