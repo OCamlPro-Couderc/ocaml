@@ -489,9 +489,10 @@ let verify_import i check_ns_names =
 (* let (id, newenv) = Env.enter_module_declaration name.txt md env in *)
 
 let add_module_from_namespace env alias module_name ns =
-  let path = Typetexp.lookup_module ~load:true env Location.none
-      (Lident module_name) ns in
-
+  let path = Env.lookup_module ~load:true ~pers:true ns (Lident module_name) env in
+  if !Clflags.ns_debug then
+    Format.printf "Path received for %s %@ %s: %s@." module_name
+      (Env.namespace_name ns) (Path.complete_name path);
   (* let decl = Env.find_module ns path env in *)
   let id, env = Env.enter_module ~arg:false alias
       (Types.Mty_alias (path, ns)) env in

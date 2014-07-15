@@ -89,6 +89,8 @@ let type_open ?toplevel env sod =
       open_loc = sod.popen_loc;
     }
   in
+  if !Clflags.ns_debug then
+    Format.printf "Type_open: path: %s@." (Path.name path);
   (path, newenv, od)
 
 (* Record a module type *)
@@ -1613,11 +1615,11 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
   let (str, sg, finalenv), ns =
     let env, ns, ast =
       if !Clflags.import_as_env then
-        let prlast, ns = Typens.compute_prelude prl in
-        let _, _, env = type_structure initial_env prlast (Location.in_file
-                                                             sourcefile) in
-        (* let env, ns = *)
-        (*   Typens.compute_prelude_no_alias prl initial_env in *)
+        (* let prlast, ns = Typens.compute_prelude prl in *)
+        (* let _, _, env = type_structure initial_env prlast (Location.in_file *)
+        (*                                                      sourcefile) in *)
+        let env, ns =
+          Typens.compute_prelude_no_alias prl initial_env in
           (* type_structure initial_env prlast (Location.in_file sourcefile) in *)
         env, ns, ast
       else
@@ -1626,7 +1628,13 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
     in
     (* let ast = prlast @ ast in *)
     type_structure env ast (Location.in_file sourcefile), ns in
+  if !Clflags.ns_debug then
+    Format.printf "Signature before simplify:\n%a@."
+      Printtyp.signature sg;
   let simple_sg = simplify_signature sg in
+  if !Clflags.ns_debug then
+    Format.printf "Signature after simplify:\n%a@."
+      Printtyp.signature simple_sg;
   if !Clflags.print_types then begin
     Printtyp.wrap_printing_env initial_env
       (fun () -> fprintf std_formatter "%a@." Printtyp.signature simple_sg);
@@ -1697,10 +1705,10 @@ let type_interface env (Pinterf (prl, ast)) =
     ignore (map.Ast_mapper.signature map ast)
   end;
   if !Clflags.import_as_env then
-    (* let env, ns = Typens.compute_prelude_no_alias prl env in *)
-    let prl_sg, ns = Typens.compute_interface_prelude prl in
-    let prl_sg = transl_signature env prl_sg in
-    transl_signature prl_sg.sig_final_env ast, ns
+    let env, ns = Typens.compute_prelude_no_alias prl env in
+    (* let prl_sg, ns = Typens.compute_interface_prelude prl in *)
+    (* let prl_sg = transl_signature env prl_sg in *)
+    transl_signature (* prl_sg.sig_final_ *)env ast, ns
   else
     let prl_sg, ns = Typens.compute_interface_prelude prl in
     if !Clflags.ns_debug then

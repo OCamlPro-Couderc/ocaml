@@ -205,8 +205,9 @@ let rec narrow_unbound_lid_error : 'a. _ -> _ -> _ -> _ -> 'a =
   raise (Error (loc, env, make_error lid))
 
 let find_component lookup make_error env loc lid =
-  if !Clflags.ns_debug then Format.printf "In find_component@.";
-  try
+  if !Clflags.ns_debug then Format.printf "In find_component, lid: %s@."
+      (Longident.string_of_longident lid);
+  let res = try
     match lid with
     | Longident.Ldot (Longident.Lident "*predef*", s) ->
         lookup (Longident.Lident s) Env.initial_safe_string
@@ -220,6 +221,10 @@ let find_component lookup make_error env loc lid =
     narrow_unbound_lid_error env loc lid make_error
   | Env.Recmodule ->
     raise (Error (loc, env, Illegal_reference_to_recursive_module))
+  in
+  if !Clflags.ns_debug then
+    Format.printf "End of find_component@.";
+  res
 
 let find_type env loc lid =
   if !Clflags.ns_debug then

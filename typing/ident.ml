@@ -23,8 +23,8 @@ let currentstamp = ref 0
 
 let create s =
   incr currentstamp;
-  if !Clflags.ns_debug then
-    Format.printf "Creating ident %s with stamp %d@." s !currentstamp;
+  (* if !Clflags.ns_debug then *)
+  (*   Format.printf "Creating ident %s with stamp %d@." s !currentstamp; *)
   { name = s; stamp = !currentstamp; flags = 0 }
 
 let create_predef_exn s =

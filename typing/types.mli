@@ -262,7 +262,7 @@ type module_type =
   | Mty_signature of signature
   | Mty_functor of Ident.t * module_type option * module_type
   | Mty_alias of Path.t * namespace_info
-  (*
+  (* | Mty_longname of Path.t * namespace_info *)  (*
      Special kind of modules, that represent an elaborated namespace
     | Mty_namespace of Path.t
    *)

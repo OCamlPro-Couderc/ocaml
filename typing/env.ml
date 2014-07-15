@@ -462,7 +462,7 @@ let set_namespace_unit olid =
 
 let rec find_module_descr ns path env =
   if !Clflags.ns_debug then
-    Format.printf "Env.find_module_desc@.";
+    Format.printf "Env.find_module_desc of %s@." (Path.complete_name path);
   match path with
     Pident id ->
       let ns = Longident.from_optstring @@ Ident.extract_namespace id in
@@ -544,7 +544,7 @@ let find_module ~alias ns path env =
     Pident id ->
       if !Clflags.ns_debug then
         Format.printf "In find_module, Pident branch, looking for %s in %s@."
-          (Ident.shortname id) (namespace_name ns);
+          (Ident.unique_name id) (namespace_name ns);
       begin try
         let (p, data) = EnvTbl.find_same id env.modules
         in data
@@ -605,10 +605,10 @@ let add_required_global id =
   then required_globals := id :: !required_globals
 
 let rec normalize_path i ns lax env path =
-  if !Clflags.ns_debug then
-    Format.printf "\n------------\nEnv.normalize nb %d
-  -->HEEEEERE\n
-      Looking for %s (ns: %s)@." i (Path.name path) (namespace_name ns);
+  (* if !Clflags.ns_debug then *)
+  (*   Format.printf "\n------------\nEnv.normalize nb %d *)
+  (* -->HEEEEERE\n *)
+  (*     Looking for %s (ns: %s)@." i (Path.complete_name path) (namespace_name ns); *)
   let path, ns =
     match path with
       Pdot(p, s, pos) ->
@@ -622,7 +622,7 @@ let rec normalize_path i ns lax env path =
   in
   (* if !Clflags.ns_debug then *)
   (*   Format.printf "First normalization, lets find: %s in %s@." *)
-  (*     (Path.name path) (namespace_name ns); *)
+  (*     (Path.complete_name path) (namespace_name ns); *)
   let path, ns =
     try match find_module ~alias:true ns path env with
         {md_type=Mty_alias (path1, ns1)} ->
@@ -646,7 +646,7 @@ let rec normalize_path i ns lax env path =
   in
   (* if !Clflags.ns_debug then *)
   (*   Format.printf "End of normalize with %d with %s in %s\n--------------@." *)
-  (*     i (Path.name path) (namespace_name ns); *)
+  (*     i (Path.complete_name path) (namespace_name ns); *)
   path, ns
 
 let normalize_path ?(ns=None) oloc env path =
@@ -751,7 +751,7 @@ let rec lookup_module_descr ns lid env =
           raise Not_found
       end
 
-and lookup_module ~load ns lid env : Path.t =
+and lookup_module ?(pers=false) ~load ns lid env : Path.t =
   if !Clflags.ns_debug then begin
     match ns with
     | None -> ()
@@ -761,14 +761,18 @@ and lookup_module ~load ns lid env : Path.t =
   match lid with
     Lident s ->
       begin try
-        let (p, {md_type}) as r = EnvTbl.find_name s env.modules in
-        begin match md_type with
-        | Mty_ident (Path.Pident id) when Ident.name id = "#recmod#" ->
-          (* see #5965 *)
-          raise Recmodule
-        | _ -> ()
-        end;
-        p
+        if pers then raise Not_found
+            (* Directly allows to find the module as a persistent structure:
+               workaround if an alias has been added for an import *)
+        else
+          let (p, {md_type}) as r = EnvTbl.find_name s env.modules in
+          begin match md_type with
+          | Mty_ident (Path.Pident id) when Ident.name id = "#recmod#" ->
+              (* see #5965 *)
+              raise Recmodule
+          | _ -> ()
+          end;
+          p
       with Not_found ->
         if s = !current_unit && ns = !current_unit_namespace then
           raise Not_found;
@@ -809,6 +813,9 @@ let lookup proj1 proj2 lid env =
         EnvTbl.find_name s (proj1 env)
     | Ldot(l, s) ->
         let (p, desc) = lookup_module_descr None l env in
+        if !Clflags.ns_debug then
+          Format.printf "Lookup, Ldot case, lookup_module_descr res: %s@."
+            (Path.name p);
         begin match EnvLazy.force !components_of_module_maker' desc with
           Structure_comps c ->
             let (data, pos) = Tbl.find s (proj2 c) in
@@ -822,8 +829,11 @@ let lookup proj1 proj2 lid env =
   if !Clflags.import_as_env then
     let norm_path = normalize_path None env path in
     if !Clflags.ns_debug then
-      Format.printf "lookup normalize_path: Before: %s, after: %s@."
-        (Path.name path) (Path.name norm_path);
+      Format.printf "lookup normalize_path: lid: %s\nBefore: %s, after: %s, \
+                     @."
+        (Longident.string_of_longident lid)
+        (Path.name path)
+        (Path.name norm_path);
     norm_path, v
   else path, v
 
@@ -847,9 +857,9 @@ let lookup_simple proj1 proj2 lid env =
   if !Clflags.import_as_env then
     let norm_path = normalize_path None env path in
     if !Clflags.ns_debug then
-      Format.printf "lookup normalize_path: Before: %s, after: %s@."
-        (Path.name path) (Path.name norm_path);
-    path, v
+      Format.printf "lookup_simple, lid: %s\n normalize_path: Before: %s, after: %s@."
+        (Longident.string_of_longident lid) (Path.name path) (Path.name norm_path);
+    norm_path, v
   else path, v
 
 let lookup_all_simple proj1 proj2 shadow lid env =
@@ -1174,6 +1184,13 @@ let add_gadt_instance_chain env lv t =
   add_instance t
   (* Format.eprintf "@." *)
 
+(* Extract path information if it is an alias *)
+
+let extract_alias_path mty =
+  match mty with
+    Mty_alias (path, _) -> Some path
+  | _ -> None
+
 (* Expand manifest module type names at the top of the given module type *)
 
 let rec scrape_alias env ?path mty =
@@ -1186,7 +1203,8 @@ let rec scrape_alias env ?path mty =
       end
   | Mty_alias (path, ns), _ ->
       if !Clflags.ns_debug then
-        Format.printf "In second case of scrape_alias@.";
+        Format.printf "In second case of scrape_alias, path: %s@."
+          (Path.complete_name path);
       begin try
         scrape_alias env (find_module ns path env).md_type ~path
       with Not_found ->
@@ -1319,8 +1337,19 @@ let rec components_of_module env sub path mty =
   EnvLazy.create (env, sub, path, mty)
 
 and components_of_module_maker (env, sub, path, mty) =
+  if !Clflags.ns_debug then
+    Format.printf "In components_of_module_maker, with path: %s@."
+      (Path.complete_name path);
+  let path = match extract_alias_path mty with
+      Some p -> p
+    | None -> path in (* test *)
+  if !Clflags.ns_debug then
+    Format.printf "In components_of_module_maker, withnorm_ path: %s@."
+      (Path.complete_name path);
   (match scrape_alias env mty with
     Mty_signature sg ->
+       if !Clflags.ns_debug then
+         Format.printf "After scrape_alias, signature case@.";
       let c =
         { comp_values = Tbl.empty;
           comp_constrs = Tbl.empty;
@@ -1521,7 +1550,7 @@ and store_extension ~check slot id path ext env renv =
 
 and store_module slot id path md env renv =
   if !Clflags.ns_debug then
-    Format.printf "Storing module %s with id %s@." (Path.name path) (Ident.name id);
+    Format.printf "Storing module %s with id %s@." (Path.name path) (Ident.unique_name id);
   { env with
     modules = EnvTbl.add "module" slot id (path, md) env.modules renv.modules;
     components =

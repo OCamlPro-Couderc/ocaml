@@ -52,3 +52,9 @@ let rec last = function
   | Pident id -> Ident.name id
   | Pdot(_, s, _) -> s
   | Papply(_, p) -> last p
+
+let rec complete_name ?(paren=kfalse) = function
+    Pident id -> Ident.unique_name id
+  | Pdot(p, s, pos) ->
+      complete_name ~paren p ^ if paren s then ".( " ^ s ^ " )" else "." ^ s
+  | Papply(p1, p2) -> complete_name ~paren p1 ^ "(" ^ name ~paren p2 ^ ")"

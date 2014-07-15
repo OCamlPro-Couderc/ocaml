@@ -1,5 +1,5 @@
 with (_) of X
-and (Mod) of Y
+and (Mod) of Y(* ;; *)
 (* Mod@Y rebinds M1@X *)
 and (Mod as ZMod) of Z;;
 (* Z : include Mod@Y *)
@@ -8,7 +8,7 @@ open M1
 
 let () =
   let v = create 42 in
-  let v2 = Mod.create 42 in
+  let v2 = create 42 in
   let v3 = ZMod.create 42 in
   assert (v = v2);
   assert (v2 = v3);
