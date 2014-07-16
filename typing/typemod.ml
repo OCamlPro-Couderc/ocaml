@@ -839,6 +839,26 @@ let simplify_signature sg =
   in
     simplif StringSet.empty StringSet.empty [] (List.rev sg)
 
+(* Returns a signature with the namespace aliases normalized *)
+
+let normalize_signature sg =
+  let rec simplif val_names ext_names res = function
+    [] -> res
+  | (Sig_value(id, descr) as component) :: sg ->
+      let name = Ident.name id in
+      simplif (StringSet.add name val_names) ext_names
+              (if StringSet.mem name val_names then res else component :: res)
+              sg
+  | (Sig_typext(id, ext, es) as component) :: sg ->
+      let name = Ident.name id in
+      simplif val_names (StringSet.add name ext_names)
+              (if StringSet.mem name ext_names then res else component :: res)
+              sg
+  | component :: sg ->
+      simplif val_names ext_names (component :: res) sg
+  in
+    simplif StringSet.empty StringSet.empty [] (List.rev sg)
+
 (* Try to convert a module expression to a module path. *)
 
 exception Not_a_path

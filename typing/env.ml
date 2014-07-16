@@ -806,6 +806,20 @@ and lookup_module ?(pers=false) ~load ns lid env : Path.t =
           raise Not_found
       end
 
+
+(* Extract path information if it is an alias of module in a namespace *)
+
+let extract_alias_path mty =
+  match mty with
+    Mty_alias (path, Some _) -> Some path
+  | _ -> None
+
+let normalize_if_ns_alias path env =
+  match find_module None path env with
+    { md_type=Mty_alias (path', Some _) } -> path'
+  | _ -> path
+
+
 let lookup proj1 proj2 lid env =
   let path, v =
     match lid with
@@ -819,6 +833,13 @@ let lookup proj1 proj2 lid env =
         begin match EnvLazy.force !components_of_module_maker' desc with
           Structure_comps c ->
             let (data, pos) = Tbl.find s (proj2 c) in
+            (* let real_path = match extract_alias_path (for4 data) with *)
+            (*   | None -> p *)
+            (*   | Some p -> p *)
+            (* in *)
+            (* if !Clflags.ns_debug then *)
+            (*   Format.printf "Lookup, Ldot case, real_path: %s@." *)
+            (*     (Path.name (fst data)); *)
             (Pdot(p, s, pos), data)
         | Functor_comps f ->
             raise Not_found
@@ -826,16 +847,16 @@ let lookup proj1 proj2 lid env =
     | Lapply(l1, l2) ->
         raise Not_found
   in
-  if !Clflags.import_as_env then
-    let norm_path = normalize_path None env path in
-    if !Clflags.ns_debug then
-      Format.printf "lookup normalize_path: lid: %s\nBefore: %s, after: %s, \
-                     @."
-        (Longident.string_of_longident lid)
-        (Path.name path)
-        (Path.name norm_path);
-    norm_path, v
-  else path, v
+  (* if !Clflags.import_as_env then *)
+  (*   let norm_path = normalize_if_ns_alias path env in *)
+  (*   if !Clflags.ns_debug then *)
+  (*     Format.printf "lookup normalize_path: lid: %s\nBefore: %s, after: %s, \ *)
+  (*                    @." *)
+  (*       (Longident.string_of_longident lid) *)
+  (*       (Path.name path) *)
+  (*       (Path.name norm_path); *)
+  (*   norm_path, v *)
+  (* else *) path, v
 
 let lookup_simple proj1 proj2 lid env =
   let path, v =
@@ -854,13 +875,13 @@ let lookup_simple proj1 proj2 lid env =
     | Lapply(l1, l2) ->
         raise Not_found
   in
-  if !Clflags.import_as_env then
-    let norm_path = normalize_path None env path in
-    if !Clflags.ns_debug then
-      Format.printf "lookup_simple, lid: %s\n normalize_path: Before: %s, after: %s@."
-        (Longident.string_of_longident lid) (Path.name path) (Path.name norm_path);
-    norm_path, v
-  else path, v
+  (* if !Clflags.import_as_env then *)
+  (*   let norm_path = normalize_if_ns_alias path env in *)
+  (*   if !Clflags.ns_debug then *)
+  (*     Format.printf "lookup_simple, lid: %s\n normalize_path: Before: %s, after: %s@." *)
+  (*       (Longident.string_of_longident lid) (Path.name path) (Path.name norm_path); *)
+  (*   norm_path, v *)
+  (* else *) path, v
 
 let lookup_all_simple proj1 proj2 shadow lid env =
   match lid with
@@ -1184,13 +1205,6 @@ let add_gadt_instance_chain env lv t =
   add_instance t
   (* Format.eprintf "@." *)
 
-(* Extract path information if it is an alias *)
-
-let extract_alias_path mty =
-  match mty with
-    Mty_alias (path, _) -> Some path
-  | _ -> None
-
 (* Expand manifest module type names at the top of the given module type *)
 
 let rec scrape_alias env ?path mty =
@@ -1308,6 +1322,8 @@ let prefix_idents_and_subst root sub sg =
   pl, sub, lazy (subst_signature sub sg)
 
 let prefix_idents_and_subst root sub sg =
+  if !Clflags.ns_debug then
+    Format.printf "Prefixing with %s@." (Path.name root);
   if sub = Subst.identity then
     let sgs =
       try
@@ -1614,13 +1630,13 @@ let add_type ~check id info env =
 and add_extension ~check id ext env =
   store_extension ~check None id (Pident id) ext env env
 
-and add_module_declaration ?arg id md env =
+and add_module_declaration ?arg ?(from_header=true) id md env =
   (* if !Clflags.ns_debug then *)
   (*   Format.printf "BEWARE: Env.add_module_declaration sets a namespace to None@."; *)
   let path =
-    (*match md.md_type with
-      Mty_alias path -> normalize_path env path
-    | _ ->*) Pident id
+    match from_header, md.md_type with
+      true, Mty_alias (path, Some _) -> path
+    | _, _ -> Pident id
   in
   let env = store_module None id path md env env in
   add_functor_arg ?arg id env
@@ -1657,7 +1673,7 @@ let enter store_fun name data env =
 let enter_value ?check = enter (store_value ?check)
 and enter_type = enter (store_type ~check:true)
 and enter_extension = enter (store_extension ~check:true)
-and enter_module_declaration ?arg name md env =
+and enter_module_declaration ?arg ?from_header name md env =
   let id = Ident.create name in
   (id, add_module_declaration ?arg id md env)
   (* let (id, env) = enter store_module name md env in
@@ -1666,8 +1682,8 @@ and enter_modtype = enter store_modtype
 and enter_class = enter store_class
 and enter_cltype = enter store_cltype
 
-let enter_module ?arg s mty env =
-  enter_module_declaration ?arg s (md mty) env
+let enter_module ?arg ?(from_header=false) s mty env =
+  enter_module_declaration ?arg ~from_header s (md mty) env
 
 (* Insertion of all components of a signature *)
 

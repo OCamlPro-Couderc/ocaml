@@ -494,7 +494,7 @@ let add_module_from_namespace env alias module_name ns =
     Format.printf "Path received for %s %@ %s: %s@." module_name
       (Env.namespace_name ns) (Path.complete_name path);
   (* let decl = Env.find_module ns path env in *)
-  let id, env = Env.enter_module ~arg:false alias
+  let id, env = Env.enter_module ~arg:false ~from_header:true alias
       (Types.Mty_alias (path, ns)) env in
   Env.add_required_global id;
   env
