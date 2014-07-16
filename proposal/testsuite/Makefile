@@ -1,5 +1,5 @@
 X_INTF = m1.mli
-X_IMPL = m1.ml m2.ml
+X_IMPL = pervasives.ml m1.ml m2.ml
 X_IMPL_SRC = $(addprefix x/, $(X_IMPL))
 X_INTF_SRC = $(addprefix x/, $(X_INTF))
 X_CMIS = $(X_INTF_SRC:.mli=.cmi)
@@ -78,6 +78,12 @@ FLAGS =	-no-alias-deps -g -ns-env
 
 %.cmx: %.ml
 	$(CAMLOPT) $(FLAGS) -c $<
+
+x/pervasives.cmo: x/pervasives.ml
+	$(CAMLC) $(FLAGS) -nopervasives -c $<
+
+x/pervasives.cmx: x/pervasives.ml
+	$(CAMLOPT) $(FLAGS) -nopervasives -c $<
 
 all: test-byte test-opt
 

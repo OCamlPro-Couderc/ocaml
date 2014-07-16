@@ -122,7 +122,7 @@ let expand_wildcard loc ns (l: namespaces) =
 let add_pervasives orig mods =
   if List.exists (fun m ->
       match m.txt with
-        Mod (_, m, _) | Shadowed m -> true
+        Mod (_, m, _) | Shadowed m -> m = "Pervasives"
       | _ -> false) mods
   then mods
   else
@@ -477,30 +477,16 @@ let verify_import i check_ns_names =
   ()
 
 (* Experiment to add modules directly in the environment without using aliases *)
-(* let modl = *)
-(*   type_module ~alias:true true funct_body *)
-(*     (anchor_submodule name.txt anchor) env smodl in *)
-(* let md = *)
-(*   { md_type = enrich_module_type anchor name.txt modl.mod_type env; *)
-(*     md_attributes = attrs; *)
-(*     md_loc = pmb_loc; *)
-(*   } *)
-(* in *)
-(* let (id, newenv) = Env.enter_module_declaration name.txt md env in *)
 
 let add_module_from_namespace env alias module_name ns =
   let path = Env.lookup_module ~load:true ~pers:true ns (Lident module_name) env in
   if !Clflags.ns_debug then
     Format.printf "Path received for %s %@ %s: %s@." module_name
       (Env.namespace_name ns) (Path.complete_name path);
-  (* let decl = Env.find_module ns path env in *)
   let id, env = Env.enter_module ~arg:false ~from_header:true alias
       (Types.Mty_alias (path, ns)) env in
   Env.add_required_global id;
   env
-  (* if !Clflags.ns_debug then *)
-  (*   Format.printf "Adding %s as an alias for %s" alias (Path.name path); *)
-  (* Env.add_module ~arg:false (Ident.create alias) (Types.Mty_ident path) env *)
 
 module StringSet = Set.Make(String)
 
@@ -513,11 +499,11 @@ let add_modules hierarchy env =
           failwith "Module with the same name already imported";
         module_names := StringSet.add al !module_names;
         let new_env = add_module_from_namespace env al m ns in
-        (* if opened then *)
-        (*   snd @@ *)
-        (*   Typemod.type_open_ Asttypes.Override new_env item.loc *)
-        (*     (mkloc (Lident al) item.loc) *)
-        (* else *) new_env
+        if opened then
+          snd @@
+          !Typecore.type_open Asttypes.Override new_env item.loc
+            (mkloc (Lident al) item.loc)
+        else new_env
     | Ns (n, sub) ->
         let ns = update_ns ns n in
         List.fold_left (fold ns) env sub
@@ -533,6 +519,9 @@ let compute_prelude_no_alias prl env =
   in
   Env.set_namespace_unit ns;
   let hierarchy = mk_nsenv prl.prl_imports in
+  if !Clflags.ns_debug then
+    Format.printf "Resulting hierarchy of namespaces:\n%s@."
+    @@ print_namespace hierarchy;
   add_modules hierarchy env, ns
 
 let compute_interface_prelude prl =

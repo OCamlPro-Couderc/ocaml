@@ -726,7 +726,7 @@ let rec lookup_module_descr ns lid env =
       begin try
         EnvTbl.find_name s env.components
       with Not_found ->
-        if s = !current_unit then raise Not_found;
+        if s = !current_unit && ns = !current_unit_namespace then raise Not_found;
         let ps = find_pers_struct ns s in
         (Pident(Ident.create_persistent ~ns:(Longident.optstring ns) s), ps.ps_comps)
       end
@@ -1631,8 +1631,9 @@ and add_extension ~check id ext env =
   store_extension ~check None id (Pident id) ext env env
 
 and add_module_declaration ?arg ?(from_header=true) id md env =
-  (* if !Clflags.ns_debug then *)
-  (*   Format.printf "BEWARE: Env.add_module_declaration sets a namespace to None@."; *)
+  (* This workaround allows to register the alias for a module inside a
+     namespace directly with the correct path: it removes the need of normalizing
+     during typechecking an expression (and possibly breaking soundness) *)
   let path =
     match from_header, md.md_type with
       true, Mty_alias (path, Some _) -> path
@@ -1885,6 +1886,9 @@ let find_all proj1 proj2 f lid env acc =
         (fun id (p, data) acc -> f (Ident.name id) p data acc)
         (proj1 env) acc
     | Some l ->
+      if !Clflags.ns_debug then
+        Format.printf "Lookup_module_descr, Some case, for %sOK@."
+          (Longident.string_of_longident l);
       let p, desc = lookup_module_descr None l env in
       begin match EnvLazy.force components_of_module_maker desc with
           Structure_comps c ->

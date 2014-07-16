@@ -5,4 +5,4 @@ type t = Mod.t
 
 let create = Mod.create
 
-let value = 42
+let value = 42 ++ 42
