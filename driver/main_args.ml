@@ -463,7 +463,7 @@ let mk_ns_struct f =
   "-namespace-struct", Arg.Unit f, "(undocumented)"
 ;;
 
-let mk_import_as_env f =
+let mk_plain_imports f =
   "-ns-env", Arg.Unit f, "(undocumented)"
 ;;
 
@@ -494,7 +494,7 @@ module type Common_options = sig
   val _nsd : unit -> unit
   val _root : string -> unit
   val _ns_struct : unit -> unit
-  val _import_as_env : unit -> unit
+  val _plain_imports : unit -> unit
 
   val _dsource : unit -> unit
   val _dparsetree : unit -> unit
@@ -684,7 +684,7 @@ struct
     mk_nsd F._nsd;
     mk_root F._root;
     mk_ns_struct F._ns_struct;
-    mk_import_as_env F._import_as_env;
+    mk_plain_imports F._plain_imports;
 
     mk_nopervasives F._nopervasives;
     mk_use_prims F._use_prims;
@@ -802,7 +802,7 @@ struct
     mk_nsd F._nsd;
     mk_root F._root;
     mk_ns_struct F._ns_struct;
-    mk_import_as_env F._import_as_env;
+    mk_plain_imports F._plain_imports;
 
     mk_nopervasives F._nopervasives;
     mk_dsource F._dsource;

@@ -95,4 +95,4 @@ val unsafe_string : bool ref
 val ns_debug : bool ref
 val root : string ref
 val namespace_struct : bool ref
-val import_as_env : bool ref
+val plain_imports : bool ref

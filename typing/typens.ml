@@ -520,14 +520,7 @@ let add_modules hierarchy env =
         if StringSet.mem al !module_names then
           failwith "Module with the same name already imported";
         module_names := StringSet.add al !module_names;
-        let new_env = add_module_from_namespace env al m ns in
-        (* if to_op then *)
-        (*   let op = (fun env -> *)
-        (*       snd @@ *)
-        (*       !Typecore.type_open Asttypes.Override env item.loc *)
-        (*         (mkloc (Lident al) item.loc)) in *)
-        (*   new_env, op :: opened *)
-        (* else *) new_env(* , opened *)
+        add_module_from_namespace env al m ns
     | Ns (n, sub) ->
         let ns = update_ns ns n in
         List.fold_left (fold ns) env sub
