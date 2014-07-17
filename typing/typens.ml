@@ -33,7 +33,7 @@ let print_namespace ns =
   let rec print indent m =
     match m.txt with
     | Shadowed m -> Printf.sprintf "%s- %s as _" indent m
-    | Mod (m, n, b) -> Printf.sprintf "%s- %s as %s (opened: %b)" indent m n b
+    | Mod (al, m, b) -> Printf.sprintf "%s- %s as %s (opened: %b)" indent m al b
     | Ns (n, sub) ->
         let indent' = Printf.sprintf "%s  " indent in
         let sub = List.map (print indent') sub in
@@ -130,7 +130,8 @@ let add_pervasives orig mods =
       ignore (find_in_path_uncap ~subdir:(Env.longident_to_filepath orig)
                 !Config.load_path "pervasives.cmi");
       let p = "Pervasives" in
-      (mknoloc (Mod (p, p, true))) :: mods
+      let al = p ^ "@" ^ (Env.namespace_name orig) in
+      (mknoloc (Mod (al, p, true))) :: mods
     with Not_found -> mods
 
 let remove_shadowed mods =
@@ -150,6 +151,23 @@ let remove_shadowed mods =
   in
   step mods mods
 
+let opened_closures loc ns mods =
+  let step acc item =
+    match item.txt with
+      Mod (al, m, op) ->
+        if op then
+          (fun env ->
+             if !Clflags.ns_debug then
+               Format.printf "Opening auto of %s@." al;
+             snd @@
+             !Typecore.type_open Asttypes.Override env item.loc
+               (mkloc (Lident al) item.loc)) :: acc
+        else acc
+    | _ -> acc
+  in
+  mods, List.fold_left step [] @@ List.rev mods
+
+
 let add_constraints loc env (orig: Longident.t) cstrs =
   let ns = flatten orig in
   let rec step env ns =
@@ -161,20 +179,24 @@ let add_constraints loc env (orig: Longident.t) cstrs =
         |> add_pervasives (Some orig)
         |> expand_wildcard loc (Some orig)
         |> remove_shadowed
+        |> opened_closures loc (Some orig)
     | l, ns :: path ->
         let l = if List.exists (is_namespace ns) l then l
           else (mkloc (Ns (ns, [])) loc) :: l in
-        List.map (fun item ->
-            match item with
-            | { txt = Ns (n, sub); loc } when n = ns ->
-                mkloc (Ns (n, step sub path)) loc
-            | any -> any) l in
+        List.fold_left
+          (fun (acc, op) item ->
+             match item with
+             | { txt = Ns (n, sub); loc } when n = ns ->
+                 let sub, to_op = step sub path in
+                 mkloc (Ns (n, sub)) loc :: acc, to_op @ op
+             | any -> any :: acc, op)
+          ([], []) @@ List.rev l in
   step env ns
 
 let mk_nsenv imports =
-  List.fold_left (fun env item ->
+  List.fold_left (fun (env, to_op) item ->
       add_constraints item.imp_loc env item.imp_namespace item.imp_cstr)
-    [] imports
+    ([], []) @@ List.rev imports
 
 let string_of_longident l = String.concat "." (flatten l)
 
@@ -494,16 +516,18 @@ let add_modules hierarchy env =
   let module_names = ref StringSet.empty in
   let rec fold ns env item =
     match item.txt with
-    | Mod (al, m, opened) ->
+    | Mod (al, m, to_op) ->
         if StringSet.mem al !module_names then
           failwith "Module with the same name already imported";
         module_names := StringSet.add al !module_names;
         let new_env = add_module_from_namespace env al m ns in
-        if opened then
-          snd @@
-          !Typecore.type_open Asttypes.Override new_env item.loc
-            (mkloc (Lident al) item.loc)
-        else new_env
+        (* if to_op then *)
+        (*   let op = (fun env -> *)
+        (*       snd @@ *)
+        (*       !Typecore.type_open Asttypes.Override env item.loc *)
+        (*         (mkloc (Lident al) item.loc)) in *)
+        (*   new_env, op :: opened *)
+        (* else *) new_env(* , opened *)
     | Ns (n, sub) ->
         let ns = update_ns ns n in
         List.fold_left (fold ns) env sub
@@ -518,11 +542,12 @@ let compute_prelude_no_alias prl env =
     | Some nd -> Some nd.ns_name
   in
   Env.set_namespace_unit ns;
-  let hierarchy = mk_nsenv prl.prl_imports in
+  let hierarchy, opened = mk_nsenv prl.prl_imports in
   if !Clflags.ns_debug then
     Format.printf "Resulting hierarchy of namespaces:\n%s@."
     @@ print_namespace hierarchy;
-  add_modules hierarchy env, ns
+  let env = add_modules hierarchy env in
+  List.fold_left (|>) env opened, ns
 
 let compute_interface_prelude prl =
   let ns =
@@ -531,7 +556,7 @@ let compute_interface_prelude prl =
     | Some nd -> Some nd.ns_name
   in
   Env.set_namespace_unit ns;
-  let hierarchy = mk_nsenv prl.prl_imports in
+  let hierarchy, _ = mk_nsenv prl.prl_imports in
   let ast =
     if not !Clflags.namespace_struct then
       List.map import_to_parsetree_sig hierarchy
@@ -551,7 +576,7 @@ let compute_prelude prl =
       | Some nd -> Some nd.ns_name
   in
   Env.set_namespace_unit ns;
-  let hierarchy = mk_nsenv prl.prl_imports in
+  let hierarchy, _ = mk_nsenv prl.prl_imports in
   if !Clflags.ns_debug then
     Format.printf "Resulting hierarchy of namespaces:\n%s@."
     @@ print_namespace hierarchy;

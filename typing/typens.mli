@@ -12,7 +12,7 @@ and namespace_item_desc =
 
 (** Builds the environment, using the prelude given. Exported to allow programs
   to use it to compute dependencies and build such an environment *)
-val mk_nsenv: Parsetree.imports -> namespaces
+val mk_nsenv: Parsetree.imports -> namespaces * (Env.t -> Env.t) list
 
 val elaborate_import: namespace_item ->
   Parsetree.structure_item * (string * Longident.t option) list
