@@ -306,9 +306,9 @@ let elaborate_open' (id, ns) =
 (** Impl *)
 
 let mk_open id ns =
-  let lid = match ns with
-      Some ns -> Ldot(ns, id)
-    | None -> Lident (id) (* impossible case *)
+  let lid = (* match ns with *)
+    (*   Some ns -> Ldot(ns, id) *)
+    (* | None ->  *)Lident (id) (* impossible case *)
   in
   let open_desc =
     {
@@ -369,9 +369,9 @@ let import_to_parsetree h =
 (** Sig *)
 
 let mk_open_sig id ns =
-  let lid = match ns with
-      Some ns -> Ldot(ns, id)
-    | None -> Lident (id) (* impossible case *)
+  let lid = (* match ns with *)
+    (*   Some ns -> Ldot(ns, id) *)
+    (* | None ->  *)Lident (id) (* impossible case *)
   in
   let open_desc =
     {
