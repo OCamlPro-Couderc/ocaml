@@ -62,13 +62,13 @@ RCMIS = $(CMOS:.cmo=.cmi) # for cleaning rule
 OBJS = $(CMXS:.cmx=.o)
 ASMS = $(OBJS:.o=.s)
 
-EXEC = main functor link includes pack
+EXEC = main functor link includes pack multi
 BYTE_EXEC = $(addsuffix .byte,$(EXEC))
 NAT_EXEC = $(addsuffix .nat, $(EXEC))
 
 CAMLC = ocamlc
 CAMLOPT = ocamlopt -S
-FLAGS =	-no-alias-deps -g
+FLAGS =	-g -no-alias-deps
 
 %.cmo: %.ml
 	$(CAMLC) $(FLAGS) -c $<
@@ -78,12 +78,6 @@ FLAGS =	-no-alias-deps -g
 
 %.cmx: %.ml
 	$(CAMLOPT) $(FLAGS) -c $<
-
-x/pervasives.cmo: x/pervasives.ml
-	$(CAMLC) $(FLAGS) -nopervasives -c $<
-
-x/pervasives.cmx: x/pervasives.ml
-	$(CAMLOPT) $(FLAGS) -nopervasives -c $<
 
 all: test-byte test-opt
 
@@ -103,29 +97,69 @@ test-opt: opt
 		./$$exec; \
 	done
 
-main.byte: $(X_CMOS) $(Y_CMOS) $(Z_CMOS) main.cmo
+main.byte: x.cma y.cma z.cma main.cmo
 	$(CAMLC) $(FLAGS) -o $@ $^
 
-main.nat: $(X_CMXS) $(Y_CMXS) $(Z_CMXS) main.cmx
+main.nat: x.cmxa y.cmxa z.cmxa main.cmx
 	$(CAMLOPT) $(FLAGS) -o $@ $^
 
-link.byte: y/linked.cmo z/linked.cmo link.ml
+link.byte: y.cma z.cma link.ml
 	$(CAMLC) $(FLAGS) -o $@ $^
 
-link.nat: y/linked.cmx z/linked.cmx link.ml
+link.nat: y.cmxa z.cmxa link.ml
 	$(CAMLOPT) $(FLAGS) -o $@ $^
 
-functor.byte: $(X_CMOS) $(FUN_CMOS) fun.ml
+functor.byte: x.cma functor.cma fun.ml
 	$(CAMLC) $(FLAGS) -o $@ $^
 
-functor.nat: $(X_CMXS) $(FUN_CMXS) fun.ml
+functor.nat: x.cmxa functor.cmxa fun.ml
 	$(CAMLOPT) $(FLAGS) -o $@ $^
 
-includes.byte: y/included.cmo includes.ml
+includes.byte: y.cma includes.ml
 	$(CAMLC) $(FLAGS) -o $@ $^
 
-includes.nat: y/included.cmx includes.ml
+includes.nat: y.cmxa includes.ml
 	$(CAMLOPT) $(FLAGS) -o $@ $^
+
+multi.byte: x.cma y.cma z.cma multi.ml
+	$(CAMLC) $(FLAGS) -o $@ $^
+
+multi.nat: x.cmxa y.cmxa z.cmxa multi.ml
+	$(CAMLOPT) $(FLAGS) -o $@ $^
+
+# Cmas/Cmxa
+
+x.cma: $(X_CMOS)
+	$(CAMLC) -a -o $@ $^
+
+x.cmxa: $(X_CMXS)
+	$(CAMLOPT) -a -o $@ $^
+
+y.cma: $(Y_CMOS)
+	$(CAMLC) -a -o $@ $^
+
+y.cmxa: $(Y_CMXS)
+	$(CAMLOPT) -a -o $@ $^
+
+z.cma: $(Z_CMOS)
+	$(CAMLC) -a -o $@ $^
+
+z.cmxa: $(Z_CMXS)
+	$(CAMLOPT) -a -o $@ $^
+
+functor.cma: $(FUN_CMOS)
+	$(CAMLC) -a -o $@ $^
+
+functor.cmxa: $(FUN_CMXS)
+	$(CAMLOPT) -a -o $@ $^
+
+# Specific rule for the compilation of pervasives
+
+x/pervasives.cmo: x/pervasives.ml
+	$(CAMLC) $(FLAGS) -nopervasives -c $<
+
+x/pervasives.cmx: x/pervasives.ml
+	$(CAMLOPT) $(FLAGS) -nopervasives -c $<
 
 # Specific rules for the packs
 
@@ -162,5 +196,5 @@ p2/%.cmx: p2/%.ml
 clean:
 	rm -f $(CMIS) $(CMOS) $(CMXS) $(BYTE_EXEC) $(NAT_EXEC) $(OBJS) $(ASMS)
 	rm -f $(RCMIS) p1/p.* p2/p.*
-	rm -f *~ *.o */*.o *.s *.cm[iox]
+	rm -f *~ *.o */*.o *.s *.cm[ioxa] *.cmxa
 

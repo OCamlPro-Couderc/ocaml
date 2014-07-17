@@ -8,7 +8,7 @@ open M1
 
 let () =
   let v = create 42 in
-  let v2 = create 42 in
+  let v2 = Mod.create 42 in
   let v3 = ZMod.create 42 in
   assert (v = v2);
   assert (v2 = v3);

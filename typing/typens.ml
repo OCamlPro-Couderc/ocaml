@@ -501,7 +501,8 @@ let verify_import i check_ns_names =
 (* Experiment to add modules directly in the environment without using aliases *)
 
 let add_module_from_namespace env alias module_name ns =
-  let path = Env.lookup_module ~load:true ~pers:true ns (Lident module_name) env in
+  let path =
+    Env.lookup_module ~load:false ~pers:true ns (Lident module_name) env in
   if !Clflags.ns_debug then
     Format.printf "Path received for %s %@ %s: %s@." module_name
       (Env.namespace_name ns) (Path.complete_name path);
@@ -510,36 +511,50 @@ let add_module_from_namespace env alias module_name ns =
   Env.add_required_global id;
   env
 
-module StringSet = Set.Make(String)
+(*  List.fold_left (fun (env, to_op) item ->
+      add_constraints item.imp_loc env item.imp_namespace item.imp_cstr)
+    ([], []) @@ List.rev imports *)
 
-let add_modules hierarchy env =
-  let module_names = ref StringSet.empty in
+module StringMap = Map.Make(String)
+
+let add_modules imports env =
+  let module_names = ref StringMap.empty in
   let rec fold ns env item =
+    let str_ns = Env.namespace_name ns in
     match item.txt with
-    | Mod (al, m, to_op) ->
-        if StringSet.mem al !module_names then
-          failwith "Module with the same name already imported";
-        module_names := StringSet.add al !module_names;
+    | Mod (al, m, _) ->
+        begin
+          try let ns' = StringMap.find al !module_names in
+            Location.prerr_warning
+              item.loc
+              (Warnings.Shadowed_import (al, ns'));
+          with Not_found -> ()
+        end;
+        module_names := StringMap.add al str_ns !module_names;
         add_module_from_namespace env al m ns
     | Ns (n, sub) ->
         let ns = update_ns ns n in
         List.fold_left (fold ns) env sub
     | _ -> assert false
   in
-  List.fold_left (fold None) env hierarchy
+  List.fold_left (fun (env, opened) item ->
+      let h, to_op =
+        add_constraints item.imp_loc [] item.imp_namespace item.imp_cstr in
+      List.fold_left (fold None) env h, to_op @ opened)
+    (env, []) imports
 
-let compute_prelude_no_alias prl env =
+let compute_prelude_no_alias prl env : Env.t * Longident.t option =
   let ns =
     match prl.prl_ns with
       None -> None
     | Some nd -> Some nd.ns_name
   in
   Env.set_namespace_unit ns;
-  let hierarchy, opened = mk_nsenv prl.prl_imports in
   if !Clflags.ns_debug then
+    (let hierarchy, _ = mk_nsenv prl.prl_imports in
     Format.printf "Resulting hierarchy of namespaces:\n%s@."
-    @@ print_namespace hierarchy;
-  let env = add_modules hierarchy env in
+    @@ print_namespace hierarchy);
+  let env, opened = add_modules prl.prl_imports env in
   List.fold_left (|>) env opened, ns
 
 let compute_interface_prelude prl =
