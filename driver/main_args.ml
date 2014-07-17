@@ -464,7 +464,7 @@ let mk_ns_struct f =
 ;;
 
 let mk_plain_imports f =
-  "-ns-env", Arg.Unit f, "(undocumented)"
+  "-plain-imports", Arg.Unit f, "(undocumented)"
 ;;
 
 module type Common_options = sig

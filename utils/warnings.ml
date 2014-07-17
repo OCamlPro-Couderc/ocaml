@@ -70,6 +70,7 @@ type t =
   | No_cmi_file of string                   (* 49 *)
   | Wildcard_usage of string                  (* 50 *)
   | Directory_output_mismatch of string     (* 51 *)
+  | Shadowed_import of string * string     (* 52 *)
 ;;
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
@@ -130,9 +131,10 @@ let number = function
   | No_cmi_file _ -> 49
   | Wildcard_usage _ -> 50
   | Directory_output_mismatch _ -> 51
+  | Shadowed_import _ -> 52     (* 52 *)
 ;;
 
-let last_warning_number = 51
+let last_warning_number = 52
 (* Must be the max number returned by the [number] function. *)
 
 let letter = function
@@ -245,7 +247,7 @@ let parse_options errflag s =
   current := {error; active}
 
 (* If you change these, don't forget to change them in man/ocamlc.m *)
-let defaults_w = "+a-4-6-7-9-27-29-32..39-41..42-44-45-48";;
+let defaults_w = "+a-4-6-7-9-27-29-32..39-41..42-44-45-48-50-52";;
 let defaults_warn_error = "-a";;
 
 let () = parse_options false defaults_w;;
@@ -398,6 +400,9 @@ let message = function
       Printf.sprintf
         "The output directory differs from the namespace: the compiler will \
          clash when linking the compilation unit."
+  | Shadowed_import (m, prev) ->
+      Printf.sprintf
+      "The module %s will shadow one previously imported from %s." m prev
 ;;
 
 let nerrors = ref 0;;

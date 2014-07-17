@@ -64,6 +64,7 @@ type t =
   | No_cmi_file of string                   (* 49 *)
   | Wildcard_usage of string                (* 50 *)
   | Directory_output_mismatch of string     (* 51 *)
+  | Shadowed_import of string * string      (* 52 *)
 ;;
 
 val parse_options : bool -> string -> unit;;
