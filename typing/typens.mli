@@ -22,6 +22,10 @@ val compute_import: Env.t -> Parsetree.import_item -> Env.t
   (which is basically the initial_env *)
 val compute_prelude_no_alias: Parsetree.prelude -> Env.t -> Env.t * Longident.t option
 
+(** Readds the aliases to the signature, since unaliased names for imported
+    modules cannot be used by the parser *)
+val realias_signature: Types.signature -> Types.signature
+
 
 val mk_import: namespace_item ->
   Parsetree.structure_item * (string * Longident.t option) list

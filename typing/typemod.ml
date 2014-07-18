@@ -1651,6 +1651,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
     Format.printf "Signature after simplify:\n%a@."
       Printtyp.signature simple_sg;
   if !Clflags.print_types then begin
+    let simple_sg = Typens.realias_signature simple_sg in
     Printtyp.wrap_printing_env initial_env
       (fun () -> fprintf std_formatter "%a@." Printtyp.signature simple_sg);
     (str, Tcoerce_none)   (* result is ignored by Compile.implementation *)
