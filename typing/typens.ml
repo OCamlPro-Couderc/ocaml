@@ -54,6 +54,15 @@ let mod_of_cstr loc = function
   | Cstr_shadow (s) -> mkloc (Shadowed s) loc
   | Cstr_wildcard -> mkloc Wildcard loc
 
+
+let string_of_longident l = String.concat "." (flatten l)
+
+let check_namespace_availability ns loc check_ns_names =
+  check_ns_names (mkloc (string_of_longident ns) loc)
+
+let check_import_constraints cstr =
+  List.fold_left (fun tree cstr -> ()) () cstr
+
 let find_all_compunits loc path =
   let rec scan_loadpath acc = function
       [] -> acc
@@ -198,14 +207,6 @@ let mk_nsenv imports =
       add_constraints item.imp_loc env item.imp_namespace item.imp_cstr)
     ([], []) @@ List.rev imports
 
-let string_of_longident l = String.concat "." (flatten l)
-
-let check_namespace_availability ns loc check_ns_names =
-  check_ns_names (mkloc (string_of_longident ns) loc)
-
-let check_import_constraints cstr =
-  List.fold_left (fun tree cstr -> ()) () cstr
-
 (*
    First step of elaboration: when looking for List in Std, look directly for
    Std_list
@@ -231,15 +232,9 @@ let addloc loc = function
     None -> None
   | Some x -> Some (mkloc x loc)
 
-(* let fold_hierarchy f acc item = *)
-(*   match item.txt with *)
-(*   | Ns (n, sub) -> *)
-(*       let acc = f acc item in *)
-(*       List.fold_left f acc sub *)
-(*   | _ -> f acc item *)
+(* Original functions, that creates "namespaces structure" *)
 
-(* Original function, that creates "namespaces structure" *)
-let elaborate_import h =
+let mk_import h =
   let rec compute (ns: Longident.t option) nsloc item =
     match item.txt with
     | Mod (al, m, b) ->
@@ -285,7 +280,7 @@ let elaborate_import h =
   }, opened
 
 
-let elaborate_open' (id, ns) =
+let mk_open_structure (id, ns) =
   let lid = match ns with
       Some ns -> Ldot(ns, id)
     | None -> Lident (id) (* impossible case *)
@@ -368,7 +363,7 @@ let import_to_parsetree h =
 
 (** Sig *)
 
-let mk_open_sig id ns =
+let mk_sig_open id ns =
   let lid = (* match ns with *)
     (*   Some ns -> Ldot(ns, id) *)
     (* | None ->  *)Lident (id) (* impossible case *)
@@ -412,7 +407,7 @@ let mod_to_parsetree_sig acc ns item =
   match item.txt with
     Mod (al, m ,b) ->
       let acc = mk_mod_sig ns item :: acc in
-      if b then mk_open_sig m ns :: acc
+      if b then mk_sig_open m ns :: acc
       else acc
   | _ -> assert false
 
@@ -431,7 +426,7 @@ let import_to_parsetree_sig h =
 
 (** *)
 
-let elaborate_sig_open (id, ns) =
+let mk_sig_open_structure (id, ns) =
   let lid = match ns with
       Some ns -> Ldot(ns, id)
     | None -> Lident (id) (* impossible case *)
@@ -449,7 +444,7 @@ let elaborate_sig_open (id, ns) =
     psig_loc = Location.none;
   }
 
-let elaborate_interface h =
+let mk_interface h =
   let rec compute ns nsloc item =
     match item.txt with
     | Mod (al, m, b) ->
@@ -498,6 +493,52 @@ let verify_import i check_ns_names =
   let _constraints = check_import_constraints i.imp_cstr in
   ()
 
+(** Elaboration case, where the imports are transformed into module aliases *)
+
+let compute_interface_prelude prl =
+  let ns =
+    match prl.prl_ns with
+      None -> None
+    | Some nd -> Some nd.ns_name
+  in
+  Env.set_namespace_unit ns;
+  let hierarchy, _ = mk_nsenv prl.prl_imports in
+  let ast =
+    if not !Clflags.namespace_struct then
+      List.map import_to_parsetree_sig hierarchy
+      |> List.flatten
+    else
+      let imports, opened = List.split @@ List.map mk_interface hierarchy in
+      imports @ (List.map mk_sig_open_structure (List.flatten opened))
+  in
+  if ! Clflags.ns_debug then
+    Format.printf "Resulting ast:\n%a@." Pprintast.signature ast;
+  ast, ns
+
+let compute_prelude prl =
+  let ns =
+      match prl.prl_ns with
+      | None -> None
+      | Some nd -> Some nd.ns_name
+  in
+  Env.set_namespace_unit ns;
+  let hierarchy, _ = mk_nsenv prl.prl_imports in
+  if !Clflags.ns_debug then
+    Format.printf "Resulting hierarchy of namespaces:\n%s@."
+    @@ print_namespace hierarchy;
+  let ast =
+    if not !Clflags.namespace_struct then
+      List.map import_to_parsetree hierarchy
+      |> List.flatten
+    else
+      let imports, opened = List.split @@ List.map mk_import hierarchy in
+      imports @ (List.map mk_open_structure (List.flatten opened))
+  in
+  if ! Clflags.ns_debug then
+    Format.printf "Resulting ast:\n%a@." Pprintast.structure ast;
+  ast, ns
+
+
 (* Experiment to add modules directly in the environment without using aliases *)
 
 let add_module_from_namespace env alias module_name ns =
@@ -511,14 +552,11 @@ let add_module_from_namespace env alias module_name ns =
   Env.add_required_global id;
   env
 
-(*  List.fold_left (fun (env, to_op) item ->
-      add_constraints item.imp_loc env item.imp_namespace item.imp_cstr)
-    ([], []) @@ List.rev imports *)
-
 module StringMap = Map.Make(String)
 
+let module_names = ref StringMap.empty
+
 let add_modules imports env =
-  let module_names = ref StringMap.empty in
   let rec fold ns env item =
     let str_ns = Env.namespace_name ns in
     match item.txt with
@@ -543,6 +581,10 @@ let add_modules imports env =
       List.fold_left (fold None) env h, to_op @ opened)
     (env, []) imports
 
+let compute_import env import =
+  let env, opened = add_modules [import] env in
+  List.fold_left (|>) env opened
+
 let compute_prelude_no_alias prl env : Env.t * Longident.t option =
   let ns =
     match prl.prl_ns with
@@ -554,48 +596,5 @@ let compute_prelude_no_alias prl env : Env.t * Longident.t option =
     (let hierarchy, _ = mk_nsenv prl.prl_imports in
     Format.printf "Resulting hierarchy of namespaces:\n%s@."
     @@ print_namespace hierarchy);
-  let env, opened = add_modules prl.prl_imports env in
-  List.fold_left (|>) env opened, ns
-
-let compute_interface_prelude prl =
-  let ns =
-    match prl.prl_ns with
-      None -> None
-    | Some nd -> Some nd.ns_name
-  in
-  Env.set_namespace_unit ns;
-  let hierarchy, _ = mk_nsenv prl.prl_imports in
-  let ast =
-    if not !Clflags.namespace_struct then
-      List.map import_to_parsetree_sig hierarchy
-      |> List.flatten
-    else
-      let imports, opened = List.split @@ List.map elaborate_interface hierarchy in
-      imports @ (List.map elaborate_sig_open (List.flatten opened))
-  in
-  if ! Clflags.ns_debug then
-    Format.printf "Resulting ast:\n%a@." Pprintast.signature ast;
-  ast, ns
-
-let compute_prelude prl =
-  let ns =
-      match prl.prl_ns with
-      | None -> None
-      | Some nd -> Some nd.ns_name
-  in
-  Env.set_namespace_unit ns;
-  let hierarchy, _ = mk_nsenv prl.prl_imports in
-  if !Clflags.ns_debug then
-    Format.printf "Resulting hierarchy of namespaces:\n%s@."
-    @@ print_namespace hierarchy;
-  let ast =
-    if not !Clflags.namespace_struct then
-      List.map import_to_parsetree hierarchy
-      |> List.flatten
-    else
-      let imports, opened = List.split @@ List.map elaborate_import hierarchy in
-      imports @ (List.map elaborate_open' (List.flatten opened))
-  in
-  if ! Clflags.ns_debug then
-    Format.printf "Resulting ast:\n%a@." Pprintast.structure ast;
-  ast, ns
+  (* let env, opened = add_modules prl.prl_imports env in *)
+  List.fold_left compute_import env prl.prl_imports, ns

@@ -122,10 +122,10 @@ includes.nat: y.cmxa includes.ml
 	$(CAMLOPT) $(FLAGS) -o $@ $^
 
 multi.byte: x.cma y.cma z.cma multi.ml
-	$(CAMLC) $(FLAGS) -o $@ $^
+	$(CAMLC) $(FLAGS) -w +52 -o $@ $^
 
 multi.nat: x.cmxa y.cmxa z.cmxa multi.ml
-	$(CAMLOPT) $(FLAGS) -o $@ $^
+	$(CAMLOPT) $(FLAGS) -w +52 -o $@ $^
 
 # Cmas/Cmxa
 
