@@ -1653,7 +1653,9 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
   if !Clflags.print_types then begin
     let simple_sg = Typens.realias_signature simple_sg in
     Printtyp.wrap_printing_env initial_env
-      (fun () -> fprintf std_formatter "%a@." Printtyp.signature simple_sg);
+      (fun () -> fprintf std_formatter "%a@\n@\n%a@."
+          Pprintast.prelude prl
+          Printtyp.signature simple_sg);
     (str, Tcoerce_none)   (* result is ignored by Compile.implementation *)
   end else begin
     let sourceintf =

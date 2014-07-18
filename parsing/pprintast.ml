@@ -1372,6 +1372,42 @@ class printer  ()= object(self:'self)
         pp_close_box f ();
     | Ptop_dir (s, da) ->
         pp f "@[<hov2>#%s@ %a@]" s self#directive_argument da
+
+  method prelude f x =
+    begin
+      match x.prl_ns with
+        None -> ()
+      | Some ns -> pp f "in namespace %a@\n" self#longident ns.ns_name
+    end;
+    self#imports f x.prl_imports
+
+  method imports f x =
+    match x with
+      [] -> pp f ""
+    | t :: l ->
+        (self#imports_head f t);
+        self#list ~sep:"@\n" ~last:";;" self#imports_tail f l
+
+  method imports_head f x =
+    pp f "with %a" self#import_item x
+
+  method imports_tail f x =
+    pp f "and %a" self#import_item x
+
+  method import_item f x =
+    pp f "%a of %a" self#import_constraints x.imp_cstr
+      self#longident x.imp_namespace
+
+  method import_constraints f x =
+    self#list ~first:"(" ~sep:";" ~last:")" self#import_constraint_item f x
+
+  method import_constraint_item f x =
+    match x.imp_cstr_desc with
+      Cstr_mod s -> pp f "%s" s
+    | Cstr_alias (al, m) -> pp f "%s as %s" m al
+    | Cstr_shadow s -> pp f "%s as _" s
+    | Cstr_wildcard -> pp f "_"
+
 end;;
 
 
@@ -1413,4 +1449,10 @@ let core_type=default#core_type
 let pattern=default#pattern
 let signature=default#signature
 let structure=default#structure
-let implementation fmt (Pimpl (_, str)) = structure fmt str
+let prelude=default#prelude
+let implementation fmt (Pimpl (prl, str)) =
+  prelude fmt prl;
+  structure fmt str
+let interface fmt (Pinterf (prl, sg)) =
+  prelude fmt prl;
+  signature fmt sg
