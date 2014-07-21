@@ -516,6 +516,7 @@ interface:
 ;
 toplevel_phrase:
     top_structure SEMISEMI               { Ptop_def $1 }
+  | prelude                              { Ptop_prl $1 }
   | toplevel_directive SEMISEMI          { $1 }
   | EOF                                  { raise End_of_file }
 ;
