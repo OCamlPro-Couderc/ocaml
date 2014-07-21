@@ -115,7 +115,7 @@ let parse_mod_use_file name lb =
   let items =
     List.concat
       (List.map
-         (function Ptop_def s -> s | Ptop_dir _ -> [])
+         (function Ptop_def s -> s | Ptop_prl _ | Ptop_dir _ -> [])
          (!parse_use_file lb))
   in
   [ Ptop_def
@@ -304,6 +304,7 @@ let execute_phrase print_outcome ppf phr =
                 dir_name;
               false
       end
+  | Ptop_prl prl -> assert false
 
 
 (* Temporary assignment to a reference *)

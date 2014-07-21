@@ -862,6 +862,7 @@ and interface = Pinterf of prelude * signature
 
 type toplevel_phrase =
   | Ptop_def of structure
+  | Ptop_prl of prelude
   | Ptop_dir of string * directive_argument
      (* #use, #load ... *)
 

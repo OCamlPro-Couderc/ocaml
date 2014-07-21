@@ -1372,6 +1372,10 @@ class printer  ()= object(self:'self)
         pp_close_box f ();
     | Ptop_dir (s, da) ->
         pp f "@[<hov2>#%s@ %a@]" s self#directive_argument da
+    | Ptop_prl prl ->
+        pp_open_hvbox f 0;
+        self#prelude f prl;
+        pp_close_box f ()
 
   method prelude f x =
     begin
@@ -1423,6 +1427,8 @@ let toplevel_phrase f x =
   | Ptop_dir (s, da) ->
    pp f "@[<hov2>#%s@ %a@]" s default#directive_argument da
    (* pp f "@[<hov2>#%s@ %a@]" s directive_argument da *)
+  | Ptop_prl (prl) ->
+      pp f "@[<hov0>%a@]" default#prelude prl
 
 let expression f x =
   pp f "@[%a@]" default#expression x

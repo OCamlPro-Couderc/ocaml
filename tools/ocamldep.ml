@@ -237,6 +237,7 @@ let ml_file_dependencies source_file =
       match x with
       | Ptop_def s -> s
       | Ptop_dir _ -> []
+      | Ptop_prl _ -> []
     in
     List.flatten (List.map f (Parse.use_file lexbuf))
   in

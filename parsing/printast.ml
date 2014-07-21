@@ -861,6 +861,35 @@ and label_x_bool_x_core_type_list i ppf x =
   | Rinherit (ct) ->
       line i ppf "Rinherit\n";
       core_type (i+1) ppf ct
+
+and prelude i ppf prl =
+  line i ppf "prelude %a\n" fmt_location prl.prl_loc;
+  namespace_decl (i+1) ppf prl.prl_ns;
+  imports (i+1) ppf prl.prl_imports
+
+and namespace_decl i ppf nsd =
+  match nsd with
+    None -> ()
+  | Some ns ->
+      line i ppf "namespace_decl: %a\n" fmt_location ns.ns_loc;
+      line i ppf "%a\n" fmt_longident ns.ns_name
+
+and imports i ppf x = list (i+1) import_item ppf x
+
+and import_item i ppf x =
+  line i ppf "import_item %a\n" fmt_location x.imp_loc;
+  line (i+1) ppf "namespace: %a" fmt_longident x.imp_namespace;
+  import_constraints (i+1) ppf x.imp_cstr
+
+and import_constraints i ppf x = list (i+1) import_constraint_item ppf x
+
+and import_constraint_item i ppf x =
+  line i ppf "<constraint> %a\n" fmt_location x.imp_cstr_loc;
+  match x.imp_cstr_desc with
+    Cstr_mod s -> line i ppf "Cstr_mod %s\n" s
+  | Cstr_alias (al, m) -> line i ppf "Cstr_alias (%s, %s)\n" al m
+  | Cstr_shadow m -> line i ppf "Cstr_shadow %s\n" m
+  | Cstr_wildcard -> line i ppf "Cstr_wildcard\n"
 ;;
 
 let rec toplevel_phrase i ppf x =
@@ -871,6 +900,9 @@ let rec toplevel_phrase i ppf x =
   | Ptop_dir (s, da) ->
       line i ppf "Ptop_dir \"%s\"\n" s;
       directive_argument i ppf da;
+  | Ptop_prl (prl) ->
+      line i ppf "Ptop_prel \"\"\n";
+      prelude (i+1) ppf prl;
 
 and directive_argument i ppf x =
   match x with
@@ -883,6 +915,8 @@ and directive_argument i ppf x =
 
 let interface ppf x = list 0 signature_item ppf x;;
 
-let implementation ppf (Pimpl (_, x)) = list 0 structure_item ppf x;;
+let implementation ppf (Pimpl (prl, x)) =
+  prelude 0 ppf prl;
+  list 0 structure_item ppf x;;
 
 let top_phrase ppf x = toplevel_phrase 0 ppf x;;
