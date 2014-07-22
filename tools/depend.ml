@@ -16,22 +16,30 @@ open Longident
 open Parsetree
 
 module StringSet = Set.Make(struct type t = string let compare = compare end)
+module StringLid = Set.Make(struct
+    type t = string * Longident.t option
+    let compare = compare
+  end)
+
+let remove_loc = function
+    None -> None
+  | Some ns -> Some ns.txt
 
 (* Collect free module identifiers in the a.s.t. *)
 
-let free_structure_names = ref StringSet.empty
+let free_structure_names = ref StringLid.empty
 
-let rec addmodule bv lid =
+let rec addmodule bv lid ns =
   match lid with
     Lident s ->
-      if not (StringSet.mem s bv)
-      then free_structure_names := StringSet.add s !free_structure_names
-  | Ldot(l, _s) -> addmodule bv l
-  | Lapply(l1, l2) -> addmodule bv l1; addmodule bv l2
+      if not (StringLid.mem (s, ns) bv)
+      then free_structure_names := StringLid.add (s, ns) !free_structure_names
+  | Ldot(l, _s) -> addmodule bv l ns
+  | Lapply(l1, l2) -> addmodule bv l1 ns; addmodule bv l2 ns
 
 let add bv lid =
   match lid.txt with
-    Ldot(l, _s) -> addmodule bv l
+    Ldot(l, _s) -> addmodule bv l None
   | _ -> ()
 
 let addmodule bv lid = addmodule bv lid.txt
@@ -115,9 +123,9 @@ let add_class_description bv infos =
 
 let add_class_type_declaration = add_class_description
 
-let pattern_bv = ref StringSet.empty
+let pattern_bv = ref StringLid.empty
 
-let rec add_pattern bv pat =
+let rec add_pattern (bv: StringLid.t) pat =
   match pat.ppat_desc with
     Ppat_any -> ()
   | Ppat_var _ -> ()
@@ -134,11 +142,11 @@ let rec add_pattern bv pat =
   | Ppat_variant(_, op) -> add_opt add_pattern bv op
   | Ppat_type li -> add bv li
   | Ppat_lazy p -> add_pattern bv p
-  | Ppat_unpack id -> pattern_bv := StringSet.add id.txt !pattern_bv
+  | Ppat_unpack id -> pattern_bv := StringLid.add (id.txt, None) !pattern_bv
   | Ppat_exception p -> add_pattern bv p
   | Ppat_extension _ -> ()
 
-let add_pattern bv pat =
+let add_pattern (bv : StringLid.t) pat =
   pattern_bv := bv;
   add_pattern bv pat;
   !pattern_bv
@@ -184,7 +192,7 @@ let rec add_expr bv exp =
   | Pexp_setinstvar(_v, e) -> add_expr bv e
   | Pexp_override sel -> List.iter (fun (_s, e) -> add_expr bv e) sel
   | Pexp_letmodule(id, m, e) ->
-      add_module bv m; add_expr (StringSet.add id.txt bv) e
+      add_module bv m; add_expr (StringLid.add (id.txt, None) bv) e
   | Pexp_assert (e) -> add_expr bv e
   | Pexp_lazy (e) -> add_expr bv e
   | Pexp_poly (e, t) -> add_expr bv e; add_opt add_type bv t
@@ -192,7 +200,7 @@ let rec add_expr bv exp =
       let bv = add_pattern bv pat in List.iter (add_class_field bv) fieldl
   | Pexp_newtype (_, e) -> add_expr bv e
   | Pexp_pack m -> add_module bv m
-  | Pexp_open (_ovf, m, e) -> addmodule bv m; add_expr bv e
+  | Pexp_open (_ovf, m, e) -> addmodule bv m None; add_expr bv e
   | Pexp_extension _ -> ()
 
 and add_cases bv cases =
@@ -212,19 +220,19 @@ and add_bindings recf bv pel =
 and add_modtype bv mty =
   match mty.pmty_desc with
     Pmty_ident l -> add bv l
-  | Pmty_alias (l, _) -> addmodule bv l
+  | Pmty_alias (l, ns) -> addmodule bv l (remove_loc ns)
   | Pmty_signature s -> add_signature bv s
   | Pmty_functor(id, mty1, mty2) ->
       Misc.may (add_modtype bv) mty1;
-      add_modtype (StringSet.add id.txt bv) mty2
+      add_modtype (StringLid.add (id.txt, None) bv) mty2
   | Pmty_with(mty, cstrl) ->
       add_modtype bv mty;
       List.iter
         (function
           | Pwith_type (_, td) -> add_type_declaration bv td
-          | Pwith_module (_, lid) -> addmodule bv lid
+          | Pwith_module (_, lid) -> addmodule bv lid None
           | Pwith_typesubst td -> add_type_declaration bv td
-          | Pwith_modsubst (_, lid) -> addmodule bv lid
+          | Pwith_modsubst (_, lid) -> addmodule bv lid None
         )
         cstrl
   | Pmty_typeof m -> add_module bv m
@@ -234,7 +242,8 @@ and add_signature bv = function
     [] -> ()
   | item :: rem -> add_signature (add_sig_item bv item) rem
 
-and add_interface bv (Pinterf (_, sg)) =
+and add_interface bv (Pinterf (prl, sg)) =
+  let sg = Prelude_utils.simple_signature prl @ sg in
   add_signature bv sg
 
 and add_sig_item bv item =
@@ -248,11 +257,11 @@ and add_sig_item bv item =
   | Psig_exception pext ->
       add_extension_constructor bv pext; bv
   | Psig_module pmd ->
-      add_modtype bv pmd.pmd_type; StringSet.add pmd.pmd_name.txt bv
+      add_modtype bv pmd.pmd_type; StringLid.add (pmd.pmd_name.txt, None) bv
   | Psig_recmodule decls ->
       let bv' =
-        List.fold_right StringSet.add
-                        (List.map (fun pmd -> pmd.pmd_name.txt) decls) bv
+        List.fold_right StringLid.add
+                        (List.map (fun pmd -> pmd.pmd_name.txt, None) decls) bv
       in
       List.iter (fun pmd -> add_modtype bv' pmd.pmd_type) decls;
       bv'
@@ -263,7 +272,7 @@ and add_sig_item bv item =
       end;
       bv
   | Psig_open od ->
-      addmodule bv od.popen_lid; bv
+      addmodule bv od.popen_lid None; bv
   | Psig_include incl ->
       add_modtype bv incl.pincl_mod; bv
   | Psig_class cdl ->
@@ -275,11 +284,11 @@ and add_sig_item bv item =
 
 and add_module bv modl =
   match modl.pmod_desc with
-    Pmod_ident (l, _) -> addmodule bv l
+    Pmod_ident (l, ns) -> addmodule bv l (remove_loc ns)
   | Pmod_structure s -> ignore (add_structure bv s)
   | Pmod_functor(id, mty, modl) ->
       Misc.may (add_modtype bv) mty;
-      add_module (StringSet.add id.txt bv) modl
+      add_module (StringLid.add (id.txt, None) bv) modl
   | Pmod_apply(mod1, mod2) ->
       add_module bv mod1; add_module bv mod2
   | Pmod_constraint(modl, mty) ->
@@ -308,11 +317,11 @@ and add_struct_item bv item =
   | Pstr_exception pext ->
       add_extension_constructor bv pext; bv
   | Pstr_module x ->
-      add_module bv x.pmb_expr; StringSet.add x.pmb_name.txt bv
+      add_module bv x.pmb_expr; StringLid.add (x.pmb_name.txt, None) bv
   | Pstr_recmodule bindings ->
       let bv' =
-        List.fold_right StringSet.add
-          (List.map (fun x -> x.pmb_name.txt) bindings) bv in
+        List.fold_right StringLid.add
+          (List.map (fun x -> x.pmb_name.txt, None) bindings) bv in
       List.iter
         (fun x -> add_module bv' x.pmb_expr)
         bindings;
@@ -324,7 +333,7 @@ and add_struct_item bv item =
       end;
       bv
   | Pstr_open od ->
-      addmodule bv od.popen_lid; bv
+      addmodule bv od.popen_lid None; bv
   | Pstr_class cdl ->
       List.iter (add_class_declaration bv) cdl; bv
   | Pstr_class_type cdtl ->
@@ -344,7 +353,7 @@ and add_implementation bv l =
 and add_top_phrase bv = function
   | Ptop_def str -> add_structure bv str
   | Ptop_dir (_, _) -> bv
-  | Ptop_prl _ -> bv
+  | Ptop_prl prl -> add_structure bv @@ Prelude_utils.simple_structure prl
 
 and add_class_expr bv ce =
   match ce.pcl_desc with

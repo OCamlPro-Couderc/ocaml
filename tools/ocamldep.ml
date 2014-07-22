@@ -96,7 +96,7 @@ let rec find_file_in_list = function
 | x :: rem -> try find_file x with Not_found -> find_file_in_list rem
 
 
-let find_dependency target_kind modname (byt_deps, opt_deps) =
+let find_dependency target_kind (modname, _) (byt_deps, opt_deps) =
   try
     let candidates = List.map ((^) modname) !mli_synonyms in
     let filename = find_file_in_list candidates in
@@ -188,8 +188,8 @@ let print_dependencies target_files deps =
 
 let print_raw_dependencies source_file deps =
   print_filename source_file; print_string depends_on;
-  Depend.StringSet.iter
-    (fun dep ->
+  Depend.StringLid.iter
+    (fun (dep, _) ->
       if (String.length dep > 0)
           && (match dep.[0] with 'A'..'Z' -> true | _ -> false) then begin
             print_char ' ';
@@ -214,13 +214,13 @@ let report_err exn =
         | None -> raise x
 
 let read_parse_and_extract parse_function extract_function magic source_file =
-  Depend.free_structure_names := Depend.StringSet.empty;
+  Depend.free_structure_names := Depend.StringLid.empty;
   try
     let input_file = Pparse.preprocess source_file in
     begin try
       let ast =
         Pparse.file Format.err_formatter input_file parse_function magic in
-      extract_function Depend.StringSet.empty ast;
+      extract_function Depend.StringLid.empty ast;
       Pparse.remove_preprocessed input_file;
       !Depend.free_structure_names
     with x ->
@@ -229,7 +229,7 @@ let read_parse_and_extract parse_function extract_function magic source_file =
     end
   with x ->
     report_err x;
-    Depend.StringSet.empty
+    Depend.StringLid.empty
 
 let ml_file_dependencies source_file =
   let parse_use_file_as_impl lexbuf =
@@ -237,7 +237,8 @@ let ml_file_dependencies source_file =
       match x with
       | Ptop_def s -> s
       | Ptop_dir _ -> []
-      | Ptop_prl _ -> []
+      | Ptop_prl prl -> Format.printf "Calling simple_structure@.";
+          Prelude_utils.simple_structure prl
     in
     List.flatten (List.map f (Parse.use_file lexbuf))
   in
@@ -267,13 +268,17 @@ let ml_file_dependencies source_file =
              (if !all_dependencies then [cmi_name] else [])
       in
       let (byt_deps, native_deps) =
-        Depend.StringSet.fold (find_dependency ML)
+        Depend.StringLid.fold (find_dependency ML)
           extracted_deps init_deps in
       print_dependencies (byte_targets @ extra_targets) byt_deps;
       print_dependencies (native_targets @ extra_targets) native_deps;
     end
 
 let mli_file_dependencies source_file =
+  (* let parse_interface lexbuf = *)
+  (*   let Pinterf (prl, ast) = Parse.interface lexbuf in *)
+  (*   Prelude_utils.simple_signature prl @ ast *)
+  (* in *)
   let extracted_deps =
     read_parse_and_extract Parse.interface Depend.add_interface
                            Config.ast_intf_magic_number source_file
@@ -286,7 +291,7 @@ let mli_file_dependencies source_file =
     end else begin
       let basename = Filename.chop_extension source_file in
       let (byt_deps, _opt_deps) =
-        Depend.StringSet.fold (find_dependency MLI)
+        Depend.StringLid.fold (find_dependency MLI)
           extracted_deps ([], []) in
       print_dependencies [basename ^ ".cmi"] byt_deps
     end
@@ -336,7 +341,7 @@ let sort_files_by_dependencies files =
     let add_dep modname kind =
       new_deps := (modname, kind) :: !new_deps;
     in
-    Depend.StringSet.iter (fun modname ->
+    Depend.StringLid.iter (fun (modname, _) ->
       match file_kind with
           ML -> (* ML depends both on ML and MLI *)
             if Hashtbl.mem h (modname, MLI) then add_dep modname MLI;

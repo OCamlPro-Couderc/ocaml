@@ -12,7 +12,7 @@
 
 (** Top modules dependencies. *)
 
-module StrS = Depend.StringSet
+module StrS = Depend.StringLid
 module Module = Odoc_module
 module Type = Odoc_type
 
@@ -140,7 +140,7 @@ module Dep =
    [t] depends on. *)
 let type_deps t =
   let module T = Odoc_type in
-  let l = ref [] in
+  let (l:Odoc_module.Name.t list ref) = ref [] in
   let re = Str.regexp "\\([A-Z]\\([a-zA-Z_'0-9]\\)*\\.\\)+\\([a-z][a-zA-Z_'0-9]*\\)" in
   let f s =
     let s2 = Str.matched_string s in

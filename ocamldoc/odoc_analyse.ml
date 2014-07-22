@@ -140,7 +140,8 @@ let process_file ppf sourcefile =
              let file_module = Ast_analyser.analyse_typed_tree file
                  !Location.input_name parsetree typedtree
              in
-             file_module.Odoc_module.m_top_deps <- Odoc_dep.impl_dependencies parsetree ;
+             file_module.Odoc_module.m_top_deps <-
+               List.map fst @@ Odoc_dep.impl_dependencies parsetree ;
 
              if !Odoc_global.verbose then
                (
@@ -170,7 +171,8 @@ let process_file ppf sourcefile =
              !Location.input_name ast signat.sig_type
          in
 
-         file_module.Odoc_module.m_top_deps <- Odoc_dep.intf_dependencies ast ;
+         file_module.Odoc_module.m_top_deps <-
+           List.map fst @@ Odoc_dep.intf_dependencies ast ;
 
          if !Odoc_global.verbose then
            (
