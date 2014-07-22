@@ -14,9 +14,11 @@
 
 module StringLid : Set.S with type elt = string * Longident.t option
 
-module StringSet : Set.S with type elt = string
-
 val free_structure_names : StringLid.t ref
+
+(* In case a module cannot be found in the loadpath, it allows to retrieve it
+   into a namespace whose modules were added by a wildcard *)
+val possible_wildcard : Longident.t list ref
 
 val add_use_file : StringLid.t -> Parsetree.toplevel_phrase list -> unit
 

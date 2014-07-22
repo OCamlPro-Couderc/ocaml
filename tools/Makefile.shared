@@ -209,6 +209,7 @@ READ_CMT= \
           ../parsing/pprintast.cmo \
           ../parsing/ast_helper.cmo \
           ../parsing/ast_mapper.cmo \
+          ../parsing/prelude_utils.cmo \
           ../typing/ident.cmo \
           ../typing/path.cmo \
           ../typing/types.cmo \

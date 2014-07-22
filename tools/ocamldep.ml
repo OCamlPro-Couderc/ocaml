@@ -75,12 +75,23 @@ let add_to_synonym_list synonyms suffix =
   end
 
 (* Find file 'name' (capitalized) in search path *)
-let find_file name =
+let find_file ?(subdir=None) name =
   let uname = String.uncapitalize name in
   let rec find_in_array a pos =
     if pos >= Array.length a then None else begin
       let s = a.(pos) in
-      if s = name || s = uname then Some s else find_in_array a (pos + 1)
+      match subdir with
+        None ->
+          if s = name || s = uname then Some s else find_in_array a (pos + 1)
+      | Some dir ->
+          if s = dir then
+            let name = Filename.concat s name in
+            let uname = Filename.concat s uname in
+            if Sys.file_exists name then Some name
+            else if Sys.file_exists uname then Some uname
+            else find_in_array a (pos + 1)
+          else if s = name || s = uname then Some s
+          else find_in_array a (pos + 1)
     end in
   let rec find_in_path = function
     [] -> raise Not_found
@@ -91,15 +102,20 @@ let find_file name =
       | None -> find_in_path rem in
   find_in_path !load_path
 
-let rec find_file_in_list = function
+let rec find_file_in_list ?(subdir=None) = function
   [] -> raise Not_found
-| x :: rem -> try find_file x with Not_found -> find_file_in_list rem
+| x :: rem -> try find_file ~subdir x with Not_found -> find_file_in_list rem
 
 
-let find_dependency target_kind (modname, _) (byt_deps, opt_deps) =
+let find_dependency target_kind (modname, ns) (byt_deps, opt_deps) =
   try
     let candidates = List.map ((^) modname) !mli_synonyms in
-    let filename = find_file_in_list candidates in
+    let subdir = match ns with
+        None -> None
+      | Some _ ->
+          let dir = Prelude_utils.longident_to_filepath ns in
+          Some dir in
+    let filename = find_file_in_list ~subdir candidates in
     let basename = Filename.chop_extension filename in
     let cmi_file = basename ^ ".cmi" in
     let ml_exists =
@@ -122,7 +138,12 @@ let find_dependency target_kind (modname, _) (byt_deps, opt_deps) =
   try
     (* "just .ml" case *)
     let candidates = List.map ((^) modname) !ml_synonyms in
-    let filename = find_file_in_list candidates in
+    let subdir = match ns with
+        None -> None
+      | Some _ ->
+          let dir = Prelude_utils.longident_to_filepath ns in
+          Some dir in
+    let filename = find_file_in_list ~subdir candidates in
     let basename = Filename.chop_extension filename in
     let bytenames =
       if !all_dependencies then
@@ -189,11 +210,15 @@ let print_dependencies target_files deps =
 let print_raw_dependencies source_file deps =
   print_filename source_file; print_string depends_on;
   Depend.StringLid.iter
-    (fun (dep, _) ->
+    (fun (dep, ns) ->
       if (String.length dep > 0)
           && (match dep.[0] with 'A'..'Z' -> true | _ -> false) then begin
             print_char ' ';
-            print_string dep
+            print_string dep;
+            match ns with
+              None -> ()
+            | Some l -> print_char '@';
+                print_string (Longident.string_of_longident l)
           end)
     deps;
   print_char '\n'
@@ -215,6 +240,7 @@ let report_err exn =
 
 let read_parse_and_extract parse_function extract_function magic source_file =
   Depend.free_structure_names := Depend.StringLid.empty;
+  Depend.possible_wildcard := [];
   try
     let input_file = Pparse.preprocess source_file in
     begin try
@@ -237,8 +263,10 @@ let ml_file_dependencies source_file =
       match x with
       | Ptop_def s -> s
       | Ptop_dir _ -> []
-      | Ptop_prl prl -> Format.printf "Calling simple_structure@.";
-          Prelude_utils.simple_structure prl
+      | Ptop_prl prl ->
+          let str, lset = Prelude_utils.simple_structure prl in
+          Depend.possible_wildcard := List.rev lset;
+          str
     in
     List.flatten (List.map f (Parse.use_file lexbuf))
   in
@@ -275,10 +303,6 @@ let ml_file_dependencies source_file =
     end
 
 let mli_file_dependencies source_file =
-  (* let parse_interface lexbuf = *)
-  (*   let Pinterf (prl, ast) = Parse.interface lexbuf in *)
-  (*   Prelude_utils.simple_signature prl @ ast *)
-  (* in *)
   let extracted_deps =
     read_parse_and_extract Parse.interface Depend.add_interface
                            Config.ast_intf_magic_number source_file

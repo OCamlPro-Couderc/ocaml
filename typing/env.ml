@@ -22,16 +22,9 @@ open Types
 open Btype
 
 
-let longident_to_filepath = function
-    | None -> ""
-    | Some lid ->
-        String.concat Filename.dir_sep
-        @@ List.map String.uncapitalize
-        @@ Longident.flatten lid
+let longident_to_filepath = Prelude_utils.longident_to_filepath
 
-let namespace_name = function
-    None -> "ROOT"
-  | Some ns -> string_of_longident ns
+let namespace_name = Prelude_utils.namespace_name
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
 

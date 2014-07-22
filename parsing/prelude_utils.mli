@@ -19,8 +19,14 @@ val update_ns: Longident.t option -> string -> Longident.t option
 
 val print_namespace: namespaces -> string
 
+(** Returns the path where the cmis/cmos in the namespace given should be looked for *)
+val longident_to_filepath: Longident.t option -> string
+
+(** Returns the namespace name, ROOT otherwise *)
+val namespace_name: Longident.t option -> string
+
 (* Ocamldep specific functions: creates an AST for the analysis *)
 
-val simple_structure: Parsetree.prelude -> Parsetree.structure
+val simple_structure: Parsetree.prelude -> Parsetree.structure * Longident.t list
 
-val simple_signature: Parsetree.prelude -> Parsetree.signature
+val simple_signature: Parsetree.prelude -> Parsetree.signature * Longident.t list
