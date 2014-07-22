@@ -1634,10 +1634,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
   let Pimpl (prl, ast) = ast in
   let (str, sg, finalenv), ns =
     let env, ns, ast =
-      if !Clflags.plain_imports then
-        let prlast, ns = Typens.compute_prelude prl in
-        initial_env, ns, prlast @ ast
-      else
+      (* if !Clflags.plain_imports then *)
+      (*   let prlast, ns = Typens.compute_prelude prl in *)
+      (*   initial_env, ns, prlast @ ast *)
+      (* else *)
         let env, ns =
           Typens.compute_prelude_no_alias prl initial_env in
         env, ns, ast
@@ -1722,10 +1722,10 @@ let type_interface env (Pinterf (prl, ast)) =
     let map = Typetexp.emit_external_warnings in
     ignore (map.Ast_mapper.signature map ast)
   end;
-  if !Clflags.plain_imports then
-    let prl_sg, ns = Typens.compute_interface_prelude prl in
-    transl_signature env (prl_sg @ ast), ns
-  else
+  (* if !Clflags.plain_imports then *)
+  (*   let prl_sg, ns = Typens.compute_interface_prelude prl in *)
+  (*   transl_signature env (prl_sg @ ast), ns *)
+  (* else *)
     let env, ns = Typens.compute_prelude_no_alias prl env in
     transl_signature env ast, ns
 

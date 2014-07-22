@@ -516,7 +516,7 @@ interface:
 ;
 toplevel_phrase:
     top_structure SEMISEMI               { Ptop_def $1 }
-  | prelude                              { Ptop_prl $1 }
+  | prelude SEMISEMI                     { Ptop_prl $1 }
   | toplevel_directive SEMISEMI          { $1 }
   | EOF                                  { raise End_of_file }
 ;
@@ -565,7 +565,8 @@ top_structure_tail:
   | structure_item top_structure_tail    { $1 :: $2 }
 ;
 use_file:
-    use_file_tail                        { $1 }
+    prelude SEMISEMI use_file_tail { (Ptop_prl $1) :: $3 }
+  | use_file_tail                        { $1 }
   | seq_expr post_item_attributes use_file_tail
                                          { Ptop_def[mkstrexp $1 $2] :: $3 }
 ;

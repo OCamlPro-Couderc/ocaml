@@ -13,11 +13,12 @@
 open Parsetree;;
 open Format;;
 
-val interface : formatter -> signature_item list -> unit;;
+val interface : formatter -> interface -> unit;;
 val implementation : formatter -> implementation -> unit;;
 val top_phrase : formatter -> toplevel_phrase -> unit;;
 
 val expression: int -> formatter -> expression -> unit
+val signature: int -> formatter -> signature -> unit
 val structure: int -> formatter -> structure -> unit
 val prelude: int -> formatter -> prelude -> unit
 val payload: int -> formatter -> payload -> unit

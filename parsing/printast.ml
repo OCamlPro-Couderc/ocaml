@@ -913,7 +913,12 @@ and directive_argument i ppf x =
   | Pdir_bool (b) -> line i ppf "Pdir_bool %s\n" (string_of_bool b);
 ;;
 
-let interface ppf x = list 0 signature_item ppf x;;
+let signature i ppf x =
+  list i signature_item ppf x;;
+
+let interface ppf (Pinterf (prl, x)) =
+  prelude 0 ppf prl;
+  list 0 signature_item ppf x;;
 
 let implementation ppf (Pimpl (prl, x)) =
   prelude 0 ppf prl;
