@@ -74,6 +74,56 @@ let add_to_synonym_list synonyms suffix =
     error_occurred := true
   end
 
+(* Already parsed files *)
+let parsed_files = ref StringMap.empty
+
+let parse_namespace_declaration f =
+  Format.printf "Parsing %s@." f;
+  let match_some = function None -> false | Some _ -> true in
+  let extract_lid = function None -> assert false | Some l -> l in
+  let rec parse_lident acc lb =
+    match Lexer.token lb with
+    | Parser.UIDENT s when not (match_some acc) ->
+        parse_lident (Some (Longident.Lident s)) lb
+    | Parser.DOT when match_some acc->
+        begin
+          match Lexer.token lb with
+          | Parser.UIDENT s ->
+              parse_lident (Some (Longident.Ldot (extract_lid acc, s))) lb
+          | _ -> None (* not a namespace *)
+        end
+    | _ -> acc
+  in
+  if StringMap.mem f !parsed_files then
+    StringMap.find f !parsed_files
+  else
+    let res =
+      if Sys.file_exists f then
+        let c = open_in f in
+        let lb = Lexing.from_channel c in
+        try
+          let in_keyword = Lexer.token lb in
+          let ns_keyword = Lexer.token lb in
+          let res = if in_keyword = Parser.IN && ns_keyword = Parser.NAMESPACE then
+              parse_lident None lb
+            else None in
+          close_in c;
+          res
+        with _ ->
+          close_in c;
+          None
+      else None in
+    parsed_files := StringMap.add f res !parsed_files;
+    res
+
+let is_wildcard_compliant dir filename =
+  let declared_ns = parse_namespace_declaration @@ Filename.concat dir filename in
+  Format.printf "Ns declared: %s@." (Prelude_utils.namespace_name declared_ns);
+  let rec find = function
+    | [] -> None
+    | ns :: t -> if (Some ns) = declared_ns then Some filename else find t in
+  find !Depend.possible_wildcard
+
 (* Find file 'name' (capitalized) in search path *)
 let find_file ?(subdir=None) name =
   let uname = String.uncapitalize name in
@@ -83,13 +133,13 @@ let find_file ?(subdir=None) name =
       match subdir with
         None ->
           if s = name || s = uname then Some s else find_in_array a (pos + 1)
-      | Some dir ->
-          if s = dir then
-            let name = Filename.concat s name in
-            let uname = Filename.concat s uname in
-            if Sys.file_exists name then Some name
-            else if Sys.file_exists uname then Some uname
-            else find_in_array a (pos + 1)
+      | Some d ->
+          let sname = Filename.concat s name in
+          let suname = Filename.concat s uname in
+          if s = d then
+            if Sys.file_exists sname then Some sname
+            else if Sys.file_exists suname then Some suname
+            else find_in_array dir a (pos + 1)
           else if s = name || s = uname then Some s
           else find_in_array a (pos + 1)
     end in
