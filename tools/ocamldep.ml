@@ -77,8 +77,11 @@ let add_to_synonym_list synonyms suffix =
 (* Already parsed files *)
 let parsed_files = ref StringMap.empty
 
+(* Parses the first token of the file and extract the namespace declared. If the
+   two first aren't IN and NAMESPACE, then it does not belong to a namespace.
+   Parsed files are put in a cache to avoid parsing it multiple time.
+*)
 let parse_namespace_declaration f =
-  Format.printf "Parsing %s@." f;
   let match_some = function None -> false | Some _ -> true in
   let extract_lid = function None -> assert false | Some l -> l in
   let rec parse_lident acc lb =
@@ -118,35 +121,42 @@ let parse_namespace_declaration f =
 
 let is_wildcard_compliant dir filename =
   let declared_ns = parse_namespace_declaration @@ Filename.concat dir filename in
-  Format.printf "Ns declared: %s@." (Prelude_utils.namespace_name declared_ns);
   let rec find = function
     | [] -> None
-    | ns :: t -> if (Some ns) = declared_ns then Some filename else find t in
-  find !Depend.possible_wildcard
+    | ns :: t -> if (Some ns) = declared_ns then
+          let d = Prelude_utils.longident_to_filepath declared_ns
+                  |> Filename.concat dir in
+          Some (Filename.concat d filename)
+        else find t in
+  if declared_ns = None then Some filename else find !Depend.possible_wildcard
 
 (* Find file 'name' (capitalized) in search path *)
 let find_file ?(subdir=None) name =
   let uname = String.uncapitalize name in
-  let rec find_in_array a pos =
+  let rec find_in_array dir a pos =
     if pos >= Array.length a then None else begin
       let s = a.(pos) in
       match subdir with
         None ->
-          if s = name || s = uname then Some s else find_in_array a (pos + 1)
+          if s = name || s = uname then
+            match is_wildcard_compliant dir s with
+              None -> find_in_array dir a (pos + 1)
+            | Some s -> Some s
+          else find_in_array dir a (pos + 1)
       | Some d ->
           let sname = Filename.concat d name in
           let suname = Filename.concat d uname in
           if s = d then
             if Sys.file_exists sname then Some sname
             else if Sys.file_exists suname then Some suname
-            else find_in_array a (pos + 1)
+            else find_in_array dir a (pos + 1)
           else if s = name || s = uname then Some s
-          else find_in_array a (pos + 1)
+          else find_in_array dir a (pos + 1)
     end in
   let rec find_in_path = function
     [] -> raise Not_found
   | (dir, contents) :: rem ->
-      match find_in_array contents 0 with
+      match find_in_array dir contents 0 with
         Some truename ->
           if dir = "." then truename else Filename.concat dir truename
       | None -> find_in_path rem in
@@ -156,6 +166,21 @@ let rec find_file_in_list ?(subdir=None) = function
   [] -> raise Not_found
 | x :: rem -> try find_file ~subdir x with Not_found -> find_file_in_list rem
 
+let find_file_extended ?(subdir=None) candidates =
+  let rec find unresolved =
+    match unresolved with
+      [] -> raise Not_found
+    | s :: rem ->
+        let subdir = Some (Prelude_utils.longident_to_filepath (Some s)) in
+        begin
+          match find_file_in_list ~subdir candidates with
+            value -> value
+          | exception Not_found -> find rem
+        end
+  in
+  match find_file_in_list ~subdir candidates with
+    value -> value
+  | exception Not_found -> find !Depend.possible_wildcard
 
 let find_dependency target_kind (modname, ns) (byt_deps, opt_deps) =
   try
@@ -165,7 +190,7 @@ let find_dependency target_kind (modname, ns) (byt_deps, opt_deps) =
       | Some _ ->
           let dir = Prelude_utils.longident_to_filepath ns in
           Some dir in
-    let filename = find_file_in_list ~subdir candidates in
+    let filename = find_file_extended ~subdir candidates in
     let basename = Filename.chop_extension filename in
     let cmi_file = basename ^ ".cmi" in
     let ml_exists =
@@ -193,7 +218,7 @@ let find_dependency target_kind (modname, ns) (byt_deps, opt_deps) =
       | Some _ ->
           let dir = Prelude_utils.longident_to_filepath ns in
           Some dir in
-    let filename = find_file_in_list ~subdir candidates in
+    let filename = find_file_extended ~subdir candidates in
     let basename = Filename.chop_extension filename in
     let bytenames =
       if !all_dependencies then
