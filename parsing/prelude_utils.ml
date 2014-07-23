@@ -145,8 +145,8 @@ let mod_to_parsetree ns (acc, lset) item =
 let simple_structure prl =
   List.map (fun item ->
       (mknoloc (Mod ("Pervasives", "Pervasives", true))
-      :: (List.map (fun cstr ->
-          mod_of_cstr cstr.imp_cstr_loc cstr.imp_cstr_desc) item.imp_cstr),
+       :: (List.map (fun cstr ->
+           mod_of_cstr cstr.imp_cstr_loc cstr.imp_cstr_desc) item.imp_cstr),
        item.imp_namespace))
     prl.prl_imports
   |> List.fold_left (fun acc (mods, ns) ->
@@ -204,8 +204,8 @@ let mod_to_parsetree_sig ns (acc, lset) item =
 let simple_signature prl =
   List.map (fun item ->
       (mknoloc (Mod ("Pervasives", "Pervasives", true))
-      :: (List.map (fun cstr ->
-          mod_of_cstr cstr.imp_cstr_loc cstr.imp_cstr_desc) item.imp_cstr),
+       :: (List.map (fun cstr ->
+           mod_of_cstr cstr.imp_cstr_loc cstr.imp_cstr_desc) item.imp_cstr),
        item.imp_namespace))
     prl.prl_imports
   |> List.fold_left (fun acc (mods, ns) ->

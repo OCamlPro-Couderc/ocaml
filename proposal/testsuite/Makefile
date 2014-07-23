@@ -199,7 +199,6 @@ p2/%.cmx: p2/%.ml
 	$(CAMLOPT) $(FLAGS) -c -for-pack P $<
 
 depend:
-	@echo $(SRCS)
 	ocamldep $(SRCS) > .depend
 
 clean:

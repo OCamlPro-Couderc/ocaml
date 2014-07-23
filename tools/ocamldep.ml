@@ -144,6 +144,7 @@ let find_file ?(subdir=None) name =
             | Some s -> Some s
           else find_in_array dir a (pos + 1)
       | Some d ->
+          (* Format.printf "Looking for %s in %s@." name d; *)
           let sname = Filename.concat d name in
           let suname = Filename.concat d uname in
           if s = d then
@@ -180,7 +181,7 @@ let find_file_extended ?(subdir=None) candidates =
   in
   match find_file_in_list ~subdir candidates with
     value -> value
-  | exception Not_found -> find !Depend.possible_wildcard
+  | exception Not_found when subdir = None -> find !Depend.possible_wildcard
 
 let find_dependency target_kind (modname, ns) (byt_deps, opt_deps) =
   try
@@ -350,6 +351,7 @@ let ml_file_dependencies source_file =
       | Ptop_dir _ -> []
       | Ptop_prl prl ->
           let str, lset = Prelude_utils.simple_structure prl in
+          (* Format.printf "%a" (Printast.structure 0) str; *)
           Depend.possible_wildcard := lset;
           str
     in

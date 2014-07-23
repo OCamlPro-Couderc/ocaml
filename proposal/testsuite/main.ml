@@ -1,4 +1,4 @@
-with (_) of X
+with (M1; _) of X
 and (Mod) of Y(* ;; *)
 (* Mod@Y rebinds M1@X *)
 and (Mod as ZMod) of Z;;
