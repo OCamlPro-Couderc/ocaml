@@ -134,12 +134,12 @@ let find_file ?(subdir=None) name =
         None ->
           if s = name || s = uname then Some s else find_in_array a (pos + 1)
       | Some d ->
-          let sname = Filename.concat s name in
-          let suname = Filename.concat s uname in
+          let sname = Filename.concat d name in
+          let suname = Filename.concat d uname in
           if s = d then
             if Sys.file_exists sname then Some sname
             else if Sys.file_exists suname then Some suname
-            else find_in_array dir a (pos + 1)
+            else find_in_array a (pos + 1)
           else if s = name || s = uname then Some s
           else find_in_array a (pos + 1)
     end in
@@ -271,7 +271,17 @@ let print_raw_dependencies source_file deps =
                 print_string (Longident.string_of_longident l)
           end)
     deps;
-  print_char '\n'
+  print_char '\n';
+  (* Prints the unresolved namespaces, aka imported with a '_' *)
+  if !Depend.possible_wildcard <> [] then
+    begin
+      print_string "Namespaces: ";
+      List.iter (fun lid ->
+          let s = Longident.string_of_longident lid in
+          print_string s;
+          print_char ' ') !Depend.possible_wildcard;
+      print_char '\n'
+    end
 
 
 (* Process one file *)

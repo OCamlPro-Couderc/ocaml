@@ -15,7 +15,6 @@ open Location
 open Longident
 open Parsetree
 
-module StringSet = Set.Make(struct type t = string let compare = compare end)
 module StringLid = Set.Make(struct
     type t = string * Longident.t option
     let compare = compare
