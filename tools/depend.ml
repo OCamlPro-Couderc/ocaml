@@ -245,7 +245,7 @@ and add_signature bv = function
 and add_interface bv (Pinterf (prl, sg)) =
   let prl_sg, lset = Prelude_utils.simple_signature prl in
   let sg = prl_sg @ sg in
-  possible_wildcard := List.rev lset;
+  possible_wildcard := lset;
   add_signature bv sg
 
 and add_sig_item bv item =

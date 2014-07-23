@@ -350,7 +350,7 @@ let ml_file_dependencies source_file =
       | Ptop_dir _ -> []
       | Ptop_prl prl ->
           let str, lset = Prelude_utils.simple_structure prl in
-          Depend.possible_wildcard := List.rev lset;
+          Depend.possible_wildcard := lset;
           str
     in
     List.flatten (List.map f (Parse.use_file lexbuf))

@@ -54,7 +54,6 @@ P2_CMXS = $(P2_CMOS:.cmo=.cmx)
 
 P2_OBJS = $(P2_CMIS) $(P2_CMOS) $(P2_CMXS)
 
-
 CMIS = $(X_CMIS) $(Y_CMIS) $(Z_CMIS) $(FUN_CMIS)
 CMOS = $(X_CMOS) $(Y_CMOS) $(Z_CMOS) $(FUN_CMOS) $(P1_CMOS) $(P2_CMOS)
 CMXS = $(X_CMXS) $(Y_CMXS) $(Z_CMXS) $(FUN_CMXS) $(P1_CMXS) $(P2_CMXS)
@@ -65,6 +64,12 @@ ASMS = $(OBJS:.o=.s)
 EXEC = main functor link includes pack multi
 BYTE_EXEC = $(addsuffix .byte,$(EXEC))
 NAT_EXEC = $(addsuffix .nat, $(EXEC))
+SRC_EXEC = $(addsuffix .ml, $(EXEC))
+
+SRCS = $(X_IMPL_SRC) $(X_INTF_SRC) $(Y_IMPL_SRC) $(Y_INTF_SRC) \
+	$(Z_IMPL_SRC) $(Z_INTF_SRC) $(FUN_IMPL_SRC) $(FUN_INTF_SRC) \
+	$(P1_IMPL_SRC) $(P1_INTF_SRC) $(P2_IMPL_SRC) $(P2_INTF_SRC) \
+	$(SRC_EXEC)
 
 CAMLC = ocamlc
 CAMLOPT = ocamlopt -S
@@ -193,8 +198,13 @@ p2/%.cmo: p2/%.ml
 p2/%.cmx: p2/%.ml
 	$(CAMLOPT) $(FLAGS) -c -for-pack P $<
 
+depend:
+	@echo $(SRCS)
+	ocamldep $(SRCS) > .depend
+
 clean:
 	rm -f $(CMIS) $(CMOS) $(CMXS) $(BYTE_EXEC) $(NAT_EXEC) $(OBJS) $(ASMS)
-	rm -f $(RCMIS) p1/p.* p2/p.*
+	rm -f $(RCMIS) p1/p.* p2/p.* .depend
 	rm -f *~ *.o */*.o *.s *.cm[ioxa] *.cmxa
 
+-include .depend
