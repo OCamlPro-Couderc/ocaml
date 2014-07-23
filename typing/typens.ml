@@ -427,3 +427,5 @@ let realias_signature sg =
     | Sig_class_type (id, ctd, r) -> item
   in
   List.map update_item sg
+
+let realias_type_expr = update_type_expr

@@ -203,7 +203,7 @@ depend:
 
 clean:
 	rm -f $(CMIS) $(CMOS) $(CMXS) $(BYTE_EXEC) $(NAT_EXEC) $(OBJS) $(ASMS)
-	rm -f $(RCMIS) p1/p.* p2/p.* .depend
+	rm -f $(RCMIS) p1/p.* p2/p.*
 	rm -f *~ *.o */*.o *.s *.cm[ioxa] *.cmxa
 
 -include .depend
