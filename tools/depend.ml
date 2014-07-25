@@ -19,6 +19,7 @@ module StringLid = Set.Make(struct
     type t = string * Longident.t option
     let compare = compare
   end)
+module StringSet = Set.Make(String)
 
 let remove_loc = function
     None -> None
@@ -32,7 +33,7 @@ let possible_wildcard = ref []
 let rec addmodule bv lid ns =
   match lid with
     Lident s ->
-      if not (StringLid.mem (s, ns) bv)
+      if not (StringSet.mem s bv)
       then free_structure_names := StringLid.add (s, ns) !free_structure_names
   | Ldot(l, _s) -> addmodule bv l ns
   | Lapply(l1, l2) -> addmodule bv l1 ns; addmodule bv l2 ns
@@ -123,9 +124,9 @@ let add_class_description bv infos =
 
 let add_class_type_declaration = add_class_description
 
-let pattern_bv = ref StringLid.empty
+let pattern_bv = ref StringSet.empty
 
-let rec add_pattern (bv: StringLid.t) pat =
+let rec add_pattern (bv: StringSet.t) pat =
   match pat.ppat_desc with
     Ppat_any -> ()
   | Ppat_var _ -> ()
@@ -142,11 +143,11 @@ let rec add_pattern (bv: StringLid.t) pat =
   | Ppat_variant(_, op) -> add_opt add_pattern bv op
   | Ppat_type li -> add bv li
   | Ppat_lazy p -> add_pattern bv p
-  | Ppat_unpack id -> pattern_bv := StringLid.add (id.txt, None) !pattern_bv
+  | Ppat_unpack id -> pattern_bv := StringSet.add id.txt !pattern_bv
   | Ppat_exception p -> add_pattern bv p
   | Ppat_extension _ -> ()
 
-let add_pattern (bv : StringLid.t) pat =
+let add_pattern (bv : StringSet.t) pat =
   pattern_bv := bv;
   add_pattern bv pat;
   !pattern_bv
@@ -192,7 +193,7 @@ let rec add_expr bv exp =
   | Pexp_setinstvar(_v, e) -> add_expr bv e
   | Pexp_override sel -> List.iter (fun (_s, e) -> add_expr bv e) sel
   | Pexp_letmodule(id, m, e) ->
-      add_module bv m; add_expr (StringLid.add (id.txt, None) bv) e
+      add_module bv m; add_expr (StringSet.add id.txt bv) e
   | Pexp_assert (e) -> add_expr bv e
   | Pexp_lazy (e) -> add_expr bv e
   | Pexp_poly (e, t) -> add_expr bv e; add_opt add_type bv t
@@ -224,7 +225,7 @@ and add_modtype bv mty =
   | Pmty_signature s -> add_signature bv s
   | Pmty_functor(id, mty1, mty2) ->
       Misc.may (add_modtype bv) mty1;
-      add_modtype (StringLid.add (id.txt, None) bv) mty2
+      add_modtype (StringSet.add id.txt bv) mty2
   | Pmty_with(mty, cstrl) ->
       add_modtype bv mty;
       List.iter
@@ -259,11 +260,11 @@ and add_sig_item bv item =
   | Psig_exception pext ->
       add_extension_constructor bv pext; bv
   | Psig_module pmd ->
-      add_modtype bv pmd.pmd_type; StringLid.add (pmd.pmd_name.txt, None) bv
+      add_modtype bv pmd.pmd_type; StringSet.add pmd.pmd_name.txt bv
   | Psig_recmodule decls ->
       let bv' =
-        List.fold_right StringLid.add
-                        (List.map (fun pmd -> pmd.pmd_name.txt, None) decls) bv
+        List.fold_right StringSet.add
+                        (List.map (fun pmd -> pmd.pmd_name.txt) decls) bv
       in
       List.iter (fun pmd -> add_modtype bv' pmd.pmd_type) decls;
       bv'
@@ -290,7 +291,7 @@ and add_module bv modl =
   | Pmod_structure s -> ignore (add_structure bv s)
   | Pmod_functor(id, mty, modl) ->
       Misc.may (add_modtype bv) mty;
-      add_module (StringLid.add (id.txt, None) bv) modl
+      add_module (StringSet.add id.txt bv) modl
   | Pmod_apply(mod1, mod2) ->
       add_module bv mod1; add_module bv mod2
   | Pmod_constraint(modl, mty) ->
@@ -319,11 +320,11 @@ and add_struct_item bv item =
   | Pstr_exception pext ->
       add_extension_constructor bv pext; bv
   | Pstr_module x ->
-      add_module bv x.pmb_expr; StringLid.add (x.pmb_name.txt, None) bv
+      add_module bv x.pmb_expr; StringSet.add x.pmb_name.txt bv
   | Pstr_recmodule bindings ->
       let bv' =
-        List.fold_right StringLid.add
-          (List.map (fun x -> x.pmb_name.txt, None) bindings) bv in
+        List.fold_right StringSet.add
+          (List.map (fun x -> x.pmb_name.txt) bindings) bv in
       List.iter
         (fun x -> add_module bv' x.pmb_expr)
         bindings;

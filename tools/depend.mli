@@ -13,6 +13,7 @@
 (** Module dependencies. *)
 
 module StringLid : Set.S with type elt = string * Longident.t option
+module StringSet : Set.S with type elt = string
 
 val free_structure_names : StringLid.t ref
 
@@ -20,10 +21,10 @@ val free_structure_names : StringLid.t ref
    into a namespace whose modules were added by a wildcard *)
 val possible_wildcard : Longident.t list ref
 
-val add_use_file : StringLid.t -> Parsetree.toplevel_phrase list -> unit
+val add_use_file : StringSet.t -> Parsetree.toplevel_phrase list -> unit
 
-val add_signature : StringLid.t -> Parsetree.signature -> unit
+val add_signature : StringSet.t -> Parsetree.signature -> unit
 
-val add_interface : StringLid.t -> Parsetree.interface -> unit
+val add_interface : StringSet.t -> Parsetree.interface -> unit
 
-val add_implementation : StringLid.t -> Parsetree.structure -> unit
+val add_implementation : StringSet.t -> Parsetree.structure -> unit

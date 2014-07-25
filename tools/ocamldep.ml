@@ -332,7 +332,7 @@ let read_parse_and_extract parse_function extract_function magic source_file =
     begin try
       let ast =
         Pparse.file Format.err_formatter input_file parse_function magic in
-      extract_function Depend.StringLid.empty ast;
+      extract_function Depend.StringSet.empty ast;
       Pparse.remove_preprocessed input_file;
       !Depend.free_structure_names
     with x ->

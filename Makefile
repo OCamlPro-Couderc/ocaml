@@ -22,7 +22,7 @@ COMPFLAGS=-strict-sequence -w +33..39+48 -warn-error A -bin-annot \
 LINKFLAGS=
 
 CAMLYACC=boot/ocamlyacc
-YACCFLAGS=-v
+YACCFLAGS=--v
 CAMLLEX=boot/ocamlrun boot/ocamllex
 CAMLDEP=boot/ocamlrun tools/ocamldep
 DEPFLAGS=$(INCLUDES)

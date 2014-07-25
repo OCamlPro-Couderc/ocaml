@@ -507,16 +507,16 @@ The precedences must be listed from low to high.
 /* Entry points */
 
 implementation:
-    prelude SEMISEMI structure EOF       { Pimpl ($1, $3) }
-  | structure EOF                        { Pimpl (Ns.empty, $1) }
+    prelude structure EOF       { Pimpl ($1, $2) }
+  /* | structure EOF                        { Pimpl (Ns.empty, $1) } */
 ;
 interface:
-    prelude SEMISEMI signature EOF       { Pinterf ($1, $3) }
-  | signature EOF                        { Pinterf (Ns.empty, $1) }
+    prelude signature EOF       { Pinterf ($1, $2) }
+ /* | signature EOF                        { Pinterf (Ns.empty, $1) } */
 ;
 toplevel_phrase:
-    top_structure SEMISEMI               { Ptop_def $1 }
-  | imports SEMISEMI                     { Ptop_prl (mk_prl None $1) }
+    imports SEMISEMI                     { Ptop_prl (mk_prl None $1) }
+  | top_structure SEMISEMI               { Ptop_def $1 }
   | toplevel_directive SEMISEMI          { $1 }
   | EOF                                  { raise End_of_file }
 ;
@@ -565,7 +565,7 @@ top_structure_tail:
   | structure_item top_structure_tail    { $1 :: $2 }
 ;
 use_file:
-    prelude SEMISEMI use_file_tail { (Ptop_prl $1) :: $3 }
+    prelude use_file_tail { (Ptop_prl $1) :: $2 }
   | use_file_tail                        { $1 }
   | seq_expr post_item_attributes use_file_tail
                                          { Ptop_def[mkstrexp $1 $2] :: $3 }

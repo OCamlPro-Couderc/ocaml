@@ -309,14 +309,8 @@ let execute_phrase print_outcome ppf phr =
       let oldenv = !toplevel_env in
       Typecore.reset_delayed_checks ();
       try
-        let newenv, ns = Typens.compute_prelude_no_alias prl oldenv in
+        let newenv, _ = Typens.compute_prelude_no_alias prl oldenv in
         toplevel_env := newenv;
-        begin
-          match ns with
-            None -> ()
-          | Some _ -> failwith "Namespace declaration in toplevel is not \
-                                allowed."
-        end;
         true
       with exn ->
         toplevel_env := oldenv; raise exn

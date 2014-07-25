@@ -12,22 +12,23 @@
 
 (** Top modules dependencies. *)
 
-module StrS = Depend.StringLid
+module StrS = Depend.StringSet
+module LidS = Depend.StringLid
 module Module = Odoc_module
 module Type = Odoc_type
 
 let set_to_list s =
   let l = ref [] in
-  StrS.iter (fun e -> l := e :: !l) s;
+  LidS.iter (fun e -> l := e :: !l) s;
   !l
 
 let impl_dependencies ast =
-  Depend.free_structure_names := StrS.empty;
+  Depend.free_structure_names := LidS.empty;
   Depend.add_use_file StrS.empty [Parsetree.Ptop_def ast];
   set_to_list !Depend.free_structure_names
 
 let intf_dependencies ast =
-  Depend.free_structure_names := StrS.empty;
+  Depend.free_structure_names := LidS.empty;
   Depend.add_signature StrS.empty ast;
   set_to_list !Depend.free_structure_names
 
