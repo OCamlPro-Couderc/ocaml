@@ -1,0 +1,28 @@
+An early idea on the semantics, implementation and use of big functors:
+Bigfunctors in the namespace context needs what we call "functor units", in other words a compilation unit which is itself a functor. A functor unit is created at compile time, and therefore needs to be specified on the build system. The user gives the functor argument(s) (cmis) of the compilation unit (which must be one of its dependency (or not ?)), and the compiler registers thoses interfaces as arguments for the functor. In the same namespace, if a compilation unit is dependent of a functor unit, it becomes itself a functor unit over the same arguments. Finally, a namespace can be parametric over some interfaces.
+
+As a result, like in the big functor patch for packs:
+functor_args = (string * Digest.t) list (* arguments of the functorized unit *)
+functor_parts = (string * (string * Digest.t) list) list 
+               (* subset of the dependencies that are functorized, with thier arguments. Each argument of the dependencies                    belongs to the arguments of the compiled unit *)
+
+
+Usage of functor units?:
+- Making a namespace which is the instantiated version of the namespace?
+- Applying the functor when using it? With some optimization to have applicative functors whose side-effects are only computed once?
+
+For each case, we want the side-effects to only occur once, the first solution is therefore the obvious one (and the easiest). However, it is possible to implement the second solution using the first one: when applying a functor with a specific interface (cmi), the compiler con look in its environment if there exists a compilation unit which is the result of such application and use it. If it does not, either it creates it, or return an error stating the applied version does not exists. The second solution seems to be the correct one.
+
+Propagation of arguments (implied by functor_parts):
+What if we decide to use a namespace that has not been applied? The good solution would be to propagate the arguments of the dependencies, and the actual compiled unit would become a functor unit.
+
+Application of arguments:
+To be able to apply correctly some modules over a functor units, there must exists the applied version of its dependencies.
+
+We would then add the following field:
+functor_instance: (string * string * Digest.t) list 
+                  (* List of arguments applied (with the module name and CRC)
+                     * inter functor_args functor_instance == {} 
+                     It can remain some args, and therefore it is still a functor unit *)
+                    
+Finally, this solution can be a bit tricky thanks to the argument propagation: it does look like the Backpack solution to have separate typechecking thanks to module interfaces and holes that propagates.
