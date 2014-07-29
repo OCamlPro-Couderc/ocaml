@@ -298,6 +298,17 @@ let current_unit = ref ""
 
 let current_unit_namespace = ref None
 
+let functor_args = ref ([] : (string * Digest.t) list)
+let functor_arg_crcs = (Hashtbl.create 17 : (string, Digest.t * string) Hashtbl.t)
+let functor_parts = ref ([] : (string * (string * Digest.t) list) list)
+let functor_parts_table = (Hashtbl.create 17 : (string, Ident.t) Hashtbl.t)
+
+let get_functor_part name = Hashtbl.find functor_parts_table name
+
+let get_functor_parts () = !functor_parts
+
+let get_functor_args () = !functor_args
+
 (* Persistent structure descriptions *)
 (* Adding a field about namespace ? Or simply prefixing the name ?
    -> second option does not change the type and the hashtbl, but the first
@@ -1837,6 +1848,9 @@ let save_signature_with_imports ns sg modname filename imports =
       cmi_namespace = ns;
       cmi_crcs = imports;
       cmi_flags = if !Clflags.recursive_types then [Rectypes] else [];
+      cmi_arg_id = Ident.create_persistent ~ns:(Longident.optstring ns) modname;
+      cmi_functor_args = !functor_args;
+      cmi_functor_parts = !functor_parts;
     } in
     let crc = output_cmi filename oc cmi in
     close_out oc;

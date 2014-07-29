@@ -12,6 +12,8 @@
 
 type pers_flags = Rectypes
 
+type intf_info = string * Digest.t
+
 type error =
     Not_an_interface of string
   | Wrong_version_interface of string * string
@@ -25,6 +27,9 @@ type cmi_infos = {
     cmi_namespace : Longident.t option;
     cmi_crcs : (string * Longident.t option * Digest.t option) list;
     cmi_flags : pers_flags list;
+    cmi_arg_id : Ident.t;
+    cmi_functor_args : intf_info list;
+    cmi_functor_parts : (string * intf_info list) list;
 }
 
 let input_cmi ic =
@@ -33,12 +38,18 @@ let input_cmi ic =
   if !Clflags.ns_debug then Format.printf "In input cmi of %s@." name;
   let crcs : (string * Longident.t option * Digest.t option) list = input_value ic in
   let flags = input_value ic in
+  let arg_id = input_value ic in
+  let functor_args = input_value ic in
+  let functor_parts = input_value ic in
   {
       cmi_name = name;
       cmi_sign = sign;
       cmi_namespace = ns;
       cmi_crcs = crcs;
       cmi_flags = flags;
+      cmi_arg_id = arg_id;
+      cmi_functor_args = functor_args;
+      cmi_functor_parts = functor_parts;
     }
 
 let read_cmi filename =
@@ -80,6 +91,9 @@ let output_cmi filename oc cmi =
   let crcs = (cmi.cmi_name, cmi.cmi_namespace, Some crc) :: cmi.cmi_crcs in
   output_value oc crcs;
   output_value oc cmi.cmi_flags;
+  output_value oc cmi.cmi_arg_id;
+  output_value oc cmi.cmi_functor_args;
+  output_value oc cmi.cmi_functor_parts;
   crc
 
 (* Error report *)

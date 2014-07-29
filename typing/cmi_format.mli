@@ -12,15 +12,17 @@
 
 type pers_flags = Rectypes
 
+type intf_info = string * Digest.t
+
 type cmi_infos = {
     cmi_name : string;
-    (* cmi_namespace : ? *)
     cmi_sign : Types.signature_item list;
     cmi_namespace : Longident.t option;
-    (* Adding the namespace information for each imported unit ? A string
-    option ? A longident option ? *)
     cmi_crcs : (string * Longident.t option * Digest.t option) list;
     cmi_flags : pers_flags list;
+    cmi_arg_id : Ident.t;
+    cmi_functor_args : intf_info list;
+    cmi_functor_parts : (string * intf_info list) list;
 }
 
 (* write the magic + the cmi information *)

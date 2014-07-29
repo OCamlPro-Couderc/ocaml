@@ -202,6 +202,7 @@ let record_value_dependency vd1 vd2 =
 let save_cmt filename modname binary_annots sourcefile initial_env sg =
   if !Clflags.binary_annotations && not !Clflags.print_types then begin
     let imports = Env.imports () in
+    let this_ns = Env.get_namespace_unit () in
     let oc = open_out_bin filename in
     let this_crc =
       match sg with
@@ -214,6 +215,10 @@ let save_cmt filename modname binary_annots sourcefile initial_env sg =
             cmi_flags =
             if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
             cmi_crcs = imports;
+            cmi_arg_id =
+              Ident.create_persistent ~ns:(Longident.optstring this_ns) modname;
+            cmi_functor_args = Env.get_functor_args ();
+            cmi_functor_parts = Env.get_functor_parts ();
           } in
           Some (output_cmi filename oc cmi)
     in

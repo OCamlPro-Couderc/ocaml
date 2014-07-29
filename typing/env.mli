@@ -33,6 +33,12 @@ val initial_safe_string: t
 val initial_unsafe_string: t
 val diff: t -> t -> Ident.t list
 
+(* val add_functor_arguments : string -> unit *)
+val get_functor_args : unit -> (string * Digest.t) list
+val get_functor_parts : unit -> (string  * (string * Digest.t) list) list
+val get_functor_part : string -> Ident.t
+(* val check_remaining_functor_args : Cmi_format.intf_info list -> unit *)
+
 type type_descriptions =
     constructor_description list * label_description list
 
