@@ -114,3 +114,5 @@ let ns_debug = Misc.ns_debug;;             (* -nsd *)
 let root = Misc.root;;        (* -root *)
 let namespace_struct = ref false;;    (* -namespace-struct *)
 let plain_imports = ref false;;       (* -plain-imports *)
+
+let functors = ref [];;               (* -functor *)

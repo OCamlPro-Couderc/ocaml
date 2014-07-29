@@ -210,13 +210,12 @@ let save_cmt filename modname binary_annots sourcefile initial_env sg =
         | Some (sg) ->
           let cmi = {
             cmi_name = modname;
+            cmi_namespace = this_ns;
             cmi_sign = sg;
-            cmi_namespace = None;
             cmi_flags =
             if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
             cmi_crcs = imports;
-            cmi_arg_id =
-              Ident.create_persistent ~ns:(Longident.optstring this_ns) modname;
+            cmi_arg_id = Ident.create modname;
             cmi_functor_args = Env.get_functor_args ();
             cmi_functor_parts = Env.get_functor_parts ();
           } in

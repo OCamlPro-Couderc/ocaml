@@ -42,6 +42,11 @@ val make_global: t -> unit
 val global: t -> bool
 val is_predef_exn: t -> bool
 
+val make_functor_part: t -> unit
+val is_functor_part: t -> bool
+val make_functor_arg: t -> unit
+val is_functor_arg: t -> bool
+
 val binding_time: t -> int
 val current_time: unit -> int
 val set_current_time: int -> unit

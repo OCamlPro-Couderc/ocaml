@@ -28,16 +28,18 @@ type summary =
 
 type t
 
+type intf_info = Cmi_format.intf_info
+
 val empty: t
 val initial_safe_string: t
 val initial_unsafe_string: t
 val diff: t -> t -> Ident.t list
 
-(* val add_functor_arguments : string -> unit *)
-val get_functor_args : unit -> (string * Digest.t) list
-val get_functor_parts : unit -> (string  * (string * Digest.t) list) list
+val add_functorunit_arguments : namespace_info -> string -> unit
+val get_functor_args : unit -> intf_info list
+val get_functor_parts : unit -> (string  * intf_info list) list
 val get_functor_part : string -> Ident.t
-(* val check_remaining_functor_args : Cmi_format.intf_info list -> unit *)
+val check_remaining_functor_args : intf_info list -> unit
 
 type type_descriptions =
     constructor_description list * label_description list
@@ -172,6 +174,10 @@ val read_signature_and_namespace:
 
 val read_signature: namespace_info -> string -> string -> signature
         (* Arguments: module name, file name. Results: signature. *)
+val read_my_signature: namespace_info -> string -> string -> signature
+val read_signature_and_args: namespace_info -> string -> string ->
+  signature * (string * Digest.t) list * (string * (string * Digest.t) list) list
+
 val save_signature: namespace_info -> signature -> string -> string -> signature
         (* Arguments: signature, module name, file name. *)
 val save_signature_with_imports:
@@ -210,6 +216,7 @@ val env_of_only_summary : (summary -> Subst.t -> t) -> t -> t
 type error =
   | Illegal_renaming of string * string * string
   | Inconsistent_import of string * string * string
+  | Inconsistent_arguments of string * intf_info list * intf_info list
   | Need_recursive_types of string * string
   | Missing_module of Location.t * Path.t * Path.t
 

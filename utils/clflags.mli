@@ -96,3 +96,4 @@ val ns_debug : bool ref
 val root : string ref
 val namespace_struct : bool ref
 val plain_imports : bool ref
+val functors : string list ref

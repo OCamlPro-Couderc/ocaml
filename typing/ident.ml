@@ -16,6 +16,8 @@ type t = { stamp: int; name: string; mutable flags: int }
 
 let global_flag = 1
 let predef_exn_flag = 2
+let functor_part_flag = 4
+let functor_arg_flag = 8
 
 (* A stamp of 0 denotes a persistent identifier *)
 
@@ -57,9 +59,12 @@ let name i = i.name
 
 let stamp i = i.stamp
 
-let unique_name i = i.name ^ "_" ^ string_of_int i.stamp
 
-let unique_toplevel_name i = i.name ^ "/" ^ string_of_int i.stamp
+let unique_toplevel_name i =
+  Printf.sprintf "%s%s/%d" i.name
+    (if i.flags land functor_arg_flag <> 0 then "(functor_arg)" else
+    if i.flags land functor_part_flag <> 0 then "(functor_part)" else "")
+    i.stamp
 
 let persistent i = (i.stamp = 0)
 
@@ -94,6 +99,24 @@ let global i =
 
 let is_predef_exn i =
   (i.flags land predef_exn_flag) <> 0
+
+let make_functor_part i =
+  i.flags <- i.flags lor functor_part_flag
+
+let is_functor_part i =
+  (i.flags land functor_part_flag) <> 0
+
+let make_functor_arg i =
+  i.flags <- i.flags lor functor_arg_flag
+
+let is_functor_arg i =
+  (i.flags land functor_arg_flag) <> 0
+
+let unique_name i = i.name ^ "_" ^ string_of_int i.stamp ^
+  (if is_functor_arg i then "a" else "") ^
+  (if is_functor_part i then "p" else "") ^
+  (if is_functor_arg i then "g" else "")
+
 
 let print ppf i =
   match i.stamp with
