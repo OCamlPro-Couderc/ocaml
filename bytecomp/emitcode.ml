@@ -395,7 +395,10 @@ let to_file objfile unit_name code =
             !Translmod.primitive_declarations;
         cu_force_link = false;
         cu_debug = pos_debug;
-        cu_debugsize = size_debug } in
+        cu_debugsize = size_debug;
+        cu_functor_parts = Env.get_functor_parts ();
+        cu_functor_args = Env.get_functor_args ();
+      } in
     init();                               (* Free out_buffer and reloc_info *)
     Btype.cleanup_abbrev ();              (* Remove any cached abbreviation
                                              expansion before saving *)

@@ -453,16 +453,42 @@ let _ =
 
 (* Compile an implementation *)
 
-let transl_implementation module_name (str, cc) =
+(* TODO: check what happens if a module has the same name as a module given as
+   argument *)
+
+let transl_functor_unit functor_env modname str =
+  let ids = Env.get_functor_parts () in
+   (* Printf.fprintf stderr "transl_functor_unit: %s, nb_ids: %d\n" *)
+   (*   modname (List.length ids); *)
+  let (str, _) = List.fold_left (fun (str, tbl) (name, parts) ->
+    if name = modname || Tbl.mem name tbl then (str, tbl) else
+      let id = Env.get_functor_part name in
+      let str = Llet(Strict, id,
+	 Lapply(mod_prim "find_functor_arg", [
+	   Lconst(Const_base (Const_string (Ident.name id, None)));
+	   Lvar functor_env;
+	 ], Location.none), str) in
+      (str, Tbl.add name id tbl)
+  ) (str, Tbl.empty) ids
+  in
+  Lfunction(Curried, [ functor_env ], str)
+
+let transl_implementation module_name ({ str_items = str }, cc) =
   reset_labels ();
   primitive_declarations := [];
   let ns : Types.namespace_info = Env.get_namespace_unit () in
   let ns : string option = Longident.optstring ns in
   let module_id = Ident.create_persistent
       ~ns module_name in
-  Lprim(Psetglobal module_id,
-        [transl_label_init
-            (transl_struct [] cc (global_path module_id) str)])
+  let str = transl_label_init
+      (transl_structure [] cc (global_path module_id) str) in
+  Lprim(Psetglobal module_id,[
+      if !Clflags.functors <> [] then begin
+        let functor_env = Ident.create "functor_env" in
+        Lprim(Pmakeblock(0, Immutable), [transl_functor_unit functor_env module_name str])
+      end
+      else str
+    ])
 
 
 (* Build the list of value identifiers defined by a toplevel structure
@@ -742,6 +768,7 @@ let transl_store_gen ?(ns=None) module_name ({ str_items = str }, restr) topl =
   reset_labels ();
   primitive_declarations := [];
   let module_id = Ident.create_persistent ~ns module_name in
+  if !Clflags.functors <> [] then Ident.make_functor_part module_id;
   let (map, prims, size) =
     build_ident_map restr (defined_idents str) (more_idents str) in
   let f = function
@@ -764,7 +791,17 @@ let transl_store_implementation module_name (str, restr) =
   let ns = Longident.optstring @@ Env.get_namespace_unit () in
   let r = transl_store_gen ~ns module_name (str, restr) false in
   transl_store_subst := s;
-  r
+  if !Clflags.functors <> [] then
+    let (size, str) = r in
+    let id = Env.get_functor_part module_name in
+    let str = Llet(Strict, id,
+		   Lprim(Pmakeblock(0, Immutable), Array.to_list (Array.create size lambda_unit)),
+		   Lsequence (str, Lvar id) ) in
+    let functor_env = Ident.create "functor_env" in
+    let str = transl_functor_unit functor_env module_name str in
+    (size, str)
+  else r
+
 
 (* Compile a toplevel phrase *)
 

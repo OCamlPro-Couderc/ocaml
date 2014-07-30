@@ -141,7 +141,7 @@ let rename_append_bytecode ppf packagename oc mapping defined ofs prefix subst
                            objfile compunit =
   let ic = open_in_bin objfile in
   try
-    Bytelink.check_consistency ppf objfile compunit;
+    Bytelink.check_consistency ppf objfile compunit [];
     List.iter
       (rename_relocation packagename objfile mapping defined ofs)
       compunit.cu_reloc;
@@ -260,7 +260,10 @@ let package_object_files ppf files targetfile targetname ns coercion =
         cu_primitives = !primitives;
         cu_force_link = !force_link;
         cu_debug = if pos_final > pos_debug then pos_debug else 0;
-        cu_debugsize = pos_final - pos_debug } in
+        cu_debugsize = pos_final - pos_debug;
+        cu_functor_parts = [];
+        cu_functor_args = [];
+      } in
     output_value oc compunit;
     seek_out oc pos_depl;
     output_binary_int oc pos_final;

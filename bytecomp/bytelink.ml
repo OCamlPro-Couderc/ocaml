@@ -161,10 +161,12 @@ let crc_interfaces = Consistbl.create ()
 let interfaces = ref ([] : (string * Longident.t option) list)
 let implementations_defined = ref ([] : ((string * Longident.t option) * string) list)
 
-let check_consistency ppf file_name cu =
+let check_consistency ppf file_name cu functor_args =
   if !Clflags.ns_debug then
     Format.printf "Bytelink.check_consistency@.";
-  begin try
+  if cu.cu_functor_args <> functor_args then
+    raise (Env.Error(Env.Inconsistent_arguments (file_name, cu.cu_functor_args, functor_args)));
+ begin try
     (* Format.printf "Segfault when reading %s crc?@." cu.cu_name; *)
     List.iter
       (fun (name, ns, crco) ->
@@ -210,7 +212,7 @@ let debug_info = ref ([] : (int * LongString.t) list)
 let link_compunit ppf output_fun currpos_fun inchan file_name compunit =
   if !Clflags.ns_debug then
     Format.printf "Bytelink.link_compunit@.";
-  check_consistency ppf file_name compunit;
+  check_consistency ppf file_name compunit [];
   seek_in inchan compunit.cu_pos;
   let code_block = LongString.input_bytes inchan compunit.cu_codesize in
   Symtable.ls_patch_object code_block compunit.cu_reloc;

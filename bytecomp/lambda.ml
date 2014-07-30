@@ -397,7 +397,10 @@ let free_ids get l =
   in free l; !fv
 
 let free_variables l =
-  free_ids (function Lvar id -> [id] | _ -> []) l
+  free_ids (function Lvar id -> [id]
+    | Lprim( (Pgetglobal id | Psetglobal id), _) when Ident.is_functor_part id ->
+      [Env.get_functor_part (Ident.name id)]
+    | _ -> []) l
 
 let free_methods l =
   free_ids (function Lsend(Self, Lvar meth, obj, _, _) -> [meth] | _ -> []) l

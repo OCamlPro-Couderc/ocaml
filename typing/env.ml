@@ -425,6 +425,17 @@ let read_pers_struct ns modname filename ps_kind =
                      ~ns:(Longident.optstring ns) name in
   let functor_parts = cmi.cmi_functor_parts in
   let functor_args = cmi.cmi_functor_args in
+  begin
+    match ps_kind with
+    | PersistentStructureArgument -> add_functorunit_arg ps_id
+    | PersistentStructureDependency ->
+	if cmi.cmi_functor_args <> [] then add_functorunit_part ps_id cmi.cmi_functor_args
+    | PersistentStructureUnit -> ()
+  end;
+  (* Format.printf "Unique name of modname: %a, arg: %b, part: %b\n" *)
+  (*   Ident.print ps_id *)
+  (*   (Ident.is_functor_arg ps_id) *)
+  (*   (Ident.is_functor_part ps_id); *)
   let comps =
       !components_of_module' empty Subst.identity
         (Pident ps_id) (Mty_signature sign)
@@ -838,13 +849,17 @@ and lookup_module ?(pers=false) ~load ns lid env : Path.t =
       with Not_found ->
         if s = !current_unit && ns = !current_unit_namespace then
           raise Not_found;
-	if !Clflags.transparent_modules && not load then
-	  try let subdir = longident_to_filepath ns in
-     ignore (find_in_path_uncap !load_path ~subdir (s ^ ".cmi"))
-          with Not_found ->
-	    Location.prerr_warning Location.none (Warnings.No_cmi_file s)
-	else ignore (find_pers_struct ns s);
-        Pident(Ident.create_persistent ~ns:(Longident.optstring ns) s)
+        let id =
+          if !Clflags.transparent_modules && not load then
+            try
+              let subdir = longident_to_filepath ns in
+              ignore (find_in_path_uncap !load_path ~subdir (s ^ ".cmi"));
+              Ident.create_persistent ~ns:(Longident.optstring ns) s
+            with Not_found ->
+              Location.prerr_warning Location.none (Warnings.No_cmi_file s);
+              Ident.create_persistent ~ns:(Longident.optstring ns) s
+          else (find_pers_struct ns s).ps_id in
+        Pident(id)
       end
   | Ldot(l, s) ->
       let (p, descr) = lookup_module_descr None l env in
@@ -2068,6 +2083,8 @@ and fold_cltypes f =
 
 let add_functorunit_arguments ns modname =
   if !Clflags.functors <> [] then begin
+    (* Printf.fprintf stderr "add_functorunit_arguments: %s, nb args: %d\n" *)
+    (*   modname (List.length !Clflags.functors); *)
     add_functorunit_part (Ident.create_persistent modname) [];
     functor_args := [];
     List.iter (fun filename ->

@@ -16,7 +16,8 @@ val link : Format.formatter -> string list -> string -> unit
 val reset : unit -> unit
 
 val check_consistency:
-  Format.formatter -> string -> Cmo_format.compilation_unit -> unit
+  Format.formatter -> string -> Cmo_format.compilation_unit ->
+  (string * Digest.t) list -> unit
 
 val extract_crc_interfaces: unit -> (string * Longident.t option * Digest.t option) list
 

@@ -120,7 +120,9 @@ let unique_name i = i.name ^ "_" ^ string_of_int i.stamp ^
 
 let print ppf i =
   match i.stamp with
-  | 0 -> fprintf ppf "%s!" i.name
+  | 0 -> fprintf ppf "%s!%s" i.name (if is_functor_arg i then "@"
+                                     else if is_functor_part i then "$"
+                                     else "")
   | -1 -> fprintf ppf "%s#" i.name
   | n -> fprintf ppf "%s/%i%s" i.name n (if global i then "g" else "")
 
