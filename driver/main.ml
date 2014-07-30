@@ -141,6 +141,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _root s = root := s
   let _ns_struct = set namespace_struct
   let _plain_imports = set plain_imports
+  let _functor s = functors := s :: !functors
 end)
 
 let main () =
@@ -198,4 +199,13 @@ let main () =
     Location.report_exception ppf x;
     exit 2
 
-let _ = main ()
+(* let _ = main () *)
+
+let _ =
+  try
+    main ()
+  with e ->
+    let s = Printexc.get_backtrace () in
+    Printf.fprintf stderr "Fatal error: %s\n%!" (Printexc.to_string e);
+    Printf.fprintf stderr "%s%!" s;
+    exit 2

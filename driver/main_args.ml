@@ -467,6 +467,10 @@ let mk_plain_imports f =
   "-plain-imports", Arg.Unit f, "(undocumented)"
 ;;
 
+let mk_functor f =
+  "-functor", Arg.String f, " <file.mli> : signature of functor argument"
+;;
+
 module type Common_options = sig
   val _absname : unit -> unit
   val _I : string -> unit
@@ -495,6 +499,8 @@ module type Common_options = sig
   val _root : string -> unit
   val _ns_struct : unit -> unit
   val _plain_imports : unit -> unit
+
+  val _functor : string -> unit
 
   val _dsource : unit -> unit
   val _dparsetree : unit -> unit
@@ -685,6 +691,7 @@ struct
     mk_root F._root;
     mk_ns_struct F._ns_struct;
     mk_plain_imports F._plain_imports;
+    mk_functor F._functor;
 
     mk_nopervasives F._nopervasives;
     mk_use_prims F._use_prims;
@@ -803,6 +810,8 @@ struct
     mk_root F._root;
     mk_ns_struct F._ns_struct;
     mk_plain_imports F._plain_imports;
+
+    mk_functor F._functor;
 
     mk_nopervasives F._nopervasives;
     mk_dsource F._dsource;

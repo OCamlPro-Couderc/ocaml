@@ -39,6 +39,8 @@ module type Common_options = sig
   val _ns_struct : unit -> unit
   val _plain_imports : unit -> unit
 
+  val _functor : string -> unit
+
   val _dsource : unit -> unit
   val _dparsetree : unit -> unit
   val _dtypedtree : unit -> unit

@@ -35,7 +35,7 @@ let interface ppf sourcefile outputprefix =
   (* let Parsetree.Pinterf (_, ast) = interf in *)
   if !Clflags.dump_parsetree then fprintf ppf "%a@." Printast.interface interf;
   if !Clflags.dump_source then fprintf ppf "%a@." Pprintast.interface interf;
-  let tsg, ns = Typemod.type_interface initial_env interf in
+  let tsg, ns = Typemod.type_interface modulename initial_env interf in
   if !Clflags.dump_typedtree then fprintf ppf "%a@." Printtyped.interface tsg;
   let sg = tsg.sig_type in
   if !Clflags.print_types then

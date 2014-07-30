@@ -27,7 +27,7 @@ val type_implementation:
   string -> string -> string -> Env.t -> Parsetree.implementation ->
   Typedtree.structure * Typedtree.module_coercion
 val type_interface:
-        Env.t -> Parsetree.interface -> Typedtree.signature * namespace_info
+        string -> Env.t -> Parsetree.interface -> Typedtree.signature * namespace_info
 val transl_signature:
         Env.t -> Parsetree.signature -> Typedtree.signature
 val check_nongen_schemes:
@@ -67,6 +67,10 @@ type error =
   | Recursive_module_require_explicit_type
   | Apply_generative
   | Namespace_clash of string * string
+  | Inconsistent_functor_arguments of string * string
+  | No_functor_argument
+  | Functor_argument_not_found of string
+  | File_not_found of string
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

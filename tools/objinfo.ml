@@ -57,11 +57,24 @@ let print_name_crc (name, ns, crco) =
 let print_line name =
   printf "\t%s\n" name
 
+let print_functor_infos functor_args functor_parts =
+  if functor_args <> [] then begin
+    printf "Functor args:\n";
+    List.iter (fun (name, crc) ->
+        print_name_crc (name, None, Some crc)) functor_args;
+    printf "Functors parts:\n";
+    List.iter (fun (id, deps) ->
+      printf "\t%s\n" ( id);
+      List.iter (fun (id, crc) -> printf "\t\t(%s:%s)\n" (id) (Digest.to_hex crc)) deps;
+    ) functor_parts
+  end
+
 let print_cmo_infos cu =
   printf "Unit name: %s\n" cu.cu_name;
   print_namespace cu.cu_namespace;
   print_string "Interfaces imported:\n";
   List.iter print_name_crc cu.cu_imports;
+  (* print_functor_infos cu.cu_functor_args cu.cu_functor_parts; *)
   printf "Uses unsafe features: ";
   (match cu.cu_primitives with
     | [] -> printf "no\n"
@@ -87,14 +100,16 @@ let print_cma_infos (lib : Cmo_format.library) =
   printf "\n";
   List.iter print_cmo_infos lib.lib_units
 
-let print_cmi_infos name ns crcs =
+let print_cmi_infos name ns crcs fargs fparts =
   let ns = match ns with
       None -> "ROOT"
     | Some ns -> Longident.string_of_longident ns in
   printf "Unit name: %s\n" name;
   printf "Namespace: %s\n" ns;
   printf "Interfaces imported:\n";
-  List.iter print_name_crc crcs
+  List.iter print_name_crc crcs;
+  print_functor_infos fargs fparts
+
 
 let print_cmt_infos cmt =
   let open Cmt_format in
@@ -257,6 +272,8 @@ let dump_obj filename =
            cmi.Cmi_format.cmi_name
            cmi.Cmi_format.cmi_namespace
            cmi.Cmi_format.cmi_crcs
+           cmi.Cmi_format.cmi_functor_args
+           cmi.Cmi_format.cmi_functor_parts
     end;
     begin match cmt with
      | None -> ()

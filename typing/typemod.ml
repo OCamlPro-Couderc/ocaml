@@ -40,6 +40,11 @@ type error =
   | Recursive_module_require_explicit_type
   | Apply_generative
   | Namespace_clash of string * string
+  | Inconsistent_functor_arguments of string * string
+  | No_functor_argument
+  | Functor_argument_not_found of string
+  | File_not_found of string
+
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -1651,6 +1656,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           Typens.compute_prelude_no_alias prl initial_env in
         env, ns, ast
     in
+    Env.add_functorunit_arguments ns modulename;
     type_structure env ast (Location.in_file sourcefile), ns in
   if !Clflags.ns_debug then
     Format.printf "Signature before simplify:\n%a@."
@@ -1679,7 +1685,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
                       Interface_not_compiled sourceintf)) in
       (* The next two should be factorized *)
       let dclsig, dclns =
-        Env.read_signature_and_namespace ns modulename intf_file in
+        Env.read_my_signature_and_namespace ns modulename intf_file in
       let coercion =
         Includemod.compunit initial_env sourcefile ns sg intf_file dclns dclsig in
       Typecore.force_delayed_checks ();
@@ -1726,17 +1732,15 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi)
 
-let type_interface env (Pinterf (prl, ast)) =
+let type_interface modulename env (Pinterf (prl, ast)) =
   begin
     let map = Typetexp.emit_external_warnings in
     ignore (map.Ast_mapper.signature map ast)
   end;
-  (* if !Clflags.plain_imports then *)
-  (*   let prl_sg, ns = Typens.compute_interface_prelude prl in *)
-  (*   transl_signature env (prl_sg @ ast), ns *)
-  (* else *)
-    let env, ns = Typens.compute_prelude_no_alias prl env in
-    transl_signature env ast, ns
+  let env, ns = Typens.compute_prelude_no_alias prl env in
+  Env.add_functorunit_arguments ns modulename;
+  transl_signature env ast, ns
+
 
 (* "Packaging" of several compilation units into one unit
    having them as sub-modules.  *)
@@ -1915,6 +1919,17 @@ let report_error ppf = function
   | Namespace_clash (f, f') ->
       fprintf ppf "File %s and %s both belong to different namespace \
                    where the same is expected." f f'
+  | Inconsistent_functor_arguments (f1, f2) ->
+      fprintf ppf
+        "Files %s and %s make inconsistent assumptions on their arguments"
+        f1 f2
+  | No_functor_argument ->
+    fprintf ppf "Cannot build a functor with toplevel modules"
+  | Functor_argument_not_found s ->
+    fprintf ppf "Compiled interface for functor argument %s could not be found"
+      s
+  | File_not_found file ->
+      fprintf ppf "File %s not found" file
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env env (fun () -> report_error ppf err)

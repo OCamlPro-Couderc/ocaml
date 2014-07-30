@@ -1860,6 +1860,12 @@ let read_signature_and_args ns modname filename =
   let ps = read_pers_struct ns modname filename PersistentStructureUnit in
   (ps.ps_sig, ps.ps_functor_args, ps.ps_functor_parts)
 
+let read_my_signature_and_namespace ns modname filename =
+(*  Printf.fprintf stderr "read_my_signature %s\n%!" modname; *)
+  let ps = read_pers_struct ns modname filename PersistentStructureDependency in
+  if ps.ps_functor_args <> !functor_args then
+    raise (Error(Inconsistent_arguments (filename, ps.ps_functor_args, !functor_args)));
+  ps.ps_sig, ps.ps_namespace
 
 (* Return the CRC of the interface of the given compilation unit *)
 

@@ -177,6 +177,8 @@ val read_signature: namespace_info -> string -> string -> signature
 val read_my_signature: namespace_info -> string -> string -> signature
 val read_signature_and_args: namespace_info -> string -> string ->
   signature * (string * Digest.t) list * (string * (string * Digest.t) list) list
+val read_my_signature_and_namespace:
+  namespace_info -> string -> string -> signature * namespace_info
 
 val save_signature: namespace_info -> signature -> string -> string -> signature
         (* Arguments: signature, module name, file name. *)

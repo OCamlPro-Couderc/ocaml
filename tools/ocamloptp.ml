@@ -126,6 +126,8 @@ module Options = Main_args.Make_optcomp_options (struct
   let _ns_struct = option "-namespace-struct"
   let _plain_imports = option "-plain-imports"
 
+  let _functor s = option_with_arg "-functor" s
+
   let anonymous = process_file
 end);;
 
