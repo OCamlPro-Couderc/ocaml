@@ -1,0 +1,16 @@
+;; This buffer is for notes you don't want to save, and for Lisp evaluation.
+;; If you want to create a file, visit that file with C-x C-f,
+;; then enter the text in that file's own buffer.
+
+`functor_unit_body` = 
+       Lprim(Pfield 0, [Lprim(Pgetglobal `compunit_name`, [])])
+
+Llet(Strict, env0_id, initial_env,
+             Llet(Strict, env1_id,
+                          Lapply(mod_prim "add_functor_arg",
+                                 [`name_of_argument`,    ; Argument of the functor 
+                                  `value_of_argument`,   ; Module name
+                                   env0_id],
+                                 Location.none)
+                          Lapply(`functor_unit_body`, [env1_id], Location.none)))
+                                  
