@@ -63,6 +63,8 @@ let current_unit =
     ui_curry_fun = [];
     ui_apply_fun = [];
     ui_send_fun = [];
+    ui_functor_parts = [];
+    ui_functor_args = [];
     ui_force_link = false }
 
 let symbol_of_namespace = function
@@ -230,7 +232,7 @@ let record_global_approx_toplevel id =
   Hashtbl.add toplevel_approx current_unit.ui_name current_unit.ui_approx
 
 let global_approx id =
-  if Ident.is_predef_exn id then Value_unknown
+  if Ident.is_predef_exn id || Ident.is_functor_arg id then Value_unknown
   else try Hashtbl.find toplevel_approx (Ident.name id)
   with Not_found ->
     match get_global_info id with
@@ -291,6 +293,8 @@ let save_unit_info filename =
   if !Clflags.ns_debug then
     Format.printf "in Compilenv.save_unit_info@.";
   current_unit.ui_imports_cmi <- Env.imports();
+  current_unit.ui_functor_args <- Env.get_functor_args();
+  current_unit.ui_functor_parts <- Env.get_functor_parts();
   write_unit_info current_unit filename;
   if !Clflags.ns_debug then
     Format.printf "Out of Compilenv.save_unit_info@."

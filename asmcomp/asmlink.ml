@@ -39,9 +39,9 @@ let implementations = ref ([] : (string * Longident.t option) list)
 let implementations_defined = ref ([] : (string * Longident.t option * string) list)
 let cmx_required = ref ([] : string list)
 
-let check_consistency file_name unit crc =
-  if !Clflags.ns_debug then
-    Format.printf "asmlink.check_consistency";
+let check_consistency file_name unit crc functor_args =
+  if unit.ui_functor_args <> functor_args then
+    raise (Env.Error(Env.Inconsistent_arguments (file_name, unit.ui_functor_args, functor_args)));
   begin try
     List.iter
       (fun (name, ns, crco) ->
@@ -278,7 +278,7 @@ let call_linker_shared file_list output_name =
 let link_shared ppf objfiles output_name =
   let units_tolink = List.fold_right scan_file objfiles [] in
   List.iter
-    (fun (info, file_name, crc) -> check_consistency file_name info crc)
+    (fun (info, file_name, crc) -> check_consistency file_name info crc [])
     units_tolink;
   Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs;
   Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
@@ -336,7 +336,7 @@ let link ppf objfiles output_name =
   | mg -> raise(Error(Missing_implementations mg))
   end;
   List.iter
-    (fun (info, file_name, crc) -> check_consistency file_name info crc)
+    (fun (info, file_name, crc) -> check_consistency file_name info crc [])
     units_tolink;
   Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs;
   Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;

@@ -47,11 +47,13 @@ let rec build_closure_env env_param pos = function
    and no longer in Cmmgen so that approximations stored in .cmx files
    contain the right names if the -for-pack option is active. *)
 
-let getglobal id =
-  if !Clflags.ns_debug then
-    Format.printf "Getglobal, id: %s@." (Ident.name id);
-  Uprim(Pgetglobal (Ident.create_persistent (Compilenv.symbol_for_global id)),
-        [], Debuginfo.none)
+let getglobal cenv id =
+  if Ident.is_functor_part id then
+    let id = Env.get_functor_part (Ident.name id) in
+    try Tbl.find id cenv with Not_found -> Uvar id
+  else
+    Uprim(Pgetglobal (Ident.create_persistent (Compilenv.symbol_for_global id)),
+          [], Debuginfo.none)
 
 (* Check if a variable occurs in a [clambda] term. *)
 
@@ -918,7 +920,7 @@ let rec close fenv cenv = function
       close fenv cenv (Lapply(funct, [arg], loc))
   | Lprim(Pgetglobal id, []) as lam ->
       check_constant_result lam
-                            (getglobal id)
+                            (getglobal cenv id)
                             (Compilenv.global_approx id)
   | Lprim(Pfield n, [lam]) ->
       let (ulam, approx) = close fenv cenv lam in
@@ -928,7 +930,7 @@ let rec close fenv cenv = function
       let (ulam, approx) = close fenv cenv lam in
       if approx <> Value_unknown then
         (!global_approx).(n) <- approx;
-      (Uprim(Psetfield(n, false), [getglobal id; ulam], Debuginfo.none),
+      (Uprim(Psetfield(n, false), [getglobal cenv id; ulam], Debuginfo.none),
        Value_unknown)
   | Lprim(Praise k, [Levent(arg, ev)]) ->
       let (ulam, approx) = close fenv cenv arg in
@@ -1295,4 +1297,17 @@ let intro size lam =
   let (ulam, approx) = close Tbl.empty Tbl.empty lam in
   collect_exported_structured_constants (Value_tuple !global_approx);
   global_approx := [||];
-  ulam
+  if !Clflags.functors <> [] then begin
+    (1,
+     Uprim(Psetfield(0, false), [
+           Uprim(Pgetglobal (Ident.create_persistent
+                               (Compilenv.symbol_for_global
+                                  (Ident.create_persistent
+                                     ~ns:(Longident.optstring
+                                            (Env.get_namespace_unit ()))
+                                     (Compilenv.current_unit_name ())))),
+		 [], Debuginfo.none);
+       ulam], Debuginfo.none)
+    )
+  end else
+    (size, ulam)

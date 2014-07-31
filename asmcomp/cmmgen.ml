@@ -1290,6 +1290,9 @@ let strmatch_compile =
 let rec transl = function
     Uvar id ->
       Cvar id
+  | Uprim(Pgetglobal id, [], _ ) when Ident.is_functor_part id ->
+      let exp = Uvar (Env.get_functor_part (Ident.name id)) in
+      transl exp
   | Uconst sc ->
       transl_constant sc
   | Uclosure(fundecls, []) ->

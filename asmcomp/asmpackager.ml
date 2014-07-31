@@ -50,7 +50,7 @@ let read_member_info pack_path file = (
       if info.ui_symbol <>
          (Compilenv.current_unit_infos()).ui_symbol ^ "__" ^ info.ui_name
       then raise(Error(Wrong_for_pack(file, pack_path)));
-      Asmlink.check_consistency file info crc;
+      Asmlink.check_consistency file info crc [];
       Compilenv.cache_unit_info info;
       PM_impl info
     end else
@@ -161,6 +161,8 @@ let build_package_cmx members ns cmxfile =
           union(List.map (fun info -> info.ui_send_fun) units);
       ui_force_link =
           List.exists (fun info -> info.ui_force_link) units;
+      ui_functor_parts = [];
+      ui_functor_args = [];
     } in
   Compilenv.write_unit_info pkg_infos cmxfile
 
