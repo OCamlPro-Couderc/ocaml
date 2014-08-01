@@ -66,7 +66,7 @@ let rec remove_duplicates l1 = function
           (fun item -> match item.txt with
                Mod (_, s, _) -> s = m
              | _ -> false)
-          l1 then
+          l1 || m = Env.get_unit_name () then
         remove_duplicates l1 tl
       else
         remove_duplicates (mo :: l1) tl
@@ -128,8 +128,6 @@ let opened_closures loc ns mods =
       Mod (al, m, op) ->
         if op then
           (fun env ->
-             if !Clflags.ns_debug then
-               Format.printf "Opening auto of %s@." al;
              snd @@
              !Typecore.type_open Asttypes.Override env item.loc
                (mkloc (Lident al) item.loc)) :: acc
@@ -209,7 +207,20 @@ module StringMap = Map.Make(String)
 
 let module_names = ref StringMap.empty
 
-let add_modules imports env =
+let add_current_namespace acc = function
+    None -> acc
+  | Some ns ->
+      if !Clflags.ns_debug then
+        Format.printf "Adding current ns@.";
+      let cstr_d = { imp_cstr_desc = Cstr_wildcard;
+                     imp_cstr_loc = Location.none } in
+      {
+        imp_cstr = [cstr_d];
+        imp_namespace = ns;
+        imp_loc = Location.none
+      } :: acc
+
+let add_modules ns imports env =
   let rec fold ns env item =
     let str_ns = Env.namespace_name ns in
     match item.txt with
@@ -234,8 +245,8 @@ let add_modules imports env =
       List.fold_left (fold None) env h, to_op @ opened)
     (env, []) imports
 
-let compute_import env import =
-  let env, opened = add_modules [import] env in
+let compute_import ns env import =
+  let env, opened = add_modules ns [import] env in
   List.fold_left (|>) env opened
 
 let compute_prelude_no_alias prl env : Env.t * Longident.t option =
@@ -246,11 +257,23 @@ let compute_prelude_no_alias prl env : Env.t * Longident.t option =
   in
   Env.set_namespace_unit ns;
   if !Clflags.ns_debug then
-    (let hierarchy, _ = mk_nsenv prl.prl_imports in
+    (let hierarchy, _ = mk_nsenv (add_current_namespace prl.prl_imports ns) in
     Format.printf "Resulting hierarchy of namespaces:\n%s@."
     @@ print_namespace hierarchy);
   (* let env, opened = add_modules prl.prl_imports env in *)
-  List.fold_left compute_import env prl.prl_imports, ns
+  (* let env = *)
+  (*   if ns = None then env *)
+  (*   else *)
+  (*     try *)
+  (*     ignore (find_in_path_uncap ~subdir:(Env.longident_to_filepath ns) *)
+  (*               !Config.load_path "pervasives.cmi"); *)
+  (*     let p = "Pervasives" in *)
+  (*     let al = p ^ "@" ^ (Env.namespace_name ns) in *)
+  (*     snd @@ *)
+  (*     !Typecore.type_open Asttypes.Override env item.loc *)
+  (*       (mkloc (Lident al) item.loc) *)
+  (*   with Not_found -> env in *)
+  List.fold_left (compute_import ns) env (* (add_current_namespace  *)prl.prl_imports (* ns) *), ns
 
 (** Functions to restore the alias in the infered signature.
     Only used when outputing the sig with the -i option of the compiler.
