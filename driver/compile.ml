@@ -60,8 +60,8 @@ let print_if ppf flag printer arg =
 let (++) x f = f x
 
 (* Pierrick: The opening of the objfile is done directly in emitcode. It is
-   necessary since we need the namespace to be parsed in order to write the file
-   in the correct directory. *)
+   necessary since we need the file to be parsed in order to write the file
+   in the correct directory according to the namespace it belongs. *)
 
 let implementation ppf sourcefile outputprefix =
   Compmisc.init_path false;

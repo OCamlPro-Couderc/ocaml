@@ -116,3 +116,5 @@ let namespace_struct = ref false;;    (* -namespace-struct *)
 let plain_imports = ref false;;       (* -plain-imports *)
 
 let functors = ref [];;               (* -functor *)
+let ns = ref None;;                   (* -ns *)
+let applied = ref [];;                (* -apply *)

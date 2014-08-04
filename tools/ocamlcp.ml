@@ -110,6 +110,9 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _ns_struct = option "-namespace_struct"
   let _plain_imports = option "-plain-imports"
   let _functor s = option_with_arg "-functor" s
+  let _apply s = option_with_arg "-apply" s
+  let _ns s = option_with_arg "-ns" s
+
 end);;
 
 let add_profarg s =

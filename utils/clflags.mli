@@ -97,3 +97,5 @@ val root : string ref
 val namespace_struct : bool ref
 val plain_imports : bool ref
 val functors : string list ref
+val ns : string option ref
+val applied : string list ref

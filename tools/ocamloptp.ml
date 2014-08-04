@@ -127,6 +127,8 @@ module Options = Main_args.Make_optcomp_options (struct
   let _plain_imports = option "-plain-imports"
 
   let _functor s = option_with_arg "-functor" s
+  let _ns s = option_with_arg "-ns" s
+  let _apply s = option_with_arg "-apply" s
 
   let anonymous = process_file
 end);;

@@ -471,6 +471,14 @@ let mk_functor f =
   "-functor", Arg.String f, " <file.mli> : signature of functor argument"
 ;;
 
+let mk_ns f =
+  "-ns", Arg.String f, "(undocumented)"
+;;
+
+let mk_apply f =
+  "-apply", Arg.String f, " <file.cmo> : applied argument"
+;;
+
 module type Common_options = sig
   val _absname : unit -> unit
   val _I : string -> unit
@@ -501,6 +509,8 @@ module type Common_options = sig
   val _plain_imports : unit -> unit
 
   val _functor : string -> unit
+  val _ns : string -> unit
+  val _apply : string -> unit
 
   val _dsource : unit -> unit
   val _dparsetree : unit -> unit
@@ -692,6 +702,8 @@ struct
     mk_ns_struct F._ns_struct;
     mk_plain_imports F._plain_imports;
     mk_functor F._functor;
+    mk_ns F._ns;
+    mk_apply F._apply;
 
     mk_nopervasives F._nopervasives;
     mk_use_prims F._use_prims;

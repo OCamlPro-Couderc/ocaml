@@ -77,7 +77,7 @@ BYTECOMP=bytecomp/meta.cmo bytecomp/instruct.cmo bytecomp/bytegen.cmo \
   bytecomp/printinstr.cmo bytecomp/opcodes.cmo bytecomp/emitcode.cmo \
   bytecomp/bytesections.cmo bytecomp/dll.cmo bytecomp/symtable.cmo \
   bytecomp/bytelink.cmo bytecomp/bytelibrarian.cmo bytecomp/bytepackager.cmo \
-  driver/errors.cmo driver/compile.cmo
+  bytecomp/byteapply.cmo driver/errors.cmo driver/compile.cmo
 
 ASMCOMP=asmcomp/arch.cmo asmcomp/debuginfo.cmo \
   asmcomp/cmm.cmo asmcomp/printcmm.cmo \

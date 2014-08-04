@@ -40,6 +40,8 @@ module type Common_options = sig
   val _plain_imports : unit -> unit
 
   val _functor : string -> unit
+  val _ns : string -> unit
+  val _apply : string -> unit
 
   val _dsource : unit -> unit
   val _dparsetree : unit -> unit

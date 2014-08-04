@@ -490,6 +490,33 @@ let transl_implementation module_name ({ str_items = str }, cc) =
       else str
     ])
 
+let transl_applied_unit funit target_id instantiation =
+  if !Clflags.ns_debug then
+    Format.printf "In transl_applied_unit@.";
+  let funit_id = Ident.create_persistent
+      ~ns:(Longident.optstring funit.Cmi_format.cmi_namespace)
+      funit.Cmi_format.cmi_name in
+  let funit_body =
+    Lprim(Pfield 0, [Lprim(Pgetglobal funit_id, [])]) in
+  let env0_id = Ident.create "env0" in
+  let body : Ident.t -> lambda = fun id ->
+    Lapply(funit_body, [Lvar id], Location.none) in
+
+  let application  =
+    List.fold_left
+      (fun prev (arg, app) ->
+         let env_id = Ident.create "env" in
+         let arg_id = Lconst (Const_base (Const_string (arg, None))) in
+         let app_id = Ident.create (Ident.name app) in
+         (fun id ->
+            Llet (Strict,
+                  app_id, Lprim (Pgetglobal app, []),
+                  Llet (Strict, env_id,
+                        Lapply(mod_prim "add_functor_arg",
+                               [arg_id; Lvar app_id; Lvar id],
+                               Location.none),
+                        (prev env_id))))) body instantiation in
+  application env0_id
 
 (* Build the list of value identifiers defined by a toplevel structure
    (excluding primitive declarations). *)

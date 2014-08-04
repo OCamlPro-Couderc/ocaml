@@ -102,6 +102,8 @@ module Options = Main_args.Make_bytetop_options (struct
   let _plain_imports = set plain_imports
 
   let _functor s = functors := s :: !functors
+  let _ns s = ns := Some s
+  let _apply s = applied := s :: !applied
 
   let anonymous s = file_argument s
 end);;

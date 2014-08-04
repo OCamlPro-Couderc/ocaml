@@ -158,6 +158,8 @@ module Options = Main_args.Make_optcomp_options (struct
   let _plain_imports = set plain_imports
 
   let _functor s = functors := s :: !functors
+  let _ns s = ns := Some s
+  let _apply s = applied := s :: !applied
 
 end);;
 
