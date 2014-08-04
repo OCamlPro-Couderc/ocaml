@@ -19,6 +19,7 @@ val to_file: string -> string -> instruction list -> unit
         (* Arguments:
              name of output file
              name of compilation unit implemented
+             path of cmo file being written
              list of instructions to emit *)
 val to_memory: instruction list -> instruction list ->
                     bytes * int * (reloc_info * int) list

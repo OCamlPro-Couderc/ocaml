@@ -361,12 +361,7 @@ let rec emit = function
 (* Emission to a file *)
 
 let to_file objfile unit_name code =
-  if  !Clflags.ns_debug then
-    Format.printf "Emitcode.to_file, Env.get_namespace = %s@."
-      @@ Env.namespace_name (Env.get_namespace_unit());
   let objfile = Env.output_name objfile (Env.get_namespace_unit()) in
-  if !Clflags.ns_debug then
-    Format.printf "Emitcode.to_file: objfile: %s@." objfile;
   let outchan = open_out_bin objfile in
   init();
   try
@@ -378,6 +373,9 @@ let to_file objfile unit_name code =
     LongString.output outchan !out_buffer 0 !out_position;
     let (pos_debug, size_debug) =
       if !Clflags.debug then begin
+        debug_dirs := StringSet.add
+            (Filename.dirname (Location.absolute_path objfile))
+            !debug_dirs;
         let p = pos_out outchan in
         output_value outchan !events;
         output_value outchan (StringSet.elements !debug_dirs);
@@ -410,6 +408,7 @@ let to_file objfile unit_name code =
   with x ->
     close_out outchan;
     raise x
+
 (* Emission to a memory block *)
 
 let to_memory init_code fun_code =

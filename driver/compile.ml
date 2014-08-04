@@ -59,6 +59,10 @@ let print_if ppf flag printer arg =
 
 let (++) x f = f x
 
+(* Pierrick: The opening of the objfile is done directly in emitcode. It is
+   necessary since we need the namespace to be parsed in order to write the file
+   in the correct directory. *)
+
 let implementation ppf sourcefile outputprefix =
   Compmisc.init_path false;
   let outputprefix =
@@ -99,6 +103,7 @@ let implementation ppf sourcefile outputprefix =
       ++ Bytegen.compile_implementation modulename
       ++ print_if ppf Clflags.dump_instr Printinstr.instrlist
       ++ Emitcode.to_file objfile modulename;
+      (* ++ Emitcode.to_file oc modulename objfile; *)
       Warnings.check_fatal ();
       Stypes.dump (Some (outputprefix ^ ".annot"))
     in
