@@ -395,11 +395,13 @@ let read_pers_struct ns modname filename : pers_struct =
   ps
 
 let find_pers_struct ns name =
-  if !Clflags.ns_debug then Format.printf "Env.find_pers_struct@.";
+  if !Clflags.ns_debug then Format.printf "Env.find_pers_struct of %s@." name;
   if name = "*predef*" then raise Not_found;
   let r =
     try Some (Hashtbl.find persistent_structures (name, ns))
-    with Not_found -> None
+    with Not_found ->
+      (* try Some (Hashtbl.find persistent_structures (name, !current_unit_namespace)) *)
+      (* with Not_found ->  *)None
   in
   match r with
   | Some None -> raise Not_found
@@ -407,12 +409,26 @@ let find_pers_struct ns name =
         Format.printf "find_pers_struct: already loaded@.";
       sg
   | None ->
-      let subdir = longident_to_filepath ns in
-      let filename =
-        try find_in_path_uncap ~subdir !load_path (name ^ ".cmi")
+      let filename ns =
+        let subdir = longident_to_filepath ns in
+        try find_in_path_uncap ~subdir !load_path (name ^ ".cmi"), ns
         with Not_found ->
-          Hashtbl.add persistent_structures (name, ns) None;
-          raise Not_found
+          (* if ns <> None then begin *)
+          (*   Hashtbl.add persistent_structures (name, ns) None; *)
+          (*   raise Not_found *)
+          (* end *)
+          (* else *)
+          (*   let subdir = longident_to_filepath !current_unit_namespace in *)
+          (*   try find_in_path_uncap ~subdir !load_path (name ^ ".cmi"), !current_unit_namespace *)
+          (*   with Not_found -> *)
+                Hashtbl.add persistent_structures (name, ns) None;
+                raise Not_found
+      in
+      let filename, ns =
+          try filename ns
+          with Not_found ->
+            (* if ns = None then filename !current_unit_namespace *)
+            (* else  *)raise Not_found
       in
       read_pers_struct ns name filename
 
