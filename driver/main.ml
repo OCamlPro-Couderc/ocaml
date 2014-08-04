@@ -34,6 +34,11 @@ let process_file ppf name =
     Compile.interface ppf name opref;
     if !make_package then objfiles := (opref ^ ".cmi") :: !objfiles
   end
+  else if !applied <> [] && Filename.check_suffix name ".cmo" then
+    begin
+      Compmisc.init_path false;
+      Byteapply.apply_functor_unit "" name (Compmisc.initial_env ())
+    end
   else if Filename.check_suffix name ".cmo"
        || Filename.check_suffix name ".cma" then
     objfiles := name :: !objfiles

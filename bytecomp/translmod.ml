@@ -516,7 +516,9 @@ let transl_applied_unit funit target_id instantiation =
                                [arg_id; Lvar app_id; Lvar id],
                                Location.none),
                         (prev env_id))))) body instantiation in
-  application env0_id
+  Llet (Strict, env0_id,
+        Lapply(mod_prim "create_functor_env",[lambda_unit], Location.none),
+        application env0_id)
 
 (* Build the list of value identifiers defined by a toplevel structure
    (excluding primitive declarations). *)
