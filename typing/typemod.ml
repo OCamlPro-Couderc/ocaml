@@ -1845,28 +1845,29 @@ let applied_unit initial_env instantiation cmi dest_ns (modulename: string) =
         let arg_file = find_in_path_uncap ~subdir !load_path
             (arg_modname ^ ".cmi") in
         let arg_sg = Env.read_signature funit_ns arg_modname arg_file in
-        Format.printf "Signature for %s: @.%a@." (Ident.name arg)
-          Printtyp.signature arg_sg;
+        (* Format.printf "Signature for %s: @.%a@." (Ident.name arg) *)
+        (*   Printtyp.signature arg_sg; *)
         let app_modname = Ident.shortname app in
         let app_file =
           find_in_path_uncap ~subdir:dest_subdir !load_path
             (app_modname ^ ".cmi") in
         let app_sg = Env.read_signature dest_ns app_modname app_file in
-        Format.printf "Signature for %s: @.%a@." (Ident.name app)
-          Printtyp.signature app_sg;
+        (* Format.printf "Signature for %s: @.%a@." (Ident.name app) *)
+        (*   Printtyp.signature app_sg; *)
         let coercion =
           try
             Includemod.signatures initial_env app_sg arg_sg
           with Includemod.Error msg ->
             failwith "Module given not subtype of arg" in
-        Format.printf "The coercion for %s and %s:@.%a@."
-          arg_modname app_modname Includemod.print_coercion coercion;
+        (* Format.printf "The coercion for %s and %s:@.%a@." *)
+        (*   arg_modname app_modname Includemod.print_coercion coercion; *)
         let subst' = Subst.add_module arg (Pident app) subst in
         coercion :: cc, subst') ([], Subst.identity) instantiation in
   let sg = Subst.signature subst cmi.Cmi_format.cmi_sign in
-  Format.printf "Signature result: @.%a@." Printtyp.signature sg;
+  (* Format.printf "Signature result: @.%a@." Printtyp.signature sg; *)
   let filename = (String.uncapitalize modulename) ^ ".cmi" in
-  let _sg = Env.save_signature dest_ns sg modulename filename in
+  let application = Some (modulename, funit_ns) in
+  let _sg = Env.save_signature ~application dest_ns sg modulename filename in
   cc
 
 (* Error report *)

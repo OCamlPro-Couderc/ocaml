@@ -27,6 +27,8 @@ type error =
   | Wrong_object_name of string
   | Symbol_error of string * Symtable.error
   | Inconsistent_import of string * string * string
+  | Functor_unit_missing of string * string * string
+  | Remaining_unapplied_functors of string * string
   | Custom_runtime
   | File_exists of string
   | Cannot_open_dll of string

@@ -180,9 +180,10 @@ val read_signature_and_args: namespace_info -> string -> string ->
 val read_my_signature_and_namespace:
   namespace_info -> string -> string -> signature * namespace_info
 
-val save_signature: namespace_info -> signature -> string -> string -> signature
+val save_signature: ?application:((string * Longident.t option) option) ->
+  namespace_info -> signature -> string -> string -> signature
         (* Arguments: signature, module name, file name. *)
-val save_signature_with_imports:
+val save_signature_with_imports: ?application:((string * Longident.t option) option) ->
     namespace_info -> signature -> string -> string
     -> (string * namespace_info * Digest.t option) list -> signature
         (* Arguments: namespace, signature, module name, file name,

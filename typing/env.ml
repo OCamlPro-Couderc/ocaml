@@ -395,11 +395,11 @@ let check_functor_args filename crcs =
   if crcs <> [] then
     let rec iter current_crcs =
       match current_crcs with
-	[] ->
-	  raise(Error(Inconsistent_arguments(filename, crcs, !functor_args)))
+        [] ->
+          raise(Error(Inconsistent_arguments(filename, crcs, !functor_args)))
       | _ :: tail ->
-	  if current_crcs = crcs then () else
-	    iter tail
+          if current_crcs = crcs then () else
+            iter tail
     in
     iter !functor_args
 
@@ -1925,7 +1925,7 @@ let imports() =
 
 (* Save a signature to a file *)
 
-let save_signature_with_imports ns sg modname filename imports =
+let save_signature_with_imports ?(application=None) ns sg modname filename imports =
   Btype.cleanup_abbrev ();
   Subst.reset_for_saving ();
   if !Clflags.ns_debug then
@@ -1943,6 +1943,7 @@ let save_signature_with_imports ns sg modname filename imports =
       cmi_arg_id = Ident.create modname;
       cmi_functor_args = !functor_args;
       cmi_functor_parts = !functor_parts;
+      cmi_apply = application;
     } in
     let crc = output_cmi filename oc cmi in
     close_out oc;
@@ -1978,8 +1979,8 @@ let save_signature_with_imports ns sg modname filename imports =
     remove_file filename;
     raise exn
 
-let save_signature ns sg modname filename =
-  save_signature_with_imports ns sg modname filename (imports())
+let save_signature ?(application=None) ns sg modname filename =
+  save_signature_with_imports ~application ns sg modname filename (imports())
 
 (* Folding on environments *)
 

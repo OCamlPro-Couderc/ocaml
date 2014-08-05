@@ -360,7 +360,7 @@ let rec emit = function
 
 (* Emission to a file *)
 
-let to_file objfile unit_name code =
+let to_file ?(application=None) objfile unit_name code =
   let objfile = Env.output_name objfile (Env.get_namespace_unit()) in
   let outchan = open_out_bin objfile in
   init();
@@ -396,6 +396,7 @@ let to_file objfile unit_name code =
         cu_debugsize = size_debug;
         cu_functor_parts = Env.get_functor_parts ();
         cu_functor_args = Env.get_functor_args ();
+        cu_apply = application;
       } in
     init();                               (* Free out_buffer and reloc_info *)
     Btype.cleanup_abbrev ();              (* Remove any cached abbreviation

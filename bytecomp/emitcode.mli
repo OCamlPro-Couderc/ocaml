@@ -15,7 +15,8 @@
 open Cmo_format
 open Instruct
 
-val to_file: string -> string -> instruction list -> unit
+val to_file: ?application:((string * Longident.t option) option) ->
+  string -> string -> instruction list -> unit
         (* Arguments:
              name of output file
              name of compilation unit implemented

@@ -23,6 +23,7 @@ type cmi_infos = {
     cmi_arg_id : Ident.t;
     cmi_functor_args : intf_info list;
     cmi_functor_parts : (string * intf_info list) list;
+    cmi_apply : (string * Longident.t option) option;
 }
 
 (* write the magic + the cmi information *)

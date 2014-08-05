@@ -22,6 +22,8 @@ type error =
   | Wrong_object_name of string
   | Symbol_error of string * Symtable.error
   | Inconsistent_import of string * string * string
+  | Functor_unit_missing of string * string * string
+  | Remaining_unapplied_functors of string * string
   | Custom_runtime
   | File_exists of string
   | Cannot_open_dll of string
@@ -160,13 +162,24 @@ let scan_file obj_name tolink =
 let crc_interfaces = Consistbl.create ()
 let interfaces = ref ([] : (string * Longident.t option) list)
 let implementations_defined = ref ([] : ((string * Longident.t option) * string) list)
+let functors_remaining = ref ([] : (string * Longident.t option) list)
 
 let check_consistency ppf file_name cu functor_args =
   if !Clflags.ns_debug then
     Format.printf "Bytelink.check_consistency@.";
   if cu.cu_functor_args <> functor_args then
-    raise (Env.Error(Env.Inconsistent_arguments (file_name, cu.cu_functor_args, functor_args)));
- begin try
+    functors_remaining := (cu.cu_name, cu.cu_namespace) :: !functors_remaining;
+  begin match cu.cu_apply with
+    None -> ()
+  | Some (name, ns) ->
+      if List.mem (name, ns) !functors_remaining then
+        functors_remaining :=
+          List.filter (fun (x, y) -> x = name && y = ns) !functors_remaining
+      else
+        raise (Error(Functor_unit_missing
+                       (file_name, name, Env.namespace_name ns)))
+  end;
+  begin try
     (* Format.printf "Segfault when reading %s crc?@." cu.cu_name; *)
     List.iter
       (fun (name, ns, crco) ->
@@ -302,6 +315,11 @@ let link_bytecode ppf tolink exec_name standalone =
     | Link_object(file_name, _) when file_name = exec_name ->
       raise (Error (Wrong_object_name exec_name));
     | _ -> ()) tolink;
+  if !functors_remaining <> [] then begin
+    let (modulename, ns) = List.hd !functors_remaining in
+    raise (Error(Remaining_unapplied_functors (modulename, Env.namespace_name
+  ns)))
+  end;
   Misc.remove_file exec_name; (* avoid permission problems, cf PR#1911 *)
   let outchan =
     open_out_gen [Open_wronly; Open_trunc; Open_creat; Open_binary]
@@ -634,6 +652,15 @@ let report_error ppf = function
         Location.print_filename file1
         Location.print_filename file2
         intf
+  | Functor_unit_missing (filename, modulename, ns) ->
+      fprintf ppf "The object file %s is a functor unit application. It cannot\
+                  \ be linked without the functor unit %s of %s"
+        filename modulename ns
+  | Remaining_unapplied_functors (modulename, ns) ->
+      fprintf ppf "Some functor units remains unapplied, and therefore the\
+                  \ program cannot be linked. At least %s of %s needs to be\
+                  \ applied."
+        modulename ns
   | Custom_runtime ->
       fprintf ppf "Error while building custom runtime system"
   | File_exists file ->

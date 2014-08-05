@@ -218,6 +218,7 @@ let save_cmt filename modname binary_annots sourcefile initial_env sg =
             cmi_arg_id = Ident.create modname;
             cmi_functor_args = Env.get_functor_args ();
             cmi_functor_parts = Env.get_functor_parts ();
+            cmi_apply = None;
           } in
           Some (output_cmi filename oc cmi)
     in

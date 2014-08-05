@@ -263,6 +263,7 @@ let package_object_files ppf files targetfile targetname ns coercion =
         cu_debugsize = pos_final - pos_debug;
         cu_functor_parts = [];
         cu_functor_args = [];
+        cu_apply = None;
       } in
     output_value oc compunit;
     seek_out oc pos_depl;

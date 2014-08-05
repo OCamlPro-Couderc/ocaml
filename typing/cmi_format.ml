@@ -30,6 +30,7 @@ type cmi_infos = {
     cmi_arg_id : Ident.t;
     cmi_functor_args : intf_info list;
     cmi_functor_parts : (string * intf_info list) list;
+    cmi_apply : (string * Longident.t option) option;
 }
 
 let input_cmi ic =
@@ -41,6 +42,7 @@ let input_cmi ic =
   let arg_id = input_value ic in
   let functor_args = input_value ic in
   let functor_parts = input_value ic in
+  let apply = input_value ic in
   {
       cmi_name = name;
       cmi_sign = sign;
@@ -50,6 +52,7 @@ let input_cmi ic =
       cmi_arg_id = arg_id;
       cmi_functor_args = functor_args;
       cmi_functor_parts = functor_parts;
+      cmi_apply = apply;
     }
 
 let read_cmi filename =
@@ -94,6 +97,7 @@ let output_cmi filename oc cmi =
   output_value oc cmi.cmi_arg_id;
   output_value oc cmi.cmi_functor_args;
   output_value oc cmi.cmi_functor_parts;
+  output_value oc cmi.cmi_apply;
   crc
 
 (* Error report *)

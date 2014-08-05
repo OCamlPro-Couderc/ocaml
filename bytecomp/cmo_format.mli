@@ -40,6 +40,7 @@ type compilation_unit =
     cu_debugsize: int;                  (* Length of debugging info *)
     mutable cu_functor_parts : (string * (string * Digest.t) list) list;
     mutable cu_functor_args : (string * Digest.t) list;
+    mutable cu_apply : (string * Longident.t option) option;
   }
 
 (* Format of a .cmo file:

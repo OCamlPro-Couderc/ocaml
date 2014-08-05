@@ -57,6 +57,14 @@ let print_name_crc (name, ns, crco) =
 let print_line name =
   printf "\t%s\n" name
 
+let print_application = function
+    None -> ()
+  | Some (modulename, ns) ->
+      let ns = match ns with
+          None -> "ROOT"
+        | Some ns -> Longident.string_of_longident ns in
+      printf "Application of:\t%s %@ \t%s\n" modulename ns
+
 let print_functor_infos functor_args functor_parts =
   if functor_args <> [] then begin
     printf "Functor args:\n";
@@ -72,6 +80,7 @@ let print_functor_infos functor_args functor_parts =
 let print_cmo_infos cu =
   printf "Unit name: %s\n" cu.cu_name;
   print_namespace cu.cu_namespace;
+  print_application cu.cu_apply;
   print_string "Interfaces imported:\n";
   List.iter print_name_crc cu.cu_imports;
   (* print_functor_infos cu.cu_functor_args cu.cu_functor_parts; *)
@@ -100,12 +109,13 @@ let print_cma_infos (lib : Cmo_format.library) =
   printf "\n";
   List.iter print_cmo_infos lib.lib_units
 
-let print_cmi_infos name ns crcs fargs fparts =
+let print_cmi_infos name ns crcs fargs fparts app =
   let ns = match ns with
       None -> "ROOT"
     | Some ns -> Longident.string_of_longident ns in
   printf "Unit name: %s\n" name;
   printf "Namespace: %s\n" ns;
+  print_application app;
   printf "Interfaces imported:\n";
   List.iter print_name_crc crcs;
   print_functor_infos fargs fparts
@@ -274,6 +284,7 @@ let dump_obj filename =
            cmi.Cmi_format.cmi_crcs
            cmi.Cmi_format.cmi_functor_args
            cmi.Cmi_format.cmi_functor_parts
+           cmi.Cmi_format.cmi_apply
     end;
     begin match cmt with
      | None -> ()
