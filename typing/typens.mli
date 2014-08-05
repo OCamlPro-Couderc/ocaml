@@ -17,8 +17,3 @@ val compute_prelude_no_alias: Parsetree.prelude -> Env.t -> Env.t * Longident.t 
 val realias_signature: Types.signature -> Types.signature
 
 val realias_type_expr: Types.type_expr -> Types.type_expr
-(* val compute_interface_prelude: Parsetree.prelude -> Parsetree.signature * Longident.t option *)
-
-(* (\** Checks the prelude, takes a function that add the namespaces into the *)
-(*     modules names *\) *)
-(* val compute_prelude: Parsetree.prelude -> Parsetree.structure * Longident.t option *)

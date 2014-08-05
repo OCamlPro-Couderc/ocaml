@@ -90,7 +90,7 @@ let mk_path p =
   let rec step acc = function
       [] -> ()
     | d :: l -> let dir = Filename.concat acc d in
-        if not (Sys.file_exists dir) then
+        if not (Sys.file_exists dir) && !ns_debug then
           (Format.printf "Should I `Unix.mkdir %s 0o640` ?@." dir;
            step dir l)
         else

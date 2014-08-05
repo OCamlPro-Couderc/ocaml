@@ -45,6 +45,9 @@ val save_signature:
 val package_units:
   Env.t -> string list -> string -> string -> Typedtree.module_coercion * namespace_info
 
+val applied_unit: Env.t -> (Ident.t * Ident.t) list -> Cmi_format.cmi_infos -> namespace_info
+  -> string -> Typedtree.module_coercion list
+
 type error =
     Cannot_apply of module_type
   | Not_included of Includemod.error list

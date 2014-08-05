@@ -506,7 +506,7 @@ let transl_applied_unit funit target_id instantiation =
     List.fold_left
       (fun prev (arg, app) ->
          let env_id = Ident.create "env" in
-         let arg_id = Lconst (Const_base (Const_string (arg, None))) in
+         let arg_id = Lconst (Const_base (Const_string (Ident.name arg, None))) in
          let app_id = Ident.create (Ident.name app) in
          (fun id ->
             Llet (Strict,
