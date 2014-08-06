@@ -43,6 +43,7 @@ type error =
   | Namespace_clash of string * string
   | Inconsistent_functor_arguments of string * string
   | No_functor_argument
+  | Argument_not_included of string * string * Includemod.error list
   | Functor_argument_not_found of string
   | File_not_found of string
 
@@ -1858,7 +1859,8 @@ let applied_unit initial_env instantiation cmi dest_ns (modulename: string) =
           try
             Includemod.signatures initial_env app_sg arg_sg
           with Includemod.Error msg ->
-            failwith "Module given not subtype of arg" in
+            raise(Error(Location.none, initial_env,
+                        Argument_not_included (arg_file, app_file, msg))) in
         (* Format.printf "The coercion for %s and %s:@.%a@." *)
         (*   arg_modname app_modname Includemod.print_coercion coercion; *)
         let subst' = Subst.add_module arg (Pident app) subst in
@@ -1868,7 +1870,7 @@ let applied_unit initial_env instantiation cmi dest_ns (modulename: string) =
   let filename = (String.uncapitalize modulename) ^ ".cmi" in
   let application = Some (modulename, funit_ns) in
   let _sg = Env.save_signature ~application dest_ns sg modulename filename in
-  cc
+  List.rev cc
 
 (* Error report *)
 
@@ -1961,6 +1963,10 @@ let report_error ppf = function
         f1 f2
   | No_functor_argument ->
     fprintf ppf "Cannot build a functor with toplevel modules"
+  | Argument_not_included (f1, f2, errs) ->
+      fprintf ppf
+        "@[<v>Signature of %s and %s mismatch:@ %a@]"
+        f1 f2 Includemod.report_error errs
   | Functor_argument_not_found s ->
     fprintf ppf "Compiled interface for functor argument %s could not be found"
       s

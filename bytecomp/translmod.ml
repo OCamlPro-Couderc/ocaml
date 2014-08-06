@@ -490,7 +490,7 @@ let transl_implementation module_name ({ str_items = str }, cc) =
       else str
     ])
 
-let transl_applied_unit funit target_id instantiation =
+let transl_applied_unit funit target_id instantiation coercion =
   if !Clflags.ns_debug then
     Format.printf "In transl_applied_unit@.";
   let funit_id = Ident.create_persistent
@@ -503,21 +503,22 @@ let transl_applied_unit funit target_id instantiation =
     Lapply(funit_body, [Lvar id], Location.none) in
 
   let application  =
-    List.fold_left
-      (fun prev (arg, app) ->
+    List.fold_left2
+      (fun prev (arg, app) cc ->
          let env_id = Ident.create "env" in
          let arg_id = Lconst (Const_base (Const_string (Ident.name arg, None))) in
          let app_id = Ident.create (Ident.name app) in
          (fun id ->
+            let app_coerced = apply_coercion Strict cc (Lprim (Pgetglobal app, [])) in
             Llet (Strict,
-                  app_id, Lprim (Pgetglobal app, []),
+                  app_id, app_coerced,
                   Llet (Strict, env_id,
                         Lapply(mod_prim "add_functor_arg",
                                [arg_id; Lvar app_id; Lvar id],
                                Location.none),
-                        (prev env_id))))) body instantiation in
+                        (prev env_id))))) body instantiation coercion in
   Llet (Strict, env0_id,
-        Lapply(mod_prim "create_functor_env",[lambda_unit], Location.none),
+        Lapply(mod_prim "create_functor_env", [lambda_unit], Location.none),
         application env0_id)
 
 (* Build the list of value identifiers defined by a toplevel structure

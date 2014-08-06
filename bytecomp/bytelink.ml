@@ -167,14 +167,14 @@ let functors_remaining = ref ([] : (string * Longident.t option) list)
 let check_consistency ppf file_name cu functor_args =
   if !Clflags.ns_debug then
     Format.printf "Bytelink.check_consistency@.";
-  if cu.cu_functor_args <> functor_args then
+  if cu.cu_functor_args <> [] then
     functors_remaining := (cu.cu_name, cu.cu_namespace) :: !functors_remaining;
   begin match cu.cu_apply with
     None -> ()
   | Some (name, ns) ->
       if List.mem (name, ns) !functors_remaining then
         functors_remaining :=
-          List.filter (fun (x, y) -> x = name && y = ns) !functors_remaining
+          List.filter (fun t -> t <> (name, ns)) !functors_remaining
       else
         raise (Error(Functor_unit_missing
                        (file_name, name, Env.namespace_name ns)))
@@ -315,11 +315,6 @@ let link_bytecode ppf tolink exec_name standalone =
     | Link_object(file_name, _) when file_name = exec_name ->
       raise (Error (Wrong_object_name exec_name));
     | _ -> ()) tolink;
-  if !functors_remaining <> [] then begin
-    let (modulename, ns) = List.hd !functors_remaining in
-    raise (Error(Remaining_unapplied_functors (modulename, Env.namespace_name
-  ns)))
-  end;
   Misc.remove_file exec_name; (* avoid permission problems, cf PR#1911 *)
   let outchan =
     open_out_gen [Open_wronly; Open_trunc; Open_creat; Open_binary]
@@ -361,6 +356,11 @@ let link_bytecode ppf tolink exec_name standalone =
     let output_fun = output_bytes outchan
     and currpos_fun () = pos_out outchan - start_code in
     List.iter (link_file ppf output_fun currpos_fun) tolink;
+    if !functors_remaining <> [] then begin
+      let (modulename, ns) = List.hd !functors_remaining in
+      raise (Error(Remaining_unapplied_functors (modulename, Env.namespace_name
+                                                   ns)))
+    end;
     if check_dlls then Dll.close_all_dlls();
     (* The final STOP instruction *)
     output_byte outchan Opcodes.opSTOP;

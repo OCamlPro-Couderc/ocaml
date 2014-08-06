@@ -72,6 +72,7 @@ type error =
   | Namespace_clash of string * string
   | Inconsistent_functor_arguments of string * string
   | No_functor_argument
+  | Argument_not_included of string * string * Includemod.error list
   | Functor_argument_not_found of string
   | File_not_found of string
 
