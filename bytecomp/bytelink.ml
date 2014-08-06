@@ -171,7 +171,7 @@ let check_consistency ppf file_name cu functor_args =
     functors_remaining := (cu.cu_name, cu.cu_namespace) :: !functors_remaining;
   begin match cu.cu_apply with
     None -> ()
-  | Some (name, ns) ->
+  | Some (name, ns, _, _) ->
       if List.mem (name, ns) !functors_remaining then
         functors_remaining :=
           List.filter (fun t -> t <> (name, ns)) !functors_remaining

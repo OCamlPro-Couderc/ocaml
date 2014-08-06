@@ -22,6 +22,8 @@ type reloc_info =
 
 (* Descriptor for compilation units *)
 
+type intf_info = string * Digest.t
+
 type compilation_unit =
   { cu_name: string;                    (* Name of compilation unit *)
     cu_namespace: Longident.t option;   (* Namespace of compilation unit *)
@@ -40,7 +42,7 @@ type compilation_unit =
     cu_debugsize: int;                  (* Length of debugging info *)
     mutable cu_functor_parts : (string * (string * Digest.t) list) list;
     mutable cu_functor_args : (string * Digest.t) list;
-    mutable cu_apply : (string * Longident.t option) option;
+    mutable cu_apply : (string * Longident.t option * Digest.t * intf_info list) option;
   }
 
 (* Format of a .cmo file:

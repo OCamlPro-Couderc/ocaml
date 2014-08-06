@@ -26,7 +26,7 @@ val transl_package:
 val transl_store_package:
       Ident.t option list -> Ident.t -> module_coercion -> int * lambda
 (* let transl_applied_unit funit target_id instantiation *)
-val transl_applied_unit: Cmi_format.cmi_infos -> Ident.t ->
+val transl_applied_unit: Ident.t -> Ident.t ->
   (Ident.t * Ident.t) list -> module_coercion list -> lambda
 
 val toplevel_name: Ident.t -> string

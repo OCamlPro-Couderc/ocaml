@@ -40,6 +40,8 @@ let type_declarations = Hashtbl.create 16
 
 type intf_info = Cmi_format.intf_info
 
+type application = string * namespace_info * Digest.t * intf_info list
+
 type constructor_usage = Positive | Pattern | Privatize
 type constructor_usages =
     {
@@ -299,6 +301,8 @@ let current_unit = ref ""
 
 let current_unit_namespace = ref None
 
+let current_applied_unit = ref None
+
 let functor_args = ref ([] : (string * Digest.t) list)
 let functor_arg_crcs = (Hashtbl.create 17 : (string, Digest.t * string) Hashtbl.t)
 let functor_parts = ref ([] : (string * (string * Digest.t) list) list)
@@ -328,6 +332,13 @@ let get_functor_parts () = !functor_parts
 
 let get_functor_args () = !functor_args
 
+
+(* let set_unit_applied name ns crc args = *)
+(*   current_applied_unit := Some (name, ns, crc, args) *)
+
+(* let is_currently_applied name ns crc args = *)
+(*   !current_applied_unit = Some (name, ns, crc, args) *)
+
 (* Persistent structure descriptions *)
 
 type ps_kind =
@@ -348,7 +359,8 @@ type pers_struct =
     ps_crc: Digest.t;
     ps_functor_args : intf_info list;
     ps_functor_parts : (string * intf_info list) list;
- }
+    ps_apply : (string * namespace_info * Digest.t * intf_info list) option;
+  }
 
 let persistent_structures =
   (Hashtbl.create 17 : (string * namespace_info, pers_struct option) Hashtbl.t)
@@ -391,8 +403,8 @@ let check_consistency ps =
   with Consistbl.Inconsistency(name, source, auth) ->
     error (Inconsistent_import(name, auth, source))
 
-let check_functor_args filename crcs =
-  if crcs <> [] then
+let check_functor_args filename modname ns crcs =
+  if crcs <> [] (* && not (is_currently_applied modname ns)  *)then
     let rec iter current_crcs =
       match current_crcs with
         [] ->
@@ -452,13 +464,14 @@ let read_pers_struct ns modname filename ps_kind =
              ps_kind;
              ps_functor_parts = functor_parts;
              ps_functor_args = functor_args;
+             ps_apply = cmi.cmi_apply;
            } in
   if ps.ps_name <> modname then
     error (Illegal_renaming(modname, ps.ps_name, filename));
   add_imports ps;
   check_consistency ps;
-  if ps_kind <> PersistentStructureUnit then
-    check_functor_args filename ps.ps_functor_args;
+  (* if ps_kind <> PersistentStructureUnit then *)
+  (*   check_functor_args filename name ns ps.ps_functor_args; *)
   List.iter
     (function Rectypes ->
       if not !Clflags.recursive_types then
@@ -1875,6 +1888,10 @@ let read_signature_and_args ns modname filename =
   let ps = read_pers_struct ns modname filename PersistentStructureUnit in
   (ps.ps_sig, ps.ps_functor_args, ps.ps_functor_parts)
 
+let read_signature_and_app ns modname filename =
+  let ps = read_pers_struct ns modname filename PersistentStructureUnit in
+  (ps.ps_sig, ps.ps_apply)
+
 let read_my_signature_and_namespace ns modname filename =
 (*  Printf.fprintf stderr "read_my_signature %s\n%!" modname; *)
   let ps = read_pers_struct ns modname filename PersistentStructureDependency in
@@ -1969,6 +1986,7 @@ let save_signature_with_imports ?(application=None) ns sg modname filename impor
         ps_crc = crc;
         ps_functor_args = cmi.cmi_functor_args;
         ps_functor_parts = cmi.cmi_functor_parts;
+        ps_apply = cmi.cmi_apply;
       } in
     Hashtbl.add persistent_structures (modname, ns) (Some ps);
     Consistbl.set crc_units modname (optstring ns) crc filename;

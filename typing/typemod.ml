@@ -1836,41 +1836,67 @@ let package_units initial_env objfiles cmifile (modulename: string) =
     Tcoerce_none, ns
   end
 
-let applied_unit initial_env instantiation cmi dest_ns (modulename: string) =
+let applied_unit initial_env instantiation parts cmi dest_ns (modulename: string) =
   let funit_ns = cmi.Cmi_format.cmi_namespace in
+  (* Env.set_unit_applied cmi.Cmi_format.cmi_name funit_ns; *)
   let subdir = Env.longident_to_filepath funit_ns in
   let dest_subdir = Env.longident_to_filepath dest_ns in
-  let cc, subst =
-    List.fold_left (fun (cc, subst) (arg, app) ->
+  (* Checking applied compunit *)
+  let cc, subst, apps_crc =
+    List.fold_left (fun (cc, subst, crcs) (arg, app) ->
         let arg_modname = Ident.shortname arg in
         let arg_file = find_in_path_uncap ~subdir !load_path
             (arg_modname ^ ".cmi") in
         let arg_sg = Env.read_signature funit_ns arg_modname arg_file in
-        (* Format.printf "Signature for %s: @.%a@." (Ident.name arg) *)
-        (*   Printtyp.signature arg_sg; *)
+
         let app_modname = Ident.shortname app in
         let app_file =
           find_in_path_uncap ~subdir:dest_subdir !load_path
             (app_modname ^ ".cmi") in
         let app_sg = Env.read_signature dest_ns app_modname app_file in
-        (* Format.printf "Signature for %s: @.%a@." (Ident.name app) *)
-        (*   Printtyp.signature app_sg; *)
+        let app_crc = Env.crc_of_unit app_modname dest_ns in
+
         let coercion =
           try
             Includemod.signatures initial_env app_sg arg_sg
           with Includemod.Error msg ->
             raise(Error(Location.none, initial_env,
                         Argument_not_included (arg_file, app_file, msg))) in
-        (* Format.printf "The coercion for %s and %s:@.%a@." *)
-        (*   arg_modname app_modname Includemod.print_coercion coercion; *)
+
         let subst' = Subst.add_module arg (Pident app) subst in
-        coercion :: cc, subst') ([], Subst.identity) instantiation in
+        coercion :: cc, subst', (app_modname, app_crc) :: crcs)
+          ([], Subst.identity, []) instantiation in
+
+  (* Checking functorized dependencies *)
+  let cc, subst = List.fold_left (fun (cc, subst) ((part, p_crc), applied) ->
+      let part_modname = Ident.shortname part in
+      let part_file = find_in_path_uncap ~subdir !load_path
+          (part_modname ^ ".cmi") in
+      let part_cmi = Cmi_format.read_cmi part_file in
+      let applied_modname = Ident.shortname applied in
+      let applied_file =
+        find_in_path_uncap ~subdir:dest_subdir !load_path
+          (applied_modname ^ ".cmi") in
+      let applied_cmi = Cmi_format.read_cmi applied_file in
+      begin
+        match applied_cmi.Cmi_format.cmi_apply with
+        | None -> failwith "Should be an application"
+        | Some (modname, ns, crc, args) ->
+            if modname <> part_modname &&
+               ns <> part_cmi.Cmi_format.cmi_namespace &&
+               crc <> p_crc &&
+               apps_crc <> args then failwith "Wrong args"
+      end;
+      let subst' = Subst.add_module part (Pident applied) subst in
+      Tcoerce_none :: cc, subst') (List.rev cc, subst) parts in
   let sg = Subst.signature subst cmi.Cmi_format.cmi_sign in
-  (* Format.printf "Signature result: @.%a@." Printtyp.signature sg; *)
+  Format.printf "Signature result: @.%a@." Printtyp.signature sg;
   let filename = (String.uncapitalize modulename) ^ ".cmi" in
-  let application = Some (modulename, funit_ns) in
+  let application = Some (modulename, funit_ns,
+                          Env.crc_of_unit modulename funit_ns,
+                          apps_crc) in
   let _sg = Env.save_signature ~application dest_ns sg modulename filename in
-  List.rev cc
+  cc, application
 
 (* Error report *)
 

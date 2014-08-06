@@ -15,7 +15,7 @@
 open Cmo_format
 open Instruct
 
-val to_file: ?application:((string * Longident.t option) option) ->
+val to_file: ?application:((string * Longident.t option * Digest.t * intf_info list) option) ->
   string -> string -> instruction list -> unit
         (* Arguments:
              name of output file

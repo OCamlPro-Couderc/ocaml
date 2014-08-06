@@ -30,6 +30,8 @@ type t
 
 type intf_info = Cmi_format.intf_info
 
+type application = string * namespace_info * Digest.t * intf_info list
+
 val empty: t
 val initial_safe_string: t
 val initial_unsafe_string: t
@@ -160,6 +162,12 @@ val get_namespace_unit: unit -> namespace_info
 (* Remember the namespace of the current compilation unit *)
 val set_namespace_unit: namespace_info -> unit
 
+(* Sets the unit that is currently applied *)
+(* val set_unit_applied: string -> namespace_info -> unit *)
+
+(* Returns true if the unit given is currently applied *)
+(* val is_currently_applied : string -> namespace_info -> bool *)
+
 (* (\* Reads the namespace stored in the file *\) *)
 (* val read_namespace: namespace_info -> string -> string -> namespace_info *)
 
@@ -180,10 +188,14 @@ val read_signature_and_args: namespace_info -> string -> string ->
 val read_my_signature_and_namespace:
   namespace_info -> string -> string -> signature * namespace_info
 
-val save_signature: ?application:((string * Longident.t option) option) ->
+val read_signature_and_app: namespace_info -> string -> string
+  -> signature * (string * namespace_info * Digest.t * intf_info list) option
+
+val save_signature: ?application:(application option) ->
   namespace_info -> signature -> string -> string -> signature
         (* Arguments: signature, module name, file name. *)
-val save_signature_with_imports: ?application:((string * Longident.t option) option) ->
+
+val save_signature_with_imports: ?application:(application option) ->
     namespace_info -> signature -> string -> string
     -> (string * namespace_info * Digest.t option) list -> signature
         (* Arguments: namespace, signature, module name, file name,

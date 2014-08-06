@@ -490,12 +490,9 @@ let transl_implementation module_name ({ str_items = str }, cc) =
       else str
     ])
 
-let transl_applied_unit funit target_id instantiation coercion =
+let transl_applied_unit funit_id target_id instantiation coercion =
   if !Clflags.ns_debug then
     Format.printf "In transl_applied_unit@.";
-  let funit_id = Ident.create_persistent
-      ~ns:(Longident.optstring funit.Cmi_format.cmi_namespace)
-      funit.Cmi_format.cmi_name in
   let funit_body =
     Lprim(Pfield 0, [Lprim(Pgetglobal funit_id, [])]) in
   let env0_id = Ident.create "env0" in

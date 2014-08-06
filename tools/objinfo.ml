@@ -59,11 +59,14 @@ let print_line name =
 
 let print_application = function
     None -> ()
-  | Some (modulename, ns) ->
-      let ns = match ns with
+  | Some (modulename, ns, _, args) ->
+      let nsstr = match ns with
           None -> "ROOT"
         | Some ns -> Longident.string_of_longident ns in
-      printf "Application of:\t%s %@ \t%s\n" modulename ns
+      printf "Application of:\t%s %@ %s\n" modulename nsstr;
+      printf "Arguments:\n";
+      List.iter (fun (name, crc) ->
+          print_name_crc (name, ns, Some crc)) args
 
 let print_functor_infos functor_args functor_parts =
   if functor_args <> [] then begin
