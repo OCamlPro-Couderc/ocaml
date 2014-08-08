@@ -49,8 +49,10 @@ let rec build_closure_env env_param pos = function
 
 let getglobal cenv id =
   if Ident.is_functor_part id then
-    let id = Env.get_functor_part (Ident.name id) in
-    try Tbl.find id cenv with Not_found -> Uvar id
+    begin
+      let id = Env.get_functor_part (Ident.name id) in
+      try Tbl.find id cenv with Not_found -> Uvar id
+    end
   else
     Uprim(Pgetglobal (Ident.create_persistent (Compilenv.symbol_for_global id)),
           [], Debuginfo.none)

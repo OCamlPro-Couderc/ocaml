@@ -822,7 +822,7 @@ let transl_store_implementation module_name (str, restr) =
     let (size, str) = r in
     let id = Env.get_functor_part module_name in
     let str = Llet(Strict, id,
-		   Lprim(Pmakeblock(0, Immutable), Array.to_list (Array.create size lambda_unit)),
+		   Lprim(Pmakeblock(0, Mutable), Array.to_list (Array.create size lambda_unit)),
 		   Lsequence (str, Lvar id) ) in
     let functor_env = Ident.create "functor_env" in
     let str = transl_functor_unit functor_env module_name str in
