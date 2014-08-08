@@ -518,6 +518,7 @@ let transl_applied_unit funit_id target_id instantiation coercion =
         Lapply(mod_prim "create_functor_env", [lambda_unit], Location.none),
         application env0_id)
 
+
 (* Build the list of value identifiers defined by a toplevel structure
    (excluding primitive declarations). *)
 

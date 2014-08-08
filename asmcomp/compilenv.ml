@@ -65,6 +65,7 @@ let current_unit =
     ui_send_fun = [];
     ui_functor_parts = [];
     ui_functor_args = [];
+    ui_apply = None;
     ui_force_link = false }
 
 let symbol_of_namespace = function
@@ -289,12 +290,13 @@ let write_unit_info info filename =
   Digest.output oc crc;
   close_out oc
 
-let save_unit_info filename =
+let save_unit_info ?(application=None) filename =
   if !Clflags.ns_debug then
     Format.printf "in Compilenv.save_unit_info@.";
   current_unit.ui_imports_cmi <- Env.imports();
   current_unit.ui_functor_args <- Env.get_functor_args();
   current_unit.ui_functor_parts <- Env.get_functor_parts();
+  current_unit.ui_apply <- application;
   write_unit_info current_unit filename;
   if !Clflags.ns_debug then
     Format.printf "Out of Compilenv.save_unit_info@."

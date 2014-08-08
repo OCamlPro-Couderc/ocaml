@@ -163,6 +163,7 @@ let build_package_cmx members ns cmxfile =
           List.exists (fun info -> info.ui_force_link) units;
       ui_functor_parts = [];
       ui_functor_args = [];
+      ui_apply = None;
     } in
   Compilenv.write_unit_info pkg_infos cmxfile
 

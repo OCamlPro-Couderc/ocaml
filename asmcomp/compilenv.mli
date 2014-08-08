@@ -76,7 +76,8 @@ val read_unit_info: string -> unit_infos * Digest.t
         (* Read infos and MD5 from a [.cmx] file. *)
 val write_unit_info: unit_infos -> string -> unit
         (* Save the given infos in the given file *)
-val save_unit_info: string -> unit
+val save_unit_info: ?application:((string * Longident.t option * Digest.t *
+        intf_info list) option) -> string -> unit
         (* Save the infos for the current unit in the given file *)
 val cache_unit_info: unit_infos -> unit
         (* Enter the given infos in the cache.  The infos will be

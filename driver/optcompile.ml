@@ -98,8 +98,6 @@ let implementation ppf sourcefile outputprefix =
   in
   try comp (Pparse.parse_implementation ppf sourcefile)
   with x ->
-    if !Clflags.ns_debug then
-      Format.printf "Error in optcompile.impl ?@.";
     let dir = Filename.concat !Clflags.root @@
     Env.longident_to_filepath (Env.get_namespace_unit()) in
     Stypes.dump (Some (outputprefix ^ ".annot"));

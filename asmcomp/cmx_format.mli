@@ -22,6 +22,8 @@
    The .cmx file contains these infos (as an externed record) plus a MD5
    of these infos *)
 
+type intf_info = string * Digest.t
+
 type unit_infos =
   { mutable ui_name: string;                    (* Name of unit implemented *)
     mutable ui_namespace: Longident.t option;   (* Namespace of the unit *)
@@ -37,6 +39,7 @@ type unit_infos =
     mutable ui_send_fun: int list;              (* Send functions needed *)
     mutable ui_functor_parts : (string * (string * Digest.t) list) list;
     mutable ui_functor_args : (string * Digest.t) list;
+    mutable ui_apply : (string * Longident.t option * Digest.t * intf_info list) option;
     mutable ui_force_link: bool }               (* Always linked *)
 
 (* Each .a library has a matching .cmxa file that provides the following
