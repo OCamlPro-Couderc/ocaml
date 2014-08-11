@@ -33,9 +33,12 @@ let process_file ppf name =
     Optcompile.interface ppf name opref;
     if !make_package then objfiles := (opref ^ ".cmi") :: !objfiles
   end
-  else if !applied <> [] && Filename.check_suffix name ".cmo" then
+  else if !applied <> [] && Filename.check_suffix name ".cmx" then
     begin
-      Asmapply.apply_functor_unit "" name (Compmisc.initial_env ())
+      Compmisc.init_path true;
+      if !Clflags.ns_debug then
+        Format.printf "%s@." (String.concat ";" !Config.load_path);
+      Asmapply.apply_functor_unit ppf name (Compmisc.initial_env ())
     end
   else if Filename.check_suffix name ".cmx" then
     objfiles := name :: !objfiles

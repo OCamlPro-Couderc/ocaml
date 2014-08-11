@@ -282,6 +282,8 @@ let write_unit_info info filename =
   (* let dir = Filename.concat !Clflags.root @@ *)
   (*   Env.longident_to_filepath info.ui_namespace in *)
   let filename = Env.output_name filename info.ui_namespace in
+  if !Clflags.ns_debug then
+    Format.printf "Outputing in %s@." filename;
   let oc = open_out_bin filename in
   output_string oc cmx_magic_number;
   output_value oc info;

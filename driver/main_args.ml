@@ -824,6 +824,8 @@ struct
     mk_plain_imports F._plain_imports;
 
     mk_functor F._functor;
+    mk_apply F._apply;
+    mk_ns F._ns;
 
     mk_nopervasives F._nopervasives;
     mk_dsource F._dsource;

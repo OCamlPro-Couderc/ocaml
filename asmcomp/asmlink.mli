@@ -32,6 +32,8 @@ type error =
   | Missing_implementations of ((string * Longident.t option) * string list) list
   | Inconsistent_interface of string * string * string
   | Inconsistent_implementation of string * string * string
+  | Functor_unit_missing of string * string * string
+  | Remaining_unapplied_functors of string * string
   | Assembler_error of string
   | Linking_error
   | Multiple_definition of string * string * string

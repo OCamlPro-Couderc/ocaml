@@ -23,6 +23,8 @@ type error =
   | Missing_implementations of ((string * Longident.t option) * string list) list
   | Inconsistent_interface of string * string * string
   | Inconsistent_implementation of string * string * string
+  | Functor_unit_missing of string * string * string
+  | Remaining_unapplied_functors of string * string
   | Assembler_error of string
   | Linking_error
   | Multiple_definition of string * string * string
@@ -38,10 +40,22 @@ let crc_implementations = Consistbl.create ()
 let implementations = ref ([] : (string * Longident.t option) list)
 let implementations_defined = ref ([] : (string * Longident.t option * string) list)
 let cmx_required = ref ([] : string list)
+let functors_remaining = ref([] : (string* Longident.t option) list)
 
 let check_consistency file_name unit crc functor_args =
-  if unit.ui_functor_args <> functor_args then
-    raise (Env.Error(Env.Inconsistent_arguments (file_name, unit.ui_functor_args, functor_args)));
+  if unit.ui_functor_args <> [] then
+    functors_remaining :=
+      (unit.ui_name, unit.ui_namespace) :: !functors_remaining;
+  begin match unit.ui_apply with
+    None -> ()
+  | Some (name, ns, _, _) ->
+      if List.mem (name, ns) !functors_remaining then
+        functors_remaining :=
+          List.filter (fun t -> t <> (name, ns)) !functors_remaining
+      else
+        raise (Error(Functor_unit_missing
+                       (file_name, name, Env.namespace_name ns)))
+  end;
   begin try
     List.iter
       (fun (name, ns, crco) ->
@@ -338,6 +352,11 @@ let link ppf objfiles output_name =
   List.iter
     (fun (info, file_name, crc) -> check_consistency file_name info crc [])
     units_tolink;
+  if !functors_remaining <> [] then begin
+    let (modulename, ns) = List.hd !functors_remaining in
+    raise (Error(Remaining_unapplied_functors (modulename, Env.namespace_name
+                                                 ns)))
+  end;
   Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs;
   Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
                                                (* put user's opts first *)
@@ -394,6 +413,15 @@ let report_error ppf = function
        Location.print_filename file1
        Location.print_filename file2
        intf
+  | Functor_unit_missing (filename, modulename, ns) ->
+      fprintf ppf "The object file %s is a functor unit application. It cannot\
+                  \ be linked without the functor unit %s of %s"
+        filename modulename ns
+  | Remaining_unapplied_functors (modulename, ns) ->
+      fprintf ppf "Some functor units remains unapplied, and therefore the\
+                  \ program cannot be linked. At least %s of %s needs to be\
+                  \ applied."
+        modulename ns
   | Assembler_error file ->
       fprintf ppf "Error while assembling %a" Location.print_filename file
   | Linking_error ->
