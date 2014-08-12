@@ -49,7 +49,7 @@ let applied_object_file ppf cmi prefix targetname optns env =
       ~ns:(Longident.optstring ns) targetname in
   let funit_id = Ident.create_persistent
       ~ns:(Longident.optstring cmi.cmi_namespace) cmi.cmi_name in
-  Ident.make_functor_part funit_id;
+  (* Ident.make_functor_part funit_id; *)
   let instance = List.fold_left (fun acc ((part, crc), applied) ->
       (part, applied) :: acc) instance parts in
 
