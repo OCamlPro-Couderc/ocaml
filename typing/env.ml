@@ -1936,9 +1936,11 @@ let output_name f ns =
 
 let imports() =
   let imported_units =
-    List.map (fun (name, ns) -> name, Longident.optstring ns) !imported_units in
+    List.fold_left (fun acc (name, ns) ->
+        (name, Longident.optstring ns) :: acc) [] !imported_units in
   Consistbl.extract imported_units crc_units
-  |> List.map (fun (name, ns, crc) -> name, Longident.from_optstring ns, crc)
+  |> List.fold_left (fun acc (name, ns, crc) ->
+      (name, Longident.from_optstring ns, crc) :: acc) []
 
 (* Save a signature to a file *)
 
