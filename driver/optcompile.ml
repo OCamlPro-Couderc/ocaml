@@ -22,13 +22,15 @@ open Compenv
 
 (* Keep in sync with the copy in compile.ml *)
 
+let tool_name = "ocamlopt"
+
 let interface ppf sourcefile outputprefix =
   Compmisc.init_path false;
   let modulename = module_of_filename ppf sourcefile outputprefix in
   Env.set_unit_name modulename;
   let initial_env = Compmisc.initial_env () in
   (* let ast = Pparse.parse_interface ppf sourcefile in *)
-  let interf = Pparse.parse_interface ppf sourcefile in
+  let interf = Pparse.parse_interface ~tool_name ppf sourcefile in
   (* let Parsetree.Pinterf (_, ast) = interf in *)
   if !Clflags.dump_parsetree then fprintf ppf "%a@." Printast.interface interf;
   if !Clflags.dump_source then fprintf ppf "%a@." Pprintast.interface interf;
@@ -96,7 +98,7 @@ let implementation ppf sourcefile outputprefix =
     Warnings.check_fatal ();
     Stypes.dump (Some (outputprefix ^ ".annot"))
   in
-  try comp (Pparse.parse_implementation ppf sourcefile)
+  try comp (Pparse.parse_implementation ~tool_name ppf sourcefile)
   with x ->
     let dir = Filename.concat !Clflags.root @@
     Env.longident_to_filepath (Env.get_namespace_unit()) in

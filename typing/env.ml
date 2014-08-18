@@ -374,17 +374,6 @@ let clear_imports () =
   Consistbl.clear crc_units;
   imported_units := []
 
-let add_imports ps =
-  if !Clflags.ns_debug then
-    Format.printf "Env.add_imports of %s@." ps.ps_name;
-  List.iter
-    (fun (name, ns, _) ->
-       (if !Clflags.ns_debug then
-          Format.printf "Adding %s from %s@." name
-            (match ns with None -> "ROOT" | Some ns -> Longident.string_of_longident ns));
-       imported_units := (name, ns) :: !imported_units)
-    ps.ps_crcs
-
 let check_consistency ps =
   if !Clflags.ns_debug then
     Format.printf "Env.check_consistency...@.";
@@ -397,6 +386,7 @@ let check_consistency ps =
          match crco with
             None -> ()
           | Some crc ->
+              imported_units := (name, ns) :: !imported_units;
               let ns = Longident.optstring ns in
               Consistbl.check crc_units name ns crc ps.ps_filename)
       ps.ps_crcs
@@ -468,10 +458,7 @@ let read_pers_struct ns modname filename ps_kind =
            } in
   if ps.ps_name <> modname then
     error (Illegal_renaming(modname, ps.ps_name, filename));
-  add_imports ps;
-  check_consistency ps;
-  (* if ps_kind <> PersistentStructureUnit then *)
-  (*   check_functor_args filename name ns ps.ps_functor_args; *)
+  imported_units := (name, ns) :: !imported_units;
   List.iter
     (function Rectypes ->
       if not !Clflags.recursive_types then
@@ -483,13 +470,13 @@ let read_pers_struct ns modname filename ps_kind =
   Hashtbl.add persistent_structures (modname, ns) (Some ps);
   ps
 
-let find_pers_struct ns name =
-  if !Clflags.ns_debug then Format.printf "Env.find_pers_struct@.";
+let find_pers_struct ?(check=true) ns name =
   if name = "*predef*" then raise Not_found;
   let r =
     try Some (Hashtbl.find persistent_structures (name, ns))
     with Not_found -> None
   in
+let ps =
   match r with
   | Some None -> raise Not_found
   | Some (Some sg) -> if! Clflags.ns_debug then
@@ -504,6 +491,9 @@ let find_pers_struct ns name =
           raise Not_found
       in
       read_pers_struct ns name filename PersistentStructureDependency
+  in
+  if check then check_consistency ps;
+  ps
 
 let reset_cache () =
   current_unit := "";
@@ -865,8 +855,7 @@ and lookup_module ?(pers=false) ~load ns lid env : Path.t =
         let id =
           if !Clflags.transparent_modules && not load then
             try
-              let subdir = longident_to_filepath ns in
-              ignore (find_in_path_uncap !load_path ~subdir (s ^ ".cmi"));
+              ignore (find_pers_struct ~check:false ns s);
               Ident.create_persistent ~ns:(Longident.optstring ns) s
             with Not_found ->
               Location.prerr_warning Location.none (Warnings.No_cmi_file s);
@@ -1865,6 +1854,7 @@ let open_signature ?(loc = Location.none) ?(toplevel = false) ovf root sg env =
 
 let read_signature ns modname filename =
   let ps = read_pers_struct ns modname filename PersistentStructureDependency in
+  check_consistency ps;
   ps.ps_sig
 
 let read_my_signature ns modname filename =
@@ -1872,24 +1862,29 @@ let read_my_signature ns modname filename =
   let ps = read_pers_struct ns modname filename PersistentStructureDependency in
   if ps.ps_functor_args <> !functor_args then
     raise (Error(Inconsistent_arguments (filename, ps.ps_functor_args, !functor_args)));
+  check_consistency ps;
   ps.ps_sig
 
 let read_namespace ns modname filename =
   let ps = read_pers_struct ns modname filename PersistentStructureDependency in
+  check_consistency ps;
   ps.ps_namespace
 
 (* Reads the signature of the file given and the namespace recorded in it *)
 let read_signature_and_namespace ns modname filename =
   let ps = read_pers_struct ns modname filename PersistentStructureDependency in
+  check_consistency ps;
   ps.ps_sig, ps.ps_namespace
 
 let read_signature_and_args ns modname filename =
 (*  Printf.fprintf stderr "read_signature_and_args %s\n%!" modname; *)
   let ps = read_pers_struct ns modname filename PersistentStructureUnit in
+  check_consistency ps;
   (ps.ps_sig, ps.ps_functor_args, ps.ps_functor_parts)
 
 let read_signature_and_app ns modname filename =
   let ps = read_pers_struct ns modname filename PersistentStructureUnit in
+  check_consistency ps;
   (ps.ps_sig, ps.ps_apply)
 
 let read_my_signature_and_namespace ns modname filename =

@@ -249,6 +249,9 @@ let make_startup_file ppf filename units_list =
           (fun (unit,_,crc) ->
                let intf_crc =
                  try
+                   if !Clflags.ns_debug then
+                     Format.printf "Looking for %s of %s@."
+                       unit.ui_name (Env.namespace_name unit.ui_namespace);
                    match Misc.assoc2 (unit.ui_name, unit.ui_namespace)
                            unit.ui_imports_cmi with
                      None -> assert false

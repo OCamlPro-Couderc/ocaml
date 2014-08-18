@@ -195,7 +195,7 @@ coldstart:
 	if test -d stdlib/caml; then :; else \
 	  ln -s ../byterun stdlib/caml; fi
 
-# Build the core system: the minimum needed to make depend and bootstrap
+# Build the core system: the minimum needed to make dependnd bootstrap
 core:
 	$(MAKE) coldstart
 	$(MAKE) coreall
@@ -373,7 +373,7 @@ clean:: partialclean
 # Shared parts of the system
 
 compilerlibs/ocamlcommon.cma: $(COMMON)
-	$(CAMLC) -a -o $@ $(COMMON)
+	$(CAMLC) -a -linkall -o $@ $(COMMON)
 partialclean::
 	rm -f compilerlibs/ocamlcommon.cma
 
@@ -492,7 +492,7 @@ beforedepend:: parsing/lexer.ml
 # Shared parts of the system compiled with the native-code compiler
 
 compilerlibs/ocamlcommon.cmxa: $(COMMON:.cmo=.cmx)
-	$(CAMLOPT) -a -o $@ $(COMMON:.cmo=.cmx)
+	$(CAMLOPT) -a -linkall -o $@ $(COMMON:.cmo=.cmx)
 partialclean::
 	rm -f compilerlibs/ocamlcommon.cmxa compilerlibs/ocamlcommon.a
 
