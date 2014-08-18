@@ -578,8 +578,6 @@ let rec expand_path env p =
          (* PR#6394: recursive module may introduce incoherent manifest *)
       end
   | _ ->
-      if !Clflags.ns_debug then
-        Format.printf "From Typecore.expand_path ?@.";
       let p' = Env.normalize_path None env p in
       if Path.same p p' then p else expand_path env p'
 
@@ -1751,10 +1749,6 @@ and type_expect_ ?in_function env sexp ty_expected =
   | Pexp_ident lid ->
       begin
         let (path, desc) = Typetexp.find_value env loc lid.txt in
-        if !Clflags.ns_debug then
-          Format.printf "Typecore.type_expect_, Pexp_ident case\
-            \t lid: %s, path:%s, desc: %a@." (Longident.string_of_longident lid.txt)
-            (Path.complete_name path) Printtyp.type_expr desc.val_type;
         if !Clflags.annotations then begin
           let dloc = desc.Types.val_loc in
           let annot =

@@ -249,9 +249,17 @@ let make_startup_file ppf filename units_list =
           (fun (unit,_,crc) ->
                let intf_crc =
                  try
-                   if !Clflags.ns_debug then
+                   if !Clflags.ns_debug then begin
                      Format.printf "Looking for %s of %s@."
                        unit.ui_name (Env.namespace_name unit.ui_namespace);
+                     List.iter (fun (name, ns, crc) ->
+                         Format.printf "Looking for %s of %s, crc: %s@."
+                           name (Env.namespace_name ns)
+                           (match crc with
+                              None -> "None_crc"
+                            | Some crc -> Digest.to_hex crc))
+                       unit.ui_imports_cmi
+                   end;
                    match Misc.assoc2 (unit.ui_name, unit.ui_namespace)
                            unit.ui_imports_cmi with
                      None -> assert false

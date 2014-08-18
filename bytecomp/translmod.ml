@@ -491,8 +491,6 @@ let transl_implementation module_name ({ str_items = str }, cc) =
     ])
 
 let transl_applied_unit funit_id target_id instantiation coercion =
-  if !Clflags.ns_debug then
-    Format.printf "In transl_applied_unit@.";
   let funit_body =
     Lprim(Pfield 0, [Lprim(Pgetglobal funit_id, [])]) in
   let env0_id = Ident.create "env0" in
@@ -811,9 +809,6 @@ let transl_store_gen ?(ns=None) module_name ({ str_items = str }, restr) topl =
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
 let transl_store_phrases module_name str =
-  if ! Clflags.ns_debug then
-    Format.printf "Translmod_transl_store_phrases: does not give a namespace to \
-                   transl_store_gen@.";
   transl_store_gen module_name (str,Tcoerce_none) true
 
 let transl_store_implementation module_name (str, restr) =

@@ -710,8 +710,6 @@ let strengthen_approx appl approx =
    replace it by an integer constant *)
 
 let check_constant_result lam ulam approx =
-  if !Clflags.ns_debug then
-    Format.printf "approx: %a@." Printclambda.approx approx;
   match approx with
     Value_const c when is_pure lam -> make_const c
   | Value_global_field (id, i) when is_pure lam ->
@@ -930,12 +928,6 @@ let rec close fenv cenv = function
       let (ulam, approx) = close fenv cenv lam in
       let s, res = check_constant_result lam (Uprim(Pfield n, [ulam], Debuginfo.none))
                             (field_approx n approx) in
-      if !Clflags.ns_debug then
-        Format.printf "lam: %a\n ulam: %a\nres: %a, \ns: %a@."
-          Printlambda.lambda lam
-          Printclambda.clambda ulam
-          Printclambda.approx res
-          Printclambda.clambda s;
       s, res (* res *)
   | Lprim(Psetfield(n, _), [Lprim(Pgetglobal id, []); lam]) ->
       let (ulam, approx) = close fenv cenv lam in

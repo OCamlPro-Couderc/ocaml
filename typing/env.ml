@@ -413,7 +413,7 @@ let check_remaining_functor_args remaining_functor_args =
 
 (* Reading persistent structures from .cmi files *)
 let read_pers_struct ns modname filename ps_kind =
-  if !Clflags.ns_debug then Format.printf "Env.read_pers_struct@.";
+  (* if !Clflags.ns_debug then Format.printf "Env.read_pers_struct@."; *)
   let cmi = read_cmi filename in
   let name = cmi.cmi_name in
   let ns = cmi.cmi_namespace in
@@ -464,9 +464,9 @@ let read_pers_struct ns modname filename ps_kind =
       if not !Clflags.recursive_types then
         error (Need_recursive_types(ps.ps_name, !current_unit)))
     ps.ps_flags;
-  if !Clflags.ns_debug then
-    Format.printf "Adding the ps: %s %@ %s@."
-      ps.ps_name (namespace_name ps.ps_namespace);
+  (* if !Clflags.ns_debug then *)
+  (*   Format.printf "Adding the ps: %s %@ %s@." *)
+  (*     ps.ps_name (namespace_name ps.ps_namespace); *)
   Hashtbl.add persistent_structures (modname, ns) (Some ps);
   ps
 
@@ -479,9 +479,7 @@ let find_pers_struct ?(check=true) ns name =
 let ps =
   match r with
   | Some None -> raise Not_found
-  | Some (Some sg) -> if! Clflags.ns_debug then
-        Format.printf "find_pers_struct: already loaded@.";
-      sg
+  | Some (Some sg) -> sg
   | None ->
       let subdir = longident_to_filepath ns in
       let filename =
@@ -530,24 +528,14 @@ let get_namespace_unit () =
   !current_unit_namespace
 
 let set_namespace_unit olid =
-  if !Clflags.ns_debug then
-    Format.printf "Setting namespace unit@.";
   current_unit_namespace := olid
 
 (* Lookup by identifier *)
 
 let rec find_module_descr ns path env =
-  if !Clflags.ns_debug then
-    Format.printf "Env.find_module_desc of %s@." (Path.complete_name path);
   match path with
     Pident id ->
       let ns = Longident.from_optstring @@ Ident.extract_namespace id in
-      if !Clflags.ns_debug then begin
-        Format.printf "Looking for %s in %s@." (Ident.unique_name id)
-        @@ (namespace_name ns);
-        Format.printf "Keys in components: %s@."
-        @@ String.concat ", " @@ List.map Ident.unique_name @@ EnvTbl.keys env.components;
-        end;
       begin try
         let (p, desc) = EnvTbl.find_same id env.components
         in desc
@@ -555,8 +543,6 @@ let rec find_module_descr ns path env =
         if Ident.persistent id
         then (find_pers_struct ns (Ident.shortname id)).ps_comps
         else begin
-          if !Clflags.ns_debug then
-            Format.printf "Not found...@.";
           raise Not_found
         end
       end
@@ -586,8 +572,6 @@ let find proj1 proj2 path env =
       let (p, data) = EnvTbl.find_same id (proj1 env)
       in data
   | Pdot(p, s, pos) ->
-      if !Clflags.ns_debug then
-        Format.printf "Env.find: pdot branch@.";
       begin match
         EnvLazy.force !components_of_module_maker' (find_module_descr None p env)
       with
@@ -618,19 +602,11 @@ let find_type_descrs p env =
 let find_module ~alias ns path env =
   match path with
     Pident id ->
-      if !Clflags.ns_debug then
-        Format.printf "In find_module, Pident branch, looking for %s in %s@."
-          (Ident.unique_name id) (namespace_name ns);
       begin try
         let (p, data) = EnvTbl.find_same id env.modules
         in data
       with Not_found ->
-         if !Clflags.ns_debug then
-           Format.printf "In find_module, Pident branch, looking for %s in %s@."
-             (Ident.shortname id) (namespace_name ns);
          if Ident.persistent id then begin
-           if !Clflags.ns_debug then
-             Format.printf "In find_module, is persistent@.";
            let ns = Longident.from_optstring @@ Ident.extract_namespace id in
            let ps = find_pers_struct ns (Ident.shortname id) in
            md (Mty_signature(ps.ps_sig))
@@ -648,8 +624,6 @@ let find_module ~alias ns path env =
           raise Not_found
       end
   | Papply(p1, p2) ->
-      if !Clflags.ns_debug then
-        Format.printf "Env.find_module: Papply branch@.";
       let desc1 = find_module_descr None p1 env in
       begin match EnvLazy.force !components_of_module_maker' desc1 with
         Functor_comps f ->
@@ -715,10 +689,7 @@ let rec normalize_path i ns lax env path =
     with Not_found when lax
                      || (match path with Pident id -> not (Ident.persistent id) | _ -> true) ->
         path, ns
-       | exn -> if !Clflags.ns_debug then
-             Format.printf "I couldn't found: %s, raising Not_found@."
-               (Path.name path);
-           raise exn
+       | exn -> raise exn
   in
   (* if !Clflags.ns_debug then *)
   (*   Format.printf "End of normalize with %d with %s in %s\n--------------@." *)
@@ -750,8 +721,6 @@ let find_type_expansion path env =
      purely abstract data types without manifest type definition. *)
   | _ ->
       (* another way to expand is to normalize the path itself *)
-      if !Clflags.ns_debug then
-        Format.printf "From Env.find_type_expansion ?@.";
       let path' = normalize_path None env path in
       if Path.same path path' then raise Not_found else
       (decl.type_params,
@@ -794,9 +763,6 @@ let rec is_functor_arg path env =
 exception Recmodule
 
 let rec lookup_module_descr ns lid env =
-  if !Clflags.ns_debug then
-    Format.printf "Env.lookup_module_descr (gives None to find_pers_struct for
-  impossible ns cases), lid: %s@." (Longident.string_of_longident lid);
   match lid with
     Lident s ->
       begin try
@@ -828,12 +794,6 @@ let rec lookup_module_descr ns lid env =
       end
 
 and lookup_module ?(pers=false) ~load ns lid env : Path.t =
-  if !Clflags.ns_debug then begin
-    match ns with
-    | None -> ()
-    | Some ns -> Format.printf "Looking for a module in %s\n@." @@
-        Longident.string_of_longident ns
-  end;
   match lid with
     Lident s ->
       begin try
@@ -906,9 +866,6 @@ let lookup proj1 proj2 lid env =
         EnvTbl.find_name s (proj1 env)
     | Ldot(l, s) ->
         let (p, desc) = lookup_module_descr None l env in
-        if !Clflags.ns_debug then
-          Format.printf "Lookup, Ldot case, lookup_module_descr res: %s@."
-            (Path.name p);
         begin match EnvLazy.force !components_of_module_maker' desc with
           Structure_comps c ->
             let (data, pos) = Tbl.find s (proj2 c) in
@@ -1071,8 +1028,6 @@ let lookup_type lid env =
 
 (* [path] must be the path to a type, not to a module ! *)
 let path_subst_last path id =
-  if !Clflags.ns_debug then
-    Format.printf "BEWARE: Env.path_subst_last sets a namespace to None@.";
   match path with
     Pident _ -> Pident id
   | Pdot (p, name, pos) -> Pdot(p, Ident.name id, pos)
@@ -1165,8 +1120,6 @@ let lookup_cltype lid env =
    not yet evaluated structures) *)
 
 let iter_env proj1 proj2 f env =
-  if !Clflags.ns_debug then
-    Format.printf "BEWARE: Env.iter_env sets a namespace to NONE@.";
   Ident.iter (fun id (x,_) -> f (Pident id) x) (proj1 env);
   let rec iter_components path path' mcomps =
     (* if EnvLazy.is_val mcomps then *)
@@ -1295,9 +1248,6 @@ let rec scrape_alias env ?path mty =
         mty
       end
   | Mty_alias (path, ns), _ ->
-      if !Clflags.ns_debug then
-        Format.printf "In second case of scrape_alias, path: %s@."
-          (Path.complete_name path);
       begin try
         scrape_alias env (find_module ns path env).md_type ~path
       with Not_found ->
@@ -1306,8 +1256,6 @@ let rec scrape_alias env ?path mty =
         mty
       end
   | mty, Some path ->
-      if !Clflags.ns_debug then
-        Format.printf "In third case of scrape_alias@.";
       !strengthen env mty path
   | _ -> mty
 
@@ -1401,8 +1349,6 @@ let prefix_idents_and_subst root sub sg =
   pl, sub, lazy (subst_signature sub sg)
 
 let prefix_idents_and_subst root sub sg =
-  if !Clflags.ns_debug then
-    Format.printf "Prefixing with %s@." (Path.name root);
   if sub = Subst.identity then
     let sgs =
       try
@@ -1432,31 +1378,23 @@ let rec components_of_module env sub path mty =
   EnvLazy.create (env, sub, path, mty)
 
 and components_of_module_maker (env, sub, path, mty) =
-  if !Clflags.ns_debug then
-    Format.printf "In components_of_module_maker, with path: %s@."
-      (Path.complete_name path);
   let path = match extract_alias_path mty with
       Some p -> p
     | None -> path in (* test *)
-  if !Clflags.ns_debug then
-    Format.printf "In components_of_module_maker, withnorm_ path: %s@."
-      (Path.complete_name path);
   (match scrape_alias env mty with
     Mty_signature sg ->
-       if !Clflags.ns_debug then
-         Format.printf "After scrape_alias, signature case@.";
-      let c =
-        { comp_values = Tbl.empty;
-          comp_constrs = Tbl.empty;
-          comp_labels = Tbl.empty; comp_types = Tbl.empty;
-          comp_modules = Tbl.empty; comp_modtypes = Tbl.empty;
-          comp_components = Tbl.empty; comp_classes = Tbl.empty;
-          comp_cltypes = Tbl.empty } in
-      let pl, sub, _ = prefix_idents_and_subst path sub sg in
-      let env = ref env in
-      let pos = ref 0 in
-      List.iter2 (fun item path ->
-        match item with
+       let c =
+         { comp_values = Tbl.empty;
+           comp_constrs = Tbl.empty;
+           comp_labels = Tbl.empty; comp_types = Tbl.empty;
+           comp_modules = Tbl.empty; comp_modtypes = Tbl.empty;
+           comp_components = Tbl.empty; comp_classes = Tbl.empty;
+           comp_cltypes = Tbl.empty } in
+       let pl, sub, _ = prefix_idents_and_subst path sub sg in
+       let env = ref env in
+       let pos = ref 0 in
+       List.iter2 (fun item path ->
+           match item with
           Sig_value(id, decl) ->
             let decl' = Subst.value_description sub decl in
             c.comp_values <-
@@ -1644,8 +1582,6 @@ and store_extension ~check slot id path ext env renv =
     summary = Env_extension(env.summary, id, ext) }
 
 and store_module slot id path md env renv =
-  if !Clflags.ns_debug then
-    Format.printf "Storing module %s with id %s@." (Path.name path) (Ident.unique_name id);
   { env with
     modules = EnvTbl.add "module" slot id (path, md) env.modules renv.modules;
     components =
@@ -1892,6 +1828,7 @@ let read_my_signature_and_namespace ns modname filename =
   let ps = read_pers_struct ns modname filename PersistentStructureDependency in
   if ps.ps_functor_args <> !functor_args then
     raise (Error(Inconsistent_arguments (filename, ps.ps_functor_args, !functor_args)));
+  check_consistency ps;
   ps.ps_sig, ps.ps_namespace
 
 (* Return the CRC of the interface of the given compilation unit *)
@@ -1935,6 +1872,11 @@ let imports() =
         (name, Longident.optstring ns) :: acc) [] !imported_units in
   Consistbl.extract imported_units crc_units
   |> List.fold_left (fun acc (name, ns, crc) ->
+      if !Clflags.ns_debug then
+        Format.printf "Crc of %s: %s@."
+          name (match crc with
+                None -> "None_crc"
+              | Some crc -> Digest.to_hex crc);
       (name, Longident.from_optstring ns, crc) :: acc) []
 
 (* Save a signature to a file *)
@@ -1942,8 +1884,6 @@ let imports() =
 let save_signature_with_imports ?(application=None) ns sg modname filename imports =
   Btype.cleanup_abbrev ();
   Subst.reset_for_saving ();
-  if !Clflags.ns_debug then
-    Format.printf "save_signature_with_imports, filename: %s@." filename;
   let sg = Subst.signature (Subst.for_saving Subst.identity) sg in
   let filename = output_name filename ns in
   let oc = open_out_bin filename in
@@ -1961,8 +1901,6 @@ let save_signature_with_imports ?(application=None) ns sg modname filename impor
     } in
     let crc = output_cmi filename oc cmi in
     close_out oc;
-    if !Clflags.ns_debug then
-      Format.printf "save_signature_with_imports: correctly wrote cmi@.";
     (* Enter signature in persistent table so that imported_unit()
        will also return its crc *)
     let ps_id = Ident.create_persistent ~ns:(Longident.optstring ns) modname in
@@ -2000,17 +1938,17 @@ let save_signature ?(application=None) ns sg modname filename =
 (* Folding on environments *)
 
 let find_all proj1 proj2 f lid env acc =
-  if !Clflags.ns_debug then
-    Format.printf "BEWARE: Env.find_all sets a namespace arg to None@.";
+  (* if !Clflags.ns_debug then *)
+  (*   Format.printf "BEWARE: Env.find_all sets a namespace arg to None@."; *)
   match lid with
     | None ->
       EnvTbl.fold_name
         (fun id (p, data) acc -> f (Ident.name id) p data acc)
         (proj1 env) acc
     | Some l ->
-      if !Clflags.ns_debug then
-        Format.printf "Lookup_module_descr, Some case, for %sOK@."
-          (Longident.string_of_longident l);
+      (* if !Clflags.ns_debug then *)
+      (*   Format.printf "Lookup_module_descr, Some case, for %sOK@." *)
+      (*     (Longident.string_of_longident l); *)
       let p, desc = lookup_module_descr None l env in
       begin match EnvLazy.force components_of_module_maker desc with
           Structure_comps c ->
@@ -2022,8 +1960,8 @@ let find_all proj1 proj2 f lid env acc =
       end
 
 let find_all_simple_list proj1 proj2 f lid env acc =
-  if !Clflags.ns_debug then
-    Format.printf "BEWARE: Env.find_all_simple_list sets a namespace arg to None@.";
+  (* if !Clflags.ns_debug then *)
+  (*   Format.printf "BEWARE: Env.find_all_simple_list sets a namespace arg to None@."; *)
   match lid with
     | None ->
       EnvTbl.fold_name
@@ -2045,8 +1983,8 @@ let find_all_simple_list proj1 proj2 f lid env acc =
       end
 
 let fold_modules f lid env acc =
-  if !Clflags.ns_debug then
-    Format.printf "BEWARE: fold_modules sets a namespace arg to None@.";
+  (* if !Clflags.ns_debug then *)
+  (*   Format.printf "BEWARE: fold_modules sets a namespace arg to None@."; *)
   match lid with
     | None ->
       let acc =

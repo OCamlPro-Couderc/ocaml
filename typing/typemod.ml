@@ -76,9 +76,6 @@ let extract_sig_open env loc mty =
 (* Compute the environment after opening a module *)
 
 let type_open_ ?toplevel ovf env loc lid =
-  if !Clflags.ns_debug then
-    Format.printf "Typemod.type_open looking for %s@."
-    @@ string_of_longident lid.txt;
   let path, md = Typetexp.find_module env lid.loc lid.txt None in
   let sg = extract_sig_open env lid.loc md.md_type in
   path, Env.open_signature ~loc ?toplevel ovf path sg env
@@ -96,8 +93,6 @@ let type_open ?toplevel env sod =
       open_loc = sod.popen_loc;
     }
   in
-  if !Clflags.ns_debug then
-    Format.printf "Type_open: path: %s@." (Path.name path);
   (path, newenv, od)
 
 (* Record a module type *)
@@ -325,8 +320,6 @@ let map_ext fn exts rem =
    making them abstract otherwise. *)
 
 let rec approx_modtype env smty =
-  if !Clflags.ns_debug then
-    Format.printf "typemod.approx_modtype@.";
   match smty.pmty_desc with
     Pmty_ident lid ->
       let (path, info) = Typetexp.find_modtype env smty.pmty_loc lid.txt in
@@ -514,8 +507,6 @@ let mksig desc env loc =
 (* let signature sg = List.map (fun item -> item.sig_type) sg *)
 
 let rec transl_modtype env smty =
-  if !Clflags.ns_debug then
-    Format.printf "Typemod.transl_modtype@.";
   let loc = smty.pmty_loc in
   match smty.pmty_desc with
     Pmty_ident lid ->
@@ -1104,21 +1095,14 @@ let wrap_constraint env arg mty explicit =
 (* Type a module value expression *)
 
 let rec type_module ?(alias=false) sttn funct_body anchor env smod =
-  if !Clflags.ns_debug then
-    Format.printf "Typemod.type_module@.";
   match smod.pmod_desc with
     Pmod_ident (lid, ns) ->
       let ns =
         match ns with
           None -> None
         | Some l -> Some l.txt in
-      if !Clflags.ns_debug then
-        Format.printf "Typing an ident: %s of %s@."
-          (Longident.string_of_longident lid.txt) (Env.namespace_name ns);
       let path =
         Typetexp.lookup_module ~load:(not alias) env smod.pmod_loc lid.txt ns in
-      if !Clflags.ns_debug then
-        Format.printf "Path: %s@." (Path.name path);
       let md = { mod_desc = Tmod_ident (path, lid);
                  mod_type = Mty_alias (path, ns);
                  mod_env = env;
@@ -1129,13 +1113,8 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
           (Env.add_required_global (Path.head path); md)
         else match (Env.find_module ns path env).md_type with
           Mty_alias (p1, ns1) when not alias ->
-              if !Clflags.ns_debug then
-                Format.printf "Found it, as an alias: %s %@ %s@."
-                  (Path.name p1) (Env.namespace_name ns1);
-            let p1 = Env.normalize_path ~ns:ns1 (Some smod.pmod_loc) env p1 in
-            if !Clflags.ns_debug then
-              Format.printf "Path normalized: %s@." (Path.name p1);
-            let mty = Includemod.expand_module_alias env [] ~ns:ns1 p1 in
+              let p1 = Env.normalize_path ~ns:ns1 (Some smod.pmod_loc) env p1 in
+              let mty = Includemod.expand_module_alias env [] ~ns:ns1 p1 in
             { md with
               mod_desc = Tmod_constraint (md, mty, Tmodtype_implicit,
                                           Tcoerce_alias (p1, Tcoerce_none));
@@ -1186,15 +1165,11 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
             if funct_body && Mtype.contains_type env funct.mod_type then
               raise (Error (smod.pmod_loc, env, Not_allowed_in_functor_body));
           end;
-          if !Clflags.ns_debug then
-            Format.printf "Attempting coercion@.";
           let coercion =
             try
               Includemod.modtypes env arg.mod_type mty_param
             with Includemod.Error msg ->
               raise(Error(sarg.pmod_loc, env, Not_included msg)) in
-          if !Clflags.ns_debug then
-            Format.printf "Coercion ok@.";
           let mty_appl =
             match path with
               Some path ->
@@ -1475,12 +1450,8 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr scope =
              classes []),
         new_env
     | Pstr_include sincl ->
-        if !Clflags.ns_debug then
-          Format.printf "BEWARE: Typemod.[..] on Pstr_include branch@.";
         let smodl = sincl.pincl_mod in
         let modl = type_module true funct_body None env smodl in
-        if !Clflags.ns_debug then
-          Format.printf "Module typed@.";
         (* Rename all identifiers bound by this signature to avoid clashes *)
         let sg = Subst.signature Subst.identity
             (extract_sig_open env smodl.pmod_loc modl.mod_type) in
@@ -1650,8 +1621,6 @@ let () =
 (* Typecheck an implementation file *)
 
 let type_implementation sourcefile outputprefix modulename initial_env ast =
-  if !Clflags.ns_debug then
-    Format.printf "Typemod.type_implementation; outputpref: %s@." outputprefix;
   Cmt_format.clear ();
   try
   Typecore.reset_delayed_checks ();
@@ -1674,13 +1643,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
     in
     Env.add_functorunit_arguments ns modulename;
     type_structure env ast (Location.in_file sourcefile), ns in
-  if !Clflags.ns_debug then
-    Format.printf "Signature before simplify:\n%a@."
-      Printtyp.signature sg;
   let simple_sg = simplify_signature sg in
-  if !Clflags.ns_debug then
-    Format.printf "Signature after simplify:\n%a@."
-      Printtyp.signature simple_sg;
   if !Clflags.print_types then begin
     let simple_sg = Typens.realias_signature simple_sg in
     Printtyp.wrap_printing_env initial_env
@@ -1699,7 +1662,6 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         with Not_found ->
           raise(Error(Location.in_file sourcefile, Env.empty,
                       Interface_not_compiled sourceintf)) in
-      (* The next two should be factorized *)
       let dclsig, dclns =
         Env.read_my_signature_and_namespace ns modulename intf_file in
       let coercion =
@@ -1729,8 +1691,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           (Cmt_format.Implementation str)
           (Some sourcefile) initial_env (Some sg);
       end;
-      if !Clflags.ns_debug then
-        Format.printf "Typemod.compile_implementation: done@.";
+
       (str, coercion)
     end
   end
@@ -1743,8 +1704,6 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
 
 
 let save_signature modname tsg outputprefix source_file initial_env cmi =
-  if !Clflags.ns_debug then
-    Format.printf "Typemod.save_signature ?@.";
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi)
 
@@ -1764,8 +1723,6 @@ let type_interface modulename env (Pinterf (prl, ast)) =
 let rec package_signatures subst = function
     [] -> []
   | (name, ns, sg) :: rem ->
-      if !Clflags.ns_debug then
-        Format.printf "Typemod.package_signature@.";
       let sg' = Subst.signature subst sg in
       let oldid = Ident.create_persistent name
       and newid = Ident.create name in
@@ -1778,8 +1735,6 @@ let rec package_signatures subst = function
 
 let package_units initial_env objfiles cmifile (modulename: string) =
   (* Read the signatures of the units *)
-  if !Clflags.ns_debug then
-    Format.printf "Typemod.package_units@.";
   let units, ns =
     List.fold_left
       (fun (units, ns) f ->
@@ -1827,16 +1782,9 @@ let package_units initial_env objfiles cmifile (modulename: string) =
   end else begin
     (* Determine imports *)
     let unit_names = List.map (fun (x, y, _) -> x, y) units in
-    if !Clflags.ns_debug then
-      Format.printf "unit_names:[%s]@." @@ String.concat "; " @@
-      List.map (fun (n, ns) ->
-          Format.sprintf "%s%@%s" n (Env.namespace_name ns))
-        unit_names;
     let imports =
       List.filter
         (fun (name, ns, crc) ->
-           if !Clflags.ns_debug then
-             Format.printf "Keeping %s %@ %s?@." name (Env.namespace_name ns);
            not (List.mem (name, ns) unit_names))
         (Env.imports()) in
     (* Write packaged signature *)
@@ -1911,8 +1859,6 @@ let applied_unit initial_env instantiation parts cmi dest_ns (modulename: string
   let application = Some (modulename, funit_ns,
                           Env.crc_of_unit modulename funit_ns,
                           apps_crc) in
-  if !Clflags.ns_debug then
-    Format.printf "Writing the signature?@.";
   let _sg = Env.save_signature ~application dest_ns sg modulename filename in
   cc, application
 

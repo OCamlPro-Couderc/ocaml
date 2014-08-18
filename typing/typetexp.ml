@@ -205,30 +205,19 @@ let rec narrow_unbound_lid_error : 'a. _ -> _ -> _ -> _ -> 'a =
   raise (Error (loc, env, make_error lid))
 
 let find_component lookup make_error env loc lid =
-  if !Clflags.ns_debug then Format.printf "In find_component, lid: %s@."
-      (Longident.string_of_longident lid);
   let res = try
     match lid with
     | Longident.Ldot (Longident.Lident "*predef*", s) ->
         lookup (Longident.Lident s) Env.initial_safe_string
     | _ -> lookup lid env
   with Not_found ->
-    if !Clflags.ns_debug then
-      begin
-        Format.printf "find_component calling narrow_unbound\n";
-        Format.printf "Cannot find %s@." @@ Longident.string_of_longident lid
-      end;
     narrow_unbound_lid_error env loc lid make_error
   | Env.Recmodule ->
     raise (Error (loc, env, Illegal_reference_to_recursive_module))
   in
-  if !Clflags.ns_debug then
-    Format.printf "End of find_component@.";
   res
 
 let find_type env loc lid =
-  if !Clflags.ns_debug then
-    Format.printf "Looking for type %s@." (Longident.string_of_longident lid);
   let (path, decl) as r =
     find_component Env.lookup_type (fun lid -> Unbound_type_constructor lid)
       env loc lid
@@ -261,9 +250,6 @@ let find_value env loc lid =
   r
 
 let lookup_module ?(load=false) env loc lid ns =
-  if !Clflags.ns_debug then
-    Format.printf "Looking for %s in %s@."
-      (Longident.string_of_longident lid) (Env.namespace_name ns);
   let f = match ns with
       None -> (fun lid -> Unbound_module lid)
     | Some ns -> (fun lid -> Unbound_module_from_ns (lid, ns))
@@ -452,13 +438,6 @@ let rec transl_type env policy styp =
     ctyp (Ttyp_tuple ctys) ty
   | Ptyp_constr(lid, stl) ->
       let (path, decl) = find_type env styp.ptyp_loc lid.txt in
-      if !Clflags.ns_debug then
-        Format.printf "Typetexp, for the lid %s, path found %s@."
-          (Longident.string_of_longident lid.txt) (Path.name path);
-      (* let path = Env.normalize_path None env path in *)
-      (* if !Clflags.ns_debug then *)
-      (*   Format.printf "Typetexp, path normalized: %s@." *)
-      (*     (Path.name path); *)
       let stl =
         match stl with
         | [ {ptyp_desc=Ptyp_any} as t ] when decl.type_arity > 1 ->
