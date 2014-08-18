@@ -1874,6 +1874,8 @@ let applied_unit initial_env instantiation parts cmi dest_ns (modulename: string
           (part_modname ^ ".cmi") in
       let part_cmi = Cmi_format.read_cmi part_file in
       let applied_modname = Ident.shortname applied in
+      let dest_subdir =
+        if part_modname = modulename then subdir else dest_subdir in
       let applied_file =
         find_in_path_uncap ~subdir:dest_subdir !load_path
           (applied_modname ^ ".cmi") in
@@ -1895,6 +1897,8 @@ let applied_unit initial_env instantiation parts cmi dest_ns (modulename: string
   let application = Some (modulename, funit_ns,
                           Env.crc_of_unit modulename funit_ns,
                           apps_crc) in
+  if !Clflags.ns_debug then
+    Format.printf "Writing the signature?@.";
   let _sg = Env.save_signature ~application dest_ns sg modulename filename in
   cc, application
 

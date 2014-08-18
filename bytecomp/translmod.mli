@@ -28,6 +28,8 @@ val transl_store_package:
 (* let transl_applied_unit funit target_id instantiation *)
 val transl_applied_unit: Ident.t -> Ident.t ->
   (Ident.t * Ident.t) list -> module_coercion list -> lambda
+val transl_store_apply: int -> Ident.t -> Ident.t ->
+  (Ident.t * Ident.t) list -> module_coercion list -> lambda
 
 val toplevel_name: Ident.t -> string
 val nat_toplevel_name: Ident.t -> Ident.t * int

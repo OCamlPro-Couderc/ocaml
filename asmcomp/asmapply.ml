@@ -12,12 +12,15 @@ let print_if ppf flag printer arg =
 let (++) x f = f x
 let (+++) (x, y) f = (x, f y)
 
+(* Needs a LOT of refactoring, to do once it is working *)
+
 let applied_object_file ppf cmi prefix targetname optns env =
   let ns = match optns with
       None -> assert false
     | Some s -> Some (Longident.parse s) in
   Env.set_namespace_unit ns;
-  let parts = ref @@ cmi.cmi_functor_parts in
+  let parts = ref @@
+    List.filter (fun (modname, _) -> modname <> targetname) cmi.cmi_functor_parts in
   (* Format.printf "%s@." @@ String.concat "; " @@ *)
   (* List.map (fun (modname, _) -> *)
   let instance = List.map2
@@ -59,7 +62,7 @@ let applied_object_file ppf cmi prefix targetname optns env =
   let open Lambda in
   let str = Lprim (Psetfield(0, false),
                    [Lprim(Pgetglobal target_id, []);
-                    Translmod.transl_applied_unit funit_id target_id instance coercion]) in
+                    Translmod.transl_store_apply 0 funit_id target_id instance coercion]) in
   (1, str)
   +++ print_if ppf Clflags.dump_rawlambda Printlambda.lambda
   +++ Simplif.simplify_lambda
