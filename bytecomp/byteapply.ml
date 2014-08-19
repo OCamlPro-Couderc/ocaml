@@ -3,14 +3,23 @@ open Longident
 open Cmi_format
 
 
-let applied_object_file ppf cmi targetfile targetname optns env =
-  let ns = match optns with
-      None -> assert false
-    | Some s -> Some (parse s) in
-  Env.set_namespace_unit ns;
+let applied_object_file ppf cmi targetfile targetname env =
+  (* let ns = match optns with *)
+  (*     None -> assert false *)
+  (*   | Some s -> Some (parse s) in *)
+  let ns_ext = ref None in
   let parts = ref @@ List.filter (fun (name, _) -> name <> targetname) cmi.cmi_functor_parts in
   let instance = List.map2
       (fun (arg, _) app ->
+         let app_file = Misc.find_in_path !Config.load_path app in
+         let app_cmi = read_cmi app_file in
+         let ns = app_cmi.cmi_namespace in
+         ns_ext := (match !ns_ext with
+               None -> Some app_cmi.cmi_namespace
+             | Some prev_ns -> if prev_ns <> ns then
+                   failwith "Namespace clash"
+                 else Some prev_ns);
+         let app = app_cmi.cmi_name in
          let arg_id =
            Ident.create_persistent ~ns:(optstring cmi.cmi_namespace) arg in
          Ident.make_functor_arg arg_id;
@@ -20,6 +29,10 @@ let applied_object_file ppf cmi targetfile targetname optns env =
           Ident.create_persistent ~ns:(optstring ns) app))
       cmi.cmi_functor_args
       (List.rev !Clflags.applied) in
+  let ns = match !ns_ext with
+      None -> assert false
+    | Some ns -> ns in
+  Env.set_namespace_unit ns;
   let parts =
     List.map (fun (modname, _) ->
         let arg_id =
@@ -34,13 +47,6 @@ let applied_object_file ppf cmi targetfile targetname optns env =
       ~ns:(Longident.optstring ns) targetname in
   let funit_id = Ident.create_persistent
       ~ns:(Longident.optstring cmi.cmi_namespace) cmi.cmi_name in
-  (* let path = Env.lookup_module *)
-  (*     ~pers:true ~load:true cmi.Cmi_format.cmi_namespace *)
-  (*     (Lident cmi.Cmi_format.cmi_name) env in *)
-  (* let funit_id' = match path with *)
-  (*     Path.Pident id -> id *)
-  (*   | Path.Pdot _ | Path.Papply _ -> assert false (\* because it is persistent *\) in *)
-  (* Format.printf "Funit_id': %s@." (Ident.unique_name funit_id'); *)
   let instance = List.fold_left (fun acc ((part, crc), applied) ->
       (part, applied) :: acc) instance parts in
   let lambda = Translmod.transl_applied_unit funit_id target_id instance coercion in
@@ -59,4 +65,4 @@ let apply_functor_unit ppf funit initial_env =
   let cmi = Cmi_format.read_cmi funit_cmi in
   let targetname = String.capitalize (Filename.basename prefix) in
   let targetfile = Filename.basename funit in
-  applied_object_file ppf cmi targetfile targetname !Clflags.ns initial_env
+  applied_object_file ppf cmi targetfile targetname initial_env

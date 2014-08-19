@@ -14,17 +14,26 @@ let (+++) (x, y) f = (x, f y)
 
 (* Needs a LOT of refactoring, to do once it is working *)
 
-let applied_object_file ppf cmi prefix targetname optns env =
-  let ns = match optns with
-      None -> assert false
-    | Some s -> Some (Longident.parse s) in
-  Env.set_namespace_unit ns;
+let applied_object_file ppf cmi prefix targetname env =
+  (* let ns = match optns with *)
+  (*     None -> assert false *)
+  (*   | Some s -> Some (Longident.parse s) in *)
+  let ns_ext = ref None in
   let parts = ref @@
     List.filter (fun (modname, _) -> modname <> targetname) cmi.cmi_functor_parts in
   (* Format.printf "%s@." @@ String.concat "; " @@ *)
   (* List.map (fun (modname, _) -> *)
   let instance = List.map2
       (fun (arg, _) app ->
+         let app_file = Misc.find_in_path !Config.load_path app in
+         let app_cmi = read_cmi app_file in
+         let ns = app_cmi.cmi_namespace in
+         ns_ext := (match !ns_ext with
+               None -> Some app_cmi.cmi_namespace
+             | Some prev_ns -> if prev_ns <> ns then
+                   failwith "Namespace clash"
+                 else Some prev_ns);
+         let app = app_cmi.cmi_name in
          let arg_id =
            Ident.create_persistent ~ns:(optstring cmi.cmi_namespace) arg in
          Ident.make_functor_arg arg_id;
@@ -35,6 +44,10 @@ let applied_object_file ppf cmi prefix targetname optns env =
       cmi.cmi_functor_args
       (List.rev !Clflags.applied) in
 
+  let ns = match !ns_ext with
+      None -> assert false
+    | Some ns -> ns in
+  Env.set_namespace_unit ns;
   let parts =
     List.map (fun (modname, _) ->
         let ns_app = if modname = cmi.cmi_name then cmi.cmi_namespace else ns in
@@ -83,4 +96,4 @@ let apply_functor_unit ppf funit initial_env =
   (* let env = Compmisc.initial_env() in *)
   Compilenv.reset ?packname:!Clflags.for_package modulename;
 
-  applied_object_file ppf cmi prefix targetname !Clflags.ns initial_env
+  applied_object_file ppf cmi prefix targetname initial_env
