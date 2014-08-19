@@ -11,29 +11,6 @@ module to describe the ``compilation environment''. Only \emph{toplevel modules}
 (as compilation unit) can belong to namespaces, not submodules. A namespace is
 simply declared: 
 
-%% \begin{figure}[H]
-\begin{verbatim}
-prelude ::=
-    | "in" "namespace" mod_longident imports 
-    | imports
-
-implementation ::=
-    | prelude structure EOF
-    | structure EOF
-
-interface ::=
-    | prelude signature EOF
-    | signature EOF
-\end{verbatim}
-%% \caption{Namespace declaration}
-%% \end{figure}
-
-This construction allows to declare modules into subnamespaces. The following
-example is valid:
-
-\begin{OCaml}
-in namespace Inria.Std
-\end{OCaml}
 
 %% Namespaces can take arguments, in other words they can abstract some of their
 %% implementation and became modular. The argument of the ``functor'' has to be a
@@ -50,49 +27,42 @@ in namespace Inria.Std
 %% of our proposal and useful to understand how the namespaces are organized and
 %% used.
 
-\medskip
-
-There is actually two possible propositions, with two semantics. The first
-imports modules from namespaces directly in the environment. The other imports
-the complete path of the module, in other word each modules qualified by their
-namespace. The syntax is almost the same, the only difference is
-\texttt{ns\_conf} which differs according to our two proposals. 
-
-
 %% \begin{figure}[H]
-\begin{verbatim}
-module_name = uident
+\begin{grammar}
+<implementation> ::= <header> <structure>
 
-imports ::=
-    | 
-    | import imports 
+<interface> ::= <header> <signature>
 
-import ::=
-    | ("with|"and)" ns_conf                           module importation    
+<module_name> = <uident>
 
-// for the first proposal
-ns_conf ::=
-    | "(" modules_constraints ")" "of" mod_long_ident 
-                                                      modules constraints
+<header> ::= <namespace_decl> <imports>
+\alt <imports>
 
-// for the second proposal
-ns_conf ::=
-    | mod_long_ident "." "(" module_constraints ")"
+<namespace_decl> ::= `in' `namespace' <mod_longident>
 
-modules_constraints ::=
-    | module_constraint
-    | module_constraint ";" module_constraints
+<imports> ::= <import> <imports> 
 
-modules_constraint ::=
-    | "_"                                             "wildcard": every other modules
-    | module_name "as" module_name                    aliased module
-    | module_name "as" "_"                            shadowed module
-    | module_name                                     a module
-\end{verbatim}
+<import> ::= (`with'|`and') <ns_conf> 
+
+<ns_conf> ::= `(' <modules_constraints> `)' `of' <mod_longident>
+
+<modules_constraints> ::= <module_constraint>
+\alt <module_constraint> `;' <module_constraints>
+
+<modules_constraint> ::= `_'
+\alt <module_name> `as' <module_name>
+\alt <module_name> `as' `_'
+\alt <module_name>
+\end{grammar}
 %% \caption{Namespace use}
 %% \end{figure}
 
-\paragraph{First proposal}
+This construction allows to declare modules into subnamespaces. The following
+example is valid:
+
+\begin{OCaml}
+in namespace Inria.Std
+\end{OCaml}
 
 The syntax is rather simple, and can be simply described. The imports allows the
 user to declare which modules to use from this namespace. 
@@ -101,89 +71,21 @@ Then an import clause
 \begin{OCaml}
 with (List) of Inria.Std
 \end{OCaml}
-is elaborated into
+can be understood as
 \begin{OCaml}
 module List = ``module List from namespace Inria.Std''
 \end{OCaml}
+except this is an alias only on the compiler environment side, i.e. there is no
+real module alias added in the code of the program.
 
-\paragraph{Second proposal}
-
-On the contrary, modules are not directly imported in the environment. The
-complete path is accessible, and the namespaces can be used as modules (with
-some restrictions). In this idea, namespaces are kind of modules, and have a
-signature. In fact, this implementation does an elaboration of the import
-clauses into multiple modules and sub modules.
-
-In other word, if we suppose
-\begin{OCaml}
-with Ocsigen.(Lwt, Server as S)
-\end{OCaml}
-it would be elaborated into
-\begin{OCaml}
-module Ocsigen = struct
-  module Lwt = ``lwt.cmo of namespace Ocsigen''
-  module S = ``server.cmo of namespace Ocsigen''
-end
-\end{OCaml}
-
-As it can be noticed, it cannot be entirely done using the actual syntax, since
-it needs to be able to refer to some modules from namespaces. It cannot be done
-with a preprocessor and a syntax extension since the compiler has to reason
-about modules inside namespaces. On another hand, the entire prelude has to be
-computed before elaboration: since namespaces can hav subnamespaces, the entire
-path must be resolved.
-
-For example, let suppose the following prelude:
-\begin{OCaml}
-with Inria.Unsafe.(Obj)
-and Inria.Std.(Hashtbl)
-\end{OCaml}
-If we elaborated line by line:
-\begin{OCaml}
-module Inria = struct
-  module Unsafe = struct
-    module Obj = ...
-  end
-end
-
-module Inria = struct
-  module Std = struct
-    module Hashtbl = ...
-  end
-end
-
-\end{OCaml}
-However, only the second module \texttt{Inria} would be available. A correct
-elaboration would then need to first discover the environment that will be
-needed, resulting in:
-\begin{OCaml}
-module Inria = struct
-  module Unsafe = struct
-    module Obj = ...
-  end
-  module Std = struct
-    module Hashtbl = ...
-  end
-end
-\end{OCaml}
-
-
-\medskip
-
-In both proposals, the constraints are the same. The wildcard allows to import
-in the environment every modules of the namespace that are not declared in the
-current constraints. Shadowing doesn't add the module (it is only useful when
-using the wildcard), and aliasing allows to have module from multiple namespace
-with the same original name.
-
-Importing a namespace does not import the subnamespaces. Being in a namespace
-allows to directly import every modules from it. Modules without namespaces are
-accepted and virtually doesn't belong to one. Actually, there is a \emph{global}
-namespace (like C\# of F\#) for this specific issues.
-
-
-In both propositions, namespaces and modules share the same ``namespace'' (i.e.,
-a namespace cannot have the same name as a module, and vice-versa).
+The wildcard allows to import in the environment every modules of the namespace
+that are not declared in the current constraints. Shadowing doesn't add the
+module (it is only useful when using the wildcard), and aliasing allows to have
+module from multiple namespace with the same original name. Importing a
+namespace does not import the subnamespaces. Being in a namespace allows to
+directly import every modules from it. Modules without namespaces are accepted
+and virtually doesn't belong to one. Actually, there is a kind of \emph{global}
+namespace (like C\# of F\#) for this specific case.
 
 The possibilities inside the language are simple, but there are some possible
 extensions that will be discussed later.
@@ -211,20 +113,20 @@ program). This algorithm would be used however in the original ocamldep's
 behavior, when looking for the .ml in the loadpath: when namespace cannot be
 resolved, each file in the loadpath with the same name as the module is checked
 to possibly retrieve one that belongs to a namespace imported with wildcard. It
-can be an option of ocamldep, and it will simply read the first three tokens of
-the files that could match to retreive the namespace.
+can be an option of ocamldep, and it will simply read the first tokens of the
+files that could match to retreive the namespace.
 
 
 \paragraph{Compilation unit}
 
 Since namespaces allows the possibility of modules with the same name to be
-linked together, internal name must be extended to be a long name, which is simply
-using the namespace as a prefix. It is done in the .cmi files, allowing ocamlc
-and ocamlopt both be able to use this information. The prefix can be the
-namespace and maybe some other information, like a version information: it would
-allow to link two versions of the same library in the same program. A use case
-of such a feature could be for debugging features that have been rewritten
-between two versions, or simply benchmarking a new version against the old one.
+linked together, internal name must be extended to be a long name, which is
+simply using the namespace as a prefix. The prefix can be the namespace and
+maybe some other information, like a version information: it would allow to link
+two versions of the same library in the same program. A use case of such a
+feature could be for debugging features that have been rewritten between two
+versions, or simply benchmarking a new version against the old one. This also
+justifies the need to extend the compiler instead of making a syntax extension.
 
 
 \paragraph{Linking} We will suppose for now that linking is simply giving a name
@@ -282,35 +184,37 @@ the one from OCamlPro. But modules that do not not exists in
 
 \paragraph{Parametric namespaces}
 
-\textbf{Work-in-progress}
-
 Namespaces can be parametric and use multiple implementations over one
 interface. A module can be abstracted and considered as a \emph{parameter} in
 the namespace. 
 
 The actual functor pack patch adds two fields to cmis/cmos/cmxs:
-\lstinline{functor_part} and \lstinline{functor_args}. They can certainly be
-reused for modules that belong in such a namespace. It will be completely
-explicit in the build system. For example, let assume a namespace \texttt{Ns}
-which is parametric over an interface \texttt{Arg}. Its modules are compiled
-with the option 
+\lstinline{functor_args} and \lstinline{functor_parts}: the first one declares
+the abstracted interfaces, while the second contains the first and the
+dependencies that are also functorized. It will be completely explicit in the
+build system. For example, let assume a namespace \texttt{Ns} which is
+parametric over an interface \texttt{Arg}. Its modules are compiled with the
+option
 
 \begin{verbatim}
 ocamlc -functor arg.cmi a.ml
 \end{verbatim}
 
-We can then instantiate them by applying them an argument, which would result on
+We can then instantiate them by applying an argument, which would result on
 a new namespace that corresponds of the applied version on this specific
 argument. Instantiating the modules would lead to 
 
 \begin{verbatim}
-ocamlc -apply x.cmo -ns NsX a.cmo 
-(* the namespace has to be given as an option since there does not exists a
- source file for the original *)
+ocamlc -apply x.cmo a.cmo 
 \end{verbatim}
 
 As a result, the instantiation is done once and for all. This would introduce a
-concept of ``functor-units''.
+concept of ``functor-units''. The namespace of the applied version of the
+functor will be the same as the argument. It can be rather restrictive, but it
+is easy to justify: when using a module to apply the functor, this module can be
+rarely coerced into the correct argument. As a result, it must be rebinded into
+another compilation unit to match the correct fields, and then it can belong to
+the correct namespace.
 
 \section{Installation and file system relationship}
 
@@ -329,8 +233,10 @@ actually). For example, if the module belongs to the namespace
 in namespaces and subnamespaces simply by scanning recursively the folders in
 its loadpath. Sources should belong to the same directory, and it could help
 ocamldep to look for dependencies without having to check the ``in namespace''
-declaration. However, it can be avoided, and the compiler will create the
-correct directories thanks to the ``in namespace'' information.
+declaration. However, it is not mandatory for the sources to be put in the
+correct folder, but since the compiler cannot create directories it might be
+useful. Moreover, it is the only possibility to distinguish files with the same
+name.
 
 When linking, those folders are looked for from the loadpath: there is not a
 global folder where modules from different libraries are placed. It would be
@@ -341,13 +247,11 @@ dangerous, and could lead to overwriting files.
 
 To allow those namespaces to be used without external tool, we propose to add a
 canonical path where libraries should be installed, which would be symbolized by
-``+'' before the folder name with \texttt{-I}. This path can be set by an
+``+'' before the folder name with \texttt{-lib}. This path can be set by an
 environment variable of the system (\texttt{OCAML\_LD\_PATH} for
 example). Linking a library is simply giving the folder where it is installed to
-\texttt{-I}. Modules that doesn't have a namespace can be found at the root of
-the loadpath. Another possibility is to use an option \texttt{-lib} to refer to
-libraries stored in the canonical install path: it would not change the \texttt{-I}
-behavior.
+\texttt{-lib}. Modules that doesn't have a namespace can be found at the root of
+the loadpath. This is not implemented in the current prototype.
 
 Having such a standard library path for user libraries is relevant, thanks to
 the use of OPAM: the user's libraries are installed in the
@@ -362,18 +266,17 @@ operating system). The idea is to provide a file (\texttt{.ns}) that simply
 describes where are the files of the library, and in which namespace they
 belong. It has the following simple syntax:
 
-\begin{verbatim}
-lines ::=
-    | EOF
-    | line "\n" lines EOF
+\begin{grammar}
+<lines> ::= (* empty *)
+<line> `\\n' <lines>
 
-line ::= filepath ":" mod_longident
-\end{verbatim}
+<line> ::= <filepath> `:' <mod_longident>
+\end{grammar}
 
 The compiler can create this file during compilation, or we can imagine a simple
 program (\emph{ocamlns}) which would read the namespace information of each file
 to create this \texttt{.ns}. It would be available at the root of each installed
-libraries (in each -I added folder) and read by the compiler.
+libraries (in each -lib added folder) and read by the compiler.
 
 
 \section{Others concerns and future extensions}
@@ -390,7 +293,7 @@ a namespace. The behavior is then:
 \end{itemize}
 
 In this constraints, the -pack is backward compatible since modules without
-namespaces doesn't belong to a namespace at all (at least virtually).
+namespaces doesn't belong to a namespace at all.
 
 \paragraph{-functor-pack with namespaces}
 
@@ -406,24 +309,7 @@ Pervasives when using a namespace. It binds the name to a specific semantics,
 but is relevant since some languages binds the \emph{main} name as the entry
 point of a program.
 
-%% It
-%% would be syntactically easy to add such a feature, by adding the keyword
-%% ``opened'' at the beginning of the namespace declaration, but it needs more
-%% thoughts at compilation and linking. There are some way to do it, especially by
-%% adding a directory \texttt{``\_opened''} in the installed library for each
-%% namespaces with such modules, that the compiler would recognize as the
-%% automatically opened ones. As a result, when importing a library (even one
-%% module), the opened ones are automatically imported. Aliasing or shadowing
-%% them prevent this behavior.
-
-%% This proposition is part of the 4.02 version of OCaml: a \texttt{-open} option
-%% had been added, what we propose is specifying modules that should be opened
-%% directly in the language, making this option automatic when using the namespace.
-
 \section{Use-case}
-
-We present some use cases of namespaces in the language, we use the first
-proposal in it, but the semantics is the same.
 
 
 \subsection{Extending libraries}
@@ -443,20 +329,13 @@ in namespace Inria.Std
 \begin{OCaml}
 (** string.ml, a replacement for the original String module *)
 in namespace Inria.Std
-
-(* we need to first alias the original String *)
-  with (String -> S) of Inria.Std
-
-include S
-
-(* some new functions and rebindings of String *)
 ...
 \end{OCaml}
 
 Supposing this extended library is installed into \texttt{+extendedlib}, the
 compilation of a program M using it is simply:
 \begin{verbatim}
-ocaml(c|opt) -o prog -I +extendedlib m.ml
+ocaml(c|opt) -o prog -lib +extendedlib m.ml
 \end{verbatim}
 
 Of course, the String module we've defined is not used by the modules from the
@@ -497,7 +376,7 @@ open Async_monad
 The compilation of our module is:
 
 \begin{verbatim}
-ocamlc -c -functor Async_monad protocol.ml
+ocamlc -c -functor async_monad.cmi protocol.ml
 \end{verbatim}
 
 \medskip
@@ -506,8 +385,15 @@ Now suppose your writing a server, using this HTTP library (we suppose it
 belongs to a namespace Myserver). First of all, we have to instantiate our
 namespace over an implementation of our monad:
 
+\begin{OCaml}
+in namespace Mylib.Http_Lwt
+with (Lwt) of Ocsigen
+
+include Lwt
+\end{OCaml}
+
 \begin{verbatim}
-ocamlc -I +ocsigen-lib -apply Ocsigen.Lwt -ns Mylib.Http_Lwt protocol.cmo
+ocamlc -apply mylib/http_Lwt/lwt.cmo protocol.cmo
 ... # We do the same for the other modules in this namespace 
 \end{verbatim}
 
@@ -517,8 +403,7 @@ instantiation of Mylib.Http over Ocsigen.Lwt.
 \begin{OCaml}
 (** main_lwt.ml *)
 in namespace Myserver
-  with (Lwt) of Ocsigen
-  and (Protocol) of MyLib.Http_Lwt
+  with (Protocol; Lwt) of MyLib.Http_Lwt
 ...
 \end{OCaml}
 
@@ -557,7 +442,7 @@ let is_sat f =
 
 \begin{verbatim}
 ocamlc -c sat.mli
-ocamlc -c -functor Sat solver.ml
+ocamlc -c -functor sat.cmi solver.ml
 \end{verbatim}
 
 \medskip
@@ -565,10 +450,10 @@ ocamlc -c -functor Sat solver.ml
 Finally, our Solver can be used by the following benchmarking modules:
 
 \begin{verbatim}
-ocamlc -apply Dpll -ns MySolver_Dpll solver.cmo
+ocamlc -apply mySolver_Dpll/dpll.cmo solver.cmo
 ... # every other modules to instantiate
 
-ocamlc -apply Cdcl -ns MySolver_Cdcl solver.cmo
+ocamlc -apply mySolver_Cdcl/cdcl.cmo solver.cmo
 ... # idem 
 \end{verbatim}
 

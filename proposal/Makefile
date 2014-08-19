@@ -1,6 +1,6 @@
 FILE=proposal
 
-all: $(FILE).pdf
+all: soa.tex prop.tex $(FILE).pdf
 
 $(FILE).pdf: $(FILE).tex biblio.bib
 	rubber -d $<
