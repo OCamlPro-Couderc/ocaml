@@ -847,11 +847,16 @@ let transl_store_implementation module_name (str, restr) =
 
 let transl_store_apply size funit_id target_id instantiation coercion =
   let str = transl_applied_unit funit_id target_id instantiation coercion in
-  str
-  (* let target = Ident.create (Ident.name target_id) in *)
-  (* let create_fields f = *)
-  (*   if f = 0 then Lprim(Psetfield(f, false), Lprim(Pgetglobal target *)
-  (* Llet (Strict, target, str, create_fields size) *)
+  (* str *)
+  let target = Ident.create (Ident.name target_id) in
+  let rec set_idents = function
+      f when f = size -> lambda_unit
+    | pos ->
+        Lsequence(Lprim(Psetfield(pos, false),
+                        [Lprim(Pgetglobal target_id, []);
+                         (Lprim(Pfield pos, [Lvar target]))]),
+                  set_idents (pos + 1)) in
+  Llet (Strict, target, str, set_idents 0)
 
 (* Compile a toplevel phrase *)
 
