@@ -795,9 +795,9 @@ let transl_store_gen ?(ns=None) module_name ({ str_items = str }, restr) topl =
   primitive_declarations := [];
   let module_id = Ident.create_persistent ~ns module_name in
   if !Clflags.functors <> [] then Ident.make_functor_part module_id;
-  let module_id = if Ident.is_functor_part module_id then
-      Env.get_functor_part (Ident.name module_id)
-    else module_id in
+  (* let module_id = if Ident.is_functor_part module_id then *)
+  (*     Env.get_functor_part (Ident.name module_id) *)
+  (*   else module_id in *)
   let (map, prims, size) =
     build_ident_map restr (defined_idents str) (more_idents str) in
   let f = function
@@ -818,19 +818,29 @@ let transl_store_implementation module_name (str, restr) =
   let r = transl_store_gen ~ns module_name (str, restr) false in
   transl_store_subst := s;
   if !Clflags.functors <> [] then
-    let (size, str) = r in
-    let id = Env.get_functor_part module_name in
+    (* let (size, str) = transl_store_structure *)
+
     let _funct_id = Ident.create "functor" in
-    let str = Llet(Strict, id,
-		   Lprim(Pmakeblock(0, Immutable), Array.to_list (Array.create size lambda_unit)),
-		   Lsequence (str, Lvar id) ) in
+    let str = Typedtree.({
+        mod_desc = Tmod_structure str;
+        mod_loc = Location.none;
+        mod_type = Mty_ident (Path.Pident _funct_id);
+        mod_env = Env.empty;
+        mod_attributes = []}) in
+    let (size, str) = 1, transl_module Tcoerce_none None str in
+    (* let (size, str) = r in *)
+    (* let id = Env.get_functor_part module_name in *)
+    (* let str = Llet(Strict, id, *)
+    (*     	   Lprim(Pmakeblock(0, Mutable), Array.to_list (Array.create size lambda_unit)), *)
+    (*     	   Lsequence (str, Lvar id) ) in *)
     let functor_env = Ident.create "functor_env" in
-    let str = (* Lprim (Psetfield(0, false), *)
-              (*        [Lprim(Pgetglobal (Ident.create_persistent ~ns *)
-              (*                             module_name), []); *)
-              (*         Llet (Strict, funct_id, *)
-                            transl_functor_unit functor_env module_name str(* , *)
-                            (* Lvar funct_id) *)(* ]) *) in
+    let str =
+                      Llet (Strict, _funct_id,
+                            transl_functor_unit functor_env module_name str,
+                            Lprim (Psetfield(0, false),
+                                   [Lprim(Pgetglobal(Ident.create_persistent ~ns
+                                                        module_name), []);
+                                    Lvar _funct_id])) in
     (* Format.printf "%a@." Printlambda.lambda str; *)
     (size, str)
   else r
@@ -839,8 +849,8 @@ let transl_store_apply size funit_id target_id instantiation coercion =
   let str = transl_applied_unit funit_id target_id instantiation coercion in
   str
   (* let target = Ident.create (Ident.name target_id) in *)
-  (* let create_fields f =  *)
-  (*   if f = 0 then  *)
+  (* let create_fields f = *)
+  (*   if f = 0 then Lprim(Psetfield(f, false), Lprim(Pgetglobal target *)
   (* Llet (Strict, target, str, create_fields size) *)
 
 (* Compile a toplevel phrase *)
