@@ -14,7 +14,7 @@ opt:
 	ocamlopt -c -apply x/res.cmi mod.cmx
 	ocamlopt -c y/arg.ml
 	ocamlopt -c -apply y/arg.cmi mod.cmx
-	ocamlopt -o res.byte mod.cmx x/res.cmx x/mod.cmx y/arg.cmx y/mod.cmx test.ml
+	ocamlopt -o res.opt mod.cmx x/res.cmx x/mod.cmx y/arg.cmx y/mod.cmx test.ml
 
 clean:
 	rm -f *.cm* */*.cm* *.opt *.byte *.o */*.o *~

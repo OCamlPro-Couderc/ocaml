@@ -824,10 +824,13 @@ let transl_store_implementation module_name (str, restr) =
     let functor_env = Ident.create "functor_env" in
     let str = Llet (Strict, funct_id,
                     transl_functor_unit functor_env module_name str,
-                    Lprim (Psetfield(0, false),
-                           [Lprim(Pgetglobal(Ident.create_persistent ~ns
-                                               module_name), []);
-                            Lvar funct_id])) in
+                    Lsequence
+                      (Lprim (Psetfield(0, false),
+                              [Lprim(Pgetglobal(Ident.create_persistent ~ns
+                                                  module_name), []);
+                               Lvar funct_id]),
+                       lambda_unit))
+    in
     transl_store_subst := s;
     (size, str)
   else begin
