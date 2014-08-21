@@ -1854,7 +1854,6 @@ let applied_unit initial_env instantiation parts cmi dest_ns (modulename: string
       let subst' = Subst.add_module part (Pident applied) subst in
       Tcoerce_none :: cc, subst') (List.rev cc, subst) parts in
   let sg = Subst.signature subst cmi.Cmi_format.cmi_sign in
-  Format.printf "Signature result: @.%a@." Printtyp.signature sg;
   let filename = (String.uncapitalize modulename) ^ ".cmi" in
   let application = Some (modulename, funit_ns,
                           Env.crc_of_unit modulename funit_ns,
