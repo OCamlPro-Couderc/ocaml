@@ -820,7 +820,7 @@ let transl_store_implementation module_name (str, restr) =
         mod_type = Mty_ident (Path.Pident funct_id);
         mod_env = Env.empty;
         mod_attributes = []}) in
-    let (size, str) = 1, transl_module Tcoerce_none None str in
+    let (size, str) = 1, transl_module restr None str in
     let functor_env = Ident.create "functor_env" in
     let str = Llet (Strict, funct_id,
                     transl_functor_unit functor_env module_name str,

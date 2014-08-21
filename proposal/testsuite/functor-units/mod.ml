@@ -1,3 +1,3 @@
 module X = Intf
 
-let print t = print_endline (X.to_string t)
+let print t = Format.printf "Value: %s@." (X.to_string t)

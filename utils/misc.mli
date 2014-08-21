@@ -112,7 +112,6 @@ val get_ref: 'a list ref -> 'a list
         (* [get_ref lr] returns the content of the list reference [lr] and reset
            its content to the empty list. *)
 
-
 val assoc2: 'a * 'b -> ('a * 'b * 'c) list -> 'c
 
 val fst3: 'a * 'b * 'c -> 'a

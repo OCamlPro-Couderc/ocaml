@@ -40,19 +40,18 @@ let crc_implementations = Consistbl.create ()
 let implementations = ref ([] : (string * Longident.t option) list)
 let implementations_defined = ref ([] : (string * Longident.t option * string) list)
 let cmx_required = ref ([] : string list)
-let functors_remaining = ref([] : (string* Longident.t option) list)
+let functors_linked = ref([] : (string * Longident.t option * bool ref) list)
 
 let check_consistency file_name unit crc functor_args =
   if unit.ui_functor_args <> [] then
-    functors_remaining :=
-      (unit.ui_name, unit.ui_namespace) :: !functors_remaining;
+    functors_linked :=
+      (unit.ui_name, unit.ui_namespace, ref false) :: !functors_linked;
   begin match unit.ui_apply with
     None -> ()
   | Some (name, ns, _, _) ->
-      if List.mem (name, ns) !functors_remaining then
-        functors_remaining :=
-          List.filter (fun t -> t <> (name, ns)) !functors_remaining
-      else
+      try let instantiated = Misc.assoc2 (name, ns) !functors_linked in
+        instantiated := true
+      with Not_found ->
         raise (Error(Functor_unit_missing
                        (file_name, name, Env.namespace_name ns)))
   end;
@@ -363,10 +362,13 @@ let link ppf objfiles output_name =
   List.iter
     (fun (info, file_name, crc) -> check_consistency file_name info crc [])
     units_tolink;
-  if !functors_remaining <> [] then begin
-    let (modulename, ns) = List.hd !functors_remaining in
-    raise (Error(Remaining_unapplied_functors (modulename, Env.namespace_name
-                                                 ns)))
+  begin
+    try
+      let (modulename, ns, _) =
+        List.find (fun (_, _, inst) -> not !inst) !functors_linked in
+      raise (Error(Remaining_unapplied_functors
+                     (modulename, Env.namespace_name ns)))
+    with Not_found -> ()
   end;
   Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs;
   Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;

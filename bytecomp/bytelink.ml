@@ -161,21 +161,21 @@ let scan_file obj_name tolink =
 
 let crc_interfaces = Consistbl.create ()
 let interfaces = ref ([] : (string * Longident.t option) list)
-let implementations_defined = ref ([] : ((string * Longident.t option) * string) list)
-let functors_remaining = ref ([] : (string * Longident.t option) list)
+let implementations_defined =
+  ref ([] : ((string * Longident.t option) * string) list)
+let functors_linked = ref ([] : (string * Longident.t option * bool ref) list)
 
 let check_consistency ppf file_name cu functor_args =
   if !Clflags.ns_debug then
     Format.printf "Bytelink.check_consistency@.";
   if cu.cu_functor_args <> [] then
-    functors_remaining := (cu.cu_name, cu.cu_namespace) :: !functors_remaining;
+    functors_linked := (cu.cu_name, cu.cu_namespace, ref false) :: !functors_linked;
   begin match cu.cu_apply with
     None -> ()
   | Some (name, ns, _, _) ->
-      if List.mem (name, ns) !functors_remaining then
-        functors_remaining :=
-          List.filter (fun t -> t <> (name, ns)) !functors_remaining
-      else
+      try let instantiated = Misc.assoc2 (name, ns) !functors_linked in
+        instantiated := true
+      with Not_found ->
         raise (Error(Functor_unit_missing
                        (file_name, name, Env.namespace_name ns)))
   end;
@@ -356,10 +356,13 @@ let link_bytecode ppf tolink exec_name standalone =
     let output_fun = output_bytes outchan
     and currpos_fun () = pos_out outchan - start_code in
     List.iter (link_file ppf output_fun currpos_fun) tolink;
-    if !functors_remaining <> [] then begin
-      let (modulename, ns) = List.hd !functors_remaining in
-      raise (Error(Remaining_unapplied_functors (modulename, Env.namespace_name
-                                                   ns)))
+    begin
+      try
+      let (modulename, ns, _) =
+        List.find (fun (_, _, inst) -> not !inst) !functors_linked in
+      raise (Error(Remaining_unapplied_functors
+                     (modulename, Env.namespace_name ns)))
+      with Not_found -> ()
     end;
     if check_dlls then Dll.close_all_dlls();
     (* The final STOP instruction *)
