@@ -93,6 +93,8 @@ Compilers:
   (Vladimir Brankov)
 - PR#6017: a new format implementation based on GADTs
   (Benoît Vaugon and Gabriel Scherer)
+- PR#6389: ocamlopt -opaque option for incremental native compilation
+  (Pierre Chambart, Gabriel Scherer)
 
 Toplevel interactive system:
 - PR#5377: New "#show_*" directives
@@ -141,6 +143,8 @@ Standard library:
   (John Whitington)
 - PR#6180: efficient creation of uninitialized float arrays
   (Alain Frisch, request by Markus Mottl)
+- Trigger warning 3 for all values marked as deprected in the documentation.
+  (Damien Doligez)
 
 OCamldoc:
 - PR#6257: handle full doc comments for variant constructors and
@@ -170,10 +174,14 @@ Bug fixes:
   (Jun Furuse and Hongbo Zhang, report by Dmitry Grebeniuk)
 - PR#5201: ocamlbuild: add --norc to the bash invocation to help performances
   (user 'daweil')
+- PR#5406 ocamlbuild: "tag 'package' does not expect a parameter"
+  (Gabriel Scherer)
 - PR#5598: follow-up fix related to PR#6165
   (Damien Doligez)
 - PR#5820: Fix camlp4 lexer roll back problem
   (Hongbo Zhang)
+- PR#5851: warn when -r is disabled because no _tags file is present
+  (Gabriel Scherer)
 - PR#5946: CAMLprim taking (void) as argument
   (Benoît Vaugon)
 - PR#6038: on x86-32, enforce 16-byte stack alignment for compatibility
@@ -232,6 +240,8 @@ Bug fixes:
   (Jacques Garrigue, report by Leo White)
 - PR#6293: Assert_failure with invalid package type
   (Jacques Garrigue, report by Elnatan Reisner)
+- PR#6300: ocamlbuild -use-ocamlfind conflicts with -ocamlc
+  (Gabriel Scherer)
 - PR#6302: bytecode debug information re-read from filesystem every time
   (Jacques-Henri Jourdan)
 - PR#6307: Behavior of 'module type of' w.r.t. module aliases
@@ -262,14 +272,18 @@ Bug fixes:
   (Benoît Vaugon)
 - PR#6436: Typos in @deprecated text in stdlib/arrayLabels.mli
 - PR#6443: ocaml segfault when List.fold_left is traced then executed
+  (Jacques Garrigue, report by Reventlov)
 - PR#6460: runtime assertion failure with large [| e1;...eN |]
   float array expressions
   (Leo White)
 - PR#6482: ocamlbuild fails when _tags file in unhygienic directory
   (Gabriel Scherer)
 - PR#6505: Missed Type-error leads to a segfault upon record access
+  (Jacques Garrigue, report by Christoph Höger)
 - PR#6509: add -linkall flag to ocamlcommon.cma
   (Frédéric Bour)
+- PR#6513: Fatal error Ctype.Unify(_) in functor type
+  (Jacques Garrigue, report by Dario Teixeira)
 - fix -dsource printing of "external _pipe = ..."
   (Gabriel Scherer)
 - bound-checking bug in caml_string_{get,set}{16,32,64}
@@ -299,6 +313,8 @@ Features wishes:
   (Jeremy Yallop, review by Gabriel Scherer)
 - PR#6071: Add a -noinit option to the toplevel
   (David Sheets)
+- PR#6087: ocamlbuild, improve _tags parsing of escaped newlines
+  (Gabriel Scherer, request by Daniel Bünzli)
 - PR#6166: document -ocamldoc option of ocamlbuild
   (Xavier Clerc)
 - PR#6187: ocamlbuild: warn when using -plugin-tag(s) without myocamlbuild.ml

@@ -100,7 +100,7 @@ let require_primitive name =
   if name.[0] <> '%' then ignore(num_of_prim name)
 
 let all_primitives () =
-  let prim = Array.create !c_prim_table.num_cnt "" in
+  let prim = Array.make !c_prim_table.num_cnt "" in
   Tbl.iter (fun name number -> prim.(number) <- name) !c_prim_table.num_tbl;
   prim
 
@@ -230,7 +230,7 @@ let rec transl_const = function
 (* Build the initial table of globals *)
 
 let initial_global_table () =
-  let glob = Array.create !global_table.num_cnt (Obj.repr 0) in
+  let glob = Array.make !global_table.num_cnt (Obj.repr 0) in
   List.iter
     (fun (slot, cst) -> glob.(slot) <- transl_const cst)
     !literal_table;
