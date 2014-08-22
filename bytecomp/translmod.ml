@@ -456,6 +456,9 @@ let _ =
 (* TODO: check what happens if a module has the same name as a module given as
    argument *)
 
+let const_string s =  Lconst(Const_base (Const_string (s, None)))
+
+
 let transl_functor_unit functor_env modname str =
   let ids = Env.get_functor_parts () in
    (* Printf.fprintf stderr "transl_functor_unit: %s, nb_ids: %d\n" *)
@@ -465,7 +468,7 @@ let transl_functor_unit functor_env modname str =
       let id = Env.get_functor_part name in
       let str = Llet(Strict, id,
 	 Lapply(mod_prim "find_functor_arg", [
-	   Lconst(Const_base (Const_string (Ident.name id, None)));
+	   const_string (Ident.name id);
 	   Lvar functor_env;
 	 ], Location.none), str) in
       (str, Tbl.add name id tbl)

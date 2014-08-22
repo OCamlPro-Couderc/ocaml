@@ -11,7 +11,7 @@
 (*                                                                     *)
 (***********************************************************************)
 
-(** Run-time support for recursive modules.
+(** Run-time support for recursive modules and functor units.
     All functions in this module are for system use only, not for the
     casual user. *)
 
@@ -27,6 +27,6 @@ val update_mod: shape -> Obj.t -> Obj.t -> unit
 
 type functor_env
 type functor_arg
-val create_functor_env : unit -> functor_env
+val create_functor_env : unit-> functor_env
 val find_functor_arg :  string -> functor_env -> functor_arg
 val add_functor_arg : string -> functor_arg -> functor_env -> functor_env

@@ -75,5 +75,7 @@ module StringMap = Map.Make(String)
 type functor_arg
 type functor_env = functor_arg StringMap.t
 let create_functor_env () = StringMap.empty
+
 let find_functor_arg = StringMap.find
+
 let add_functor_arg = StringMap.add

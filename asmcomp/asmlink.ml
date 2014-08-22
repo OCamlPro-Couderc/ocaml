@@ -406,8 +406,9 @@ let report_error ppf = function
            List.iter (fun r -> fprintf ppf ",@ %s" r) rl in
       let print_modules ppf =
         List.iter
-         (fun ((md, _), rq) ->
-            fprintf ppf "@ @[<hov 2>%s referenced from %a@]" md
+         (fun ((md, ns), rq) ->
+            fprintf ppf "@ @[<hov 2>%s from %s referenced from %a@]" md
+      (Env.namespace_name ns)
             print_references rq) in
       fprintf ppf
        "@[<v 2>No implementations provided for the following modules:%a@]"
