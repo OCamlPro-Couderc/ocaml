@@ -921,9 +921,19 @@ let rec close fenv cenv = function
   | Lprim(Prevapply loc,[arg;funct]) ->
       close fenv cenv (Lapply(funct, [arg], loc))
   | Lprim(Pgetglobal id, []) as lam ->
-      check_constant_result lam
-                            (getglobal cenv id)
-                            (Compilenv.global_approx id)
+      if Ident.is_functor_part id then
+        begin
+          let id' = Env.get_functor_part (Ident.name id) in
+          let res =
+            try Tbl.find id' cenv with Not_found -> Uvar id' in
+          Format.printf "Is_funstor_part: %s, res: %a@." (Ident.unique_name id)
+            Printclambda.clambda res;
+          check_constant_result lam res Value_unknown
+        end
+      else
+        check_constant_result lam
+          (getglobal cenv id)
+          (Compilenv.global_approx id)
   | Lprim(Pfield n, [lam]) ->
       let (ulam, approx) = close fenv cenv lam in
       let s, res = check_constant_result lam (Uprim(Pfield n, [ulam], Debuginfo.none))
@@ -931,6 +941,8 @@ let rec close fenv cenv = function
       s, res (* res *)
   | Lprim(Psetfield(n, _), [Lprim(Pgetglobal id, []); lam]) ->
       let (ulam, approx) = close fenv cenv lam in
+      if !Clflags.ns_debug then Format.printf "Setfield %d of %s, approx:%a"
+        n (Ident.unique_name id) Printclambda.approx approx;
       if approx <> Value_unknown then
         (!global_approx).(n) <- approx;
       (Uprim(Psetfield(n, false), [getglobal cenv id; ulam], Debuginfo.none),

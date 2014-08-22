@@ -70,12 +70,8 @@ let applied_object_file ppf cmi prefix targetname env =
       (part, applied) :: acc) instance parts in
 
   let cmxfile = prefix ^ ".cmx" in
-  (* let objfile = prefix ^ Config.ext_obj in *)
   let size = List.length cmi.cmi_sign in
-  let open Lambda in
-  let str = Lprim (Psetfield(0, false),
-                   [Lprim(Pgetglobal target_id, []);
-                    Translmod.transl_store_apply size funit_id target_id instance coercion]) in
+  let str = Translmod.transl_store_apply size funit_id target_id instance coercion in
   (size, str)
   +++ print_if ppf Clflags.dump_rawlambda Printlambda.lambda
   +++ Simplif.simplify_lambda
