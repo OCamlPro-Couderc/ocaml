@@ -1,5 +1,5 @@
-with (P) of P1
-and (P as P2) of P2;;
+with P1.(P)
+and P2.(P as P2)
 
 let () =
   P.Mod.print P2.Mod.value;

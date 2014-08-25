@@ -1,5 +1,5 @@
 in namespace X
-with (M1) of X;;
+with X.(M1)
 
 type t = { value_m2 : M1.t; str : string }
 

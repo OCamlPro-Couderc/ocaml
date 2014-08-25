@@ -1,5 +1,5 @@
-with (Linked) of Y
-and (Linked as Linked_Z) of Z;;
+with Y.(Linked)
+and Z.(Linked as Linked_Z)
 
 let _ =
   ignore @@ Linked.create 42;

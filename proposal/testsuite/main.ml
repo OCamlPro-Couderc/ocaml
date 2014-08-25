@@ -1,7 +1,7 @@
-with (M1; _) of X
-and (Mod) of Y(* ;; *)
+with X.(M1; _)
+and Y.(Mod)
 (* Mod@Y rebinds M1@X *)
-and (Mod as ZMod) of Z(* ;; *)
+and Z.(Mod as ZMod)
 (* Z : include Mod@Y *)
 
 open M1

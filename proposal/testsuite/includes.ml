@@ -1,4 +1,4 @@
-with (Included as M) of Y;;
+with Y.(Included as M)
 
 include M
 

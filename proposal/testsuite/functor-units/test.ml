@@ -1,5 +1,5 @@
-with (Mod; Builder as BX) of X
-and (Mod as ModY; Builder as BY) of Y
+with X.(Mod; Builder as BX)
+and Y.(Mod as ModY; Builder as BY)
 
 let _ =
   let res = Mod.X.create 42 in

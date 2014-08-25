@@ -1,5 +1,5 @@
 in namespace Z
-with (Mod as Y_Mod) of Y
+with Y.(Mod as Y_Mod)
 
 include Y_Mod
 

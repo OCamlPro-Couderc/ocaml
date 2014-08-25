@@ -1,5 +1,5 @@
 in namespace Y
-with (M1 as Mod) of X;;
+with X.(M1 as Mod)
 
 type t = Mod.t
 

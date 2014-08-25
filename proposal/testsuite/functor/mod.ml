@@ -1,5 +1,5 @@
 in namespace Functor
-with (Intf) of Functor;;
+with Functor.(Intf)
 
 (* It has the type of Intf as one can notice, it is required since we cannot use
    the type of an alias (which is the case for Intf) as a functor argument

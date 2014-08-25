@@ -507,11 +507,11 @@ The precedences must be listed from low to high.
 /* Entry points */
 
 implementation:
-    prelude structure EOF       { Pimpl ($1, $2) }
+    header structure EOF       { Pimpl ($1, $2) }
   /* | structure EOF                        { Pimpl (Ns.empty, $1) } */
 ;
 interface:
-    prelude signature EOF       { Pinterf ($1, $2) }
+    header signature EOF       { Pinterf ($1, $2) }
  /* | signature EOF                        { Pinterf (Ns.empty, $1) } */
 ;
 toplevel_phrase:
@@ -520,7 +520,7 @@ toplevel_phrase:
   | toplevel_directive SEMISEMI          { $1 }
   | EOF                                  { raise End_of_file }
 ;
-prelude:
+header:
     namespace_decl imports               { mk_prl (Some $1) $2 }
   | imports                              { mk_prl None $1 }
 ;
@@ -542,8 +542,8 @@ import_tail:
     AND import_arg                       { $2 }
 ;
 import_arg:
-    LPAREN import_constraints RPAREN OF mod_longident
-                                         { mk_imp $2 $5 }
+    mod_longident DOT LPAREN import_constraints RPAREN
+                                         { mk_imp $4 $1 }
 ;
 import_constraints:
     import_constraint                    { [ $1 ] }
@@ -565,7 +565,7 @@ top_structure_tail:
   | structure_item top_structure_tail    { $1 :: $2 }
 ;
 use_file:
-    prelude use_file_tail { (Ptop_prl $1) :: $2 }
+    header use_file_tail { (Ptop_prl $1) :: $2 }
   | use_file_tail                        { $1 }
   | seq_expr post_item_attributes use_file_tail
                                          { Ptop_def[mkstrexp $1 $2] :: $3 }
