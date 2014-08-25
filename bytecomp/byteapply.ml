@@ -43,21 +43,24 @@ let applied_object_file ppf cmi targetfile targetname env =
       !parts in
   let coercion, application =
     Typemod.applied_unit env instance parts cmi ns targetname in
-  let target_id = Ident.create_persistent
-      ~ns:(Longident.optstring ns) targetname in
-  let funit_id = Ident.create_persistent
-      ~ns:(Longident.optstring cmi.cmi_namespace) cmi.cmi_name in
-  let instance = List.fold_left (fun acc ((part, crc), applied) ->
-      (part, applied) :: acc) instance parts in
-  let lambda = Translmod.transl_applied_unit funit_id target_id instance coercion in
-  let lam = Lprim(Psetglobal target_id, [lambda]) in
-  if !Clflags.dump_lambda then
-    Format.printf "%a@." Printlambda.lambda lam;
-  let instrs =
-    Bytegen.compile_implementation targetname lam in
-  (* let application = *)
-  (*   Some (cmi.cmi_name, cmi.cmi_namespace) in *)
-  Emitcode.to_file ~application targetfile targetname instrs
+  if !Clflags.print_types then
+    ()
+  else
+    let target_id = Ident.create_persistent
+        ~ns:(Longident.optstring ns) targetname in
+    let funit_id = Ident.create_persistent
+        ~ns:(Longident.optstring cmi.cmi_namespace) cmi.cmi_name in
+    let instance = List.fold_left (fun acc ((part, crc), applied) ->
+        (part, applied) :: acc) instance parts in
+    let lambda = Translmod.transl_applied_unit funit_id target_id instance coercion in
+    let lam = Lprim(Psetglobal target_id, [lambda]) in
+    if !Clflags.dump_lambda then
+      Format.printf "%a@." Printlambda.lambda lam;
+    let instrs =
+      Bytegen.compile_implementation targetname lam in
+    (* let application = *)
+    (*   Some (cmi.cmi_name, cmi.cmi_namespace) in *)
+    Emitcode.to_file ~application targetfile targetname instrs
 
 let apply_functor_unit ppf funit initial_env =
   let prefix = Filename.chop_extension funit in

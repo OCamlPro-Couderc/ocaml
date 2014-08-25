@@ -60,24 +60,26 @@ let applied_object_file ppf cmi prefix targetname env =
 
   let coercion, application =
     Typemod.applied_unit env instance parts cmi ns targetname in
+  if !Clflags.print_types then
+    ()
+  else
+    let target_id = Ident.create_persistent
+        ~ns:(Longident.optstring ns) targetname in
+    let funit_id = Ident.create_persistent
+        ~ns:(Longident.optstring cmi.cmi_namespace) cmi.cmi_name in
+    (* Ident.make_functor_part funit_id; *)
+    let instance = List.fold_left (fun acc ((part, crc), applied) ->
+        (part, applied) :: acc) instance parts in
 
-  let target_id = Ident.create_persistent
-      ~ns:(Longident.optstring ns) targetname in
-  let funit_id = Ident.create_persistent
-      ~ns:(Longident.optstring cmi.cmi_namespace) cmi.cmi_name in
-  (* Ident.make_functor_part funit_id; *)
-  let instance = List.fold_left (fun acc ((part, crc), applied) ->
-      (part, applied) :: acc) instance parts in
-
-  let cmxfile = prefix ^ ".cmx" in
-  let size = List.length cmi.cmi_sign in
-  let str = Translmod.transl_store_apply size funit_id target_id instance coercion in
-  (size, str)
-  +++ print_if ppf Clflags.dump_rawlambda Printlambda.lambda
-  +++ Simplif.simplify_lambda
-  +++ print_if ppf Clflags.dump_lambda Printlambda.lambda
-  ++ Asmgen.compile_implementation prefix ppf;
-  Compilenv.save_unit_info ~application cmxfile
+    let cmxfile = prefix ^ ".cmx" in
+    let size = List.length cmi.cmi_sign in
+    let str = Translmod.transl_store_apply size funit_id target_id instance coercion in
+    (size, str)
+    +++ print_if ppf Clflags.dump_rawlambda Printlambda.lambda
+    +++ Simplif.simplify_lambda
+    +++ print_if ppf Clflags.dump_lambda Printlambda.lambda
+    ++ Asmgen.compile_implementation prefix ppf;
+    Compilenv.save_unit_info ~application cmxfile
 
 
 let apply_functor_unit ppf funit initial_env =

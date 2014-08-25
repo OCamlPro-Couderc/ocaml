@@ -1859,8 +1859,17 @@ let applied_unit initial_env instantiation parts cmi dest_ns (modulename: string
   let application = Some (modulename, funit_ns,
                           Env.crc_of_unit modulename funit_ns,
                           apps_crc) in
-  let _sg = Env.save_signature ~application dest_ns sg modulename filename in
-  cc, application
+  let sg = Env.save_signature ~application dest_ns sg modulename filename in
+  let simple_sg = simplify_signature sg in
+  if !Clflags.print_types then begin
+    let simple_sg = Typens.realias_signature simple_sg in
+    Printtyp.wrap_printing_env initial_env
+      (fun () -> fprintf std_formatter "%a@."
+          Printtyp.signature simple_sg);
+    ([Tcoerce_none], application)   (* result is ignored by Compile.implementation *)
+  end
+  else
+    cc, application
 
 (* Error report *)
 
