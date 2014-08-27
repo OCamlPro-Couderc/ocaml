@@ -752,11 +752,11 @@ and module_expr_desc =
   | Pmod_extension of extension
         (* [%id] *)
 
-and prelude =
+and header =
   {
-    prl_ns: namespace_decl option;
-    prl_imports: imports;
-    prl_loc: Location.t;
+    hd_ns: namespace_decl option;
+    hd_imports: imports;
+    hd_loc: Location.t;
   }
 
 and namespace_decl =
@@ -852,9 +852,9 @@ and module_binding =
     }
 (* X = ME *)
 
-and implementation = Pimpl of prelude * structure
+and implementation = Pimpl of header * structure
 
-and interface = Pinterf of prelude * signature
+and interface = Pinterf of header * signature
 
 (** {2 Toplevel} *)
 
@@ -862,7 +862,7 @@ and interface = Pinterf of prelude * signature
 
 type toplevel_phrase =
   | Ptop_def of structure
-  | Ptop_prl of prelude
+  | Ptop_hdr of header
   | Ptop_dir of string * directive_argument
      (* #use, #load ... *)
 

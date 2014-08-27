@@ -863,10 +863,10 @@ and label_x_bool_x_core_type_list i ppf x =
       line i ppf "Rinherit\n";
       core_type (i+1) ppf ct
 
-and prelude i ppf prl =
-  line i ppf "prelude %a\n" fmt_location prl.prl_loc;
-  namespace_decl (i+1) ppf prl.prl_ns;
-  imports (i+1) ppf prl.prl_imports
+and header i ppf hdr =
+  line i ppf "header %a\n" fmt_location hdr.hd_loc;
+  namespace_decl (i+1) ppf hdr.hd_ns;
+  imports (i+1) ppf hdr.hd_imports
 
 and namespace_decl i ppf nsd =
   match nsd with
@@ -901,9 +901,9 @@ let rec toplevel_phrase i ppf x =
   | Ptop_dir (s, da) ->
       line i ppf "Ptop_dir \"%s\"\n" s;
       directive_argument i ppf da;
-  | Ptop_prl (prl) ->
-      line i ppf "Ptop_prel \"\"\n";
-      prelude (i+1) ppf prl;
+  | Ptop_hdr (hdr) ->
+      line i ppf "Ptop_hdr \"\"\n";
+      header (i+1) ppf hdr;
 
 and directive_argument i ppf x =
   match x with
@@ -917,12 +917,12 @@ and directive_argument i ppf x =
 let signature i ppf x =
   list i signature_item ppf x;;
 
-let interface ppf (Pinterf (prl, x)) =
-  prelude 0 ppf prl;
+let interface ppf (Pinterf (hdr, x)) =
+  header 0 ppf hdr;
   list 0 signature_item ppf x;;
 
-let implementation ppf (Pimpl (prl, x)) =
-  prelude 0 ppf prl;
+let implementation ppf (Pimpl (hdr, x)) =
+  header 0 ppf hdr;
   list 0 structure_item ppf x;;
 
 let top_phrase ppf x = toplevel_phrase 0 ppf x;;

@@ -22,9 +22,9 @@ open Types
 open Btype
 
 
-let longident_to_filepath = Prelude_utils.longident_to_filepath
+let longident_to_filepath = Header_utils.longident_to_filepath
 
-let namespace_name = Prelude_utils.namespace_name
+let namespace_name = Header_utils.namespace_name
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
 

@@ -244,7 +244,7 @@ and add_signature bv = function
   | item :: rem -> add_signature (add_sig_item bv item) rem
 
 and add_interface bv (Pinterf (prl, sg)) =
-  let prl_sg, lset = Prelude_utils.simple_signature prl in
+  let prl_sg, lset = Header_utils.simple_signature prl in
   let sg = prl_sg @ sg in
   possible_wildcard := lset;
   add_signature bv sg
@@ -356,7 +356,7 @@ and add_implementation bv l =
 and add_top_phrase bv = function
   | Ptop_def str -> add_structure bv str
   | Ptop_dir (_, _) -> bv
-  | Ptop_prl prl -> add_structure bv @@ fst @@ Prelude_utils.simple_structure prl
+  | Ptop_hdr hdr -> add_structure bv @@ fst @@ Header_utils.simple_structure hdr
 
 and add_class_expr bv ce =
   match ce.pcl_desc with

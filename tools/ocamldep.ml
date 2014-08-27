@@ -123,7 +123,7 @@ let is_wildcard_compliant dir filename =
   let rec find = function
     | [] -> None
     | ns :: t -> if (Some ns) = declared_ns then
-          let d = Prelude_utils.longident_to_filepath declared_ns
+          let d = Header_utils.longident_to_filepath declared_ns
                   |> Filename.concat dir in
           Some (Filename.concat d filename)
         else find t in
@@ -171,7 +171,7 @@ let find_file_extended ?(subdir=None) candidates =
     match unresolved with
       [] -> raise Not_found
     | s :: rem ->
-        let subdir = Some (Prelude_utils.longident_to_filepath (Some s)) in
+        let subdir = Some (Header_utils.longident_to_filepath (Some s)) in
         begin
           match find_file_in_list ~subdir candidates with
             value -> value
@@ -188,7 +188,7 @@ let find_dependency target_kind (modname, ns) (byt_deps, opt_deps) =
     let subdir = match ns with
         None -> None
       | Some _ ->
-          let dir = Prelude_utils.longident_to_filepath ns in
+          let dir = Header_utils.longident_to_filepath ns in
           Some dir in
     let filename = find_file_extended ~subdir candidates in
     let basename = Filename.chop_extension filename in
@@ -216,7 +216,7 @@ let find_dependency target_kind (modname, ns) (byt_deps, opt_deps) =
     let subdir = match ns with
         None -> None
       | Some _ ->
-          let dir = Prelude_utils.longident_to_filepath ns in
+          let dir = Header_utils.longident_to_filepath ns in
           Some dir in
     let filename = find_file_extended ~subdir candidates in
     let basename = Filename.chop_extension filename in
@@ -350,8 +350,8 @@ let ml_file_dependencies source_file =
       match x with
       | Ptop_def s -> s
       | Ptop_dir _ -> []
-      | Ptop_prl prl ->
-          let str, lset = Prelude_utils.simple_structure prl in
+      | Ptop_hdr hdr ->
+          let str, lset = Header_utils.simple_structure hdr in
           (* Format.printf "%a" (Printast.structure 0) str; *)
           Depend.possible_wildcard := lset;
           str

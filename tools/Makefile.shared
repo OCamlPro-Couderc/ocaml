@@ -40,7 +40,7 @@ CAMLDEP_IMPORTS=misc.cmo config.cmo clflags.cmo terminfo.cmo \
   warnings.cmo location.cmo longident.cmo \
   syntaxerr.cmo ast_helper.cmo parser.cmo lexer.cmo parse.cmo \
   ccomp.cmo ast_mapper.cmo pparse.cmo compenv.cmo \
-  printast.cmo prelude_utils.cmo
+  printast.cmo header_utils.cmo
 
 ocamldep: depend.cmi $(CAMLDEP_OBJ)
 	$(CAMLC) $(LINKFLAGS) -compat-32 -o ocamldep $(CAMLDEP_IMPORTS) $(CAMLDEP_OBJ)
@@ -210,7 +210,7 @@ READ_CMT= \
           ../parsing/pprintast.cmo \
           ../parsing/ast_helper.cmo \
           ../parsing/ast_mapper.cmo \
-          ../parsing/prelude_utils.cmo \
+          ../parsing/header_utils.cmo \
           ../typing/ident.cmo \
           ../typing/path.cmo \
           ../typing/types.cmo \

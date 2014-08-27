@@ -126,7 +126,7 @@ class printer :
     method item_attributes : Format.formatter -> Parsetree.attributes -> unit
     method extension : Format.formatter -> Parsetree.extension -> unit
     method item_extension : Format.formatter -> Parsetree.extension -> unit
-    method prelude : Format.formatter -> Parsetree.prelude -> unit
+    method header : Format.formatter -> Parsetree.header -> unit
     method imports : Format.formatter -> Parsetree.imports -> unit
     method import_constraint_item :
       Format.formatter -> Parsetree.import_constraint_item -> unit
@@ -146,7 +146,7 @@ val string_of_expression : Parsetree.expression -> string
 val top_phrase: Format.formatter -> Parsetree.toplevel_phrase -> unit
 val core_type: Format.formatter -> Parsetree.core_type -> unit
 val pattern: Format.formatter -> Parsetree.pattern -> unit
-val prelude: Format.formatter -> Parsetree.prelude -> unit
+val header: Format.formatter -> Parsetree.header -> unit
 val signature: Format.formatter -> Parsetree.signature -> unit
 val structure: Format.formatter -> Parsetree.structure -> unit
 val implementation: Format.formatter -> Parsetree.implementation -> unit

@@ -1631,7 +1631,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
     ignore (map.Ast_mapper.implementation map ast)
   end;
 
-  let Pimpl (prl, ast) = ast in
+  let Pimpl (hdr, ast) = ast in
   let (str, sg, finalenv), ns =
     let env, ns, ast =
       (* if !Clflags.plain_imports then *)
@@ -1639,7 +1639,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       (*   initial_env, ns, prlast @ ast *)
       (* else *)
         let env, ns =
-          Typens.compute_prelude_no_alias prl initial_env in
+          Typens.compute_header_no_alias hdr initial_env in
         env, ns, ast
     in
     Env.add_functorunit_arguments ns modulename;
@@ -1649,7 +1649,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
     let simple_sg = Typens.realias_signature simple_sg in
     Printtyp.wrap_printing_env initial_env
       (fun () -> fprintf std_formatter "%a@\n@\n%a@."
-          Pprintast.prelude prl
+          Pprintast.header hdr
           Printtyp.signature simple_sg);
     (str, Tcoerce_none)   (* result is ignored by Compile.implementation *)
   end else begin
@@ -1708,12 +1708,12 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi)
 
-let type_interface modulename env (Pinterf (prl, ast)) =
+let type_interface modulename env (Pinterf (hdr, ast)) =
   begin
     let map = Typetexp.emit_external_warnings in
     ignore (map.Ast_mapper.signature map ast)
   end;
-  let env, ns = Typens.compute_prelude_no_alias prl env in
+  let env, ns = Typens.compute_header_no_alias hdr env in
   Env.add_functorunit_arguments ns modulename;
   transl_signature env ast, ns
 

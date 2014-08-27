@@ -1372,18 +1372,18 @@ class printer  ()= object(self:'self)
         pp_close_box f ();
     | Ptop_dir (s, da) ->
         pp f "@[<hov2>#%s@ %a@]" s self#directive_argument da
-    | Ptop_prl prl ->
+    | Ptop_hdr hdr ->
         pp_open_hvbox f 0;
-        self#prelude f prl;
+        self#header f hdr;
         pp_close_box f ()
 
-  method prelude f x =
+  method header f x =
     begin
-      match x.prl_ns with
+      match x.hd_ns with
         None -> ()
       | Some ns -> pp f "in namespace %a@\n" self#longident ns.ns_name
     end;
-    self#imports f x.prl_imports
+    self#imports f x.hd_imports
 
   method imports f x =
     match x with
@@ -1427,8 +1427,8 @@ let toplevel_phrase f x =
   | Ptop_dir (s, da) ->
    pp f "@[<hov2>#%s@ %a@]" s default#directive_argument da
    (* pp f "@[<hov2>#%s@ %a@]" s directive_argument da *)
-  | Ptop_prl (prl) ->
-      pp f "@[<hov0>%a@]" default#prelude prl
+  | Ptop_hdr (hdr) ->
+      pp f "@[<hov0>%a@]" default#header hdr
 
 let expression f x =
   pp f "@[%a@]" default#expression x
@@ -1455,10 +1455,10 @@ let core_type=default#core_type
 let pattern=default#pattern
 let signature=default#signature
 let structure=default#structure
-let prelude=default#prelude
-let implementation fmt (Pimpl (prl, str)) =
-  prelude fmt prl;
+let header=default#header
+let implementation fmt (Pimpl (hdr, str)) =
+  header fmt hdr;
   structure fmt str
-let interface fmt (Pinterf (prl, sg)) =
-  prelude fmt prl;
+let interface fmt (Pinterf (hdr, sg)) =
+  header fmt hdr;
   signature fmt sg

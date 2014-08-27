@@ -115,7 +115,7 @@ let parse_mod_use_file name lb =
   let items =
     List.concat
       (List.map
-         (function Ptop_def s -> s | Ptop_prl _ | Ptop_dir _ -> [])
+         (function Ptop_def s -> s | Ptop_hdr _ | Ptop_dir _ -> [])
          (!parse_use_file lb))
   in
   [ Ptop_def
@@ -305,11 +305,11 @@ let execute_phrase print_outcome ppf phr =
                 dir_name;
               false
       end
-  | Ptop_prl prl ->
+  | Ptop_hdr hdr ->
       let oldenv = !toplevel_env in
       Typecore.reset_delayed_checks ();
       try
-        let newenv, _ = Typens.compute_prelude_no_alias prl oldenv in
+        let newenv, _ = Typens.compute_header_no_alias hdr oldenv in
         toplevel_env := newenv;
         true
       with exn ->

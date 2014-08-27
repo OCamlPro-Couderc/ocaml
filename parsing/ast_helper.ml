@@ -439,15 +439,15 @@ end
 module Ns = struct
   let empty =
     {
-      prl_ns = None;
-      prl_imports = [];
-      prl_loc = Location.none;
+      hd_ns = None;
+      hd_imports = [];
+      hd_loc = Location.none;
     }
   let mk ?(loc = !default_loc) nsd imp =
     {
-      prl_ns = nsd;
-      prl_imports = imp;
-      prl_loc = loc;
+      hd_ns = nsd;
+      hd_imports = imp;
+      hd_loc = loc;
     }
 
   let mk_nsd ?(loc = !default_loc) name =

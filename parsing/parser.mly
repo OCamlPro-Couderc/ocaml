@@ -289,7 +289,7 @@ let mkcf_attrs d attrs =
 let mkctf_attrs d attrs =
   Ctf.mk ~loc:(symbol_rloc()) ~attrs d
 
-let mk_prl nsd imp = Ns.mk ~loc:(symbol_rloc()) nsd imp
+let mk_hdr nsd imp = Ns.mk ~loc:(symbol_rloc()) nsd imp
 let mk_nsd n = Ns.mk_nsd ~loc:(symbol_rloc()) n
 let mk_imp icstr ns = Ns.mk_imp ~loc:(symbol_rloc()) icstr ns
 let mk_icstr cstr = Ns.mk_icstr ~loc:(symbol_rloc()) cstr
@@ -515,14 +515,14 @@ interface:
  /* | signature EOF                        { Pinterf (Ns.empty, $1) } */
 ;
 toplevel_phrase:
-    imports SEMISEMI                     { Ptop_prl (mk_prl None $1) }
+    imports SEMISEMI                     { Ptop_hdr (mk_hdr None $1) }
   | top_structure SEMISEMI               { Ptop_def $1 }
   | toplevel_directive SEMISEMI          { $1 }
   | EOF                                  { raise End_of_file }
 ;
 header:
-    namespace_decl imports               { mk_prl (Some $1) $2 }
-  | imports                              { mk_prl None $1 }
+    namespace_decl imports               { mk_hdr (Some $1) $2 }
+  | imports                              { mk_hdr None $1 }
 ;
 namespace_decl:
     IN NAMESPACE mod_longident           { mk_nsd $3 }
@@ -565,7 +565,7 @@ top_structure_tail:
   | structure_item top_structure_tail    { $1 :: $2 }
 ;
 use_file:
-    header use_file_tail { (Ptop_prl $1) :: $2 }
+    header use_file_tail { (Ptop_hdr $1) :: $2 }
   | use_file_tail                        { $1 }
   | seq_expr post_item_attributes use_file_tail
                                          { Ptop_def[mkstrexp $1 $2] :: $3 }

@@ -16,7 +16,7 @@ open Longident
 open Parsetree
 open Location
 open Misc
-open Prelude_utils
+open Header_utils
 
 let check_namespace_availability ns loc check_ns_names =
   check_ns_names (mkloc (string_of_longident ns) loc)
@@ -237,19 +237,19 @@ let compute_import env import =
   let env, opened = add_modules [import] env in
   List.fold_left (|>) env opened
 
-let compute_prelude_no_alias prl env : Env.t * Longident.t option =
+let compute_header_no_alias hdr env : Env.t * Longident.t option =
   let ns =
-    match prl.prl_ns with
+    match hdr.hd_ns with
       None -> None
     | Some nd -> Some nd.ns_name
   in
   Env.set_namespace_unit ns;
   if !Clflags.ns_debug then
-    (let hierarchy, _ = mk_nsenv prl.prl_imports in
+    (let hierarchy, _ = mk_nsenv hdr.hd_imports in
     Format.printf "Resulting hierarchy of namespaces:\n%s@."
     @@ print_namespace hierarchy);
   (* let env, opened = add_modules prl.prl_imports env in *)
-  List.fold_left compute_import env prl.prl_imports, ns
+  List.fold_left compute_import env hdr.hd_imports, ns
 
 (** Functions to restore the alias in the infered signature.
     Only used when outputing the sig with the -i option of the compiler or when
