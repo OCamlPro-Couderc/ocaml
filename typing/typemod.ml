@@ -1634,10 +1634,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
   let Pimpl (hdr, ast) = ast in
   let (str, sg, finalenv), ns =
     let env, ns, ast =
-      (* if !Clflags.plain_imports then *)
-      (*   let prlast, ns = Typens.compute_prelude prl in *)
-      (*   initial_env, ns, prlast @ ast *)
-      (* else *)
+      if !Clflags.namespace_struct then
+        let hdr_ast, ns = Typens.header_as_structure hdr in
+        initial_env, ns, hdr_ast @ ast
+      else
         let env, ns =
           Typens.compute_header_no_alias hdr initial_env in
         env, ns, ast
@@ -1713,7 +1713,14 @@ let type_interface modulename env (Pinterf (hdr, ast)) =
     let map = Typetexp.emit_external_warnings in
     ignore (map.Ast_mapper.signature map ast)
   end;
-  let env, ns = Typens.compute_header_no_alias hdr env in
+  let ast, env, ns =
+    if !Clflags.namespace_struct then
+      let ast, ns = Typens.header_as_signature hdr in
+      ast, env, ns
+    else
+      let env, ns = Typens.compute_header_no_alias hdr env in
+      ast, env, ns
+  in
   Env.add_functorunit_arguments ns modulename;
   transl_signature env ast, ns
 

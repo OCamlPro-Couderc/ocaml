@@ -251,6 +251,25 @@ let compute_header_no_alias hdr env : Env.t * Longident.t option =
   (* let env, opened = add_modules prl.prl_imports env in *)
   List.fold_left compute_import env hdr.hd_imports, ns
 
+(** Experimental: imports elaborated into structures *)
+
+let extract_ns_and_hierarchy hdr =
+  let ns = match hdr.hd_ns with
+      None -> None
+    | Some nd -> Some nd.ns_name in
+  let hierarchy, _ = mk_nsenv hdr.hd_imports in
+  ns, hierarchy
+
+let header_as_structure hdr =
+  let ns, h = extract_ns_and_hierarchy hdr in
+  Env.set_namespace_unit ns;
+  import_structure h, ns
+
+let header_as_signature hdr =
+  let ns, h = extract_ns_and_hierarchy hdr in
+  Env.set_namespace_unit ns;
+  import_signature h, ns
+
 (** Functions to restore the alias in the infered signature.
     Only used when outputing the sig with the -i option of the compiler or when
     printing in the toploop.

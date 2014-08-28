@@ -12,6 +12,10 @@ val compute_import: Env.t -> Parsetree.import_item -> Env.t
   (which is basically the initial_env *)
 val compute_header_no_alias: Parsetree.header -> Env.t -> Env.t * Longident.t option
 
+val header_as_structure: Parsetree.header -> Parsetree.structure * Longident.t option
+
+val header_as_signature: Parsetree.header -> Parsetree.signature * Longident.t option
+
 (** Readds the aliases to the signature, since unaliased names for imported
     modules cannot be used by the parser *)
 val realias_signature: Types.signature -> Types.signature

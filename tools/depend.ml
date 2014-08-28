@@ -243,9 +243,9 @@ and add_signature bv = function
     [] -> ()
   | item :: rem -> add_signature (add_sig_item bv item) rem
 
-and add_interface bv (Pinterf (prl, sg)) =
-  let prl_sg, lset = Header_utils.simple_signature prl in
-  let sg = prl_sg @ sg in
+and add_interface bv (Pinterf (hdr, sg)) =
+  let hdr_sg, lset = Header_utils.simple_signature hdr in
+  let sg = hdr_sg @ sg in
   possible_wildcard := lset;
   add_signature bv sg
 
