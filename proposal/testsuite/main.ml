@@ -1,4 +1,4 @@
-with X.(M1; _)
+with X.(M1, _)
 and Y.(Mod)
 (* Mod@Y rebinds M1@X *)
 and Z.(Mod as ZMod)

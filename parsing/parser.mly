@@ -547,7 +547,7 @@ import_arg:
 ;
 import_constraints:
     import_constraint                    { [ $1 ] }
-  | import_constraint SEMI import_constraints
+  | import_constraint COMMA import_constraints
                                          { $1 :: $3 }
 ;
 import_constraint:
