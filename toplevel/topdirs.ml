@@ -65,7 +65,7 @@ let check_consistency ppf filename cu =
   try
     List.iter
       (fun (name, ns, crco) ->
-       Env.imported_units := (name, ns) :: !Env.imported_units;
+       Env.add_import (name, ns);
        match crco with
          None -> ()
        | Some crc->

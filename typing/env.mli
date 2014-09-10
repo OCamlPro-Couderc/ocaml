@@ -212,7 +212,7 @@ val imports: unit -> (string * namespace_info * Digest.t option) list
 (* Direct access to the table of imported compilation units with their CRC *)
 
 val crc_units: Consistbl.t
-val imported_units: (string * namespace_info) list ref
+val add_import: (string * namespace_info) -> unit
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)

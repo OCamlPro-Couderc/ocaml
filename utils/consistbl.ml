@@ -42,12 +42,20 @@ let set tbl name ns crc source = Hashtbl.add tbl (name, ns) (crc, source)
 let source tbl name ns = snd (Hashtbl.find tbl (name, ns))
 
 let extract l tbl =
+  (* let compare (name, ns) (name', ns') : *)
+  (*   String.t * 'a -> String.t * 'a -> int = *)
+  (*   Pervasives.compare (String.compare name name', compare ns ns') in *)
+  let l = List.sort_uniq compare l in
   List.fold_left
+(* <<<<<<< HEAD *)
     (fun assc (name, ns) ->
      try
        ignore (Misc.assoc2 (name, ns) assc);
        assc
      with Not_found ->
+(* ======= *)
+(*     (fun assc name -> *)
+(* >>>>>>> f12f696955d17ef8a9074f1dc7fe7be24d6c95e5 *)
        try
          let (crc, _) = Hashtbl.find tbl (name, ns) in
            (name, ns, Some crc) :: assc

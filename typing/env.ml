@@ -352,6 +352,7 @@ type pers_struct =
     ps_sig: signature;
     ps_comps: module_components;
     ps_crcs: (string * namespace_info * Digest.t option) list;
+    mutable ps_crcs_checked: bool;
     ps_filename: string;
     ps_flags: pers_flags list;
     ps_id: Ident.t;
@@ -368,15 +369,27 @@ let persistent_structures =
 (* Consistency between persistent structures *)
 
 let crc_units = Consistbl.create()
-let imported_units = ref ([] : (string * namespace_info) list)
+
+module StringLidSet =
+  Set.Make(struct
+    type t = string * Longident.t option
+    let compare = compare (* (n, ns) (n', ns') = *)
+      (* compare (String.compare n n', compare ns ns') *)
+  end)
+
+let imported_units = ref StringLidSet.empty
+
+let add_import (s, ns) =
+  imported_units := StringLidSet.add (s, ns) !imported_units
 
 let clear_imports () =
   Consistbl.clear crc_units;
-  imported_units := []
+  imported_units := StringLidSet.empty
 
 let check_consistency ps =
   if !Clflags.ns_debug then
     Format.printf "Env.check_consistency...@.";
+  if not ps.ps_crcs_checked then
   try
     List.iter
       (fun (name, ns, crco) ->
@@ -386,10 +399,11 @@ let check_consistency ps =
          match crco with
             None -> ()
           | Some crc ->
-              imported_units := (name, ns) :: !imported_units;
+              add_import (name, ns);
               let ns = Longident.optstring ns in
               Consistbl.check crc_units name ns crc ps.ps_filename)
-      ps.ps_crcs
+      ps.ps_crcs;
+    ps.ps_crcs_checked <- true;
   with Consistbl.Inconsistency(name, source, auth) ->
     error (Inconsistent_import(name, auth, source))
 
@@ -449,6 +463,7 @@ let read_pers_struct ns modname filename ps_kind =
              ps_crcs = crcs;
              ps_filename = filename;
              ps_flags = flags;
+             ps_crcs_checked = false;
              ps_id;
              ps_crc = crc;
              ps_kind;
@@ -458,7 +473,7 @@ let read_pers_struct ns modname filename ps_kind =
            } in
   if ps.ps_name <> modname then
     error (Illegal_renaming(modname, ps.ps_name, filename));
-  imported_units := (name, ns) :: !imported_units;
+  add_import (name, ns);
   List.iter
     (function Rectypes ->
       if not !Clflags.recursive_types then
@@ -1869,7 +1884,8 @@ let output_name f ns =
 let imports() =
   let imported_units =
     List.fold_left (fun acc (name, ns) ->
-        (name, Longident.optstring ns) :: acc) [] !imported_units in
+        (name, Longident.optstring ns) :: acc) []
+      (StringLidSet.elements !imported_units) in
   Consistbl.extract imported_units crc_units
   |> List.fold_left (fun acc (name, ns, crc) ->
       if !Clflags.ns_debug then
@@ -1916,6 +1932,7 @@ let save_signature_with_imports ?(application=None) ns sg modname filename impor
         ps_crcs = (modname, ns, Some crc) :: imports;
         ps_filename = filename;
         ps_flags = cmi.cmi_flags;
+        ps_crcs_checked = false;
         ps_id;
         ps_kind = PersistentStructureDependency;
         ps_crc = crc;
@@ -1925,7 +1942,7 @@ let save_signature_with_imports ?(application=None) ns sg modname filename impor
       } in
     Hashtbl.add persistent_structures (modname, ns) (Some ps);
     Consistbl.set crc_units modname (optstring ns) crc filename;
-    imported_units := (modname, ns) :: !imported_units;
+    add_import (modname, ns);
     sg
   with exn ->
     close_out oc;
