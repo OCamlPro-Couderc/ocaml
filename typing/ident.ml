@@ -36,7 +36,7 @@ let create_predef_exn s =
 let create_persistent ?(ns=None) s =
   let name = match ns with
       None -> s
-    | Some ns -> s ^ "@" ^ ns in
+    | Some ns -> ns ^ "@" ^ s in
   { name; stamp = 0; flags = global_flag }
 
 let rename i =
@@ -46,13 +46,13 @@ let rename i =
 let shortname i =
   if String.contains i.name '@' then
     let index = String.index i.name '@' in
-    String.sub i.name 0 index
+    String.sub i.name (index + 1) (String.length i.name - index - 1)
   else i.name
 
 let extract_namespace i =
   if String.contains i.name '@' then
     let index = String.index i.name '@' in
-    Some (String.sub i.name (index + 1) (String.length i.name - index - 1))
+    Some (String.sub i.name 0 index)
   else None
 
 let name i = i.name

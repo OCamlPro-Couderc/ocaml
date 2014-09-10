@@ -70,32 +70,38 @@ let current_unit =
 
 let symbol_of_namespace = function
     None -> ""
-  | Some ns -> "@" ^ String.concat "$" @@ Longident.flatten ns
+  | Some ns -> (String.concat "$" @@ Longident.flatten ns) ^ "$"
 
 let symbolname_for_pack ?(ns=None) pack name =
   if !Clflags.ns_debug then
-    Format.printf "Calling symbolname_for_pack with %s and ns: %s@."
-      name (symbol_of_namespace ns);
-  match pack with
-  | None -> name ^ symbol_of_namespace ns
-  | Some p ->
-      let b = Buffer.create 64 in
-      let first = ref true in
-      for i = 0 to String.length p - 1 do
-        match p.[i] with
-        | '.' when !first ->
-            first := false;
-            Buffer.add_string b (symbol_of_namespace ns);
-            Buffer.add_string b "__"
-        | '.' -> Buffer.add_string b "__"
-        |  c  -> Buffer.add_char b c
-      done;
-      if !first then
+    Format.printf "Calling symbolname_for_pack with %s, ns: %s and pack: %s@."
+      name (symbol_of_namespace ns)
+      (match pack with None -> "NOPACK" | Some s -> s);
+  let res =
+    match pack with
+    | None -> symbol_of_namespace ns ^ name
+    | Some p ->
+        let b = Buffer.create 64 in
         Buffer.add_string b (symbol_of_namespace ns);
-      Buffer.add_string b "__";
-      Buffer.add_string b name;
-      Buffer.contents b
-
+        (* let first = ref true in *)
+        for i = 0 to String.length p - 1 do
+          match p.[i] with
+          (* | '.' when !first -> *)
+          (*     first := false; *)
+          (*     Buffer.add_string b (symbol_of_namespace ns); *)
+          (*     Buffer.add_string b "__" *)
+          | '.' -> Buffer.add_string b "__"
+          |  c  -> Buffer.add_char b c
+        done;
+        (* if !first then *)
+        (*   Buffer.add_string b (symbol_of_namespace ns); *)
+        Buffer.add_string b "__";
+        Buffer.add_string b name;
+        Buffer.contents b
+  in
+  if !Clflags.ns_debug then
+    Format.printf "Symbol generated: %s@." res;
+  res
 
 let reset ?packname name =
   if !Clflags.ns_debug then
