@@ -239,9 +239,10 @@ let package_object_files ppf files targetfile targetname ns coercion =
                                           targetname Subst.identity members in
     build_global_target oc targetname ns_str members mapping ofs coercion;
     let pos_debug = pos_out oc in
-    if !Clflags.debug && !events <> [] then
+    if !Clflags.debug && !events <> [] then begin
       output_value oc (List.rev !events);
       output_value oc (StringSet.elements !debug_dirs);
+    end;
     let pos_final = pos_out oc in
     if !Clflags.ns_debug then
       Format.printf "unit_names:[%s]@." @@ String.concat "; " unit_names;
