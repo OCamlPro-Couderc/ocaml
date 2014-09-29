@@ -231,6 +231,15 @@ module Options = Main_args.Make_ocamldoc_options(struct
   let _dlambda = set Clflags.dump_lambda
   let _dinstr = set Clflags.dump_instr
   let anonymous = anonymous
+
+  let _nsd = set Clflags.ns_debug
+  let _root s = Clflags.root := s
+  let _ns_struct = set Clflags.namespace_struct
+  let _plain_imports = set Clflags.plain_imports
+  let _longnames = set Clflags.longnames
+  let _functor s = Clflags.functors := s :: !Clflags.functors
+  let _ns s = Clflags.ns := Some s
+  let _apply s = Clflags.applied := s :: !Clflags.applied
 end)
 
 (** The default option list *)
