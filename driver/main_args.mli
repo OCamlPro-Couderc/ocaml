@@ -39,6 +39,7 @@ module type Common_options = sig
   val _root : string -> unit
   val _ns_struct : unit -> unit
   val _plain_imports : unit -> unit
+  val _longnames : unit -> unit
 
   val _functor : string -> unit
   val _ns : string -> unit

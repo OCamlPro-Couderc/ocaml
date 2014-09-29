@@ -483,6 +483,10 @@ let mk_plain_imports f =
   "-plain-imports", Arg.Unit f, "(undocumented)"
 ;;
 
+let mk_longnames f =
+  "-longnames", Arg.Unit f, "(undocumented)"
+;;
+
 let mk_functor f =
   "-functor", Arg.String f, " <file.mli> : signature of functor argument"
 ;;
@@ -524,6 +528,7 @@ module type Common_options = sig
   val _root : string -> unit
   val _ns_struct : unit -> unit
   val _plain_imports : unit -> unit
+  val _longnames : unit -> unit
 
   val _functor : string -> unit
   val _ns : string -> unit

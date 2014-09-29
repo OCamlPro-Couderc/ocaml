@@ -148,6 +148,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _root s = root := s
   let _ns_struct = set namespace_struct
   let _plain_imports = set plain_imports
+  let _longnames = set longnames
   let _functor s = functors := s :: !functors
   let _ns s = ns := Some s
   let _apply s = applied := s :: !applied

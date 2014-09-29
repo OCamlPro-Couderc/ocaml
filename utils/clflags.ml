@@ -115,6 +115,7 @@ let ns_debug = Misc.ns_debug;;             (* -nsd *)
 let root = Misc.root;;        (* -root *)
 let namespace_struct = ref false;;    (* -namespace-struct *)
 let plain_imports = ref false;;       (* -plain-imports *)
+let longnames = ref false;;
 
 let functors = ref [];;               (* -functor *)
 let ns = ref None;;                   (* -ns *)

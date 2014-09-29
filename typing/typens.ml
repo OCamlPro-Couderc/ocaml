@@ -193,10 +193,16 @@ let rec alias_of_path p =
 
 
 let add_module_from_namespace env alias module_name ns =
+  (* let module_name = match ns with *)
+  (*     None -> Lident module_name *)
+  (*   | Some ns -> *)
+  (*       if !Clflags.longnames then Ldot (ns, module_name) *)
+  (*       else Lident module_name in *)
   let path =
     Env.lookup_module ~load:false ~pers:true ns (Lident module_name) env in
   if !Clflags.ns_debug then
-    Format.printf "Path received for %s %@ %s: %s@." module_name
+    Format.printf "Path received for %s %@ %s: %s@."
+      ((* Longident.string_of_longident  *)module_name)
       (Env.namespace_name ns) (Path.complete_name path);
   let id, env = Env.enter_module ~arg:false ~from_header:true alias
       (Types.Mty_alias (path, ns)) env in

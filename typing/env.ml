@@ -26,6 +26,11 @@ let longident_to_filepath = Header_utils.longident_to_filepath
 
 let namespace_name = Header_utils.namespace_name
 
+(* let longname_path ns id =  *)
+(*   let rec tr lid = *)
+(*     match lid with *)
+(*       Lident s -> Pdot ( *)
+
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
 let value_declarations : ((string * Location.t), (unit -> unit)) Hashtbl.t =

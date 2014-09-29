@@ -111,6 +111,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _root s = option_with_arg "-root" s
   let _ns_struct = option "-namespace_struct"
   let _plain_imports = option "-plain-imports"
+  let _longnames = option "-longnames"
   let _functor s = option_with_arg "-functor" s
   let _apply s = option_with_arg "-apply" s
   let _ns s = option_with_arg "-ns" s
