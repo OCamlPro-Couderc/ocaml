@@ -21,6 +21,8 @@ val free_structure_names : StringLid.t ref
    into a namespace whose modules were added by a wildcard *)
 val possible_wildcard : Longident.t list ref
 
+val open_module : StringSet.t -> Longident.t -> Longident.t option -> unit
+
 val add_use_file : StringSet.t -> Parsetree.toplevel_phrase list -> unit
 
 val add_signature : StringSet.t -> Parsetree.signature -> unit

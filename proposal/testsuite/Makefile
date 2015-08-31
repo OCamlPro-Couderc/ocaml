@@ -1,3 +1,4 @@
+
 X_INTF = m1.mli
 X_IMPL = pervasives.ml m1.ml m2.ml
 X_IMPL_SRC = $(addprefix x/, $(X_IMPL))
@@ -61,7 +62,7 @@ RCMIS = $(CMOS:.cmo=.cmi) # for cleaning rule
 OBJS = $(CMXS:.cmx=.o)
 ASMS = $(OBJS:.o=.s)
 
-EXEC = main functor link includes pack multi
+EXEC = main functor link includes pack
 BYTE_EXEC = $(addsuffix .byte,$(EXEC))
 NAT_EXEC = $(addsuffix .nat, $(EXEC))
 SRC_EXEC = $(addsuffix .ml, $(EXEC))
@@ -71,8 +72,8 @@ SRCS = $(X_IMPL_SRC) $(X_INTF_SRC) $(Y_IMPL_SRC) $(Y_INTF_SRC) \
 	$(P1_IMPL_SRC) $(P1_INTF_SRC) $(P2_IMPL_SRC) $(P2_INTF_SRC) \
 	$(SRC_EXEC)
 
-CAMLC = ocamlc
-CAMLOPT = ocamlopt -S
+CAMLC = ../../ocamlc.opt
+CAMLOPT = ../../ocamlopt.opt -S
 FLAGS =	-g -no-alias-deps
 
 %.cmo: %.ml
@@ -126,11 +127,11 @@ includes.byte: y.cma includes.ml
 includes.nat: y.cmxa includes.ml
 	$(CAMLOPT) $(FLAGS) -o $@ $^
 
-multi.byte: x.cma y.cma z.cma multi.ml
-	$(CAMLC) $(FLAGS) -w +52 -o $@ $^
+# multi.byte: x.cma y.cma z.cma multi.ml
+# 	$(CAMLC) $(FLAGS) -w +52 -o $@ $^
 
-multi.nat: x.cmxa y.cmxa z.cmxa multi.ml
-	$(CAMLOPT) $(FLAGS) -w +52 -o $@ $^
+# multi.nat: x.cmxa y.cmxa z.cmxa multi.ml
+# 	$(CAMLOPT) $(FLAGS) -w +52 -o $@ $^
 
 # Cmas/Cmxa
 

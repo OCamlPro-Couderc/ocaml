@@ -62,9 +62,10 @@ type t =
   | Attribute_payload of string * string    (* 47 *)
   | Eliminated_optional_arguments of string list (* 48 *)
   | No_cmi_file of string                   (* 49 *)
-  | Wildcard_usage of string                (* 50 *)
-  | Directory_output_mismatch of string     (* 51 *)
-  | Shadowed_import of string * string      (* 52 *)
+  | Bad_docstring of bool                   (* 50 *)
+  | Wildcard_usage of string                (* 51 *)
+  | Directory_output_mismatch of string     (* 52 *)
+  | Shadowed_import of string * string      (* 53 *)
 ;;
 
 val parse_options : bool -> string -> unit;;
@@ -75,9 +76,7 @@ val is_error : t -> bool;;
 val defaults_w : string;;
 val defaults_warn_error : string;;
 
-val print : formatter -> t -> int;;
-  (* returns the number of newlines in the printed string *)
-
+val print : formatter -> t -> unit;;
 
 exception Errors of int;;
 
