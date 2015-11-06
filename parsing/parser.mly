@@ -36,8 +36,8 @@ let mkcf ?attrs ?docs d =
 
 let mkrhs rhs pos = mkloc rhs (rhs_loc pos)
 
-let reloc_pat x = { x with ppat_loc = symbol_rloc () };;
-let reloc_exp x = { x with pexp_loc = symbol_rloc () };;
+let reloc_pat x = { x with ppat_info = symbol_rloc () };;
+let reloc_exp x = { x with pexp_info = symbol_rloc () };;
 
 let mkoperator name pos =
   let loc = rhs_loc pos in
@@ -116,8 +116,8 @@ let rec mktailexp nilloc = function
       Exp.mk ~loc (Pexp_construct (nil, None))
   | e1 :: el ->
       let exp_el = mktailexp nilloc el in
-      let loc = {loc_start = e1.pexp_loc.loc_start;
-               loc_end = exp_el.pexp_loc.loc_end;
+      let loc = {loc_start = e1.pexp_info.loc_start;
+               loc_end = exp_el.pexp_info.loc_end;
                loc_ghost = true}
       in
       let arg = Exp.mk ~loc (Pexp_tuple [e1; exp_el]) in
@@ -130,15 +130,15 @@ let rec mktailpat nilloc = function
       Pat.mk ~loc (Ppat_construct (nil, None))
   | p1 :: pl ->
       let pat_pl = mktailpat nilloc pl in
-      let loc = {loc_start = p1.ppat_loc.loc_start;
-               loc_end = pat_pl.ppat_loc.loc_end;
+      let loc = {loc_start = p1.ppat_info.loc_start;
+               loc_end = pat_pl.ppat_info.loc_end;
                loc_ghost = true}
       in
       let arg = Pat.mk ~loc (Ppat_tuple [p1; pat_pl]) in
       mkpat_cons {loc with loc_ghost = true} arg loc
 
 let mkstrexp e attrs =
-  { pstr_desc = Pstr_eval (e, attrs); pstr_loc = e.pexp_loc }
+  { pstr_desc = Pstr_eval (e, attrs); pstr_info = e.pexp_info }
 
 let mkexp_constraint e (t1, t2) =
   match t1, t2 with
@@ -183,7 +183,7 @@ let bigarray_function order assign =
   ghloc ( Lident op )
 
 let bigarray_untuplify = function
-    { pexp_desc = Pexp_tuple explist; pexp_loc = _ } -> explist
+    { pexp_desc = Pexp_tuple explist; pexp_info = _ } -> explist
   | exp -> [exp]
 
 let bigarray_get arr arg =
@@ -243,7 +243,7 @@ let varify_constructors var_names t =
       match t.ptyp_desc with
       | Ptyp_any -> Ptyp_any
       | Ptyp_var x ->
-          check_variable var_names t.ptyp_loc x;
+          check_variable var_names t.ptyp_info x;
           Ptyp_var x
       | Ptyp_arrow (label,core_type,core_type') ->
           Ptyp_arrow(label, loop core_type, loop core_type')
@@ -258,13 +258,13 @@ let varify_constructors var_names t =
       | Ptyp_class (longident, lst) ->
           Ptyp_class (longident, List.map loop lst)
       | Ptyp_alias(core_type, string) ->
-          check_variable var_names t.ptyp_loc string;
+          check_variable var_names t.ptyp_info string;
           Ptyp_alias(loop core_type, string)
       | Ptyp_variant(row_field_list, flag, lbl_lst_option) ->
           Ptyp_variant(List.map loop_row_field row_field_list,
                        flag, lbl_lst_option)
       | Ptyp_poly(string_lst, core_type) ->
-          List.iter (check_variable var_names t.ptyp_loc) string_lst;
+          List.iter (check_variable var_names t.ptyp_info) string_lst;
           Ptyp_poly(string_lst, loop core_type)
       | Ptyp_package(longident,lst) ->
           Ptyp_package(longident,List.map (fun (n,typ) -> (n,loop typ) ) lst)
@@ -324,14 +324,14 @@ type let_binding =
     lb_attributes: attributes;
     lb_docs: docs Lazy.t;
     lb_text: text Lazy.t;
-    lb_loc: Location.t; }
+    lb_info: Location.t; }
 
 type let_bindings =
   { lbs_bindings: let_binding list;
     lbs_rec: rec_flag;
     lbs_extension: string Asttypes.loc option;
     lbs_attributes: attributes;
-    lbs_loc: Location.t }
+    lbs_info: Location.t }
 
 let mklb (p, e) attrs =
   { lb_pattern = p;
@@ -339,14 +339,14 @@ let mklb (p, e) attrs =
     lb_attributes = attrs;
     lb_docs = symbol_docs_lazy ();
     lb_text = symbol_text_lazy ();
-    lb_loc = symbol_rloc (); }
+    lb_info = symbol_rloc (); }
 
 let mklbs (ext, attrs) rf lb =
   { lbs_bindings = [lb];
     lbs_rec = rf;
     lbs_extension = ext ;
     lbs_attributes = attrs;
-    lbs_loc = symbol_rloc (); }
+    lbs_info = symbol_rloc (); }
 
 let addlb lbs lb =
   { lbs with lbs_bindings = lb :: lbs.lbs_bindings }
@@ -354,17 +354,17 @@ let addlb lbs lb =
 let val_of_let_bindings lbs =
   let str =
     match lbs.lbs_bindings with
-    | [ {lb_pattern = { ppat_desc = Ppat_any; ppat_loc = _ }; _} as lb ] ->
+    | [ {lb_pattern = { ppat_desc = Ppat_any; ppat_info = _ }; _} as lb ] ->
         let exp = wrap_exp_attrs lb.lb_expression
                     (None, lbs.lbs_attributes) in
         mkstr (Pstr_eval (exp, lb.lb_attributes))
     | bindings ->
         if lbs.lbs_attributes <> [] then
-          raise Syntaxerr.(Error(Not_expecting(lbs.lbs_loc, "attributes")));
+          raise Syntaxerr.(Error(Not_expecting(lbs.lbs_info, "attributes")));
         let bindings =
           List.map
             (fun lb ->
-               Vb.mk ~loc:lb.lb_loc ~attrs:lb.lb_attributes
+               Vb.mk ~loc:lb.lb_info ~attrs:lb.lb_attributes
                  ~docs:(Lazy.force lb.lb_docs)
                  ~text:(Lazy.force lb.lb_text)
                  lb.lb_pattern lb.lb_expression)
@@ -381,8 +381,8 @@ let expr_of_let_bindings lbs body =
     List.map
       (fun lb ->
          if lb.lb_attributes <> [] then
-           raise Syntaxerr.(Error(Not_expecting(lb.lb_loc, "item attribute")));
-         Vb.mk ~loc:lb.lb_loc lb.lb_pattern lb.lb_expression)
+           raise Syntaxerr.(Error(Not_expecting(lb.lb_info, "item attribute")));
+         Vb.mk ~loc:lb.lb_info lb.lb_pattern lb.lb_expression)
       lbs.lbs_bindings
   in
     mkexp_attrs (Pexp_let(lbs.lbs_rec, List.rev bindings, body))
@@ -393,14 +393,14 @@ let class_of_let_bindings lbs body =
     List.map
       (fun lb ->
          if lb.lb_attributes <> [] then
-           raise Syntaxerr.(Error(Not_expecting(lb.lb_loc, "item attribute")));
-         Vb.mk ~loc:lb.lb_loc lb.lb_pattern lb.lb_expression)
+           raise Syntaxerr.(Error(Not_expecting(lb.lb_info, "item attribute")));
+         Vb.mk ~loc:lb.lb_info lb.lb_pattern lb.lb_expression)
       lbs.lbs_bindings
   in
     if lbs.lbs_extension <> None then
-      raise Syntaxerr.(Error(Not_expecting(lbs.lbs_loc, "extension")));
+      raise Syntaxerr.(Error(Not_expecting(lbs.lbs_info, "extension")));
     if lbs.lbs_attributes <> [] then
-      raise Syntaxerr.(Error(Not_expecting(lbs.lbs_loc, "attributes")));
+      raise Syntaxerr.(Error(Not_expecting(lbs.lbs_info, "attributes")));
     mkclass(Pcl_let (lbs.lbs_rec, List.rev bindings, body))
 
 %}

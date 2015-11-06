@@ -87,11 +87,11 @@ let docs_attr ds =
   let open Parsetree in
   let exp =
     { pexp_desc = Pexp_constant (Const_string(ds.ds_body, None));
-      pexp_loc = ds.ds_loc;
+      pexp_info = ds.ds_loc;
       pexp_attributes = []; }
   in
   let item =
-    { pstr_desc = Pstr_eval (exp, []); pstr_loc = exp.pexp_loc }
+    { pstr_desc = Pstr_eval (exp, []); pstr_info = exp.pexp_info }
   in
     (doc_loc, PStr [item])
 
@@ -137,11 +137,11 @@ let text_attr ds =
   let open Parsetree in
   let exp =
     { pexp_desc = Pexp_constant (Const_string(ds.ds_body, None));
-      pexp_loc = ds.ds_loc;
+      pexp_info = ds.ds_loc;
       pexp_attributes = []; }
   in
   let item =
-    { pstr_desc = Pstr_eval (exp, []); pstr_loc = exp.pexp_loc }
+    { pstr_desc = Pstr_eval (exp, []); pstr_info = exp.pexp_info }
   in
     (text_loc, PStr [item])
 

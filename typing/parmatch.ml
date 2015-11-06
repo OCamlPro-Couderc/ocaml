@@ -767,7 +767,7 @@ let complete_constrs p all_tags =
 
 let build_other_constrs env p =
   match p.pat_desc with
-    Tpat_construct (_, {cstr_tag=Cstr_constant _|Cstr_block _}, _) -> 
+    Tpat_construct (_, {cstr_tag=Cstr_constant _|Cstr_block _}, _) ->
       let get_tag = function
         | {pat_desc = Tpat_construct (_,c,_)} -> c.cstr_tag
         | _ -> fatal_error "Parmatch.get_tag" in
@@ -976,7 +976,7 @@ let rec satisfiables pss qs = match pss with
         satisfiables pss (q::qs)
     | {pat_desc = (Tpat_any | Tpat_var(_))}::qs ->
         let q0 = discr_pat omega pss in
-        let wild p = 
+        let wild p =
           List.map (fun qs -> p::qs) (satisfiables (filter_extra pss) qs) in
         begin match filter_all q0 pss with
           (* first column of pss is made of variables only *)
@@ -1941,7 +1941,7 @@ let check_unused pred tdefs casel =
                 let u = orify_many sfs in
                 (*Format.eprintf "%a@." pretty_val u;*)
                 let (pattern,constrs,labels) = Conv.conv u in
-                let pattern = {pattern with Parsetree.ppat_loc = q.pat_loc} in
+                let pattern = {pattern with Parsetree.ppat_info = q.pat_loc} in
                 match pred refute constrs labels pattern with
                   None when not refute ->
                     Location.prerr_warning q.pat_loc Warnings.Unreachable_case;

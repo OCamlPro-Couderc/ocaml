@@ -103,9 +103,9 @@ let add_val_counter (kind,pos) =
 (* ************* rewrite ************* *)
 
 let insert_profile rw_exp ex =
-  let st = ex.pexp_loc.loc_start.Lexing.pos_cnum
-  and en = ex.pexp_loc.loc_end.Lexing.pos_cnum
-  and gh = ex.pexp_loc.loc_ghost
+  let st = ex.pexp_info.loc_start.Lexing.pos_cnum
+  and en = ex.pexp_info.loc_end.Lexing.pos_cnum
+  and gh = ex.pexp_info.loc_ghost
   in
   if gh || st = en then
     rw_exp true ex
@@ -195,14 +195,14 @@ and rw_exp iflag sexp =
 
   | Pexp_match(sarg, caselist) ->
     rewrite_exp iflag sarg;
-    if !instr_match && not sexp.pexp_loc.loc_ghost then
+    if !instr_match && not sexp.pexp_info.loc_ghost then
       rewrite_funmatching caselist
     else
       rewrite_cases iflag caselist
 
   | Pexp_try(sbody, caselist) ->
     rewrite_exp iflag sbody;
-    if !instr_try && not sexp.pexp_loc.loc_ghost then
+    if !instr_try && not sexp.pexp_info.loc_ghost then
       rewrite_trymatching caselist
     else
       rewrite_cases iflag caselist
@@ -240,11 +240,11 @@ and rw_exp iflag sexp =
 
   | Pexp_ifthenelse(scond, sifso, None) ->
       rewrite_exp iflag scond;
-      rewrite_ifbody iflag sexp.pexp_loc.loc_ghost sifso
+      rewrite_ifbody iflag sexp.pexp_info.loc_ghost sifso
   | Pexp_ifthenelse(scond, sifso, Some sifnot) ->
       rewrite_exp iflag scond;
-      rewrite_ifbody iflag sexp.pexp_loc.loc_ghost sifso;
-      rewrite_ifbody iflag sexp.pexp_loc.loc_ghost sifnot
+      rewrite_ifbody iflag sexp.pexp_info.loc_ghost sifso;
+      rewrite_ifbody iflag sexp.pexp_info.loc_ghost sifnot
 
   | Pexp_sequence(sexp1, sexp2) ->
     rewrite_exp iflag sexp1;
@@ -252,14 +252,14 @@ and rw_exp iflag sexp =
 
   | Pexp_while(scond, sbody) ->
     rewrite_exp iflag scond;
-    if !instr_loops && not sexp.pexp_loc.loc_ghost
+    if !instr_loops && not sexp.pexp_info.loc_ghost
     then insert_profile rw_exp sbody
     else rewrite_exp iflag sbody
 
   | Pexp_for(_, slow, shigh, _, sbody) ->
     rewrite_exp iflag slow;
     rewrite_exp iflag shigh;
-    if !instr_loops && not sexp.pexp_loc.loc_ghost
+    if !instr_loops && not sexp.pexp_info.loc_ghost
     then insert_profile rw_exp sbody
     else rewrite_exp iflag sbody
 
@@ -337,7 +337,7 @@ and rewrite_class_field iflag cf =
                                     as sexp))) ->
       rewrite_exp iflag sexp
   | Pcf_method (_, _, Cfk_concrete(_, sexp)) ->
-      let loc = cf.pcf_loc in
+      let loc = cf.pcf_info in
       if !instr_fun && not loc.loc_ghost then insert_profile rw_exp sexp
       else rewrite_exp iflag sexp
   | Pcf_initializer sexp ->

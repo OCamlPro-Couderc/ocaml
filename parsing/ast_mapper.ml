@@ -86,7 +86,7 @@ module T = struct
         Rtag (l, sub.attributes sub attrs, b, List.map (sub.typ sub) tl)
     | Rinherit t -> Rinherit (sub.typ sub t)
 
-  let map sub {ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs} =
+  let map sub {ptyp_desc = desc; ptyp_info = loc; ptyp_attributes = attrs} =
     let open Typ in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
@@ -118,7 +118,7 @@ module T = struct
        ptype_private;
        ptype_manifest;
        ptype_attributes;
-       ptype_loc} =
+       ptype_info} =
     Type.mk (map_loc sub ptype_name)
       ~params:(List.map (map_fst (sub.typ sub)) ptype_params)
       ~priv:ptype_private
@@ -127,7 +127,7 @@ module T = struct
                 ptype_cstrs)
       ~kind:(sub.type_kind sub ptype_kind)
       ?manifest:(map_opt (sub.typ sub) ptype_manifest)
-      ~loc:(sub.location sub ptype_loc)
+      ~loc:(sub.location sub ptype_info)
       ~attrs:(sub.attributes sub ptype_attributes)
 
   let map_type_kind sub = function
@@ -163,12 +163,12 @@ module T = struct
   let map_extension_constructor sub
       {pext_name;
        pext_kind;
-       pext_loc;
+       pext_info;
        pext_attributes} =
     Te.constructor
       (map_loc sub pext_name)
       (map_extension_constructor_kind sub pext_kind)
-      ~loc:(sub.location sub pext_loc)
+      ~loc:(sub.location sub pext_info)
       ~attrs:(sub.attributes sub pext_attributes)
 
 end
@@ -176,7 +176,7 @@ end
 module CT = struct
   (* Type expressions for the class language *)
 
-  let map sub {pcty_loc = loc; pcty_desc = desc; pcty_attributes = attrs} =
+  let map sub {pcty_info = loc; pcty_desc = desc; pcty_attributes = attrs} =
     let open Cty in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
@@ -188,7 +188,7 @@ module CT = struct
         arrow ~loc ~attrs lab (sub.typ sub t) (sub.class_type sub ct)
     | Pcty_extension x -> extension ~loc ~attrs (sub.extension sub x)
 
-  let map_field sub {pctf_desc = desc; pctf_loc = loc; pctf_attributes = attrs}
+  let map_field sub {pctf_desc = desc; pctf_info = loc; pctf_attributes = attrs}
     =
     let open Ctf in
     let loc = sub.location sub loc in
@@ -211,7 +211,7 @@ end
 module MT = struct
   (* Type expressions for the module language *)
 
-  let map sub {pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} =
+  let map sub {pmty_desc = desc; pmty_info = loc; pmty_attributes = attrs} =
     let open Mty in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
@@ -238,7 +238,7 @@ module MT = struct
     | Pwith_modsubst (s, lid) ->
         Pwith_modsubst (map_loc sub s, map_loc sub lid)
 
-  let map_signature_item sub {psig_desc = desc; psig_loc = loc} =
+  let map_signature_item sub {psig_desc = desc; psig_info = loc} =
     let open Sig in
     let loc = sub.location sub loc in
     match desc with
@@ -264,7 +264,7 @@ end
 module M = struct
   (* Value expressions for the module language *)
 
-  let map sub {pmod_loc = loc; pmod_desc = desc; pmod_attributes = attrs} =
+  let map sub {pmod_info = loc; pmod_desc = desc; pmod_attributes = attrs} =
     let open Mod in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
@@ -283,7 +283,7 @@ module M = struct
     | Pmod_unpack e -> unpack ~loc ~attrs (sub.expr sub e)
     | Pmod_extension x -> extension ~loc ~attrs (sub.extension sub x)
 
-  let map_structure_item sub {pstr_loc = loc; pstr_desc = desc} =
+  let map_structure_item sub {pstr_info = loc; pstr_desc = desc} =
     let open Str in
     let loc = sub.location sub loc in
     match desc with
@@ -310,7 +310,7 @@ end
 module E = struct
   (* Value expressions for the core language *)
 
-  let map sub {pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} =
+  let map sub {pexp_info = loc; pexp_desc = desc; pexp_attributes = attrs} =
     let open Exp in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
@@ -384,7 +384,7 @@ end
 module P = struct
   (* Patterns *)
 
-  let map sub {ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} =
+  let map sub {ppat_desc = desc; ppat_info = loc; ppat_attributes = attrs} =
     let open Pat in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
@@ -415,7 +415,7 @@ end
 module CE = struct
   (* Value expressions for the class language *)
 
-  let map sub {pcl_loc = loc; pcl_desc = desc; pcl_attributes = attrs} =
+  let map sub {pcl_info = loc; pcl_desc = desc; pcl_attributes = attrs} =
     let open Cl in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
@@ -443,7 +443,7 @@ module CE = struct
     | Cfk_concrete (o, e) -> Cfk_concrete (o, sub.expr sub e)
     | Cfk_virtual t -> Cfk_virtual (sub.typ sub t)
 
-  let map_field sub {pcf_desc = desc; pcf_loc = loc; pcf_attributes = attrs} =
+  let map_field sub {pcf_desc = desc; pcf_info = loc; pcf_attributes = attrs} =
     let open Cf in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
@@ -465,13 +465,13 @@ module CE = struct
     }
 
   let class_infos sub f {pci_virt; pci_params = pl; pci_name; pci_expr;
-                         pci_loc; pci_attributes} =
+                         pci_info; pci_attributes} =
     Ci.mk
      ~virt:pci_virt
      ~params:(List.map (map_fst (sub.typ sub)) pl)
       (map_loc sub pci_name)
       (f pci_expr)
-      ~loc:(sub.location sub pci_loc)
+      ~loc:(sub.location sub pci_info)
       ~attrs:(sub.attributes sub pci_attributes)
 end
 
@@ -506,13 +506,13 @@ let default_mapper =
     type_extension = T.map_type_extension;
     extension_constructor = T.map_extension_constructor;
     value_description =
-      (fun this {pval_name; pval_type; pval_prim; pval_loc;
+      (fun this {pval_name; pval_type; pval_prim; pval_info;
                  pval_attributes} ->
         Val.mk
           (map_loc this pval_name)
           (this.typ this pval_type)
           ~attrs:(this.attributes this pval_attributes)
-          ~loc:(this.location this pval_loc)
+          ~loc:(this.location this pval_info)
           ~prim:pval_prim
       );
 
@@ -520,82 +520,82 @@ let default_mapper =
     expr = E.map;
 
     module_declaration =
-      (fun this {pmd_name; pmd_type; pmd_attributes; pmd_loc} ->
+      (fun this {pmd_name; pmd_type; pmd_attributes; pmd_info} ->
          Md.mk
            (map_loc this pmd_name)
            (this.module_type this pmd_type)
            ~attrs:(this.attributes this pmd_attributes)
-           ~loc:(this.location this pmd_loc)
+           ~loc:(this.location this pmd_info)
       );
 
     module_type_declaration =
-      (fun this {pmtd_name; pmtd_type; pmtd_attributes; pmtd_loc} ->
+      (fun this {pmtd_name; pmtd_type; pmtd_attributes; pmtd_info} ->
          Mtd.mk
            (map_loc this pmtd_name)
            ?typ:(map_opt (this.module_type this) pmtd_type)
            ~attrs:(this.attributes this pmtd_attributes)
-           ~loc:(this.location this pmtd_loc)
+           ~loc:(this.location this pmtd_info)
       );
 
     module_binding =
-      (fun this {pmb_name; pmb_expr; pmb_attributes; pmb_loc} ->
+      (fun this {pmb_name; pmb_expr; pmb_attributes; pmb_info} ->
          Mb.mk (map_loc this pmb_name) (this.module_expr this pmb_expr)
            ~attrs:(this.attributes this pmb_attributes)
-           ~loc:(this.location this pmb_loc)
+           ~loc:(this.location this pmb_info)
       );
 
 
     open_description =
-      (fun this {popen_lid; popen_override; popen_attributes; popen_loc} ->
+      (fun this {popen_lid; popen_override; popen_attributes; popen_info} ->
          Opn.mk (map_loc this popen_lid)
            ~override:popen_override
-           ~loc:(this.location this popen_loc)
+           ~loc:(this.location this popen_info)
            ~attrs:(this.attributes this popen_attributes)
       );
 
 
     include_description =
-      (fun this {pincl_mod; pincl_attributes; pincl_loc} ->
+      (fun this {pincl_mod; pincl_attributes; pincl_info} ->
          Incl.mk (this.module_type this pincl_mod)
-           ~loc:(this.location this pincl_loc)
+           ~loc:(this.location this pincl_info)
            ~attrs:(this.attributes this pincl_attributes)
       );
 
     include_declaration =
-      (fun this {pincl_mod; pincl_attributes; pincl_loc} ->
+      (fun this {pincl_mod; pincl_attributes; pincl_info} ->
          Incl.mk (this.module_expr this pincl_mod)
-           ~loc:(this.location this pincl_loc)
+           ~loc:(this.location this pincl_info)
            ~attrs:(this.attributes this pincl_attributes)
       );
 
 
     value_binding =
-      (fun this {pvb_pat; pvb_expr; pvb_attributes; pvb_loc} ->
+      (fun this {pvb_pat; pvb_expr; pvb_attributes; pvb_info} ->
          Vb.mk
            (this.pat this pvb_pat)
            (this.expr this pvb_expr)
-           ~loc:(this.location this pvb_loc)
+           ~loc:(this.location this pvb_info)
            ~attrs:(this.attributes this pvb_attributes)
       );
 
 
     constructor_declaration =
-      (fun this {pcd_name; pcd_args; pcd_res; pcd_loc; pcd_attributes} ->
+      (fun this {pcd_name; pcd_args; pcd_res; pcd_info; pcd_attributes} ->
         Type.constructor
           (map_loc this pcd_name)
           ~args:(T.map_constructor_arguments this pcd_args)
           ?res:(map_opt (this.typ this) pcd_res)
-          ~loc:(this.location this pcd_loc)
+          ~loc:(this.location this pcd_info)
           ~attrs:(this.attributes this pcd_attributes)
       );
 
     label_declaration =
-      (fun this {pld_name; pld_type; pld_loc; pld_mutable; pld_attributes} ->
+      (fun this {pld_name; pld_type; pld_info; pld_mutable; pld_attributes} ->
          Type.field
            (map_loc this pld_name)
            (this.typ this pld_type)
            ~mut:pld_mutable
-           ~loc:(this.location this pld_loc)
+           ~loc:(this.location this pld_info)
            ~attrs:(this.attributes this pld_attributes)
       );
 
@@ -807,7 +807,7 @@ let apply_lazy ~source ~target mapper =
       match error_of_exn exn with
       | Some error ->
           [{pstr_desc = Pstr_extension (extension_of_error error, []);
-            pstr_loc  = Location.none}]
+            pstr_info  = Location.none}]
       | None -> raise exn
   in
   let iface ast =
@@ -827,7 +827,7 @@ let apply_lazy ~source ~target mapper =
       match error_of_exn exn with
       | Some error ->
           [{psig_desc = Psig_extension (extension_of_error error, []);
-            psig_loc  = Location.none}]
+            psig_info  = Location.none}]
       | None -> raise exn
   in
 

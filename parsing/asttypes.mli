@@ -47,7 +47,6 @@ type 'a loc = 'a Location.loc = {
   loc : Location.t;
 }
 
-
 type variance =
   | Covariant
   | Contravariant

@@ -69,7 +69,7 @@ let enter_type env sdecl id =
         | Some _ -> Some(Ctype.newvar ()) end;
       type_variance = List.map (fun _ -> Variance.full) sdecl.ptype_params;
       type_newtype_level = None;
-      type_loc = sdecl.ptype_loc;
+      type_loc = sdecl.ptype_info;
       type_attributes = sdecl.ptype_attributes;
     }
   in
@@ -147,7 +147,7 @@ let make_params env params =
     try
       (transl_type_param env sty, v)
     with Already_bound ->
-      raise(Error(sty.ptyp_loc, Repeated_parameter))
+      raise(Error(sty.ptyp_info, Repeated_parameter))
   in
     List.map make_param params
 
@@ -161,7 +161,7 @@ let transl_labels loc env closed lbls =
          raise(Error(loc, Duplicate_label name));
        all_labels := StringSet.add name !all_labels)
     lbls;
-  let mk {pld_name=name;pld_mutable=mut;pld_type=arg;pld_loc=loc;
+  let mk {pld_name=name;pld_mutable=mut;pld_type=arg;pld_info=loc;
           pld_attributes=attrs} =
     let arg = Ast_helper.Typ.force_poly arg in
     let cty = transl_simple_type env closed arg in
@@ -215,7 +215,7 @@ let make_constructor loc env type_path type_params sargs sret_type =
         match (Ctype.repr ret_type).desc with
           Tconstr (p', _, _) when Path.same type_path p' -> ()
         | _ ->
-            raise (Error (sret_type.ptyp_loc, Constraint_failed
+            raise (Error (sret_type.ptyp_info, Constraint_failed
                             (ret_type, Ctype.newconstr type_path type_params)))
       end;
       widen z;
@@ -238,23 +238,23 @@ let transl_declaration env sdecl id =
         Ptype_abstract -> Ttype_abstract, Type_abstract
       | Ptype_variant scstrs ->
         if scstrs = [] then
-          Syntaxerr.ill_formed_ast sdecl.ptype_loc
+          Syntaxerr.ill_formed_ast sdecl.ptype_info
             "Variant types cannot be empty.";
         let all_constrs = ref StringSet.empty in
         List.iter
           (fun {pcd_name = {txt = name}} ->
             if StringSet.mem name !all_constrs then
-              raise(Error(sdecl.ptype_loc, Duplicate_constructor name));
+              raise(Error(sdecl.ptype_info, Duplicate_constructor name));
             all_constrs := StringSet.add name !all_constrs)
           scstrs;
         if List.length
           (List.filter (fun cd -> cd.pcd_args <> Pcstr_tuple []) scstrs)
           > (Config.max_tag + 1) then
-          raise(Error(sdecl.ptype_loc, Too_many_constructors));
+          raise(Error(sdecl.ptype_info, Too_many_constructors));
         let make_cstr scstr =
           let name = Ident.create scstr.pcd_name.txt in
           let targs, tret_type, args, ret_type =
-            make_constructor scstr.pcd_loc env (Path.Pident id) params
+            make_constructor scstr.pcd_info env (Path.Pident id) params
                              scstr.pcd_args scstr.pcd_res
           in
           let tcstr =
@@ -262,14 +262,14 @@ let transl_declaration env sdecl id =
               cd_name = scstr.pcd_name;
               cd_args = targs;
               cd_res = tret_type;
-              cd_loc = scstr.pcd_loc;
+              cd_loc = scstr.pcd_info;
               cd_attributes = scstr.pcd_attributes }
           in
           let cstr =
             { Types.cd_id = name;
               cd_args = args;
               cd_res = ret_type;
-              cd_loc = scstr.pcd_loc;
+              cd_loc = scstr.pcd_info;
               cd_attributes = scstr.pcd_attributes }
           in
             tcstr, cstr
@@ -277,7 +277,7 @@ let transl_declaration env sdecl id =
         let tcstrs, cstrs = List.split (List.map make_cstr scstrs) in
           Ttype_variant tcstrs, Type_variant cstrs
       | Ptype_record lbls ->
-          let lbls, lbls' = transl_labels sdecl.ptype_loc env true lbls in
+          let lbls, lbls' = transl_labels sdecl.ptype_info env true lbls in
           let rep =
             if List.for_all (fun l -> is_float env l.Types.ld_type) lbls'
             then Record_float
@@ -301,7 +301,7 @@ let transl_declaration env sdecl id =
         type_manifest = man;
         type_variance = List.map (fun _ -> Variance.full) params;
         type_newtype_level = None;
-        type_loc = sdecl.ptype_loc;
+        type_loc = sdecl.ptype_info;
         type_attributes = sdecl.ptype_attributes;
       } in
 
@@ -319,13 +319,13 @@ let transl_declaration env sdecl id =
       let (p, _) =
         try Env.lookup_type (Longident.Lident(Ident.name id ^ "#row")) env
         with Not_found -> assert false in
-      set_fixed_row env sdecl.ptype_loc p decl
+      set_fixed_row env sdecl.ptype_info p decl
     end;
   (* Check for cyclic abbreviations *)
     begin match decl.type_manifest with None -> ()
       | Some ty ->
         if Ctype.cyclic_abbrev env id ty then
-          raise(Error(sdecl.ptype_loc, Recursive_abbrev sdecl.ptype_name.txt));
+          raise(Error(sdecl.ptype_info, Recursive_abbrev sdecl.ptype_name.txt));
     end;
     {
       typ_id = id;
@@ -333,7 +333,7 @@ let transl_declaration env sdecl id =
       typ_params = tparams;
       typ_type = decl;
       typ_cstrs = cstrs;
-      typ_loc = sdecl.ptype_loc;
+      typ_loc = sdecl.ptype_info;
       typ_manifest = tman;
       typ_kind = tkind;
       typ_private = sdecl.ptype_private;
@@ -383,7 +383,7 @@ let check_constraints_labels env visited l pl =
   let rec get_loc name = function
       [] -> assert false
     | pld :: tl ->
-        if name = pld.pld_name.txt then pld.pld_type.ptyp_loc
+        if name = pld.pld_name.txt then pld.pld_type.ptyp_info
         else get_loc name tl
   in
   List.iter
@@ -416,7 +416,7 @@ let check_constraints env sdecl (_, decl) =
           | Cstr_tuple tyl, Pcstr_tuple styl ->
               List.iter2
                 (fun sty ty ->
-                   check_constraints_rec env sty.ptyp_loc visited ty)
+                   check_constraints_rec env sty.ptyp_info visited ty)
                 styl tyl
           | Cstr_record tyl, Pcstr_record styl ->
               check_constraints_labels env visited tyl styl
@@ -424,7 +424,7 @@ let check_constraints env sdecl (_, decl) =
           end;
           match pcd_res, cd_res with
           | Some sr, Some r ->
-              check_constraints_rec env sr.ptyp_loc visited r
+              check_constraints_rec env sr.ptyp_info visited r
           | _ ->
               () )
         l
@@ -443,7 +443,7 @@ let check_constraints env sdecl (_, decl) =
       let sty =
         match sdecl.ptype_manifest with Some sty -> sty | _ -> assert false
       in
-      check_constraints_rec env sty.ptyp_loc visited ty
+      check_constraints_rec env sty.ptyp_info visited ty
   end
 
 (*
@@ -482,7 +482,7 @@ let check_coherence env loc id decl =
   | _ -> ()
 
 let check_abbrev env sdecl (id, decl) =
-  check_coherence env sdecl.ptype_loc id decl
+  check_coherence env sdecl.ptype_info id decl
 
 (* Check that recursion is well-founded *)
 
@@ -954,7 +954,7 @@ let check_duplicates sdecl_list =
           (fun pcd ->
             try
               let name' = Hashtbl.find constrs pcd.pcd_name.txt in
-              Location.prerr_warning pcd.pcd_loc
+              Location.prerr_warning pcd.pcd_info
                 (Warnings.Duplicate_definitions
                    ("constructor", pcd.pcd_name.txt, name',
                     sdecl.ptype_name.txt))
@@ -963,7 +963,7 @@ let check_duplicates sdecl_list =
           cl
     | Ptype_record fl ->
         List.iter
-          (fun {pld_name=cname;pld_loc=loc} ->
+          (fun {pld_name=cname;pld_info=loc} ->
             try
               let name' = Hashtbl.find labels cname.txt in
               Location.prerr_warning loc
@@ -1068,7 +1068,7 @@ let transl_type_decl env rec_flag sdecl_list =
     | Asttypes.Nonrecursive -> ()
     | Asttypes.Recursive ->
       List.iter2
-        (fun id sdecl -> update_type temp_env newenv id sdecl.ptype_loc)
+        (fun id sdecl -> update_type temp_env newenv id sdecl.ptype_info)
         id_list sdecl_list
   end;
   (* Generalize type declarations. *)
@@ -1076,7 +1076,7 @@ let transl_type_decl env rec_flag sdecl_list =
   List.iter (fun (_, decl) -> generalize_decl decl) decls;
   (* Check for ill-formed abbrevs *)
   let id_loc_list =
-    List.map2 (fun id sdecl -> (id, sdecl.ptype_loc))
+    List.map2 (fun id sdecl -> (id, sdecl.ptype_info))
       id_list sdecl_list
   in
   List.iter (fun (id, decl) ->
@@ -1095,7 +1095,7 @@ let transl_type_decl env rec_flag sdecl_list =
     (fun sdecl tdecl ->
       let decl = tdecl.typ_type in
        match Ctype.closed_type_decl decl with
-         Some ty -> raise(Error(sdecl.ptype_loc, Unbound_type_var(ty,decl)))
+         Some ty -> raise(Error(sdecl.ptype_info, Unbound_type_var(ty,decl)))
        | None   -> ())
     sdecl_list tdecls;
   (* Check that constraints are enforced *)
@@ -1110,7 +1110,7 @@ let transl_type_decl env rec_flag sdecl_list =
     List.map
       (fun sdecl ->
          add_injectivity (List.map snd sdecl.ptype_params),
-         sdecl.ptype_loc
+         sdecl.ptype_info
       )
       sdecl_list
   in
@@ -1138,12 +1138,12 @@ let transl_extension_constructor env type_path type_params
     match sext.pext_kind with
       Pext_decl(sargs, sret_type) ->
         let targs, tret_type, args, ret_type =
-          make_constructor sext.pext_loc env type_path typext_params
+          make_constructor sext.pext_info env type_path typext_params
             sargs sret_type
         in
           args, ret_type, Text_decl(targs, tret_type)
     | Pext_rebind lid ->
-        let cdescr = Typetexp.find_constructor env sext.pext_loc lid.txt in
+        let cdescr = Typetexp.find_constructor env sext.pext_info lid.txt in
         let usage =
           if cdescr.cstr_private = Private || priv = Public
           then Env.Positive else Env.Privatize
@@ -1237,14 +1237,14 @@ let transl_extension_constructor env type_path type_params
       ext_args = args;
       ext_ret_type = ret_type;
       ext_private = priv;
-      Types.ext_loc = sext.pext_loc;
+      Types.ext_loc = sext.pext_info;
       Types.ext_attributes = sext.pext_attributes; }
   in
     { ext_id = id;
       ext_name = sext.pext_name;
       ext_type = ext;
       ext_kind = kind;
-      Typedtree.ext_loc = sext.pext_loc;
+      Typedtree.ext_loc = sext.pext_info;
       Typedtree.ext_attributes = sext.pext_attributes; }
 
 let transl_type_extension check_open env loc styext =
@@ -1259,12 +1259,12 @@ let transl_type_extension check_open env loc styext =
     | Type_abstract ->
         if check_open then begin
           try
-            let {pext_loc} =
+            let {pext_info} =
               List.find (function {pext_kind = Pext_decl _} -> true
                                 | {pext_kind = Pext_rebind _} -> false)
                         styext.ptyext_constructors
             in
-              raise (Error(pext_loc, Not_open_type type_path))
+              raise (Error(pext_info, Not_open_type type_path))
           with Not_found -> ()
         end
     | _ -> raise (Error(loc, Not_extensible_type type_path))
@@ -1395,7 +1395,7 @@ let make_native_repr env core_type ty ~global_repr =
   | Native_repr_attr_present kind ->
     begin match native_repr_of_type env kind ty with
     | None ->
-      raise (Error (core_type.ptyp_loc, Cannot_unbox_or_untag_type kind))
+      raise (Error (core_type.ptyp_info, Cannot_unbox_or_untag_type kind))
     | Some repr -> repr
     end
 
@@ -1420,7 +1420,7 @@ let transl_value_decl env loc valdecl =
       { val_type = ty; val_kind = Val_reg; Types.val_loc = loc;
         val_attributes = valdecl.pval_attributes }
   | [] ->
-      raise (Error(valdecl.pval_loc, Val_in_structure))
+      raise (Error(valdecl.pval_info, Val_in_structure))
   | _ ->
       let global_repr =
         match
@@ -1439,11 +1439,11 @@ let transl_value_decl env loc valdecl =
       in
       if prim.prim_arity = 0 &&
          (prim.prim_name = "" || prim.prim_name.[0] <> '%') then
-        raise(Error(valdecl.pval_type.ptyp_loc, Null_arity_external));
+        raise(Error(valdecl.pval_type.ptyp_info, Null_arity_external));
       if !Clflags.native_code
       && prim.prim_arity > 5
       && prim.prim_native_name = ""
-      then raise(Error(valdecl.pval_type.ptyp_loc, Missing_native_external));
+      then raise(Error(valdecl.pval_type.ptyp_info, Missing_native_external));
       { val_type = ty; val_kind = Val_prim prim; Types.val_loc = loc;
         val_attributes = valdecl.pval_attributes }
   in
@@ -1457,7 +1457,7 @@ let transl_value_decl env loc valdecl =
      val_name = valdecl.pval_name;
      val_desc = cty; val_val = v;
      val_prim = valdecl.pval_prim;
-     val_loc = valdecl.pval_loc;
+     val_loc = valdecl.pval_info;
      val_attributes = valdecl.pval_attributes;
     }
   in
@@ -1502,7 +1502,7 @@ let transl_with_constraint env id row_path orig_decl sdecl =
   in
   if arity_ok && orig_decl.type_kind <> Type_abstract
   && sdecl.ptype_private = Private then
-    Location.prerr_warning sdecl.ptype_loc
+    Location.prerr_warning sdecl.ptype_info
       (Warnings.Deprecated "spurious use of private");
   let decl =
     { type_params = params;
@@ -1513,21 +1513,21 @@ let transl_with_constraint env id row_path orig_decl sdecl =
       type_manifest = man;
       type_variance = [];
       type_newtype_level = None;
-      type_loc = sdecl.ptype_loc;
+      type_loc = sdecl.ptype_info;
       type_attributes = sdecl.ptype_attributes;
     }
   in
   begin match row_path with None -> ()
-  | Some p -> set_fixed_row env sdecl.ptype_loc p decl
+  | Some p -> set_fixed_row env sdecl.ptype_info p decl
   end;
   begin match Ctype.closed_type_decl decl with None -> ()
-  | Some ty -> raise(Error(sdecl.ptype_loc, Unbound_type_var(ty,decl)))
+  | Some ty -> raise(Error(sdecl.ptype_info, Unbound_type_var(ty,decl)))
   end;
   let decl = name_recursion sdecl id decl in
   let decl =
     {decl with type_variance =
      compute_variance_decl env true decl
-       (add_injectivity (List.map snd sdecl.ptype_params), sdecl.ptype_loc)} in
+       (add_injectivity (List.map snd sdecl.ptype_params), sdecl.ptype_info)} in
   Ctype.end_def();
   generalize_decl decl;
   {
@@ -1536,7 +1536,7 @@ let transl_with_constraint env id row_path orig_decl sdecl =
     typ_params = tparams;
     typ_type = decl;
     typ_cstrs = constraints;
-    typ_loc = sdecl.ptype_loc;
+    typ_loc = sdecl.ptype_info;
     typ_manifest = tman;
     typ_kind = Ttype_abstract;
     typ_private = sdecl.ptype_private;

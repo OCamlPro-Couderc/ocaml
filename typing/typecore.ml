@@ -958,7 +958,7 @@ let rec type_pat ~constrs ~labels ~no_existentials ~mode ~explode ~env
   let type_pat ?(constrs=constrs) ?(labels=labels) ?(mode=mode')
       ?(explode=explode) ?(env=env) =
     type_pat ~constrs ~labels ~no_existentials ~mode ~explode ~env in
-  let loc = sp.ppat_loc in
+  let loc = sp.ppat_info in
   let rp k x : pattern = if constrs = None then k (rp x) else k x in
   match sp.ppat_desc with
     Ppat_any ->
@@ -995,12 +995,12 @@ let rec type_pat ~constrs ~labels ~no_existentials ~mode ~explode ~env
       let id = enter_variable loc name expected_ty ~is_module:true in
       rp k {
         pat_desc = Tpat_var (id, name);
-        pat_loc = sp.ppat_loc;
+        pat_loc = sp.ppat_info;
         pat_extra=[Tpat_unpack, loc, sp.ppat_attributes];
         pat_type = expected_ty;
         pat_attributes = [];
         pat_env = !env }
-  | Ppat_constraint({ppat_desc=Ppat_var name; ppat_loc=lloc},
+  | Ppat_constraint({ppat_desc=Ppat_var name; ppat_info=lloc},
                     ({ptyp_desc=Ptyp_poly _} as sty)) ->
       (* explicitly polymorphic type *)
       assert (constrs = None);
@@ -1058,7 +1058,7 @@ let rec type_pat ~constrs ~labels ~no_existentials ~mode ~explode ~env
             (loop (Char.chr(Char.code c1 + 1)) c2)
       in
       let p = if c1 <= c2 then loop c1 c2 else loop c2 c1 in
-      let p = {p with ppat_loc=loc} in
+      let p = {p with ppat_info=loc} in
       type_pat ~explode:0 p expected_ty k
         (* TODO: record 'extra' to remember about interval *)
   | Ppat_interval _ ->
@@ -1116,13 +1116,13 @@ let rec type_pat ~constrs ~labels ~no_existentials ~mode ~explode ~env
           -> spl
         | Some({ppat_desc = Ppat_any} as sp) when constr.cstr_arity <> 1 ->
             if constr.cstr_arity = 0 then
-              Location.prerr_warning sp.ppat_loc
+              Location.prerr_warning sp.ppat_info
                                      Warnings.Wildcard_arg_to_constant_constr;
             replicate_list sp constr.cstr_arity
         | Some sp -> [sp] in
       begin match sargs with
       | [{ppat_desc = Ppat_constant _} as sp] when warn_on_literal_pattern constr.cstr_attributes ->
-            Location.prerr_warning sp.ppat_loc
+            Location.prerr_warning sp.ppat_info
               Warnings.Fragile_literal_pattern
       | _ -> ()
       end;
@@ -1145,7 +1145,7 @@ let rec type_pat ~constrs ~labels ~no_existentials ~mode ~explode ~env
         | Ppat_alias (p, _) ->
             check_non_escaping p
         | Ppat_constraint _ ->
-            raise (Error (p.ppat_loc, !env, Inlined_record_escape))
+            raise (Error (p.ppat_info, !env, Inlined_record_escape))
         | _ ->
             ()
       in
@@ -1382,7 +1382,7 @@ let check_unused ?(lev=get_current_level ()) env expected_ty cases =
           env expected_ty constrs labels spat
       with
         Some pat when refute ->
-          raise (Error (spat.ppat_loc, env, Unrefuted_pattern pat))
+          raise (Error (spat.ppat_info, env, Unrefuted_pattern pat))
       | r -> r)
     env cases
 
@@ -1643,7 +1643,7 @@ let rec type_approx env sexp =
       let ty = type_approx env e in
       let ty1 = approx_type env sty in
       begin try unify env ty ty1 with Unify trace ->
-        raise(Error(sexp.pexp_loc, env, Expr_type_clash trace))
+        raise(Error(sexp.pexp_info, env, Expr_type_clash trace))
       end;
       ty1
   | Pexp_coerce (e, sty1, sty2) ->
@@ -1655,7 +1655,7 @@ let rec type_approx env sexp =
       and ty1 = approx_ty_opt sty1
       and ty2 = approx_type env sty2 in
       begin try unify env ty ty1 with Unify trace ->
-        raise(Error(sexp.pexp_loc, env, Expr_type_clash trace))
+        raise(Error(sexp.pexp_info, env, Expr_type_clash trace))
       end;
       ty2
   | _ -> newvar ()
@@ -1738,7 +1738,7 @@ let create_package_type loc env (p, l) =
    let open Ast_helper in
    List.fold_left
      (fun sexp (name, loc) ->
-       Exp.letmodule ~loc:sexp.pexp_loc ~attrs:[mknoloc "#modulepat",PStr []]
+       Exp.letmodule ~loc:sexp.pexp_info ~attrs:[mknoloc "#modulepat",PStr []]
          name
          (Mod.unpack ~loc
             (Exp.ident ~loc:name.loc (mkloc (Longident.Lident name.txt)
@@ -1872,7 +1872,7 @@ and type_expect ?in_function ?recarg env sexp ty_expected =
   exp
 
 and type_expect_ ?in_function ?(recarg=Rejected) env sexp ty_expected =
-  let loc = sexp.pexp_loc in
+  let loc = sexp.pexp_info in
   (* Record the expression type before unifying it with the expected type *)
   let rue exp =
     unify_exp env (re exp) (instance env ty_expected);
@@ -1942,7 +1942,7 @@ and type_expect_ ?in_function ?(recarg=Rejected) env sexp ty_expected =
     in
     if is_format then
       let format_parsetree =
-        { (type_format loc str env) with pexp_loc = sexp.pexp_loc }  in
+        { (type_format loc str env) with pexp_info = sexp.pexp_info }  in
       type_expect ?in_function env format_parsetree ty_expected
     else
       rue {
@@ -1972,7 +1972,7 @@ and type_expect_ ?in_function ?(recarg=Rejected) env sexp ty_expected =
         match sexp.pexp_attributes, rec_flag with
         | [{txt="#default"},_], _ -> None
         | _, Recursive -> Some (Annot.Idef loc)
-        | _, Nonrecursive -> Some (Annot.Idef sbody.pexp_loc)
+        | _, Nonrecursive -> Some (Annot.Idef sbody.pexp_info)
       in
       let (pat_exp_list, new_env, unpacks) =
         type_let env rec_flag spat_sexp_list scp true in
@@ -1987,7 +1987,7 @@ and type_expect_ ?in_function ?(recarg=Rejected) env sexp ty_expected =
   | Pexp_fun (l, Some default, spat, sbody) ->
       assert(is_optional l); (* default allowed only with optional argument *)
       let open Ast_helper in
-      let default_loc = default.pexp_loc in
+      let default_loc = default.pexp_info in
       let scases = [
         Exp.case
           (Pat.construct ~loc:default_loc
@@ -2337,7 +2337,7 @@ and type_expect_ ?in_function ?(recarg=Rejected) env sexp ty_expected =
                                  val_kind = Val_reg; Types.val_loc = loc; } env
               ~check:(fun s -> Warnings.Unused_for_index s)
         | _ ->
-            raise (Error (param.ppat_loc, env, Invalid_for_loop_index))
+            raise (Error (param.ppat_info, env, Invalid_for_loop_index))
       in
       let body = type_statement new_env sbody in
       rue {
@@ -2419,7 +2419,7 @@ and type_expect_ ?in_function ?(recarg=Rejected) env sexp ty_expected =
                 let ty, b = enlarge_type env ty' in
                 force ();
                 begin try Ctype.unify env arg.exp_type ty with Unify trace ->
-                  raise(Error(sarg.pexp_loc, env,
+                  raise(Error(sarg.pexp_info, env,
                         Coercion_failure(ty', full_expand env ty', trace, b)))
                 end
             end;
@@ -2477,7 +2477,7 @@ and type_expect_ ?in_function ?(recarg=Rejected) env sexp ty_expected =
               let method_id =
                 begin try List.assoc met methods with Not_found ->
                   let valid_methods = List.map fst methods in
-                  raise(Error(e.pexp_loc, env,
+                  raise(Error(e.pexp_info, env,
                               Undefined_inherited_method (met, valid_methods)))
                 end
               in
@@ -2568,7 +2568,7 @@ and type_expect_ ?in_function ?(recarg=Rejected) env sexp ty_expected =
                 Some (List.fold_left collect_fields [] fields)
              | _ -> None
         in
-        raise(Error(e.pexp_loc, env,
+        raise(Error(e.pexp_info, env,
                     Undefined_method (obj.exp_type, met, valid_methods)))
       end
   | Pexp_new cl ->
@@ -2832,7 +2832,7 @@ and type_expect_ ?in_function ?(recarg=Rejected) env sexp ty_expected =
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_open (ovf, lid, e) ->
-      let (path, newenv) = !type_open ovf env sexp.pexp_loc lid in
+      let (path, newenv) = !type_open ovf env sexp.pexp_info lid in
       let exp = type_expect newenv e ty_expected in
       { exp with
         exp_extra = (Texp_open (ovf, path, lid, newenv), loc,
@@ -2929,7 +2929,7 @@ and type_format loc str env =
     CamlinternalFormatBasics.(CamlinternalFormat.(
       let mk_exp_loc pexp_desc = {
         pexp_desc = pexp_desc;
-        pexp_loc = loc;
+        pexp_info = loc;
         pexp_attributes = [];
       } and mk_lid_loc lid = {
         txt = lid;
@@ -3244,7 +3244,7 @@ and type_argument ?recarg env sarg ty_expected' ty_expected =
       let rec make_args args ty_fun =
         match (expand_head env ty_fun).desc with
         | Tarrow (l,ty_arg,ty_fun,_) when is_optional l ->
-            let ty = option_none (instance env ty_arg) sarg.pexp_loc in
+            let ty = option_none (instance env ty_arg) sarg.pexp_info in
             make_args ((l, Some ty, Optional) :: args) ty_fun
         | Tarrow (l,_,ty_res',_) when l = Nolabel || !Clflags.classic ->
             List.rev args, ty_fun, no_labels ty_res'
@@ -3343,7 +3343,7 @@ and type_application env funct sargs =
                 | _ -> true
               in
               if ty_fun.level >= t1.level && not_identity funct.exp_desc then
-                Location.prerr_warning sarg1.pexp_loc Warnings.Unused_argument;
+                Location.prerr_warning sarg1.pexp_info Warnings.Unused_argument;
               unify env ty_fun (newty (Tarrow(l1,t1,t2,Clink(ref Cunknown))));
               (t1, t2)
           | Tarrow (l,t1,t2,_) when l = l1
@@ -3356,7 +3356,7 @@ and type_application env funct sargs =
               match ty_res.desc with
                 Tarrow _ ->
                   if (!Clflags.classic || not (has_label l1 ty_fun)) then
-                    raise (Error(sarg1.pexp_loc, env,
+                    raise (Error(sarg1.pexp_info, env,
                                  Apply_wrong_label(l1, ty_res)))
                   else
                     raise (Error(funct.exp_loc, env, Incoherent_label_order))
@@ -3410,11 +3410,11 @@ and type_application env funct sargs =
             (* In classic mode, omitted = [] *)
             match sargs, more_sargs with
               (l', sarg0) :: _, _ ->
-                raise(Error(sarg0.pexp_loc, env,
+                raise(Error(sarg0.pexp_info, env,
                             Apply_wrong_label(l', ty_old)))
             | _, (l', sarg0) :: more_sargs ->
                 if l <> l' && l' <> Nolabel then
-                  raise(Error(sarg0.pexp_loc, env,
+                  raise(Error(sarg0.pexp_info, env,
                               Apply_wrong_label(l', ty_fun')))
                 else
                   ([], more_sargs,
@@ -3426,25 +3426,25 @@ and type_application env funct sargs =
               try
                 let (l', sarg0, sargs1, sargs2) = extract_label name sargs in
                 if sargs1 <> [] then
-                  may_warn sarg0.pexp_loc
+                  may_warn sarg0.pexp_info
                     (Warnings.Not_principal "commuting this argument");
                 (l', sarg0, sargs1 @ sargs2, more_sargs)
               with Not_found ->
                 let (l', sarg0, sargs1, sargs2) =
                   extract_label name more_sargs in
                 if sargs1 <> [] || sargs <> [] then
-                  may_warn sarg0.pexp_loc
+                  may_warn sarg0.pexp_info
                     (Warnings.Not_principal "commuting this argument");
                 (l', sarg0, sargs @ sargs1, sargs2)
             in
             if optional = Required && is_optional l' then
-              Location.prerr_warning sarg0.pexp_loc
+              Location.prerr_warning sarg0.pexp_info
                 (Warnings.Nonoptional_label (Printtyp.string_of_label l));
             sargs, more_sargs,
             if optional = Required || is_optional l' then
               Some (fun () -> type_argument env sarg0 ty ty0)
             else begin
-              may_warn sarg0.pexp_loc
+              may_warn sarg0.pexp_info
                 (Warnings.Not_principal "using an optional argument here");
               Some (fun () -> option_some (type_argument env sarg0
                                              (extract_option_type env ty)
@@ -3474,7 +3474,7 @@ and type_application env funct sargs =
     | _ ->
         match sargs with
           (l, sarg0) :: _ when ignore_labels ->
-            raise(Error(sarg0.pexp_loc, env,
+            raise(Error(sarg0.pexp_info, env,
                         Apply_wrong_label(l, ty_old)))
         | _ ->
             type_unknown_args args omitted ty_fun0
@@ -3577,7 +3577,7 @@ and type_construct env loc lid sarg ty_expected attrs =
 (* Typing of statements (expressions whose values are discarded) *)
 
 and type_statement env sexp =
-  let loc = (final_subexpression sexp).pexp_loc in
+  let loc = (final_subexpression sexp).pexp_info in
   begin_def();
   let exp = type_exp env sexp in
   end_def();
@@ -3642,8 +3642,8 @@ and type_cases ?in_function env ty_arg ty_res partial_flag loc caselist =
         let loc =
           let open Location in
           match pc_guard with
-          | None -> pc_rhs.pexp_loc
-          | Some g -> {pc_rhs.pexp_loc with loc_start=g.pexp_loc.loc_start}
+          | None -> pc_rhs.pexp_info
+          | Some g -> {pc_rhs.pexp_info with loc_start=g.pexp_info.loc_start}
         in
         if !Clflags.principal then begin_def (); (* propagation of pattern *)
         let scope = Some (Annot.Idef loc) in
@@ -3768,7 +3768,7 @@ and type_let ?(check = fun s -> Warnings.Unused_var s)
             (* propagate type annotation to pattern,
                to allow it to be generalized in -principal mode *)
             Pat.constraint_
-              ~loc:{spat.ppat_loc with Location.loc_ghost=true}
+              ~loc:{spat.ppat_info with Location.loc_ghost=true}
               spat
               sty
         | _ -> spat)
@@ -3903,7 +3903,7 @@ and type_let ?(check = fun s -> Warnings.Unused_var s)
   current_slot := None;
   if is_recursive && not !rec_needed
   && Warnings.is_active Warnings.Unused_rec_flag then
-    Location.prerr_warning (List.hd spat_sexp_list).pvb_pat.ppat_loc
+    Location.prerr_warning (List.hd spat_sexp_list).pvb_pat.ppat_info
       Warnings.Unused_rec_flag;
   List.iter2
     (fun pat exp ->
@@ -3923,7 +3923,7 @@ and type_let ?(check = fun s -> Warnings.Unused_var s)
     List.map2
       (fun (p, e) pvb ->
         {vb_pat=p; vb_expr=e; vb_attributes=pvb.pvb_attributes;
-         vb_loc=pvb.pvb_loc;
+         vb_loc=pvb.pvb_info;
         })
       l spat_sexp_list
   in

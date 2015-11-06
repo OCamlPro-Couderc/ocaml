@@ -804,10 +804,10 @@ class printer  ()= object(self:'self)
         let bind e =
           self#binding f
             {pvb_pat=
-               {ppat_desc=Ppat_var s;ppat_loc=Location.none;ppat_attributes=[]};
+               {ppat_desc=Ppat_var s;ppat_info=Location.none;ppat_attributes=[]};
              pvb_expr=e;
              pvb_attributes=[];
-             pvb_loc=Location.none;
+             pvb_info=Location.none;
             }
         in
         pp f "@[<2>method%s %a%a@]%a"

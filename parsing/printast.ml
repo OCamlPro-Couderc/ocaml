@@ -135,7 +135,7 @@ let arg_label i ppf = function
 ;;
 
 let rec core_type i ppf x =
-  line i ppf "core_type %a\n" fmt_location x.ptyp_loc;
+  line i ppf "core_type %a\n" fmt_location x.ptyp_info;
   attributes i ppf x.ptyp_attributes;
   let i = i+1 in
   match x.ptyp_desc with
@@ -188,7 +188,7 @@ and package_with i ppf (s, t) =
   core_type i ppf t
 
 and pattern i ppf x =
-  line i ppf "pattern %a\n" fmt_location x.ppat_loc;
+  line i ppf "pattern %a\n" fmt_location x.ppat_info;
   attributes i ppf x.ppat_attributes;
   let i = i+1 in
   match x.ppat_desc with
@@ -239,7 +239,7 @@ and pattern i ppf x =
       payload i ppf arg
 
 and expression i ppf x =
-  line i ppf "expression %a\n" fmt_location x.pexp_loc;
+  line i ppf "expression %a\n" fmt_location x.pexp_info;
   attributes i ppf x.pexp_attributes;
   let i = i+1 in
   match x.pexp_desc with
@@ -368,7 +368,7 @@ and expression i ppf x =
 
 and value_description i ppf x =
   line i ppf "value_description %a %a\n" fmt_string_loc
-       x.pval_name fmt_location x.pval_loc;
+       x.pval_name fmt_location x.pval_info;
   attributes i ppf x.pval_attributes;
   core_type (i+1) ppf x.pval_type;
   list (i+1) string ppf x.pval_prim
@@ -377,7 +377,7 @@ and type_parameter i ppf (x, _variance) = core_type i ppf x
 
 and type_declaration i ppf x =
   line i ppf "type_declaration %a %a\n" fmt_string_loc x.ptype_name
-       fmt_location x.ptype_loc;
+       fmt_location x.ptype_info;
   attributes i ppf x.ptype_attributes;
   let i = i+1 in
   line i ppf "ptype_params =\n";
@@ -434,7 +434,7 @@ and type_extension i ppf x =
   line i ppf "ptyext_private = %a\n" fmt_private_flag x.ptyext_private;
 
 and extension_constructor i ppf x =
-  line i ppf "extension_constructor %a\n" fmt_location x.pext_loc;
+  line i ppf "extension_constructor %a\n" fmt_location x.pext_info;
   attributes i ppf x.pext_attributes;
   let i = i + 1 in
   line i ppf "pext_name = \"%s\"\n" x.pext_name.txt;
@@ -452,7 +452,7 @@ and extension_constructor_kind i ppf x =
         line (i+1) ppf "%a\n" fmt_longident_loc li;
 
 and class_type i ppf x =
-  line i ppf "class_type %a\n" fmt_location x.pcty_loc;
+  line i ppf "class_type %a\n" fmt_location x.pcty_info;
   attributes i ppf x.pcty_attributes;
   let i = i+1 in
   match x.pcty_desc with
@@ -477,7 +477,7 @@ and class_signature i ppf cs =
   list (i+1) class_type_field ppf cs.pcsig_fields;
 
 and class_type_field i ppf x =
-  line i ppf "class_type_field %a\n" fmt_location x.pctf_loc;
+  line i ppf "class_type_field %a\n" fmt_location x.pctf_info;
   let i = i+1 in
   attributes i ppf x.pctf_attributes;
   match x.pctf_desc with
@@ -504,7 +504,7 @@ and class_type_field i ppf x =
      payload i ppf arg
 
 and class_description i ppf x =
-  line i ppf "class_description %a\n" fmt_location x.pci_loc;
+  line i ppf "class_description %a\n" fmt_location x.pci_info;
   attributes i ppf x.pci_attributes;
   let i = i+1 in
   line i ppf "pci_virt = %a\n" fmt_virtual_flag x.pci_virt;
@@ -515,7 +515,7 @@ and class_description i ppf x =
   class_type (i+1) ppf x.pci_expr;
 
 and class_type_declaration i ppf x =
-  line i ppf "class_type_declaration %a\n" fmt_location x.pci_loc;
+  line i ppf "class_type_declaration %a\n" fmt_location x.pci_info;
   attributes i ppf x.pci_attributes;
   let i = i+1 in
   line i ppf "pci_virt = %a\n" fmt_virtual_flag x.pci_virt;
@@ -526,7 +526,7 @@ and class_type_declaration i ppf x =
   class_type (i+1) ppf x.pci_expr;
 
 and class_expr i ppf x =
-  line i ppf "class_expr %a\n" fmt_location x.pcl_loc;
+  line i ppf "class_expr %a\n" fmt_location x.pcl_info;
   attributes i ppf x.pcl_attributes;
   let i = i+1 in
   match x.pcl_desc with
@@ -564,7 +564,7 @@ and class_structure i ppf { pcstr_self = p; pcstr_fields = l } =
   list (i+1) class_field ppf l;
 
 and class_field i ppf x =
-  line i ppf "class_field %a\n" fmt_location x.pcf_loc;
+  line i ppf "class_field %a\n" fmt_location x.pcf_info;
   let i = i + 1 in
   attributes i ppf x.pcf_attributes;
   match x.pcf_desc with
@@ -603,7 +603,7 @@ and class_field_kind i ppf = function
       core_type i ppf t
 
 and class_declaration i ppf x =
-  line i ppf "class_declaration %a\n" fmt_location x.pci_loc;
+  line i ppf "class_declaration %a\n" fmt_location x.pci_info;
   attributes i ppf x.pci_attributes;
   let i = i+1 in
   line i ppf "pci_virt = %a\n" fmt_virtual_flag x.pci_virt;
@@ -614,7 +614,7 @@ and class_declaration i ppf x =
   class_expr (i+1) ppf x.pci_expr;
 
 and module_type i ppf x =
-  line i ppf "module_type %a\n" fmt_location x.pmty_loc;
+  line i ppf "module_type %a\n" fmt_location x.pmty_info;
   attributes i ppf x.pmty_attributes;
   let i = i+1 in
   match x.pmty_desc with
@@ -641,7 +641,7 @@ and module_type i ppf x =
 and signature i ppf x = list i signature_item ppf x
 
 and signature_item i ppf x =
-  line i ppf "signature_item %a\n" fmt_location x.psig_loc;
+  line i ppf "signature_item %a\n" fmt_location x.psig_info;
   let i = i+1 in
   match x.psig_desc with
   | Psig_value vd ->
@@ -712,7 +712,7 @@ and with_constraint i ppf x =
         fmt_longident_loc li;
 
 and module_expr i ppf x =
-  line i ppf "module_expr %a\n" fmt_location x.pmod_loc;
+  line i ppf "module_expr %a\n" fmt_location x.pmod_info;
   attributes i ppf x.pmod_attributes;
   let i = i+1 in
   match x.pmod_desc with
@@ -742,7 +742,7 @@ and module_expr i ppf x =
 and structure i ppf x = list i structure_item ppf x
 
 and structure_item i ppf x =
-  line i ppf "structure_item %a\n" fmt_location x.pstr_loc;
+  line i ppf "structure_item %a\n" fmt_location x.pstr_info;
   let i = i+1 in
   match x.pstr_desc with
   | Pstr_eval (e, attrs) ->
@@ -813,8 +813,8 @@ and core_type_x_core_type_x_location i ppf (ct1, ct2, l) =
   core_type (i+1) ppf ct2;
 
 and constructor_decl i ppf
-                     {pcd_name; pcd_args; pcd_res; pcd_loc; pcd_attributes} =
-  line i ppf "%a\n" fmt_location pcd_loc;
+                     {pcd_name; pcd_args; pcd_res; pcd_info; pcd_attributes} =
+  line i ppf "%a\n" fmt_location pcd_info;
   line (i+1) ppf "%a\n" fmt_string_loc pcd_name;
   attributes i ppf pcd_attributes;
   constructor_arguments (i+1) ppf pcd_args;
@@ -824,8 +824,8 @@ and constructor_arguments i ppf = function
   | Pcstr_tuple l -> list i core_type ppf l
   | Pcstr_record l -> list i label_decl ppf l
 
-and label_decl i ppf {pld_name; pld_mutable; pld_type; pld_loc; pld_attributes}=
-  line i ppf "%a\n" fmt_location pld_loc;
+and label_decl i ppf {pld_name; pld_mutable; pld_type; pld_info; pld_attributes}=
+  line i ppf "%a\n" fmt_location pld_info;
   attributes i ppf pld_attributes;
   line (i+1) ppf "%a\n" fmt_mutable_flag pld_mutable;
   line (i+1) ppf "%a" fmt_string_loc pld_name;

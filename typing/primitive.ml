@@ -97,20 +97,20 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
   if old_style_float &&
      not (List.for_all is_ocaml_repr native_repr_args &&
           is_ocaml_repr native_repr_res) then
-    raise (Error (valdecl.pval_loc,
+    raise (Error (valdecl.pval_info,
                   Old_style_float_with_native_repr_attribute));
   if old_style_noalloc && noalloc_attribute then
-    raise (Error (valdecl.pval_loc,
+    raise (Error (valdecl.pval_info,
                   Old_style_noalloc_with_noalloc_attribute));
   (* The compiler used to assume "noalloc" with "float", we just make this
      explicit now (GPR#167): *)
   let old_style_noalloc = old_style_noalloc || old_style_float in
   if old_style_float then
-    Location.prerr_warning valdecl.pval_loc
+    Location.prerr_warning valdecl.pval_info
       (Warnings.Deprecated "[@@unboxed] + [@@noalloc] should be used instead \
                             of \"float\"")
   else if old_style_noalloc then
-    Location.prerr_warning valdecl.pval_loc
+    Location.prerr_warning valdecl.pval_info
       (Warnings.Deprecated "[@@noalloc] should be used instead of \
                             \"noalloc\"");
   let noalloc = old_style_noalloc || noalloc_attribute in

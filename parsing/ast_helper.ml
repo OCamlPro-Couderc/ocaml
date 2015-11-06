@@ -31,7 +31,7 @@ let with_default_loc l f =
 
 module Typ = struct
   let mk ?(loc = !default_loc) ?(attrs = []) d =
-    {ptyp_desc = d; ptyp_loc = loc; ptyp_attributes = attrs}
+    {ptyp_desc = d; ptyp_info = loc; ptyp_attributes = attrs}
   let attr d a = {d with ptyp_attributes = d.ptyp_attributes @ [a]}
 
   let any ?loc ?attrs () = mk ?loc ?attrs Ptyp_any
@@ -50,12 +50,12 @@ module Typ = struct
   let force_poly t =
     match t.ptyp_desc with
     | Ptyp_poly _ -> t
-    | _ -> poly ~loc:t.ptyp_loc [] t (* -> ghost? *)
+    | _ -> poly ~loc:t.ptyp_info [] t (* -> ghost? *)
 end
 
 module Pat = struct
   let mk ?(loc = !default_loc) ?(attrs = []) d =
-    {ppat_desc = d; ppat_loc = loc; ppat_attributes = attrs}
+    {ppat_desc = d; ppat_info = loc; ppat_attributes = attrs}
   let attr d a = {d with ppat_attributes = d.ppat_attributes @ [a]}
 
   let any ?loc ?attrs () = mk ?loc ?attrs Ppat_any
@@ -79,7 +79,7 @@ end
 
 module Exp = struct
   let mk ?(loc = !default_loc) ?(attrs = []) d =
-    {pexp_desc = d; pexp_loc = loc; pexp_attributes = attrs}
+    {pexp_desc = d; pexp_info = loc; pexp_attributes = attrs}
   let attr d a = {d with pexp_attributes = d.pexp_attributes @ [a]}
 
   let ident ?loc ?attrs a = mk ?loc ?attrs (Pexp_ident a)
@@ -128,7 +128,7 @@ end
 
 module Mty = struct
   let mk ?(loc = !default_loc) ?(attrs = []) d =
-    {pmty_desc = d; pmty_loc = loc; pmty_attributes = attrs}
+    {pmty_desc = d; pmty_info = loc; pmty_attributes = attrs}
   let attr d a = {d with pmty_attributes = d.pmty_attributes @ [a]}
 
   let ident ?loc ?attrs a = mk ?loc ?attrs (Pmty_ident a)
@@ -142,7 +142,7 @@ end
 
 module Mod = struct
 let mk ?(loc = !default_loc) ?(attrs = []) d =
-  {pmod_desc = d; pmod_loc = loc; pmod_attributes = attrs}
+  {pmod_desc = d; pmod_info = loc; pmod_attributes = attrs}
   let attr d a = {d with pmod_attributes = d.pmod_attributes @ [a]}
 
   let ident ?loc ?attrs x = mk ?loc ?attrs (Pmod_ident x)
@@ -156,7 +156,7 @@ let mk ?(loc = !default_loc) ?(attrs = []) d =
 end
 
 module Sig = struct
-  let mk ?(loc = !default_loc) d = {psig_desc = d; psig_loc = loc}
+  let mk ?(loc = !default_loc) d = {psig_desc = d; psig_info = loc}
 
   let value ?loc a = mk ?loc (Psig_value a)
   let type_ ?loc rec_flag a = mk ?loc (Psig_type (rec_flag, a))
@@ -178,7 +178,7 @@ module Sig = struct
 end
 
 module Str = struct
-  let mk ?(loc = !default_loc) d = {pstr_desc = d; pstr_loc = loc}
+  let mk ?(loc = !default_loc) d = {pstr_desc = d; pstr_info = loc}
 
   let eval ?loc ?(attrs = []) a = mk ?loc (Pstr_eval (a, attrs))
   let value ?loc a b = mk ?loc (Pstr_value (a, b))
@@ -205,7 +205,7 @@ module Cl = struct
   let mk ?(loc = !default_loc) ?(attrs = []) d =
     {
      pcl_desc = d;
-     pcl_loc = loc;
+     pcl_info = loc;
      pcl_attributes = attrs;
     }
   let attr d a = {d with pcl_attributes = d.pcl_attributes @ [a]}
@@ -223,7 +223,7 @@ module Cty = struct
   let mk ?(loc = !default_loc) ?(attrs = []) d =
     {
      pcty_desc = d;
-     pcty_loc = loc;
+     pcty_info = loc;
      pcty_attributes = attrs;
     }
   let attr d a = {d with pcty_attributes = d.pcty_attributes @ [a]}
@@ -239,7 +239,7 @@ module Ctf = struct
            ?(docs = empty_docs) d =
     {
      pctf_desc = d;
-     pctf_loc = loc;
+     pctf_info = loc;
      pctf_attributes = add_docs_attrs docs attrs;
     }
 
@@ -263,7 +263,7 @@ module Cf = struct
         ?(docs = empty_docs) d =
     {
      pcf_desc = d;
-     pcf_loc = loc;
+     pcf_info = loc;
      pcf_attributes = add_docs_attrs docs attrs;
     }
 
@@ -293,7 +293,7 @@ module Val = struct
      pval_name = name;
      pval_type = typ;
      pval_attributes = add_docs_attrs docs attrs;
-     pval_loc = loc;
+     pval_info = loc;
      pval_prim = prim;
     }
 end
@@ -306,7 +306,7 @@ module Md = struct
      pmd_type = typ;
      pmd_attributes =
        add_text_attrs text (add_docs_attrs docs attrs);
-     pmd_loc = loc;
+     pmd_info = loc;
     }
 end
 
@@ -318,7 +318,7 @@ module Mtd = struct
      pmtd_type = typ;
      pmtd_attributes =
        add_text_attrs text (add_docs_attrs docs attrs);
-     pmtd_loc = loc;
+     pmtd_info = loc;
     }
 end
 
@@ -330,7 +330,7 @@ module Mb = struct
      pmb_expr = expr;
      pmb_attributes =
        add_text_attrs text (add_docs_attrs docs attrs);
-     pmb_loc = loc;
+     pmb_info = loc;
     }
 end
 
@@ -340,7 +340,7 @@ module Opn = struct
     {
      popen_lid = lid;
      popen_override = override;
-     popen_loc = loc;
+     popen_info = loc;
      popen_attributes = add_docs_attrs docs attrs;
     }
 end
@@ -349,7 +349,7 @@ module Incl = struct
   let mk ?(loc = !default_loc) ?(attrs = []) ?(docs = empty_docs) mexpr =
     {
      pincl_mod = mexpr;
-     pincl_loc = loc;
+     pincl_info = loc;
      pincl_attributes = add_docs_attrs docs attrs;
     }
 
@@ -363,7 +363,7 @@ module Vb = struct
      pvb_expr = expr;
      pvb_attributes =
        add_text_attrs text (add_docs_attrs docs attrs);
-     pvb_loc = loc;
+     pvb_info = loc;
     }
 end
 
@@ -378,7 +378,7 @@ module Ci = struct
      pci_expr = expr;
      pci_attributes =
        add_text_attrs text (add_docs_attrs docs attrs);
-     pci_loc = loc;
+     pci_info = loc;
     }
 end
 
@@ -400,7 +400,7 @@ module Type = struct
      ptype_manifest = manifest;
      ptype_attributes =
        add_text_attrs text (add_docs_attrs docs attrs);
-     ptype_loc = loc;
+     ptype_info = loc;
     }
 
   let constructor ?(loc = !default_loc) ?(attrs = []) ?(info = empty_info)
@@ -409,7 +409,7 @@ module Type = struct
      pcd_name = name;
      pcd_args = args;
      pcd_res = res;
-     pcd_loc = loc;
+     pcd_info = loc;
      pcd_attributes = add_info_attrs info attrs;
     }
 
@@ -419,7 +419,7 @@ module Type = struct
      pld_name = name;
      pld_mutable = mut;
      pld_type = typ;
-     pld_loc = loc;
+     pld_info = loc;
      pld_attributes = add_info_attrs info attrs;
     }
 
@@ -442,7 +442,7 @@ module Te = struct
     {
      pext_name = name;
      pext_kind = kind;
-     pext_loc = loc;
+     pext_info = loc;
      pext_attributes = add_docs_attrs docs (add_info_attrs info attrs);
     }
 
@@ -451,7 +451,7 @@ module Te = struct
     {
      pext_name = name;
      pext_kind = Pext_decl(args, res);
-     pext_loc = loc;
+     pext_info = loc;
      pext_attributes = add_docs_attrs docs (add_info_attrs info attrs);
     }
 
@@ -460,7 +460,7 @@ module Te = struct
     {
      pext_name = name;
      pext_kind = Pext_rebind lid;
-     pext_loc = loc;
+     pext_info = loc;
      pext_attributes = add_docs_attrs docs (add_info_attrs info attrs);
     }
 
