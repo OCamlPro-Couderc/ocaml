@@ -1,0 +1,167 @@
+(* comp += [ "-nopervasives" "-nostdlib" "-I" "ocaml/boot" ] *)
+(* link += [ "-nopervasives" "-nostdlib" "-I" "ocaml/boot" ] *)
+
+(*   asmcomp += [ "stdlib.cmxa" ] *)
+(*   asmlink += [ "stdlib.cmsa" ] *)
+
+(*   bytecomp += [ "stdlib.cma" ] *)
+(*   bytelink += [ "stdlib.cma" ] *)
+
+begin library "ocaml-utils"
+    subdir = [ "utils" ]
+    files = [ "misc.ml" "tbl.ml" "config.ml" "clflags.ml" "terminfo.ml"
+                "ccomp.ml" "warnings.ml" "consistbl.ml" ]
+    requires = []
+end
+
+begin library "ocaml-parsing"
+    subdir = [ "parsing" ]
+    files = [ "location.ml" "longident.ml"
+                "asttypes.mli"
+                "parsetree.mli"
+                "docstrings.ml" "ast_helper.ml"
+                "syntaxerr.ml" "parser.mly"
+                "lexer.mll" "parse.ml" "printast.ml"
+                "pprintast.ml"
+                "ast_mapper.ml"
+      ]
+        requires = [ "ocaml-utils" ]
+end
+
+begin library "ocaml-typing"
+    subdir = [ "typing" ]
+    files = [
+        "ident.ml" "path.ml"
+          "primitive.ml" "types.ml"
+          "btype.ml" "outcometree.mli" "oprint.ml"
+          "subst.ml" "predef.ml"
+          "datarepr.ml" "cmi_format.ml" "env.ml"
+          "typedtree.ml" "printtyped.ml" "ctype.ml"
+          "printtyp.ml" "includeclass.ml"
+          "mtype.ml" "envaux.ml" "includecore.ml"
+          "typedtreeIter.ml" "typedtreeMap.ml" "cmt_format.ml"
+          "includemod.ml" "typetexp.ml" "parmatch.ml"
+          "annot.mli" "stypes.ml" "typecore.ml"
+          "typedecl.ml" "typeclass.ml"
+          "typemod.ml"
+      ]
+    requires = [ "ocaml-parsing" "ocaml-utils" ]
+end
+
+begin library "ocaml-common-bytecomp"
+    subdir = [ "bytecomp" ]
+    files = [
+        "lambda.ml" "printlambda.ml"
+          "typeopt.ml" "switch.ml" "matching.ml"
+          "translobj.ml" "translcore.ml"
+          "translclass.ml" "translmod.ml"
+          "simplif.ml" "runtimedef.ml"
+      ]
+    requires = [ "ocaml-typing" "ocaml-parsing" "ocaml-utils" ]
+end
+
+
+begin library "ocaml-common-driver"
+    subdir = [ "driver" ]
+    files = [
+        "pparse.ml" "main_args.ml"
+          "compenv.ml" "compmisc.ml"
+      ]
+        requires = [ "ocaml-common-bytecomp" "ocaml-typing"
+                       "ocaml-parsing"
+                       "ocaml-utils" ]
+end
+
+begin library "ocaml-common"
+    files = [ ]
+    requires =  [
+        "ocaml-common-bytecomp"
+        "ocaml-common-driver"
+          "ocaml-typing"
+          "ocaml-parsing"
+          "ocaml-utils" ]
+end
+
+begin library "ocaml-bytecomp"
+    subdir = [ "bytecomp" ]
+        files = [
+        "meta.ml" "instruct.ml" "bytegen.ml"
+          "printinstr.ml" "opcodes.ml" "cmo_format.mli" "emitcode.ml"
+          "bytesections.ml" "dll.ml" "symtable.ml"
+          "bytelink.ml" "bytelibrarian.ml" "bytepackager.ml"
+          "../driver/errors.ml" "../driver/compile.ml"
+      ]
+        requires = [ "ocaml-common" ]
+end
+
+begin library "ocaml-asmcomp"
+      subdir = [ "asmcomp" ]
+        files = [
+      "arch.ml" "debuginfo.ml"
+  "cmm.ml" "printcmm.ml"
+  "reg.ml" "mach.ml" "proc.ml"
+  "clambda.ml" "printclambda.ml"
+  "cmx_format.mli"
+  "compilenv.ml"
+  "closure.ml" "strmatch.ml" "cmmgen.ml"
+  "printmach.ml" "selectgen.ml" "selection.ml"
+  "comballoc.ml"
+  "CSEgen.ml" "CSE.ml"
+  "liveness.ml"
+  "spill.ml" "split.ml"
+  "interf.ml" "coloring.ml"
+  "reloadgen.ml" "reload.ml"
+  "deadcode.ml"
+  "printlinear.ml" "linearize.ml"
+  "schedgen.ml" "scheduling.ml"
+  "branch_relaxation_intf.ml"
+  "branch_relaxation.ml"
+  "emitaux.ml" "emit.ml" "asmgen.ml"
+  "asmlink.ml" "asmlibrarian.ml" "asmpackager.ml"
+  "../driver/opterrors.ml" "../driver/optcompile.ml" ]
+        requires = [ "ocaml-common" ]
+end
+
+begin library "ocaml-toplevel"
+    has_asm = false
+    subdir = [ "toplevel" ]
+        files = [
+        "genprintval.ml" "toploop.ml"
+          "trace.ml" "topdirs.ml" "topmain.ml" ]
+        requires = [ "ocaml-common" "ocaml-bytecomp" ]
+end
+
+(** TO FIX: opttopdir and genprintval seems incompatible but correctly compile
+    with the original Makefile *)
+(* begin library "ocaml-opttoplevel" *)
+(*     has_byte = false *)
+(*     subdir = [ "toplevel" ] *)
+(*         files = [ *)
+(*         "genprintval.ml" "opttoploop.ml" *)
+(*           "opttopdirs.ml" "opttopmain.ml" ] *)
+(*         requires = [ "ocaml-common" "ocaml-asmcomp" "dynlink" ] *)
+(* end *)
+
+begin program "ocamlc"
+    files = [ "driver/main.ml" ]
+        requires = [ "ocaml-bytecomp" ]
+end
+
+begin program "ocamlopt"
+    files = [ "driver/optmain.ml" ]
+        requires = [ "ocaml-asmcomp" ]
+end
+
+begin program "ocaml"
+    has_asm = false
+    bytelink += [ "-linkall" ]
+    files = [ "toplevel/topstart.ml" ]
+        requires = [ "ocaml-common" "ocaml-bytecomp" "ocaml-toplevel" ]
+end
+
+(* begin program "ocamlnat" *)
+(*     has_byte = false *)
+(*     asmcomp += [ "-linkall" ] *)
+(*     files = [ "toplevel/opttopstart.ml" ] *)
+(*     requires = [ "ocaml-common" "ocaml-bytecomp" "ocaml-opttoplevel" "dynlink" ] *)
+(* end *)
