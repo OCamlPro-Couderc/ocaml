@@ -73,7 +73,10 @@ begin library "ocaml-common-driver"
 end
 
 begin library "ocaml-common"
-    files = [ ]
+    (* TODO: change this part to automatically generate oCaml.ml using
+       ocp-nsgen. Needs Typerex' ocp-build to do it *)
+    files = [ "../typechecker/oCaml.ml"
+                (comp += [ "-no-alias-deps" "-w" "-49" ]) ]
     requires =  [
         "ocaml-common-bytecomp"
         "ocaml-common-driver"
@@ -91,7 +94,7 @@ begin library "ocaml-bytecomp"
           "bytelink.ml" "bytelibrarian.ml" "bytepackager.ml"
           "../driver/errors.ml" "../driver/compile.ml"
       ]
-        requires = [ "ocaml-common" ]
+        requires = [ "ocaml-common" "typecheck-lib" ]
 end
 
 begin library "ocaml-asmcomp"
