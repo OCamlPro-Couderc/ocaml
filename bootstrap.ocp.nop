@@ -1,0 +1,79 @@
+begin library "ocaml-utils-bootstrap"
+    subdir = [ "utils" ]
+    files = utils_files
+    requires = []
+end
+
+begin library "ocaml-parsing-bootstrap"
+    subdir = [ "parsing" ]
+    files = parsing_files
+    requires = [ "ocaml-utils-bootstrap" ]
+end
+
+begin library "ocaml-typing-bootstrap"
+    subdir = [ "typing" ]
+    files = typing_files
+    requires = [ "ocaml-parsing-bootstrap" ]
+end
+
+begin library "ocaml-common-bytecomp-bootstrap"
+    subdir = [ "bytecomp" ]
+    files = common_bytecomp_files
+    requires = [ "ocaml-typing-bootstrap" ]
+end
+
+
+begin library "ocaml-common-driver-bootstrap"
+    subdir = [ "driver" ]
+    files = common_driver_files
+    requires = [ "ocaml-common-bytecomp-bootstrap" ]
+end
+
+begin library "ocaml-common"
+    (* TODO: change this part to automatically generate oCaml.ml using
+       ocp-nsgen. Needs Typerex' ocp-build to do it *)
+    files = [ "../typechecker/oCaml.ml"
+                (comp += [ "-no-alias-deps" "-w" "-49" ]) ]
+    requires =
+      [ "ocaml-common-bytecomp-bootstrap"
+        "ocaml-common-driver-bootstrap" ]
+end
+
+begin library "ocaml-bytecomp-bootstrap"
+    subdir = [ "bytecomp" ]
+    files = bytecomp_files
+    requires = [ "ocaml-common-bootstrap" "typecheck-lib" ]
+end
+
+begin library "ocaml-asmcomp-bootstrap"
+    subdir = [ "asmcomp" ]
+    files = asmcomp_files
+    requires = [ "ocaml-common-bootstrap" ]
+end
+
+begin library "ocaml-toplevel-bootstrap"
+    has_asm = false
+    subdir = [ "toplevel" ]
+    files = toplevel_files
+    requires = [ "ocaml-common-bootstrap" "ocaml-bytecomp-bootstrap" ]
+end
+
+
+begin program "ocamlc-bootstrap"
+    files = [ "driver/main.ml" ]
+    requires = [ "ocaml-bytecomp-bootstrap" ]
+end
+
+begin program "ocamlopt-bootstrap"
+    files = [ "driver/optmain.ml" ]
+    requires = [ "ocaml-asmcomp-bootstrap" ]
+end
+
+begin program "ocaml-bootstrap"
+    has_asm = false
+    bytelink += [ "-linkall" ]
+    files = [ "toplevel/topstart.ml" ]
+    requires = [ "ocaml-common-bootstrap"
+                 "ocaml-bytecomp-bootstrap-bootstrap"
+                 "ocaml-toplevel-bootstrap" ]
+end

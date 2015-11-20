@@ -1,0 +1,48 @@
+comp += [ "-strict-sequence" "-w" "+33..39+48+50" "-warn-error" "A"
+          "-bin-annot" "-safe-string" "-nostdlib" ]
+
+stdlib_files = [
+  "camlinternalFormatBasics.ml" (comp += "-nopervasives")
+  "pervasives.ml" (comp += [ "-nopervasives"])
+  "array.ml" "list.ml" "char.ml" "bytes.ml" "string.ml" "sys.ml"
+  "sort.ml" "marshal.ml" "obj.ml"
+  "int32.ml" "int64.ml" "nativeint.ml"
+  "lexing.ml" "parsing.ml"
+  "set.ml" "map.ml" "stack.ml" "queue.ml"
+  "camlinternalLazy.ml" "lazy.ml" "stream.ml"
+  "buffer.ml" (asmcomp += [ "-inline" "3" ], bytecomp += ["-w" "A"])
+  "camlinternalFormat.ml" (bytecomp += ["-w" "Ae"])
+  "printf.ml" (bytecomp += [ "-nopervasives"])
+  "arg.ml" "printexc.ml" "gc.ml"
+  "digest.ml" "random.ml" "hashtbl.ml"
+  "format.ml" (bytecomp += [ "-nopervasives"])
+  "scanf.ml" (bytecomp += [ "-nopervasives"], asmcomp += ["-inline" "9"])
+  "callback.ml"
+  "camlinternalOO.mli" (comp += [ "-nopervasives"])
+  "camlinternalOO.ml" (comp += [ "-inline" "0" ])
+  "oo.ml" "camlinternalMod.ml"
+  "genlex.ml" "weak.ml"
+  "filename.ml" "complex.ml"
+  "arrayLabels.ml" (comp += "-nolabels" "-no-alias-deps")
+  "listLabels.ml" (comp += "-nolabels" "-no-alias-deps")
+  "bytesLabels.ml" (comp += "-nolabels" "-no-alias-deps")
+  "stringLabels.ml" (comp += "-nolabels" "-no-alias-deps")
+  "moreLabels.ml" (comp += "-nolabels" "-no-alias-deps")
+  "stdLabels.ml" (comp += "-nolabels" "-no-alias-deps")
+]
+
+begin library "stdlib-conf"
+      files = [ ]
+    build_rules = [
+        "sys.ml" (
+          commands = [{ "make" "sys.ml" }])
+      ]
+end
+
+begin library "stdlib2"
+    files = stdlib_files
+end
+
+begin object "std_exit"
+  files = [ "std_exit.ml" ]
+end

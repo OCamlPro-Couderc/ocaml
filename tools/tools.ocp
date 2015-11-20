@@ -1,0 +1,56 @@
+begin library "tools-config"
+    build_rules = [
+        "ocamlmklibconfig.ml" (
+          commands = [{ "make" "ocamlmklibconfig.ml" }])
+        "opnames.ml" (
+          commands = [{ "make" "opnames.ml" }])
+      ]
+end
+
+  begin program "cvt_emit"
+    files = [ "cvt_emit.mll" ]
+end
+
+begin program "ocamldep"
+    bytecomp += [ "-compat-32" ]
+    files = [ "depend.ml" "ocamldep" ]
+    requires = [ "ocaml-common" ]
+end
+
+begin program "ocamlprof"
+    files = [ "profiling.ml" "ocamlprof.ml" ]
+    requires = [ "ocaml-parsing" ]
+end
+
+begin program "ocamlcp"
+    files = [ "ocamlcp.ml" ]
+        requires = [ "ocaml-common" ]
+end
+
+begin program "ocamloptp"
+    files = [ "ocamloptp.ml" ]
+        requires = [ "ocaml-common" ]
+end
+
+begin program "ocamlmklib"
+    files = [ "ocamlmklibconfig.ml" "ocamlmklib.ml" ]
+    requires = [ ]
+end
+
+begin program "dumpobj"
+    files = [ "opnames.ml" "dumpobj.ml" ]
+    requires = [ "ocaml-bytecomp" ]
+
+end
+
+begin program "objinfo"
+    files = [ "objinfo_helper.c" "objinfo.ml" ]
+        requires = [ "ocaml-bytecomp" "ocaml-asmcomp" ]
+end
+
+begin program "read_cmt"
+    files = [ "untypeast.ml"
+              "tast_iter.ml"
+              "cmt2annot.ml" "read_cmt.ml" ]
+    requires = [ "ocaml-common" ]
+end

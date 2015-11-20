@@ -1,0 +1,81 @@
+utils_files =
+  [ "misc.ml" "tbl.ml" "config.ml"
+    "clflags.ml" "terminfo.ml"
+    "ccomp.ml" "warnings.ml" "consistbl.ml" ]
+
+parsing_files =
+  [ "location.ml" "longident.ml"
+     "asttypes.mli"
+     "parsetree.mli"
+     "docstrings.ml" "ast_helper.ml"
+     "syntaxerr.ml" "parser.mly"
+     "lexer.mll" "parse.ml" "printast.ml"
+     "pprintast.ml"
+     "ast_mapper.ml"
+  ]
+
+typing_files =
+  [ "ident.ml" "path.ml"
+    "primitive.ml" "types.ml"
+    "btype.ml" "outcometree.mli" "oprint.ml"
+    "subst.ml" "predef.ml"
+    "datarepr.ml" "cmi_format.ml" "env.ml"
+    "typedtree.ml" "printtyped.ml" "ctype.ml"
+    "printtyp.ml" "includeclass.ml"
+    "mtype.ml" "envaux.ml" "includecore.ml"
+    "typedtreeIter.ml" "typedtreeMap.ml" "cmt_format.ml"
+    "includemod.ml" "typetexp.ml" "parmatch.ml"
+    "annot.mli" "stypes.ml" "typecore.ml"
+    "typedecl.ml" "typeclass.ml"
+    "typemod.ml"
+  ]
+
+common_bytecomp_files =
+  [ "lambda.ml" "printlambda.ml"
+    "typeopt.ml" "switch.ml" "matching.ml"
+    "translobj.ml" "translcore.ml"
+    "translclass.ml" "translmod.ml"
+    "simplif.ml" "runtimedef.ml"
+  ]
+
+common_driver_files =
+  [ "pparse.ml" "main_args.ml"
+    "compenv.ml" "compmisc.ml"
+  ]
+
+bytecomp_files =
+  [ "meta.ml" "instruct.ml" "bytegen.ml"
+    "printinstr.ml" "opcodes.ml" "cmo_format.mli" "emitcode.ml"
+    "bytesections.ml" "dll.ml" "symtable.ml"
+    "bytelink.ml" "bytelibrarian.ml" "bytepackager.ml"
+    "../driver/errors.ml" "../driver/compile.ml"
+  ]
+
+asmcomp_files =
+  [ "arch.ml" "debuginfo.ml"
+    "cmm.ml" "printcmm.ml"
+    "reg.ml" "mach.ml" "proc.ml"
+    "clambda.ml" "printclambda.ml"
+    "cmx_format.mli"
+    "compilenv.ml"
+    "closure.ml" "strmatch.ml" "cmmgen.ml"
+    "printmach.ml" "selectgen.ml" "selection.ml"
+    "comballoc.ml"
+    "CSEgen.ml" "CSE.ml"
+    "liveness.ml"
+    "spill.ml" "split.ml"
+    "interf.ml" "coloring.ml"
+    "reloadgen.ml" "reload.ml"
+    "deadcode.ml"
+    "printlinear.ml" "linearize.ml"
+    "schedgen.ml" "scheduling.ml"
+    "branch_relaxation_intf.ml"
+    "branch_relaxation.ml"
+    "emitaux.ml" "emit.ml" "asmgen.ml"
+    "asmlink.ml" "asmlibrarian.ml" "asmpackager.ml"
+    "../driver/opterrors.ml" "../driver/optcompile.ml"
+  ]
+
+toplevel_files =
+  [ "genprintval.ml" "toploop.ml"
+    "trace.ml" "topdirs.ml" "topmain.ml" ]
