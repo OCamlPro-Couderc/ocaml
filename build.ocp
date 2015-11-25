@@ -2,6 +2,10 @@
 comp += [ "-strict-sequence" "-w" "+33..39+48+50" "-warn-error" "A"
           "-bin-annot" "-safe-string" ]
 
+byterun_files =
+  [
+  ]
+
 utils_files =
   [ "misc.ml" "tbl.ml" "config.ml"
     "clflags.ml" "terminfo.ml"
@@ -84,6 +88,12 @@ toplevel_files =
   [ "genprintval.ml" "toploop.ml"
     "trace.ml" "topdirs.ml" "topmain.ml" ]
 
+
+
+begin library "byterun"
+
+end
+
 begin library "ocaml-conf"
     files = [ ]
     build_rules = [
@@ -91,6 +101,7 @@ begin library "ocaml-conf"
           source = [ "utils/config.mlp" ]
           commands = [{ "make" "utils/config.ml" }])
       ]
+    requires = [ "stdlib" "byterun" ]
 end
 
 begin library "ocaml-utils"
@@ -138,7 +149,7 @@ end
 
 begin library "ocaml-common"
     (* TODO: change this part to automatically generate oCaml.ml using
-       ocp-nsgen. Needs Typerex' ocp-build to do it *)
+       ocp-nsgen. *)
     files = [ "../typechecker/oCaml.ml"
                 (comp += [ "-no-alias-deps" "-w" "-49" ]) ]
     requires =

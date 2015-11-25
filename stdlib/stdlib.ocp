@@ -1,9 +1,9 @@
-comp += [ "-strict-sequence" "-w" "+33..39+48+50" "-warn-error" "A"
+comp += [ "-strict-sequence" "-w" "-27-32+33..39-50" "-g" "-warn-error" "A"
           "-bin-annot" "-safe-string" "-nostdlib" ]
 
 stdlib_files = [
-  "camlinternalFormatBasics.ml" (comp += "-nopervasives")
-  "pervasives.ml" (comp += [ "-nopervasives"])
+  "camlinternalFormatBasics.ml" (comp += ["-nopervasives"], nopervasives=true)
+  "pervasives.ml" (comp += [ "-nopervasives"], nopervasives=true)
   "array.ml" "list.ml" "char.ml" "bytes.ml" "string.ml" "sys.ml"
   "sort.ml" "marshal.ml" "obj.ml"
   "int32.ml" "int64.ml" "nativeint.ml"
@@ -12,14 +12,14 @@ stdlib_files = [
   "camlinternalLazy.ml" "lazy.ml" "stream.ml"
   "buffer.ml" (asmcomp += [ "-inline" "3" ], bytecomp += ["-w" "A"])
   "camlinternalFormat.ml" (bytecomp += ["-w" "Ae"])
-  "printf.ml" (bytecomp += [ "-nopervasives"])
+  "printf.ml" (bytecomp += [ "-w" "Ae"])
   "arg.ml" "printexc.ml" "gc.ml"
   "digest.ml" "random.ml" "hashtbl.ml"
-  "format.ml" (bytecomp += [ "-nopervasives"])
-  "scanf.ml" (bytecomp += [ "-nopervasives"], asmcomp += ["-inline" "9"])
+  "format.ml" (bytecomp += [ "-w" "Ae"])
+  "scanf.ml" (bytecomp += [ "-w" "Ae"], asmcomp += ["-inline" "9"])
   "callback.ml"
-  "camlinternalOO.mli" (comp += [ "-nopervasives"])
-  "camlinternalOO.ml" (comp += [ "-inline" "0" ])
+  "camlinternalOO.mli" (comp += [ "-nopervasives"], nopervasives=true)
+  "camlinternalOO.ml" (asmcomp += [ "-inline" "0" ])
   "oo.ml" "camlinternalMod.ml"
   "genlex.ml" "weak.ml"
   "filename.ml" "complex.ml"
@@ -39,7 +39,7 @@ begin library "stdlib-conf"
       ]
 end
 
-begin library "stdlib2"
+begin library "stdlib"
     files = stdlib_files
 end
 
