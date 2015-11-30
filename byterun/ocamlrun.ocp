@@ -1,0 +1,222 @@
+
+begin rules "ocamlrun"
+  requires = [ "ocaml-config" ]
+
+  build_targets = [ "ocamlrun" ]
+  if debug then { build_targets += [ "ocamlrund" ] }
+
+  prims = [
+  "alloc.c" "array.c" "compare.c" "extern.c" "floats.c" "gc_ctrl.c" "hash.c"
+  "intern.c" "interp.c" "ints.c" "io.c" "lexing.c" "md5.c" "meta.c" "obj.c" "parsing.c"
+  "signals.c" "str.c" "sys.c" "terminfo.c" "callback.c" "weak.c" "finalise.c" "stacks.c"
+  "dynlink.c" "backtrace.c"
+
+  ]
+
+  include_files = [
+  "alloc.h" "config.h" "finalise.h" "hash.h" "interp.h" "memory.h" "printexc.h"
+  "startup.h" "backtrace.h" "custom.h" "fix_code.h" "instrtrace.h" "intext.h"
+  "minor_gc.h" "reverse.h" "sys.h" "callback.h" "debugger.h" "freelist.h"
+  "instruct.h" "io.h" "misc.h" "roots.h" "ui.h" "compact.h" "dynlink.h"
+  "gc_ctrl.h" "int64_emul.h" "mlvalues.h" "signals.h" "caml/version.h"
+  "compare.h" "exec.h" "gc.h" "int64_format.h" "major_gc.h" "osdeps.h"
+  "signals_machdep.h" "weak.h" "compatibility.h" "fail.h" "globroots.h"
+  "int64_native.h" "md5.h" "prims.h" "stacks.h"
+  ]
+
+  lib_cfiles = [
+  "interp.c" "misc.c" "stacks.c" "fix_code.c" "startup.c"
+  "freelist.c" "major_gc.c" "minor_gc.c" "memory.c" "alloc.c"
+  "roots.c" "globroots.c"
+  "fail.c" "signals.c" "signals_byt.c" "printexc.c" "backtrace.c"
+  "compare.c" "ints.c" "floats.c" "str.c" "array.c" "io.c" "extern.c"
+  "intern.c" "hash.c" "sys.c" "meta.c" "parsing.c" "gc_ctrl.c" "terminfo.c"
+  "md5.c" "obj.c"
+  "lexing.c" "callback.c" "debugger.c" "weak.c" "compact.c"
+  "finalise.c" "custom.c" "dynlink.c"
+
+  "unix.c" (* TODO: UNIX_OR_WIN32 *) "main.c"
+  ]
+
+  exe_cfiles = [ "prims.c" ]
+
+      (* This list all the files that we might need. All files that might
+         appear during the build process as sources, should be put here *)
+  source_files = [
+    exe_cfiles
+    lib_cfiles
+    include_files
+  ]
+
+  cfiles = [ exe_cfiles lib_cfiles ]
+
+  build_rules = []
+
+      (*If we don't have "makedep", then assumes .depend is present as a source. Otherwise,
+         build a rule to generate .depend from sources. *)
+  if has_gcc then {
+
+    build_rules += [
+      ".depend" (
+        commands = [ { "gcc" "-MM" cfiles } ( stdout = ".depend" ) ]
+        sources = cfiles
+      )
+    ]
+
+  } else {
+    source_files += ".depend"
+  }
+
+(* objs is built by filtering files with .c and replacing by .o *)
+
+  lib_objs = %subst_ext ( files = lib_cfiles
+                      from_ext = ".c"
+                      to_file = "%{basename}%.o"
+                     )
+
+  lib_dobjs = %subst_ext ( files = lib_cfiles
+                       from_ext = ".c"
+                       to_file = "%{basename}%.d.o"
+      )
+
+  objs = %subst_ext ( files = cfiles
+                      from_ext = ".c"
+                      to_file = "%{basename}%.o"
+                     )
+
+  dobjs = %subst_ext ( files = cfiles
+                       from_ext = ".c"
+                       to_file = "%{basename}%.d.o"
+                     )
+
+  cflags = [  "-DCAML_NAME_SPACE" "-fno-defer-pop" "-Wall" "-D_FILE_OFFSET_BITS=64" "-D_REENTRANT" ]
+
+  build_rules += [
+
+    "caml/jumptbl.h" (
+      commands = [
+        { "sed" "-n" "-e" "/^  /s/ \([A-Z]\)/ \&\&lbl_\1/gp"
+	       "-e" "/^}/q" "caml/instruct.h" } (stdout = "caml/jumptbl.h")
+      ]
+      sources = [ "caml/instruct.h" ]
+    )
+
+    objs (
+(*      subst = [ "basename" ]
+      targets = [ "%{basename}%.o" ] *)
+      commands = [ { "gcc" cflags "-O" "-c" "%{basename}%.c" } ]
+      sources = [ "%{basename}%.c" "ocamlrun-depends" ]
+    )
+
+    "ocamlrun-depends" (
+      commands = [ "%%loaddeps" ]
+      sources = [ ".depend" ]
+    )
+
+
+   "libcamlrun.a" (
+      commands = [
+        { "rm" "-f" "libcamlrun.a" }
+        { "ar" "rc" "libcamlrun.a" lib_objs }
+        { "ranlib" "libcamlrun.a" }
+      ]
+      sources =  [ lib_objs  "caml/jumptbl.h" "caml/version.h" ]
+      build_target = true
+     )
+
+   "libcamlrund.a" (
+      commands = [
+        { "rm" "-f" "libcamlrund.a" }
+        { "ar" "rc" "libcamlrund.a" lib_dobjs }
+        { "ranlib" "libcamlrund.a" }
+      ]
+      sources =  [ lib_dobjs  "caml/jumptbl.h" "caml/version.h" ]
+      build_target = true
+     )
+
+    "ocamlrun" (
+       targets = [ "ocamlrun" ]
+       commands = [
+         { "gcc" "-Wl,-E"  "-o" "ocamlrun" "prims.o" "libcamlrun.a" "-lm"  "-ldl" "-lcurses" "-lpthread" }
+       ]
+       sources = [ "libcamlrun.a" "prims.o"  "caml/jumptbl.h" "caml/version.h" ]
+       build_target = true
+    )
+
+    "primitives" (
+      targets = [ "primitives" ]
+      commands = [
+       { "sed" "-n" "-e" "s/CAMLprim value \([a-z0-9_][a-z0-9_]*\).*/\1/p"
+	    prims } ( stdout = "primitives" )
+      ]
+      sources = [ prims ]
+    )
+
+    "caml/version.h" (
+      commands = [
+        "%%subst" (
+          from_file = "caml/version.h.in";
+          target = "caml/version.h";
+          substitutions = [
+            "%%VERSION_MAJOR%%" ( with_string = VERSION_MAJOR )
+            "%%VERSION_MINOR%%" ( with_string = VERSION_MINOR )
+            "%%VERSION_PATCH%%" ( with_string = VERSION_PATCH )
+            "%%VERSION_ADDITIONAL%%" ( with_string = VERSION_ADDITIONAL )
+            "%%VERSION_FULL%%"
+              ( with_string = [ VERSION_MAJOR VERSION_MINOR VERSION_PATCH ] )
+            "%%VERSION_MAJOR%%"
+            ( with_string =
+              [ VERSION_MAJOR "." VERSION_MINOR "." VERSION_PATCH
+                  "+" VERSION_ADDITIONAL ] )
+          ]
+        )
+      ]
+    )
+
+    "prims.c" (
+        targets = "prims.c"
+        commands = [
+          { "bash" "-c"
+              "(echo '#include \"mlvalues.h\"'; \
+	       echo '#include \"prims.h\"'; \
+	       sed -e 's/.*/extern value &();/' primitives; \
+	       echo 'c_primitive caml_builtin_cprim[] = {'; \
+	       sed -e 's/.*/	&,/' primitives; \
+	       echo '	 0 };'; \
+	       echo 'char * caml_names_of_builtin_cprim[] = {'; \
+	       sed -e 's/.*/	\"&\",/' primitives; \
+	       echo '	 0 };') > prims.c" }
+        ]
+      sources = [ "primitives" ]
+    )
+
+    dobjs (
+      subst = [ "basename" ]
+      targets = [ "%{basename}%.d.o" ]
+      commands = [
+        { "echo" "#include \"%{basename}%.c\"" }  ( stdout = "%{basename}%.d.c" )
+        { "gcc" cflags "-g" "-DDEBUG" "-c" "-o" "%{basename}%.d.o" "%{basename}%.d.c" }
+        { "rm" "-f" "%{basename}%.d.c" }
+      ]
+      sources = [ "%{basename}%.c" ]
+    )
+
+    "ocamlrund" (
+       targets = [ "ocamlrund" ]
+       commands = [
+         { "gcc" "-Wl,-E"  "-o" "ocamlrund" "libcamlrund.a" "prims.d.o" "-lm"  "-ldl" "-lcurses" "-lpthread" }
+       ]
+       sources = [ "prims.d.o" "libcamlrund.a" ]
+    )
+  ]
+
+  install_targets = [ "ocamlrun" ]
+  install_rules = [
+      "ocamlrun" ( commands = [ { "cp" "ocamlrun" "%{PREFIX}%/bin/ocamlrun" } ] )
+    ]
+
+end
+
+begin library "test-ocamlrun"
+  requires = [ "ocamlrun" ]
+end

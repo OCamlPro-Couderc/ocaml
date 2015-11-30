@@ -1,0 +1,4 @@
+
+begin rules "ocaml-config"
+  source_files = [ "m.h" "s.h" ]
+end

@@ -1,1 +1,391 @@
-comp += [ "-strict-sequence" "-w" "+27+32..39" "-warn-error" "A" "-safe-string" ]
+comp += [
+  "-strict-sequence" "-w" "+27+32..39" "-warn-error" "A" "-safe-string"
+      ]
+
+(* configs = %detect_ocaml *)
+(* if %mem_assoc ( elem = "4.02.3" list = configs) then { *)
+(*    use %get_assoc( elem = "4.02.3" list = configs ) *)
+(* } *)
+
+ocamlc = [ "bad-ocamlc" ]
+ocamlcc = [ "bad-ocamlcc" ]
+ocamlyacc = [ "bad-ocamlyacc" ]
+ocamldep = [ "bad-ocamldep" ]
+ocamllex = [ "bad-ocamllex" ]
+ocamlyacc = [ "bad-ocamlyacc" ]
+ocamlmklib = [ "bad-ocamlmklib" ]
+binannot = false
+
+
+requires = []
+
+begin config "boot-ocamlc"
+     has_byte = true
+     has_asm = false
+     ocamlc = [ "./byterun/ocamlrun" "boot/ocamlc" ]
+     ocamlcc = [ "./byterun/ocamlrun" "boot/ocamlc" ]
+     ocamldep = [ "./byterun/ocamlrun" "boot/ocamldep" ]
+     ocamllex = [ "./byterun/ocamlrun" "boot/ocamllex" ]
+     ocamlyacc = [ "./yacc/ocamlyacc" ]
+     ocamlyacc_deps = [ "%{ocamlyacc_FULL_SRC_DIR}%/ocamlyacc" ]
+     ocamlc_deps = [ "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun" ]
+     ocamllex_deps = [ "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun" ]
+     ocamldep_deps = [
+       "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun"
+     ]
+     requires += [ "ocamlrun"]
+     comp += [ "-nostdlib" ]
+end
+
+begin config "new-ocaml-without-stdlib"
+     ocamlrun = %srcdir ( p = "ocamlrun" file = "ocamlrun" )
+     ocamlc = [ ocamlrun "%{ocamlc-boot_FULL_DST_DIR}%/ocamlc-boot.byte" ]
+     ocamlcc = [ ocamlrun "%{ocamlc-boot_FULL_DST_DIR}%/ocamlc-boot.byte" ]
+     ocamlopt = [ ocamlrun "%{ocamlopt-boot_FULL_DST_DIR}%/ocamlopt-boot.byte" ]
+     ocamldep = [ ocamlrun "boot/ocamldep"]
+     ocamllex = [ ocamlrun "boot/ocamllex" ]
+     ocamlmklib = [ ocamlrun "%{ocamlmklib_FULL_DST_DIR}%/ocamlmklib.byte" ]
+     ocamlmklib_deps = [ ocamlrun "%{ocamlmklib_FULL_DST_DIR}%/ocamlmklib.byte" ]
+     comp += [ "-nostdlib" ]
+
+     ocamlyacc = [ "./yacc/ocamlyacc" ]
+     ocamlyacc_deps = [ "%{ocamlyacc_FULL_SRC_DIR}%/ocamlyacc" ]
+
+     ocamlc_deps = ocamlc
+     ocamlcc_deps = ocamlcc
+     ocamlopt_deps = ocamlopt
+     ocamldep_deps = [
+       "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun"
+     ]
+     ocamllex_deps = [
+       "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun"
+     ]
+     ocamlyacc_deps = [
+       "%{ocamlyacc_FULL_SRC_DIR}%/ocamlyacc"
+     ]
+     requires += [ "ocamlrun"
+                     "ocamlc-boot" (link = false)
+                     "ocamlopt-boot" (link = false)
+                     "ocamlyacc"
+                 ]
+end
+
+begin config "new-ocaml"
+    use "new-ocaml-without-stdlib"
+    binannot = true
+    link = [ "-I" "%{std_exit_FULL_DST_DIR}%"  "-nostdlib"]
+(* TODO: we should issue a warning when doing asmlink = ... that overrides a link *)
+    asmlink += [ "-cclib" "-lasmrun" "-I" "%{asmrun_FULL_SRC_DIR}%" ]
+    requires += [ "stdlib" ]
+end
+
+begin config "link-with-new-ocaml"
+  bytelink += [ "-I" "%{ocamlrun_FULL_SRC_DIR}%" "-cclib" %string(strings = BYTECCLIBS sep = " ") ]
+  asmlink += [ "-I" "%{asmrun_FULL_SRC_DIR}%"  "-cclib" %string(strings = NATIVECCLIBS sep = " ") ]
+  link += [ "-I" "%{std_exit_DST_DIR}%" "-nostdlib" "-nopervasives" ]
+  requires += [ "std_exit" (tolink = false) ]
+(*  asmlink += [ "-cclib" "-lasmrun" ] *)
+end
+
+
+  VERSION_MAJOR = "4"
+  VERSION_MINOR = "2"
+  VERSION_PATCH = "3"
+  VERSION_ADDITIONAL = "using-ocp"
+PREFIX="/home/pcouderc/thesis/dev/ocaml/ocpbuild-installed"
+
+
+begin rules "ocaml-configure"
+  remove_sources = "config/config.ocpi"
+
+  build_rules = [
+    "config/config.ocpi" (
+      sources = "config/Makefile"
+      commands = [
+        "%%config_make2ocp" ( src = "config/Makefile" dst = "config/config.ocpi" )
+      ]
+    )
+
+    "config/Makefile" (
+      sources = "configure"
+      commands = [  (* TODO: here, it should not be PREFIX, but a variable from ocp-build configuration
+                       ocp-build configure -option ocaml.prefix ~/.opam
+                       %option( v = "ocaml.prefix" )
+                     *)
+        { "./configure" "-prefix" %string( strings = PREFIX ) }
+      ]
+    )
+  ]
+end
+
+if include "config/config.ocpi" then {} else {
+BINDIR= %path ( path = [ PREFIX "bin" ] )
+LIBDIR= %path ( path = [ PREFIX "lib" "ocaml" ])
+STUBLIBDIR= %path ( path = [ LIBDIR "stublibs" ])
+MANDIR= %path ( path = [ PREFIX "man" ])
+MANEXT="1"
+RANLIB="ranlib"
+RANLIBCMD="ranlib"
+ARCMD="ar"
+SHARPBANGSCRIPTS="true"
+BNG_ARCH="amd64"
+BNG_ASM_LEVEL="1"
+PTHREAD_LINK=[ "-cclib" "-lpthread" ]
+X11_INCLUDES=[]
+X11_LINK="-lX11"
+LIBBFD_LINK=[]
+BYTECC="gcc"
+BYTECCCOMPOPTS= [ "-fno-defer-pop" "-Wall" "-D_FILE_OFFSET_BITS=64" "-D_REENTRANT" ]
+BYTECCLINKOPTS= "-Wl,-E"
+BYTECCLIBS= [ "-lm"  "-ldl" "-lcurses" "-lpthread" ]
+BYTECCRPATH="-Wl,-rpath,"
+EXE=[]
+SUPPORTS_SHARED_LIBRARIES="true"
+SHAREDCCCOMPOPTS="-fPIC"
+MKSHAREDLIBRPATH="-Wl,-rpath,"
+NATDYNLINKOPTS="-Wl,-E"
+SYSLIB="-l$(1)"
+MKSHAREDLIB=[]
+
+MKLIB="ar rc $(1) $(2); ranlib $(1)"
+ARCH="amd64"
+MODEL="default"
+SYSTEM="linux"
+NATIVECC="gcc"
+NATIVECCCOMPOPTS=[ "-Wall" "-D_FILE_OFFSET_BITS=64" "-D_REENTRANT" ]
+NATIVECCPROFOPTS=[ "-Wall" "-D_FILE_OFFSET_BITS=64" "-D_REENTRANT" ]
+NATIVECCLINKOPTS=[]
+NATIVECCRPATH="-Wl,-rpath,"
+NATIVECCLIBS= [ "-lm"  "-ldl" ]
+ASM="as"
+ASPP=[ "gcc" "-c" ]
+ASPPPROFFLAGS="-DPROFILING"
+PROFILING="prof"
+DYNLINKOPTS= "-ldl"
+OTHERLIBRARIES=[ "unix" "str" "num" "dynlink" "bigarray"
+  "systhreads" "threads" "graph" "labltk" ]
+WITH_DEBUGGER="ocamldebugger"
+CC_PROFILE="-pg"
+SYSTHREAD_SUPPORT="true"
+PARTIALLD=[ "ld" "-r" ]
+PACKLD=[ PARTIALLD NATIVECCLINKOPTS "-o " ]
+DLLCCCOMPOPTS=[]
+IFLEXDIR=[]
+O="o"
+A="a"
+SO="so"
+EXT_OBJ=".o"
+EXT_ASM=".s"
+EXT_LIB=".a"
+EXT_DLL=".so"
+EXTRALIBS=[]
+CCOMPTYPE="cc"
+TOOLCHAIN="cc"
+NATDYNLINK="true"
+CMXS="cmxs"
+MKEXE= [ BYTECC ]
+MKEXEDEBUGFLAG="-g"
+MKDLL=[ "gcc" "-shared" ]
+MKMAINDLL=[ "gcc" "-shared" ]
+RUNTIMED="noruntimed"
+ASM_CFI_SUPPORTED="true"
+}
+
+
+PTHREAD_LINK= %split_simplify (s  = PTHREAD_LINK )
+X11_INCLUDES= %split_simplify ( s = X11_INCLUDES )
+X11_LINK= %split_simplify ( s = X11_LINK )
+LIBBFD_LINK= %split_simplify ( s = LIBBFD_LINK )
+
+BYTECCCOMPOPTS= %split_simplify ( s = BYTECCCOMPOPTS )
+BYTECCLINKOPTS= %split_simplify ( s = BYTECCLINKOPTS )
+BYTECCLIBS= %split_simplify ( s = BYTECCLIBS )
+
+EXE= %split_simplify ( s = EXE )
+
+ (* MKSHAREDLIB=[]  needed ? *)
+
+NATIVECCCOMPOPTS= %split_simplify ( s = NATIVECCCOMPOPTS )
+NATIVECCPROFOPTS= %split_simplify ( s = NATIVECCPROFOPTS )
+NATIVECCLINKOPTS= %split_simplify ( s = NATIVECCLINKOPTS )
+
+NATIVECCLIBS= %split_simplify ( s = NATIVECCLIBS )
+
+ASPP= %split_simplify ( s = ASPP )
+ASPPPROFFLAGS= %split_simplify ( s= ASPPPROFFLAGS )
+
+DYNLINKOPTS= %split_simplify ( s = DYNLINKOPTS )
+OTHERLIBRARIES= %split_simplify ( s = OTHERLIBRARIES )
+
+PARTIALLD= %split_simplify ( s = PARTIALLD )
+
+DLLCCCOMPOPTS= %split_simplify ( s = DLLCCCOMPOPTS )
+IFLEXDIR= %split_simplify ( s = IFLEXDIR )
+
+EXTRALIBS = %split_simplify ( s = EXTRALIBS )
+
+MKDLL= %split_simplify ( s = MKDLL )
+MKMAINDLL= %split_simplify ( s = MKMAINDLL )
+RUNTIMED= %split_simplify ( s = RUNTIMED )
+
+
+(*
+
+*)
+
+begin config "ocaml-config-substitutions"
+          substitutions = [
+            "%%PREFIX%%" ( with_string = PREFIX );
+            "%%LIBDIR%%" ( with_string = LIBDIR );
+            "%%BYTERUN%%" (
+              with_string = %path ( path = [
+                    BINDIR "ocamlrun" ] ) )
+            "%%CCOMPTYPE%%" ( with_string = [ "cc" ] )
+            "%%BYTECC%%" ( with_string = [ BYTECC BYTECCCOMPOPTS SHAREDCCCOMPOPTS ] )
+            "%%NATIVECC%%" ( with_string = [ NATIVECC NATIVECCCOMPOPTS ] )
+            "%%PACKLD%%" ( with_string = [ PACKLD ] )
+            "%%BYTECCLIBS%%" ( with_string = [ BYTECCLIBS ] )
+            "%%NATIVECCLIBS%%" ( with_string = [ NATIVECCLIBS ] )
+            "%%RANLIBCMD%%" ( with_string = [ RANLIBCMD ] )
+            "%%ARCMD%%" ( with_string = [ ARCMD ] )
+            "%%CC_PROFILE%%" ( with_string = [ CC_PROFILE ] )
+            "%%ARCH%%" ( with_string = [ ARCH ] )
+            "%%MODEL%%" ( with_string = [ MODEL ])
+            "%%SYSTEM%%" ( with_string = [ SYSTEM ] )
+            "%%EXT_OBJ%%" ( with_string = [ ".o" ] )
+            "%%EXT_ASM%%" ( with_string = [ ".s" ] )
+            "%%EXT_LIB%%" ( with_string = [ ".a" ] )
+            "%%EXT_DLL%%" ( with_string = [ ".so" ] )
+            "%%SYSTHREAD_SUPPORT%%" ( with_string = [ SYSTHREAD_SUPPORT ] )
+            "%%ASM%%" ( with_string = [ ASM ] )
+            "%%ASM_CFI_SUPPORTED%%" ( with_string = [ ASM_CFI_SUPPORTED ] )
+            "%%MKDLL%%" ( with_string = [ MKDLL ] )
+            "%%MKEXE%%" ( with_string = [ MKEXE ] )
+            "%%EXE%%" ( with_string = [ EXE ] )
+            "%%MKMAINDLL%%" ( with_string = [ MKMAINDLL ] )
+            "%%BINDIR%%" ( with_string =  BINDIR );
+	    "%%SUPPORTS_SHARED_LIBRARIES%%" ( with_string = SUPPORTS_SHARED_LIBRARIES );
+            "%%BYTECCRPATH%%" ( with_string = BYTECCRPATH );
+	    "%%NATIVECCRPATH%%" ( with_string = NATIVECCRPATH );
+	    "%%MKSHAREDLIBRPATH%%" ( with_string = MKSHAREDLIBRPATH );
+	    "%%RANLIB%%" ( with_string = RANLIB )
+	    "%%MANDIR%%" ( with_string = MANDIR )
+	    "%%MANEXT%%" ( with_string = MANEXT )
+	    "%%STUBLIBDIR%%" ( with_string = STUBLIBDIR )
+	    "%%SHARPBANGSCRIPTS%%" ( with_string = SHARPBANGSCRIPTS )
+	    "%%BNG_ARCH%%" ( with_string = BNG_ARCH )
+	    "%%BNG_ASM_LEVEL%%" ( with_string = BNG_ASM_LEVEL )
+	    "%%PTHREAD_LINK%%" ( with_string = PTHREAD_LINK )
+	    "%%X11_INCLUDES%%" ( with_string = X11_INCLUDES )
+	    "%%X11_LINK%%" ( with_string = X11_LINK )
+	    "%%LIBBFD_LINK%%" ( with_string = LIBBFD_LINK )
+            "%%BYTECCCOMPOPTS%%" ( with_string = [ BYTECCCOMPOPTS ] )
+            "%%BYTECCLINKOPTS%%" ( with_string = [ BYTECCLINKOPTS ] )
+            "%%SHAREDCCCOMPOPTS%%" ( with_string = [ SHAREDCCCOMPOPTS ] )
+            "%%NATDYNLINKOPTS%%" ( with_string = [ NATDYNLINKOPTS ] )
+            "%%SYSLIB%%" ( with_string = [ SYSLIB ] )   (* SYSLIB=-l"^1^" *)
+
+            "%%NATIVECCCOMPOPTS%%" ( with_string = [ NATIVECCCOMPOPTS ] )
+            "%%NATIVECCPROFOPTS%%" ( with_string = [ NATIVECCPROFOPTS ] )
+            "%%NATIVECCLINKOPTS%%" ( with_string = [ NATIVECCLINKOPTS ] )
+            "%%NATIVECCRPATH%%" ( with_string = [ NATIVECCRPATH ] )
+            "%%ASPP%%" ( with_string = [ ASPP ] )
+            "%%NATIVECCLIBS%%" ( with_string = [ NATIVECCLIBS ] )
+            "%%DYNLINKOPTS%%" ( with_string = [ DYNLINKOPTS ] )
+            "%%PROFILING%%" ( with_string = [ PROFILING ] )
+            "%%ASPPPROFFLAGS%%" ( with_string = [ ASPPPROFFLAGS ] )
+            "%%OTHERLIBRARIES%%" ( with_string = [ OTHERLIBRARIES ] )
+            "%%WITH_DEBUGGER%%" ( with_string = [ WITH_DEBUGGER ] )
+            "%%CC_PROFILE%%" ( with_string = [ CC_PROFILE ] )
+            "%%SYSTHREAD_SUPPORT%%" ( with_string = [ SYSTHREAD_SUPPORT ] )
+            "%%PARTIALLD%%" ( with_string = [ PARTIALLD ] )
+            "%%PACKLD%%" ( with_string = [ PACKLD ])
+            "%%DLLCCCOMPOPTS%%" ( with_string = [ DLLCCCOMPOPTS ] )
+            "%%O%%" ( with_string = [ EXT_OBJ ] )
+            "%%A%%" ( with_string = [ EXT_LIB ] )
+            "%%SO%%" ( with_string = [ EXT_DLL ] )
+            "%%EXT_OBJ%%" ( with_string = [ EXT_OBJ ] )
+            "%%EXT_ASM%%" ( with_string = [ EXT_ASM ] )
+            "%%EXT_LIB%%" ( with_string = [ EXT_LIB ] )
+            "%%EXT_DLL%%" ( with_string = [ EXT_DLL ] )
+            "%%EXTRALIBS%%" ( with_string = [ EXTRALIBS ] )
+            "%%CCOMPTYPE%%" ( with_string = [ CCOMPTYPE ] )
+            "%%TOOLCHAIN%%" ( with_string = [ TOOLCHAIN ] )
+            "%%NATDYNLINK%%" ( with_string = [ NATDYNLINK ])
+            "%%CMXS%%" ( with_string = [ CMXS ] )
+            "%%MKEXE%%" ( with_string = [ MKEXE ] )
+            "%%MKEXEDEBUGFLAG%%" ( with_string = [ MKEXEDEBUGFLAG ] )
+            "%%MKDLL%%" ( with_string = [ MKDLL ] )
+            "%%MKMAINDLL%%" ( with_string = [ MKMAINDLL ] )
+            "%%RUNTIMED%%" ( with_string = [ RUNTIMED ] )
+           ]
+
+end
+
+begin library "ocaml-conf"
+    files = [ ]
+    build_rules = [
+        "utils/config.ml" (
+          source = [ "utils/config.mlp" ]
+            target = [ "utils/config.ml" ]
+            commands = [
+            "%%subst" (
+              from_file = "utils/config.mlp"
+              use "ocaml-config-substitutions"
+            )
+      ])]
+    requires = [ ]
+end
+
+begin config "asmcomp-functor"
+
+  arch_file = %path ( path = [ ARCH "arch.ml" ])
+  proc_file = %path ( path = [ ARCH "proc.ml" ])
+  selection_file = %path ( path = [ ARCH "selection.ml" ])
+  reload_file = %path ( path = [ ARCH "reload.ml" ])
+  scheduling_file = %path (path = [ ARCH "scheduling.ml" ])
+  emit_file = %path ( path = [ ARCH "emit.mlp" ])
+
+  ocaml_asmcomp_files = [
+
+    arch_file
+  "debuginfo.ml"
+  "cmm.ml" "printcmm.ml"
+  "reg.ml" "mach.ml"
+  proc_file
+  "clambda.ml" "compilenv.ml"
+  "closure.ml" "cmmgen.ml"
+  "printmach.ml"
+  "selectgen.ml"
+  selection_file
+  "comballoc.ml" "liveness.ml"
+
+  "spill.ml" "split.ml"
+  "interf.ml" "coloring.ml"
+  "reloadgen.ml"
+  reload_file
+  "printlinear.ml"
+  "linearize.ml"
+  "schedgen.ml"
+  scheduling_file
+  "emitaux.ml"
+  "emit.ml"
+  "asmgen.ml"
+  "asmlink.ml" "asmlibrarian.ml" "asmpackager.ml"
+
+  "cmx_format.mli"
+
+  ]
+end
+
+(* for ARCH in [ "amd64" "x86" ] do *)
+(*   begin library %string( list = ["asmcomp-" ARCH ]) *)
+(*           use "asmcomp-functor" *)
+(*           files = ocaml_asmcomp_files *)
+(*   end *)
+(* done *)
+
+  (* ocamlcommon_files = [ "pparse.ml" "main_args.ml" ] *)
+  (* ocamlbytecomp_files =  [ "errors.ml" "compile.ml" ] *)
+  (* ocamloptcomp_files =  [ "opterrors.ml" "optcompile.ml" ] *)
+  (* ocamltoplevel_files = [ "genprintval.ml" "toploop.ml" "trace.ml" "topdirs.ml" "topmain.ml" ] *)

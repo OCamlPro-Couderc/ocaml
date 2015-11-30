@@ -89,7 +89,6 @@ toplevel_files =
     "trace.ml" "topdirs.ml" "topmain.ml" ]
 
 
-
 begin library "ocaml-conf"
     files = [ ]
     build_rules = [
@@ -100,10 +99,31 @@ begin library "ocaml-conf"
     requires = [ "stdlib" "byterun" ]
 end
 
+if include "config.ocp" then {} else {}
+
+begin library "byterun"
+
+end
+
+begin library "ocaml-conf"
+    files = [ ]
+    build_rules = [
+        "utils/config.ml" (
+          source = [ "utils/config.mlp" ]
+            commands = [
+            "%%subst" (
+              from_file = "config.mlp"
+              use "ocaml-config-substitutions"
+            )
+      ])]
+    requires = [ "stdlib" "byterun" ]
+end
+
 begin library "ocaml-utils"
+    use "boot-ocamlc"
     subdir = [ "utils" ]
-    files = utils_files
-    requires = [ ]
+    files = [ utils_files (use "boot-ocamlc") ]
+    requires = [ "ocaml-conf" ]
 end
 
 begin library "ocaml-parsing"
@@ -156,7 +176,7 @@ end
 begin library "ocaml-bytecomp"
     subdir = [ "bytecomp" ]
     files = bytecomp_files
-    requires = [ "ocaml-common" "typecheck-lib" ]
+    requires = [ "ocaml-common" ]
 end
 
 begin library "ocaml-asmcomp-conf"
