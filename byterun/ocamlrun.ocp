@@ -13,16 +13,25 @@ begin rules "ocamlrun"
 
   ]
 
-  include_files = [
-  "alloc.h" "config.h" "finalise.h" "hash.h" "interp.h" "memory.h" "printexc.h"
-  "startup.h" "backtrace.h" "custom.h" "fix_code.h" "instrtrace.h" "intext.h"
-  "minor_gc.h" "reverse.h" "sys.h" "callback.h" "debugger.h" "freelist.h"
+  public_includes = [
+  "address_class.h" "alloc.h" "callback.h" "config.h" "custom.h" "fail.h" "gc.h"
+  "hash.h" "intext.h"
+  "memory.h" "misc.h" "mlvalues.h" "printexc.h" "signals.h" "compatibility.h"
+  "version.h"
+                ]
+
+  include_files = %subst_file (files = [ public_includes
+  "finalise.h" "hash.h" "interp.h" "printexc.h"
+  "startup.h" "backtrace.h" "fix_code.h" "instrtrace.h"
+  "minor_gc.h" "reverse.h" "sys.h" "debugger.h" "freelist.h"
   "instruct.h" "io.h" "misc.h" "roots.h" "ui.h" "compact.h" "dynlink.h"
-  "gc_ctrl.h" "int64_emul.h" "mlvalues.h" "signals.h" "caml/version.h"
-  "compare.h" "exec.h" "gc.h" "int64_format.h" "major_gc.h" "osdeps.h"
-  "signals_machdep.h" "weak.h" "compatibility.h" "fail.h" "globroots.h"
+  "gc_ctrl.h" "int64_emul.h"
+  "compare.h" "exec.h" "int64_format.h" "major_gc.h" "osdeps.h"
+  "signals_machdep.h" "weak.h" "globroots.h"
   "int64_native.h" "md5.h" "prims.h" "stacks.h"
-  ]
+      ]
+        to_file = %path (path = [ "caml" "%{basename}%" ])
+      )
 
   lib_cfiles = [
   "interp.c" "misc.c" "stacks.c" "fix_code.c" "startup.c"
@@ -99,6 +108,19 @@ begin rules "ocamlrun"
 	       "-e" "/^}/q" "caml/instruct.h" } (stdout = "caml/jumptbl.h")
       ]
       sources = [ "caml/instruct.h" ]
+    )
+
+    "caml/opnames.h" (
+      commands = [
+        { "sed" "-n" "/\/\*/d"
+	    "-e" "/^#/d"
+	    "-e" "s/enum /char * names_of_/"
+	    "-e" "s/{$$/[] = {/"
+            "-e" "s/\([[:upper:]][[:upper:]_0-9]*\)/\"\1\"/g"
+            "caml/instruct.h" } (stdout = "caml/opnames.h")
+      ]
+        sources = [ "caml/opnames.h" ]
+        requires = [ "caml/instruct.h" ]
     )
 
     objs (

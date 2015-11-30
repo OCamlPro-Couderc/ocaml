@@ -39,8 +39,9 @@ begin library "stdlib-conf"
       ]
 end
 
-begin library "stdlib"
+begin library "stdlib-boot"
     files = stdlib_files
+    requires = [ "ocamlrun" ]
 end
 
 begin object "std_exit"

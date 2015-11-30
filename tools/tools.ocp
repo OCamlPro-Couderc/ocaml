@@ -5,10 +5,12 @@ begin library "tools-config"
         "opnames.ml" (
           commands = [{ "make" "opnames.ml" }])
       ]
+    requires = [ "ocamlrun" ]
 end
 
   begin program "cvt_emit"
-    files = [ "cvt_emit.mll" ]
+      files = [ "cvt_emit.mll" ]
+    requires = [ "ocamlrun" ]
 end
 
 begin program "ocamldep"
@@ -34,7 +36,7 @@ end
 
 begin program "ocamlmklib"
     files = [ "ocamlmklibconfig.ml" "ocamlmklib.ml" ]
-    requires = [ ]
+    requires = [ "ocamlrun" ]
 end
 
 begin program "dumpobj"

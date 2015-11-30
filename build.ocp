@@ -89,17 +89,17 @@ toplevel_files =
     "trace.ml" "topdirs.ml" "topmain.ml" ]
 
 
-begin library "ocaml-conf"
-    files = [ ]
-    build_rules = [
-        "utils/config.ml" (
-          source = [ "utils/config.mlp" ]
-          commands = [{ "make" "utils/config.ml" }])
-      ]
-    requires = [ "stdlib" "byterun" ]
-end
+(* begin library "ocaml-conf" *)
+(*     files = [ ] *)
+(*     build_rules = [ *)
+(*         "utils/config.ml" ( *)
+(*           source = [ "utils/config.mlp" ] *)
+(*           commands = [{ "make" "utils/config.ml" }]) *)
+(*       ] *)
+(*     requires = [ "stdlib" "byterun" ] *)
+(* end *)
 
-if include "config.ocp" then {} else {}
+if include "config.ocpc" then {} else {}
 
 begin library "byterun"
 
@@ -112,7 +112,7 @@ begin library "ocaml-conf"
           source = [ "utils/config.mlp" ]
             commands = [
             "%%subst" (
-              from_file = "config.mlp"
+              from_file = "utils/config.mlp"
               use "ocaml-config-substitutions"
             )
       ])]
@@ -148,6 +148,7 @@ begin library "ocaml-bytecomp-conf"
           source = [ ]
           commands = [{ "make" "bytecomp/opcodes.ml" }])
       ]
+      requires = [ "ocamlrun" ]
 end
 
 begin library "ocaml-common-bytecomp"
@@ -179,6 +180,7 @@ begin library "ocaml-bytecomp"
     requires = [ "ocaml-common" ]
 end
 
+(* TODO: generate files without `make` *)
 begin library "ocaml-asmcomp-conf"
     files = [ ]
     build_rules = [
@@ -206,6 +208,7 @@ begin library "ocaml-asmcomp-conf"
             { "cp" "%{cvt_emit_FULL_DST_DIR}%/cvt_emit.byte" "tools/cvt_emit" }
             { "make" "asmcomp/emit.ml" }])
       ]
+      requires = [ "ocamlrun" ]
 
 end
 
