@@ -90,10 +90,6 @@ toplevel_files =
 
 
 
-begin library "byterun"
-
-end
-
 begin library "ocaml-conf"
     files = [ ]
     build_rules = [
