@@ -20,7 +20,7 @@ begin rules "ocamlrun"
   "version.h"
                 ]
 
-  include_files = %subst_file (files = [ public_includes
+  include_files = %subst_file (files =[ public_includes
   "finalise.h" "hash.h" "interp.h" "printexc.h"
   "startup.h" "backtrace.h" "fix_code.h" "instrtrace.h"
   "minor_gc.h" "reverse.h" "sys.h" "debugger.h" "freelist.h"
@@ -30,7 +30,7 @@ begin rules "ocamlrun"
   "signals_machdep.h" "weak.h" "globroots.h"
   "int64_native.h" "md5.h" "prims.h" "stacks.h"
       ]
-        to_file = %path (path = [ "caml" "%{basename}%" ])
+        to_file = %path (path = [ "caml" "%{basename}%.h" ])
       )
 
   lib_cfiles = [
@@ -63,18 +63,18 @@ begin rules "ocamlrun"
 
       (*If we don't have "makedep", then assumes .depend is present as a source. Otherwise,
          build a rule to generate .depend from sources. *)
-  if has_gcc then {
+  (* if has_gcc then { *)
 
-    build_rules += [
-      ".depend" (
-        commands = [ { "gcc" "-MM" cfiles } ( stdout = ".depend" ) ]
-        sources = cfiles
-      )
-    ]
+  (*   build_rules += [ *)
+  (*     ".depend" ( *)
+  (*       commands = [ { "gcc" "-MM" cfiles } ( stdout = ".depend" ) ] *)
+  (*       sources = cfiles *)
+  (*     ) *)
+  (*   ] *)
 
-  } else {
-    source_files += ".depend"
-  }
+  (* } else { *)
+  (*   source_files += ".depend" *)
+  (* } *)
 
 (* objs is built by filtering files with .c and replacing by .o *)
 
@@ -127,13 +127,13 @@ begin rules "ocamlrun"
 (*      subst = [ "basename" ]
       targets = [ "%{basename}%.o" ] *)
       commands = [ { "gcc" cflags "-O" "-c" "%{basename}%.c" } ]
-      sources = [ "%{basename}%.c" "ocamlrun-depends" ]
+      sources = [ "%{basename}%.c" include_files ]
     )
 
-    "ocamlrun-depends" (
-      commands = [ "%%loaddeps" ]
-      sources = [ ".depend" ]
-    )
+    (* "ocamlrun-depends" ( *)
+    (*   commands = [ "%%loaddeps" ] *)
+    (*   sources = [ ".depend" ] *)
+    (* ) *)
 
 
    "libcamlrun.a" (
@@ -186,10 +186,10 @@ begin rules "ocamlrun"
             "%%VERSION_ADDITIONAL%%" ( with_string = VERSION_ADDITIONAL )
             "%%VERSION_FULL%%"
               ( with_string = [ VERSION_MAJOR VERSION_MINOR VERSION_PATCH ] )
-            "%%VERSION_MAJOR%%"
+            "%%VERSION_STRING%%"
             ( with_string =
-              [ VERSION_MAJOR "." VERSION_MINOR "." VERSION_PATCH
-                  "+" VERSION_ADDITIONAL ] )
+              [ "\"" VERSION_MAJOR "." VERSION_MINOR "." VERSION_PATCH
+                  "+" VERSION_ADDITIONAL "\"" ] )
           ]
         )
       ]
@@ -199,8 +199,8 @@ begin rules "ocamlrun"
         targets = "prims.c"
         commands = [
           { "bash" "-c"
-              "(echo '#include \"mlvalues.h\"'; \
-	       echo '#include \"prims.h\"'; \
+              "(echo '#include \"caml/mlvalues.h\"'; \
+	       echo '#include \"caml/prims.h\"'; \
 	       sed -e 's/.*/extern value &();/' primitives; \
 	       echo 'c_primitive caml_builtin_cprim[] = {'; \
 	       sed -e 's/.*/	&,/' primitives; \

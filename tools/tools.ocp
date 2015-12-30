@@ -1,4 +1,7 @@
-begin library "tools-config"
+
+begin
+  use "boot-ocamlc"
+  begin library "tools-config"
     build_rules = [
         "ocamlmklibconfig.ml" (
           commands = [{ "make" "ocamlmklibconfig.ml" }])
@@ -6,14 +9,19 @@ begin library "tools-config"
           commands = [{ "make" "opnames.ml" }])
       ]
     requires = [ "ocamlrun" ]
-end
+  end
 
   begin program "cvt_emit"
+      link += [ "-nostdlib" "-nopervasives" ]
       files = [ "cvt_emit.mll" ]
-    requires = [ "ocamlrun" ]
+          requires = [ "ocamlrun" "stdlib-boot" "std_exit-boot" ]
+          (* ocamlc_deps = [ "../boot/std_exit.cmo" "../boot/stdlib.cma" ] *)
+  end
 end
 
-begin program "ocamldep"
+begin
+  use "new-ocaml"
+  begin program "ocamldep"
     bytecomp += [ "-compat-32" ]
     files = [ "depend.ml" "ocamldep" ]
     requires = [ "ocaml-common" ]
@@ -55,4 +63,5 @@ begin program "read_cmt"
               "tast_iter.ml"
               "cmt2annot.ml" "read_cmt.ml" ]
     requires = [ "ocaml-common" ]
+end
 end

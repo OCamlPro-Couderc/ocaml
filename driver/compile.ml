@@ -69,7 +69,7 @@ let implementation ppf sourcefile outputprefix =
       ++ print_if ppf Clflags.dump_typedtree
         Printtyped.implementation_with_coercion
     in
-    Typecheck.implementation (typedtree, sourcefile, modulename);
+    (* Typecheck.implementation (typedtree, sourcefile, modulename); *)
     if !Clflags.print_types then begin
       Warnings.check_fatal ();
       Stypes.dump (Some (outputprefix ^ ".annot"))

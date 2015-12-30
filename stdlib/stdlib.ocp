@@ -39,11 +39,45 @@ begin library "stdlib-conf"
       ]
 end
 
+
 begin library "stdlib-boot"
+    use "boot-ocamlc"
     files = stdlib_files
     requires = [ "ocamlrun" ]
 end
 
-begin object "std_exit"
-  files = [ "std_exit.ml" ]
+begin library "std_exit-boot"
+    use "boot-ocamlc"
+    files = [ "std_exit.ml" ]
+    requires = [ "stdlib-boot" ]
 end
+
+begin rules "stdlib-boot-install"
+    build_rules =  [
+        "../boot/std_exit.cmo" (
+          sources = "%{std_exit-boot_FULL_DST_DIR}%/std_exit.cmo"
+          build_target = true
+          commands = [
+              { "cp" "%{std_exit-boot_FULL_DST_DIR}%/std_exit.cmo"
+                  "../boot/std_exit.cmo" } ])
+
+          "../boot/stdlib.cma" (
+          build_target = true
+          sources = "%{stdlib-boot_FULL_DST_DIR}%/stdlib-boot.cma"
+          commands = [
+            { "cp" "%{stdlib-boot_FULL_DST_DIR}%/stdlib-boot.cma"
+                "../boot/stdlib.cma" } ])
+      ]
+      requires = [ "std_exit-boot" "stdlib-boot" ]
+end
+
+begin library "stdlib"
+    use "new-ocaml-without-stdlib"
+    files = stdlib_files
+    requires = [ "ocamlrun" ]
+end
+
+(* begin object "std_exit" *)
+(*   use "new-ocaml" *)
+(*   files = [ "std_exit.ml" ] *)
+(* end *)

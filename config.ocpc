@@ -1,7 +1,7 @@
-comp += [
+(* comp += [
   "-strict-sequence" "-w" "+27+32..39" "-warn-error" "A" "-safe-string"
-      ]
-
+      ] *)
+      
 (* configs = %detect_ocaml *)
 (* if %mem_assoc ( elem = "4.02.3" list = configs) then { *)
 (*    use %get_assoc( elem = "4.02.3" list = configs ) *)
@@ -34,7 +34,7 @@ begin config "boot-ocamlc"
        "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun"
      ]
      requires += [ "ocamlrun"]
-     comp += [ "-nostdlib" ]
+     comp += [ "-nostdlib" "-I" "boot"]
 end
 
 begin config "new-ocaml-without-stdlib"
@@ -189,6 +189,7 @@ MKDLL=[ "gcc" "-shared" ]
 MKMAINDLL=[ "gcc" "-shared" ]
 RUNTIMED="noruntimed"
 ASM_CFI_SUPPORTED="true"
+WITH_FRAME_POINTERS="false"
 }
 
 
@@ -318,6 +319,7 @@ begin config "ocaml-config-substitutions"
             "%%MKDLL%%" ( with_string = [ MKDLL ] )
             "%%MKMAINDLL%%" ( with_string = [ MKMAINDLL ] )
             "%%RUNTIMED%%" ( with_string = [ RUNTIMED ] )
+            "%%WITH_FRAME_POINTERS%%" ( with_string = [ WITH_FRAME_POINTERS ] )
            ]
 
 end

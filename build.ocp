@@ -1,5 +1,5 @@
 
-comp += [ "-strict-sequence" "-w" "+33..39+48+50" "-warn-error" "A"
+comp += [ "-strict-sequence" "-w" "-27+33..39+48+50" "-warn-error" "A"
           "-bin-annot" "-safe-string" ]
 
 byterun_files =
@@ -101,10 +101,6 @@ toplevel_files =
 
 if include "config.ocpc" then {} else {}
 
-begin library "byterun"
-
-end
-
 begin library "ocaml-conf"
     files = [ ]
     build_rules = [
@@ -116,129 +112,215 @@ begin library "ocaml-conf"
               use "ocaml-config-substitutions"
             )
       ])]
-    requires = [ "stdlib" "byterun" ]
-end
-
-begin library "ocaml-utils"
-    use "boot-ocamlc"
-    subdir = [ "utils" ]
-    files = [ utils_files (use "boot-ocamlc") ]
-    requires = [ "ocaml-conf" ]
-end
-
-begin library "ocaml-parsing"
-    subdir = [ "parsing" ]
-    files = parsing_files
-    requires = [ "ocaml-utils" ]
-end
-
-begin library "ocaml-typing"
-    subdir = [ "typing" ]
-    files = typing_files
-    requires = [ "ocaml-parsing" ]
+    requires = [ "stdlib-boot" "ocamlrun" ]
 end
 
 begin library "ocaml-bytecomp-conf"
     files = [ ]
-    build_rules = [
+        build_rules = [
         "bytecomp/runtimedef.ml" (
           source = [ ]
-          commands = [{ "make" "bytecomp/runtimedef.ml" }])
-        "bytecomp/opcodes.ml" (
+            commands = [{ "make" "bytecomp/runtimedef.ml" }])
+          "bytecomp/opcodes.ml" (
           source = [ ]
-          commands = [{ "make" "bytecomp/opcodes.ml" }])
+            commands = [{ "make" "bytecomp/opcodes.ml" }])
       ]
-      requires = [ "ocamlrun" ]
+        requires = [ "ocamlrun" ]
 end
-
-begin library "ocaml-common-bytecomp"
-    subdir = [ "bytecomp" ]
-    files = common_bytecomp_files
-    requires = [ "ocaml-typing" ]
-end
-
-
-begin library "ocaml-common-driver"
-    subdir = [ "driver" ]
-    files = common_driver_files
-    requires = [ "ocaml-common-bytecomp" ]
-end
-
-begin library "ocaml-common"
-    (* TODO: change this part to automatically generate oCaml.ml using
-       ocp-nsgen. *)
-    files = [ "../typechecker/oCaml.ml"
-                (comp += [ "-no-alias-deps" "-w" "-49" ]) ]
-    requires =
-      [ "ocaml-common-bytecomp"
-        "ocaml-common-driver"]
-end
-
-begin library "ocaml-bytecomp"
-    subdir = [ "bytecomp" ]
-    files = bytecomp_files
-    requires = [ "ocaml-common" ]
-end
-
 (* TODO: generate files without `make` *)
 begin library "ocaml-asmcomp-conf"
     files = [ ]
-    build_rules = [
+        build_rules = [
         "asmcomp/arch.ml" (
           source = [ ]
-          commands = [{ "make" "asmcomp/arch.ml" }])
-        "asmcomp/proc.ml" (
+            commands = [{ "make" "asmcomp/arch.ml" }])
+          "asmcomp/proc.ml" (
           source = [ ]
-          commands = [{ "make" "asmcomp/proc.ml" }])
-        "asmcomp/selection.ml" (
+            commands = [{ "make" "asmcomp/proc.ml" }])
+          "asmcomp/selection.ml" (
           source = [ ]
-          commands = [{ "make" "asmcomp/selection.ml" }])
-        "asmcomp/CSE.ml" (
+            commands = [{ "make" "asmcomp/selection.ml" }])
+          "asmcomp/CSE.ml" (
           source = [ ]
-          commands = [{ "make" "asmcomp/CSE.ml" }])
-        "asmcomp/reload.ml" (
+            commands = [{ "make" "asmcomp/CSE.ml" }])
+          "asmcomp/reload.ml" (
           source = [ ]
-          commands = [{ "make" "asmcomp/reload.ml" }])
-        "asmcomp/scheduling.ml" (
+            commands = [{ "make" "asmcomp/reload.ml" }])
+          "asmcomp/scheduling.ml" (
           source = [ ]
-          commands = [{ "make" "asmcomp/scheduling.ml" }])
-        "asmcomp/emit.ml" (
+            commands = [{ "make" "asmcomp/scheduling.ml" }])
+          "asmcomp/emit.ml" (
           source = [ "%{cvt_emit_FULL_DST_DIR}%/cvt_emit.byte" ]
-          commands = [
+            commands = [
             { "cp" "%{cvt_emit_FULL_DST_DIR}%/cvt_emit.byte" "tools/cvt_emit" }
-            { "make" "asmcomp/emit.ml" }])
+              { "make" "asmcomp/emit.ml" }])
       ]
-      requires = [ "ocamlrun" ]
+        requires = [ "ocamlrun" ]
 
 end
 
-begin library "ocaml-asmcomp"
-    subdir = [ "asmcomp" ]
-    files = asmcomp_files
-    requires = [ "ocaml-common" ]
+begin
+  use "boot-ocamlc"
+  begin library "ocaml-utils-boot"
+      use "boot-ocamlc"
+      subdir = [ "utils" ]
+          files = [ utils_files (use "boot-ocamlc") ]
+          requires = [ "ocaml-conf" ]
+  end
+
+    begin library "ocaml-parsing-boot"
+        subdir = [ "parsing" ]
+            files = parsing_files
+            requires = [ "ocaml-utils-boot" ]
+    end
+
+    begin library "ocaml-typing-boot"
+        subdir = [ "typing" ]
+            files = typing_files
+            requires = [ "ocaml-parsing-boot" ]
+    end
+
+    begin library "ocaml-common-bytecomp-boot"
+        subdir = [ "bytecomp" ]
+            files = common_bytecomp_files
+            requires = [ "ocaml-typing-boot" ]
+    end
+
+
+    begin library "ocaml-common-driver-boot"
+        subdir = [ "driver" ]
+            files = common_driver_files
+            requires = [ "ocaml-common-bytecomp-boot" ]
+    end
+
+    begin library "ocaml-common-boot"
+        (* TODO: change this part to automatically generate oCaml.ml using
+           ocp-nsgen. *)
+        files = [ "../typechecker/oCaml.ml"
+                    (comp += [ "-no-alias-deps" "-w" "-49" ]) ]
+            requires =
+          [ "ocaml-common-bytecomp-boot"
+              "ocaml-common-driver-boot"]
+    end
+
+    begin library "ocaml-bytecomp-boot"
+        subdir = [ "bytecomp" ]
+            files = bytecomp_files
+            requires = [ "ocaml-common-boot" ]
+    end
+
+    begin library "ocaml-asmcomp-boot"
+        subdir = [ "asmcomp" ]
+            files = asmcomp_files
+            requires = [ "ocaml-common-boot" ]
+    end
+
+    begin library "ocaml-toplevel-boot"
+        has_asm = false
+            subdir = [ "toplevel" ]
+            files = toplevel_files
+            requires = [ "ocaml-common-boot" "ocaml-bytecomp-boot" ]
+    end
+
+
+    begin program "ocamlc-boot"
+        files = [ "driver/main.ml" ]
+            requires = [ "ocaml-bytecomp-boot" ]
+    end
+
+    begin program "ocamlopt-boot"
+        files = [ "driver/optmain.ml" ]
+            requires = [ "ocaml-asmcomp-boot" ]
+    end
+
+    begin program "ocaml-boot"
+        has_asm = false
+            bytelink += [ "-linkall" ]
+                    files = [ "toplevel/topstart.ml" ]
+            requires = [ "ocaml-toplevel-boot" ]
+    end
+
 end
 
-begin library "ocaml-toplevel"
-    has_asm = false
-    subdir = [ "toplevel" ]
-    files = toplevel_files
-    requires = [ "ocaml-common" "ocaml-bytecomp" ]
-end
+begin
+  use "new-ocaml"
+  begin library "ocaml-utils"
+      use "boot-ocamlc"
+      subdir = [ "utils" ]
+          files = [ utils_files (use "boot-ocamlc") ]
+          requires = [ "ocaml-conf" ]
+  end
+
+    begin library "ocaml-parsing"
+        subdir = [ "parsing" ]
+            files = parsing_files
+            requires = [ "ocaml-utils" ]
+    end
+
+    begin library "ocaml-typing"
+        subdir = [ "typing" ]
+            files = typing_files
+            requires = [ "ocaml-parsing" ]
+    end
+
+    begin library "ocaml-common-bytecomp"
+        subdir = [ "bytecomp" ]
+            files = common_bytecomp_files
+            requires = [ "ocaml-typing" ]
+    end
 
 
-begin program "ocamlc"
-    files = [ "driver/main.ml" ]
-    requires = [ "ocaml-bytecomp" ]
-end
+    begin library "ocaml-common-driver"
+        subdir = [ "driver" ]
+            files = common_driver_files
+            requires = [ "ocaml-common-bytecomp" ]
+    end
 
-begin program "ocamlopt"
-    files = [ "driver/optmain.ml" ]
-    requires = [ "ocaml-asmcomp" ]
-end
+    begin library "ocaml-common"
+        (* TODO: change this part to automatically generate oCaml.ml using
+           ocp-nsgen. *)
+        files = [ "../typechecker/oCaml.ml"
+                    (comp += [ "-no-alias-deps" "-w" "-49" ]) ]
+            requires =
+          [ "ocaml-common-bytecomp"
+              "ocaml-common-driver"]
+    end
 
-begin program "ocaml"
-    has_asm = false
-    bytelink += [ "-linkall" ]
-    files = [ "toplevel/topstart.ml" ]
-    requires = [ "ocaml-toplevel" ]
+    begin library "ocaml-bytecomp"
+        subdir = [ "bytecomp" ]
+            files = bytecomp_files
+            requires = [ "ocaml-common" ]
+    end
+
+    begin library "ocaml-asmcomp"
+        subdir = [ "asmcomp" ]
+            files = asmcomp_files
+            requires = [ "ocaml-common" ]
+    end
+
+    begin library "ocaml-toplevel"
+        has_asm = false
+            subdir = [ "toplevel" ]
+            files = toplevel_files
+            requires = [ "ocaml-common" "ocaml-bytecomp" ]
+    end
+
+
+    begin program "ocamlc"
+        files = [ "driver/main.ml" ]
+            requires = [ "ocaml-bytecomp" ]
+    end
+
+    begin program "ocamlopt"
+        files = [ "driver/optmain.ml" ]
+            requires = [ "ocaml-asmcomp" ]
+    end
+
+    begin program "ocaml"
+        has_asm = false
+            bytelink += [ "-linkall" ]
+                    files = [ "toplevel/topstart.ml" ]
+            requires = [ "ocaml-toplevel" ]
+    end
+
 end

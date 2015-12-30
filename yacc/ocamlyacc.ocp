@@ -1,0 +1,48 @@
+begin rules "ocamlyacc"
+  CC=BYTECC
+  CFLAGS=[ "-O" "-DNDEBUG" BYTECCCOMPOPTS ]
+
+  sources = []
+  source_files = [
+    "closure.c" "error.c" "lalr.c" "lr0.c" "mkpar.c" "output.c" "reader.c"
+    "skeleton.c" "symtab.c" "verbose.c" "warshall.c"
+    "main.c" (sources = "version.h")
+  ]
+
+
+  objs = %subst_ext ( files = source_files
+                      from_ext = ".c"
+                      to_file = "%{basename}%.o"
+                     )
+
+  build_rules = [
+
+    objs (
+      commands = [ { CC CFLAGS  "-c" "%{basename}%.c" } ]
+      sources += [ "%{basename}%.c" "defs.h" ]
+    )
+
+    "ocamlyacc" (
+       commands = [
+         {CC CFLAGS "-o" "ocamlyacc" objs }
+       ]
+       sources = [ objs "version.h" ]
+       build_target = true
+    )
+
+    "version.h" (
+      commands = [
+        "%%subst" (
+          from_file = "version.h.in";
+          target = "version.h";
+          substitutions = [
+            "%%VERSION%%"
+              ( with_string = "\"with-ocp\"" )
+          ]
+        )
+      ]
+    )
+
+  ]
+
+end
