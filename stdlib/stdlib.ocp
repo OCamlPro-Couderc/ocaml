@@ -77,7 +77,8 @@ begin library "stdlib"
     requires = [ "ocamlrun" ]
 end
 
-(* begin object "std_exit" *)
-(*   use "new-ocaml" *)
-(*   files = [ "std_exit.ml" ] *)
-(* end *)
+begin library "std_exit"
+  use "new-ocaml"
+  files = [ "std_exit.ml" ]
+  requires = [ "stdlib" ]
+end

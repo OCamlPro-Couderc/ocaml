@@ -230,6 +230,11 @@ begin rules "ocamlrun"
        ]
        sources = [ "prims.d.o" "libcamlrund.a" ]
     )
+    "../boot/ocamlrun" (
+      targets = [ "../boot/ocamlrun" ]
+      sources = [ "ocamlrun" ]
+      commands = [ { "cp" "ocamlrun" "../boot/ocamlrun" } ]
+    )   
   ]
 
   install_targets = [ "ocamlrun" ]

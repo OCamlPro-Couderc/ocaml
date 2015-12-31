@@ -112,7 +112,7 @@ begin library "ocaml-conf"
               use "ocaml-config-substitutions"
             )
       ])]
-    requires = [ "stdlib-boot" "ocamlrun" ]
+    requires = [ "ocamlrun" ]
 end
 
 begin library "ocaml-bytecomp-conf"
@@ -132,25 +132,25 @@ begin library "ocaml-asmcomp-conf"
     files = [ ]
         build_rules = [
         "asmcomp/arch.ml" (
-          source = [ ]
+          sources = [ ]
             commands = [{ "make" "asmcomp/arch.ml" }])
           "asmcomp/proc.ml" (
-          source = [ ]
+          sources = [ ]
             commands = [{ "make" "asmcomp/proc.ml" }])
           "asmcomp/selection.ml" (
-          source = [ ]
+          sources = [ ]
             commands = [{ "make" "asmcomp/selection.ml" }])
           "asmcomp/CSE.ml" (
-          source = [ ]
+          sources = [ ]
             commands = [{ "make" "asmcomp/CSE.ml" }])
           "asmcomp/reload.ml" (
-          source = [ ]
+          sources = [ ]
             commands = [{ "make" "asmcomp/reload.ml" }])
           "asmcomp/scheduling.ml" (
-          source = [ ]
+          sources = [ ]
             commands = [{ "make" "asmcomp/scheduling.ml" }])
           "asmcomp/emit.ml" (
-          source = [ "%{cvt_emit_FULL_DST_DIR}%/cvt_emit.byte" ]
+            sources = [ "%{cvt_emit_FULL_DST_DIR}%/cvt_emit.byte" "boot/ocamlrun" ]
             commands = [
             { "cp" "%{cvt_emit_FULL_DST_DIR}%/cvt_emit.byte" "tools/cvt_emit" }
               { "make" "asmcomp/emit.ml" }])
@@ -165,7 +165,7 @@ begin
       use "boot-ocamlc"
       subdir = [ "utils" ]
           files = [ utils_files (use "boot-ocamlc") ]
-          requires = [ "ocaml-conf" ]
+          requires = [ "ocaml-conf" "stdlib-boot" "std_exit-boot" ]
   end
 
     begin library "ocaml-parsing-boot"
@@ -244,11 +244,13 @@ end
 
 begin
   use "new-ocaml"
+  sources = [ "${ocamlc-boot_FULL_DST_DIR}%/ocamlc-boot.byte" 
+              "%{ocamlopt-boot_FULL_DST_DIR}%/ocamlopt-boot.byte" ]
   begin library "ocaml-utils"
       use "boot-ocamlc"
       subdir = [ "utils" ]
           files = [ utils_files (use "boot-ocamlc") ]
-          requires = [ "ocaml-conf" ]
+          requires = [ "ocaml-conf" "stdlib" "std_exit"]
   end
 
     begin library "ocaml-parsing"

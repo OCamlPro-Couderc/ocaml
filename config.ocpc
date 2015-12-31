@@ -34,7 +34,8 @@ begin config "boot-ocamlc"
        "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun"
      ]
      requires += [ "ocamlrun"]
-     comp += [ "-nostdlib" "-I" "boot"]
+     comp += [ "-nostdlib" ]
+     link += [ "-nostdlib" "-nopervasives" ]
 end
 
 begin config "new-ocaml-without-stdlib"
@@ -47,6 +48,7 @@ begin config "new-ocaml-without-stdlib"
      ocamlmklib = [ ocamlrun "%{ocamlmklib_FULL_DST_DIR}%/ocamlmklib.byte" ]
      ocamlmklib_deps = [ ocamlrun "%{ocamlmklib_FULL_DST_DIR}%/ocamlmklib.byte" ]
      comp += [ "-nostdlib" ]
+     link += [ "-nostdlib" "-nopervasives" ]
 
      ocamlyacc = [ "./yacc/ocamlyacc" ]
      ocamlyacc_deps = [ "%{ocamlyacc_FULL_SRC_DIR}%/ocamlyacc" ]
@@ -73,7 +75,7 @@ end
 begin config "new-ocaml"
     use "new-ocaml-without-stdlib"
     binannot = true
-    link = [ "-I" "%{std_exit_FULL_DST_DIR}%"  "-nostdlib"]
+    link = [ "-I" "%{std_exit_FULL_DST_DIR}%"  "-nostdlib" ]
 (* TODO: we should issue a warning when doing asmlink = ... that overrides a link *)
     asmlink += [ "-cclib" "-lasmrun" "-I" "%{asmrun_FULL_SRC_DIR}%" ]
     requires += [ "stdlib" ]
