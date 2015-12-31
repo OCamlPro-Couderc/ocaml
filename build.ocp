@@ -196,8 +196,8 @@ begin
     begin library "ocaml-common-boot"
         (* TODO: change this part to automatically generate oCaml.ml using
            ocp-nsgen. *)
-        files = [ "../typechecker/oCaml.ml"
-                    (comp += [ "-no-alias-deps" "-w" "-49" ]) ]
+        files = [ (* "../typechecker/oCaml.ml"
+                    (comp += [ "-no-alias-deps" "-w" "-49" ])*) ]
             requires =
           [ "ocaml-common-bytecomp-boot"
               "ocaml-common-driver-boot"]
@@ -279,8 +279,8 @@ begin
     begin library "ocaml-common"
         (* TODO: change this part to automatically generate oCaml.ml using
            ocp-nsgen. *)
-        files = [ "../typechecker/oCaml.ml"
-                    (comp += [ "-no-alias-deps" "-w" "-49" ]) ]
+        files = [ (* "../typechecker/oCaml.ml"
+                    (comp += [ "-no-alias-deps" "-w" "-49" ]) *) ]
             requires =
           [ "ocaml-common-bytecomp"
               "ocaml-common-driver"]
