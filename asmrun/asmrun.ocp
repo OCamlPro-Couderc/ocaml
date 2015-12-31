@@ -1,0 +1,93 @@
+
+
+begin rules "asmrun"
+
+  TARGET_ARCH = %string ( strings = [ "-DTARGET_" ARCH ])
+  SYS_SYSTEM = %string ( strings = [ "-DSYS_" SYSTEM ])
+
+  cc = NATIVECC
+  FLAGS = [ "-I" "%{ocamlrun_FULL_SRC_DIR}%" "-DCAML_NAME_SPACE" "-DNATIVE_CODE"
+      TARGET_ARCH SYS_SYSTEM IFLEXDIR ]
+  CFLAGS = [ FLAGS "-O" NATIVECCCOMPOPTS ]
+
+  asmrun_headers = [
+    "signals_osdep.h"  "stack.h"
+  ] 
+
+  asmrun_srcs = [
+    "backtrace.c"  "fail.c"  "natdynlink.c"  "roots.c"  "signals_asm.c"
+    "startup.c"
+  ]
+
+  arch_files = [ 
+
+  byterun_srcs = 
+    %subst_file (
+      files = [
+        "main.c" "globroots.c" "signals.c" 
+        "misc.c" "freelist.c" "major_gc.c" "minor_gc.c"
+        "memory.c" "alloc.c" "compare.c" "ints.c"
+        "floats.c" "str.c" "array.c" "io.c" "extern.c"
+        "intern.c" "hash.c" "sys.c" "parsing.c"
+        "gc_ctrl.c" "terminfo.c" "md5.c" "obj.c"
+        "lexing.c" "printexc.c" "callback.c" "weak.c"
+        "compact.c" "finalise.c" "custom.c" "unix.c" (* TODO : Unix or win32 *) 
+        "debugger.c"
+        "meta.c" "dynlink.c"
+      ]
+      to_file = %path (path = [ "%{ocamlrun_FULL_SRC_DIR}%" "%{basename}%.c" ])
+    )
+
+  byterun_headers = %subst_ext ( files = [ byterun_srcs ]
+                      from_ext = ".c"
+                      to_file = "%{basename}%.h"
+                     )
+
+  asmrun_objs = %subst_ext ( files = [ asmrun_srcs ]
+                      from_ext = ".c"
+                      to_file = "%{basename}%.o"
+                     )
+
+  byterun_objs = %subst_ext ( files = [ byterun_srcs ]
+                      from_ext = ".c"
+                      to_file = "%{basename}%.o"
+                     )
+
+  build_rules = [
+    asmrun_objs (
+      subst = [ "basename" ]
+      targets = [ "%{basename}%.o" ]
+      commands = [ { cc CFLAGS "-O" "-c" "%{basename}%.c" } ]
+      sources = [ "%{basename}%.c" ]
+    )
+
+    byterun_objs (
+      subst = [ "basename" ]
+      targets = [ "%{basename}%.o" ]
+      commands = [ 
+        { cc CFLAGS "-O" "-o" "%{basename}%.o""-c" 
+          (%path (path = "%{ocamlrun_FULL_SRC_DIR}%" "%{basename}%.c" ])) } ]
+      sources = [  %path (path = [ "%{ocamlrun_FULL_SRC_DIR}%" "%{basename}%.c"]) ]
+    )
+
+    arch_files (
+      commands = [
+        { ASPP SYS_SYSTEM "-o" "%{basename}%.o" "%{basename}%.S" }
+      ]
+      sources = [ "%{basename}%.S" ]
+    ) *)
+
+   "libasmrun.a" (
+      commands = [
+        { "rm" "-f" "libasmrun.a" }
+        { "ar" "rc" "libasmrun.a" asmrn_objs byterun_objs (* asm_ofiles *) }
+        { "ranlib" "libasmrun.a" }
+      ]
+
+      sources = [ asmrun_objs byterun_objs ]
+                build_target = true
+    )
+
+  ]
+  requires = [ "ocamlrun" ]
+end
