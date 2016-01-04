@@ -43,8 +43,9 @@ begin program "ocamloptp"
 end
 
 begin program "ocamlmklib"
+    has_asm = false
     files = [ "ocamlmklibconfig.ml" "ocamlmklib.ml" ]
-    requires = [ "ocamlrun" ]
+    requires = [ "ocamlrun" "stdlib" ]
 end
 
 begin program "dumpobj"

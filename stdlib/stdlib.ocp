@@ -74,11 +74,11 @@ end
 begin library "stdlib"
     use "new-ocaml-without-stdlib"
     files = stdlib_files
-    requires = [ "ocamlrun" ]
+    requires = [ "ocamlrun" "asmrun" ]
 end
 
 begin library "std_exit"
   use "new-ocaml"
   files = [ "std_exit.ml" ]
-  requires = [ "stdlib" ]
+  requires = [ "stdlib" "asmrun" ]
 end

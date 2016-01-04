@@ -185,11 +185,15 @@ begin rules "ocamlrun"
             "%%VERSION_PATCH%%" ( with_string = VERSION_PATCH )
             "%%VERSION_ADDITIONAL%%" ( with_string = VERSION_ADDITIONAL )
             "%%VERSION_FULL%%"
-              ( with_string = [ VERSION_MAJOR VERSION_MINOR VERSION_PATCH ] )
+            ( with_string =
+              %string (
+                strings = [ VERSION_MAJOR VERSION_MINOR VERSION_PATCH ] ))
             "%%VERSION_STRING%%"
             ( with_string =
-              [ "\"" VERSION_MAJOR "." VERSION_MINOR "." VERSION_PATCH
-                  "+" VERSION_ADDITIONAL "\"" ] )
+              %string (
+                strings =
+                  [ "\"" VERSION_MAJOR VERSION_MINOR VERSION_PATCH
+                    "+" VERSION_ADDITIONAL "\"" ]) )
           ]
         )
       ]
@@ -234,7 +238,7 @@ begin rules "ocamlrun"
       targets = [ "../boot/ocamlrun" ]
       sources = [ "ocamlrun" ]
       commands = [ { "cp" "ocamlrun" "../boot/ocamlrun" } ]
-    )   
+    )
   ]
 
   install_targets = [ "ocamlrun" ]

@@ -16,7 +16,7 @@ parsing_files =
      "asttypes.mli"
      "parsetree.mli"
      "docstrings.ml" "ast_helper.ml"
-     "syntaxerr.ml" "parser.mly"
+     "syntaxerr.ml" "parser.mly" (sources = [ "../yacc/ocamlyacc" ])
      "lexer.mll" "parse.ml" "printast.ml"
      "pprintast.ml"
      "ast_mapper.ml"
@@ -155,7 +155,7 @@ begin library "ocaml-asmcomp-conf"
             { "cp" "%{cvt_emit_FULL_DST_DIR}%/cvt_emit.byte" "tools/cvt_emit" }
               { "make" "asmcomp/emit.ml" }])
       ]
-        requires = [ "ocamlrun" ]
+        requires = [ "ocamlrun" "ocamlyacc" ]
 
 end
 
@@ -243,13 +243,13 @@ begin
 end
 
 begin
+  has_asm = false
   use "new-ocaml"
-  sources = [ "${ocamlc-boot_FULL_DST_DIR}%/ocamlc-boot.byte" 
-              "%{ocamlopt-boot_FULL_DST_DIR}%/ocamlopt-boot.byte" ]
+  sources = [ "${ocamlc-boot_FULL_DST_DIR}%/ocamlc-boot.byte"
+                "%{ocamlopt-boot_FULL_DST_DIR}%/ocamlopt-boot.byte" ]
   begin library "ocaml-utils"
-      use "boot-ocamlc"
       subdir = [ "utils" ]
-          files = [ utils_files (use "boot-ocamlc") ]
+          files = [ utils_files ]
           requires = [ "ocaml-conf" "stdlib" "std_exit"]
   end
 
