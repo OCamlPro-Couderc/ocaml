@@ -128,32 +128,41 @@ begin library "ocaml-bytecomp-conf"
         requires = [ "ocamlrun" ]
 end
 (* TODO: generate files without `make` *)
-begin library "ocaml-asmcomp-conf"
+begin rules "ocaml-asmcomp-conf"
+    use "boot-ocamlc"
     files = [ ]
         build_rules = [
         "asmcomp/arch.ml" (
-          sources = [ ]
-            commands = [{ "make" "asmcomp/arch.ml" }])
+          src = %path (path = [ "asmcomp" ARCH "arch.ml" ])
+          sources = [ src ]
+            commands = [{ "cp" src "asmcomp/arch.ml" }])
           "asmcomp/proc.ml" (
+          src = %path (path = [ "asmcomp" ARCH "proc.ml" ])
           sources = [ ]
-            commands = [{ "make" "asmcomp/proc.ml" }])
+            commands = [{ "cp" src "asmcomp/proc.ml" }])
           "asmcomp/selection.ml" (
-          sources = [ ]
-            commands = [{ "make" "asmcomp/selection.ml" }])
+          src = %path (path = [ "asmcomp" ARCH "selection.ml" ])
+          sources = [ src ]
+            commands = [{ "cp" src "asmcomp/selection.ml" }])
           "asmcomp/CSE.ml" (
-          sources = [ ]
-            commands = [{ "make" "asmcomp/CSE.ml" }])
+          src = %path (path = [ "asmcomp" ARCH "CSE.ml" ])
+          sources = [ src ]
+            commands = [{ "cp" src "asmcomp/CSE.ml" }])
           "asmcomp/reload.ml" (
-          sources = [ ]
-            commands = [{ "make" "asmcomp/reload.ml" }])
+          src = %path (path = [ "asmcomp" ARCH "reload.ml" ])
+          sources = [ src ]
+            commands = [{ "cp" src "asmcomp/reload.ml" }])
           "asmcomp/scheduling.ml" (
-          sources = [ ]
-            commands = [{ "make" "asmcomp/scheduling.ml" }])
+          src = %path (path = [ "asmcomp" ARCH "scheduling.ml" ])
+          sources = [ src ]
+            commands = [{ "cp" src "asmcomp/scheduling.ml" }])
           "asmcomp/emit.ml" (
+            src = %path (path = [ "asmcomp" ARCH "emit.mlp" ])
             sources = [ "%{cvt_emit_FULL_DST_DIR}%/cvt_emit.byte" "boot/ocamlrun" ]
             commands = [
-            { "cp" "%{cvt_emit_FULL_DST_DIR}%/cvt_emit.byte" "tools/cvt_emit" }
-              { "make" "asmcomp/emit.ml" }])
+              { "boot/ocamlrun" "%{cvt_emit_FULL_DST_DIR}%/cvt_emit.byte" }
+                (stdin = src, stdout = "asmcomp/emit.ml")
+              (* { "make" "asmcomp/emit.ml" } *)])
       ]
         requires = [ "ocamlrun" "ocamlyacc" ]
 
@@ -250,7 +259,7 @@ begin
   begin library "ocaml-utils"
       subdir = [ "utils" ]
           files = [ utils_files ]
-          requires = [ "ocaml-conf" "stdlib" "std_exit"]
+          requires = [ "ocaml-conf" "stdlib" "std_exit" "ocamlc-boot" ]
   end
 
     begin library "ocaml-parsing"

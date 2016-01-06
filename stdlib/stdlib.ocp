@@ -71,14 +71,15 @@ begin rules "stdlib-boot-install"
       requires = [ "std_exit-boot" "stdlib-boot" ]
 end
 
-begin library "stdlib"
-    use "new-ocaml-without-stdlib"
-    files = stdlib_files
-    requires = [ "ocamlrun" "asmrun" ]
-end
+begin library "stdlib";
+  use "new-ocaml-without-stdlib";
+  files = stdlib_files;
+  requires = [ "ocamlrun" "asmrun" "ocamlc-boot" "ocamlopt-boot" ];
+end;;
 
-begin library "std_exit"
-  use "new-ocaml"
-  files = [ "std_exit.ml" ]
-  requires = [ "stdlib" "asmrun" ]
-end
+begin library "std_exit";
+  use "new-ocaml";
+  ocamlopt_deps = [ "../asmrun/libasmrun.a" ];
+  files = [ "std_exit.ml" ];
+  requires = [ "stdlib" "asmrun" ];
+end;;
