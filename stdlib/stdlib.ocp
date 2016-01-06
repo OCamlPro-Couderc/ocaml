@@ -44,6 +44,7 @@ begin library "stdlib-boot"
     use "boot-ocamlc"
     files = stdlib_files
     requires = [ "ocamlrun" ]
+    sources = [ "../byterun/ocamlrun" ]
 end
 
 begin library "std_exit-boot"

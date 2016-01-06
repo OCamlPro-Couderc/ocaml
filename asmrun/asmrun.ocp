@@ -3,16 +3,8 @@
 begin rules "asmrun";
 
   TARGET_ARCH = %string ( strings = [ "-DTARGET_" ARCH ]);
+  DMODEL = %string (strings = ["-DMODEL_" MODEL]);
   SYS_SYSTEM = %string ( strings = [ "-DSYS_" SYSTEM ]);
-
-  asmrun_headers = [
-    "signals_osdep.h"  "stack.h"
-  ];
-
-  asmrun_srcs = [
-    "backtrace.c"  "fail.c"  "natdynlink.c"  "roots.c"  "signals_asm.c";
-    "startup.c"
-  ];
 
   arch_files = %string (strings = [ ARCH ".S" ]);
 
@@ -22,6 +14,29 @@ begin rules "asmrun";
       from_ext = ".S"
       to_file = "%{basename}%.o"
   );
+
+  arch_pobjs =
+  %subst_ext (
+    files = arch_files
+      from_ext = ".S"
+      to_file = "%{basename}%.p.o"
+  );
+
+  arch_picobjs =
+  %subst_ext (
+    files = arch_files
+      from_ext = ".S"
+      to_file = "%{basename}%.pic.o"
+  );
+
+  asmrun_headers = [
+    "signals_osdep.h"  "stack.h"
+  ];
+
+  asmrun_srcs = [
+    "backtrace.c"  "fail.c"  "natdynlink.c"  "roots.c"  "signals_asm.c";
+    "startup.c"
+  ];
 
   byterun_srcs = [
     "main.c" "globroots.c" "signals.c";
@@ -60,41 +75,71 @@ begin rules "asmrun";
     to_file = %path (path = ["%{ocamlrun_FULL_SRC_DIR}%" "caml" "%{basename}%.h"]);
   );
 
-  asmrun_objs = %subst_ext (
-    files = [ asmrun_srcs ];
-    from_ext = ".c";
-    to_file = "%{basename}%.o";
-  );
-
   byterun_objs = %subst_ext (
     files = [ byterun_srcs ];
     from_ext = ".c";
     to_file = "%{basename}%.o";
   );
 
+  byterun_dobjs = %subst_ext (
+    files = [ byterun_srcs ];
+    from_ext = ".c";
+    to_file = "%{basename}%.d.o";
+  );
+
+  byterun_pobjs = %subst_ext (
+    files = [ byterun_srcs ];
+    from_ext = ".c";
+    to_file = "%{basename}%.p.o";
+  );
+
+  byterun_picobjs = %subst_ext (
+    files = [ byterun_srcs ];
+    from_ext = ".c";
+    to_file = "%{basename}%.pic.o";
+  );
+
+  asmrun_objs = %subst_ext (
+    files = [ asmrun_srcs ];
+    from_ext = ".c";
+    to_file = "%{basename}%.o";
+  );
+
+  asmrun_dobjs = %subst_ext (
+    files = [ asmrun_srcs ];
+    from_ext = ".c";
+    to_file = "%{basename}%.d.o";
+  );
+
+  asmrun_pobjs = %subst_ext (
+    files = [ asmrun_srcs ];
+    from_ext = ".c";
+    to_file = "%{basename}%.p.o";
+  );
+
+  asmrun_picobjs = %subst_ext (
+    files = [ asmrun_srcs ];
+    from_ext = ".c";
+    to_file = "%{basename}%.pic.o";
+  );
+
   cc = NATIVECC;
   FLAGS = [
     "-I" "%{ocamlrun_FULL_SRC_DIR}%" "-DCAML_NAME_SPACE" "-DNATIVE_CODE";
     "-I" "%{asmrun_FULL_SRC_DIR}%";
-    TARGET_ARCH SYS_SYSTEM IFLEXDIR ];
-  CFLAGS = [ FLAGS "-O" NATIVECCCOMPOPTS ];
+    TARGET_ARCH SYS_SYSTEM IFLEXDIR "-fPIC" ];
+  CFLAGS = %split (s = [ FLAGS "-O" NATIVECCCOMPOPTS ]);
+  DFLAGS = %split (s = [ FLAGS "-g" "-DDEBUG" NATIVECCCOMPOPTS ]);
+  PFLAGS = %split (s = [ FLAGS "-pg" "-O" "-DPROFILING" NATIVECCPROFOPTS ]);
+  PICFLAGS = %split (s = [ FLAGS "-O" SHAREDCCCOMPOPTS NATIVECCCOMPOPTS ]);
 
   build_rules = [
-
+    (* Classical objs *)
     asmrun_objs (
       subst = [ "basename" ];
       targets = [ "%{basename}%.o" ];
       commands = [ { cc CFLAGS "-O" "-c" "%{basename}%.c" } ];
       sources = [ asmrun_headers "%{basename}%.c" ];
-    );
-
-    "main.o" (
-      subst = [ "basename" ];
-      targets = [ "%{basename}%.o" ];
-      src = %path (path = [ "%{ocamlrun_FULL_SRC_DIR}%" "%{basename}%.c" ]);
-      commands = [
-        { cc CFLAGS "-O" "-o" "%{basename}%.o""-c" src } ];
-      sources = [ byterun_headers src ];
     );
 
     byterun_objs (
@@ -110,7 +155,7 @@ begin rules "asmrun";
       subst = [ "basename" ];
       targets = [ "%{basename}%.o" ];
       commands = [
-        { ASPP SYS_SYSTEM "-o" "%{basename}%.o" "%{basename}%.S" }
+        { ASPP SYS_SYSTEM DMODEL "-fPIC" "-o" "%{basename}%.o" "%{basename}%.S" }
       ];
       sources = [ arch_files ];
     );
@@ -119,11 +164,119 @@ begin rules "asmrun";
       build_target = true;
       commands = [
         { "rm" "-f" "libasmrun.a" };
-        { "ar" "rc" "libasmrun.a" asmrun_objs byterun_objs arch_objs };
+        { ARCMD "rc" "libasmrun.a" asmrun_objs byterun_objs arch_objs };
         { "ranlib" "libasmrun.a" };
       ];
-
       sources = [ asmrun_objs byterun_objs arch_objs ];
+    );
+
+    (* DOBJS *)
+    asmrun_dobjs (
+      subst = [ "basename" ];
+      targets = [ "%{basename}%.d.o" ];
+      commands = [ { cc "-c" DFLAGS "-o" targets "%{basename}%.c" } ];
+      sources = [ asmrun_headers "%{basename}%.c" ];
+    );
+
+    byterun_dobjs (
+      subst = [ "basename" ];
+      targets = [ "%{basename}%.d.o" ];
+      src = %path (path = [ "%{ocamlrun_FULL_SRC_DIR}%" "%{basename}%.c" ]);
+      commands = [
+        { cc DFLAGS "-o" "%{basename}%.d.o" "-c" src } ];
+      sources = [ byterun_headers src ];
+    );
+
+    "libasmrund.a" (
+      build_target = true;
+      commands = [
+        { "rm" "-f" "libasmrund.a" };
+        { ARCMD "rc" "libasmrund.a" asmrun_dobjs byterun_dobjs arch_objs };
+        { "ranlib" "libasmrund.a" };
+      ];
+      sources = [ asmrun_dobjs byterun_dobjs arch_objs ];
+    );
+
+    (* POBJS *)
+    asmrun_pobjs (
+      subst = [ "basename" ];
+      targets = [ "%{basename}%.p.o" ];
+      commands = [ { cc PFLAGS "-c" "-o" targets "%{basename}%.c" } ];
+      sources = [ asmrun_headers "%{basename}%.c" ];
+    );
+
+    byterun_pobjs (
+      subst = [ "basename" ];
+      targets = [ "%{basename}%.p.o" ];
+      src = %path (path = [ "%{ocamlrun_FULL_SRC_DIR}%" "%{basename}%.c" ]);
+      commands = [
+        { cc PFLAGS "-o" "%{basename}%.p.o""-c" src } ];
+      sources = [ byterun_headers src ];
+    );
+
+    arch_pobjs (
+      subst = [ "basename" ];
+      targets = [ "%{basename}%.p.o" ];
+      commands = [
+        { ASPP SYS_SYSTEM DMODEL ASPPPROFFLAGS "-o" "%{basename}%.p.o" "%{basename}%.S" }
+      ];
+      sources = [ arch_files ];
+    );
+
+    "libasmrunp.a" (
+      build_target = true;
+      commands = [
+        { "rm" "-f" "libasmrunp.a" };
+        { ARCMD "rc" "libasmrunp.a" asmrun_pobjs byterun_pobjs arch_pobjs };
+        { "ranlib" "libasmrunp.a" };
+      ];
+      sources = [ asmrun_pobjs byterun_pobjs arch_pobjs ];
+    );
+
+    (*PICOBJS *)
+    asmrun_picobjs (
+      subst = [ "basename" ];
+      targets = [ "%{basename}%.pic.o" ];
+      commands = [ { cc PICFLAGS "-c" "-o" targets "%{basename}%.c" } ];
+      sources = [ asmrun_headers "%{basename}%.c" ];
+    );
+
+    byterun_picobjs (
+      subst = [ "basename" ];
+      targets = [ "%{basename}%.pic.o" ];
+      src = %path (path = [ "%{ocamlrun_FULL_SRC_DIR}%" "%{basename}%.c" ]);
+      commands = [
+        { cc PICFLAGS "-o" "%{basename}%.pic.o""-c" src } ];
+      sources = [ byterun_headers src ];
+    );
+
+    arch_picobjs (
+      subst = [ "basename" ];
+      targets = [ "%{basename}%.pic.o" ];
+      SHAREDCCCOMPOPTS2 = %split (s = SHAREDCCCOMPOPTS);
+      commands = [
+        { ASPP SYS_SYSTEM DMODEL SHAREDCCCOMPOPTS2 "-o" "%{basename}%.pic.o" "%{basename}%.S" }
+      ];
+      sources = [ arch_files ];
+    );
+
+    "libasmrun_pic.a" (
+      build_target = true;
+      commands = [
+        { "rm" "-f" "libasmrun_pic.a" };
+        { ARCMD "rc" "libasmrun_pic.a" asmrun_picobjs byterun_picobjs arch_picobjs };
+        { "ranlib" "libasmrun_pic.a" };
+      ];
+      sources = [ asmrun_picobjs byterun_picobjs arch_picobjs ];
+    );
+
+    "libasmrun_shared.so" (
+      build_target = true;
+      commands = [
+        { MKDLL "-o" "libasmrun_shared.so"
+            asmrun_picobjs byterun_picobjs arch_picobjs NATIVECCLIBS };
+      ];
+      sources = [ asmrun_picobjs byterun_picobjs arch_picobjs ];
     );
 
   ]

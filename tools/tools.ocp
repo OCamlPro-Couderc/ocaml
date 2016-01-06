@@ -28,16 +28,19 @@ begin
 end
 
 begin program "ocamlprof"
+    has_asm = false
     files = [ "profiling.ml" "ocamlprof.ml" ]
     requires = [ "ocaml-parsing" ]
 end
 
 begin program "ocamlcp"
+    has_asm = false
     files = [ "ocamlcp.ml" ]
         requires = [ "ocaml-common" ]
 end
 
 begin program "ocamloptp"
+    has_asm = false
     files = [ "ocamloptp.ml" ]
         requires = [ "ocaml-common" ]
 end
@@ -49,17 +52,20 @@ begin program "ocamlmklib"
 end
 
 begin program "dumpobj"
+    has_asm = false
     files = [ "opnames.ml" "dumpobj.ml" ]
     requires = [ "ocaml-bytecomp" ]
 
 end
 
 begin program "objinfo"
+    has_asm=false;
     files = [ "objinfo_helper.c" "objinfo.ml" ]
         requires = [ "ocaml-bytecomp" "ocaml-asmcomp" ]
 end
 
 begin program "read_cmt"
+    has_asm = false
     files = [ "untypeast.ml"
               "tast_iter.ml"
               "cmt2annot.ml" "read_cmt.ml" ]

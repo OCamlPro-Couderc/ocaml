@@ -22,11 +22,12 @@ requires = []
 begin config "boot-ocamlc"
      has_byte = true
      has_asm = false
-     ocamlc = [ "./byterun/ocamlrun" "boot/ocamlc" ]
-     ocamlcc = [ "./byterun/ocamlrun" "boot/ocamlc" ]
-     ocamldep = [ "./byterun/ocamlrun" "boot/ocamldep" ]
-     ocamllex = [ "./byterun/ocamlrun" "boot/ocamllex" ]
-     ocamlyacc = [ "./yacc/ocamlyacc" ]
+     ocamlrun = "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun"
+     ocamlc = [ ocamlrun "boot/ocamlc" ]
+     ocamlcc = [ ocamlrun "boot/ocamlc" ]
+     ocamldep = [ ocamlrun "boot/ocamldep" ]
+     ocamllex = [ ocamlrun "boot/ocamllex" ]
+     ocamlyacc = [ "yacc/ocamlyacc" ]
      ocamlyacc_deps = [ "%{ocamlyacc_FULL_SRC_DIR}%/ocamlyacc" ]
      ocamlc_deps = [ "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun" ]
      ocamllex_deps = [ "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun" ]
@@ -77,7 +78,7 @@ begin config "new-ocaml"
     binannot = true
     link = [ "-I" "%{std_exit_FULL_DST_DIR}%"  "-nostdlib" ]
 (* TODO: we should issue a warning when doing asmlink = ... that overrides a link *)
-    asmlink += [ "-cclib" "-lasmrun" "-I" "%{asmrun_FULL_SRC_DIR}%" ]
+    asmlink += [ "-cclib" "-lasmrun" "-cclib" "-lm" "-cclib" "-ldl" "-I" "%{asmrun_FULL_SRC_DIR}%" ]
     requires += [ "stdlib" ]
 end
 
