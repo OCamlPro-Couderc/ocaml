@@ -31,12 +31,22 @@ stdlib_files = [
   "stdLabels.ml" (comp += "-nolabels" "-no-alias-deps")
 ]
 
-begin library "stdlib-conf"
-      files = [ ]
-    build_rules = [
-        "sys.ml" (
-          commands = [{ "make" "sys.ml" }])
-      ]
+begin rules "stdlib-conf";
+  files = [ ];
+  build_rules = [
+    "sys.ml" (
+      targets = [ "sys.ml" ];
+      sources = [ "sys.mlp" ];
+      commands = [
+        "%%subst" (
+          from_file = "sys.mlp";
+          to_file = "sys.ml";
+          substitutions = [
+            "%%VERSION%%" ( with_string = VERSION_FULL )
+          ]
+        )
+      ]);
+  ];
 end
 
 

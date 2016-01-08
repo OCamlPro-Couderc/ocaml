@@ -1,0 +1,12 @@
+let bindir = "%%BINDIR%%"
+let ext_lib = "%%EXT_LIB%%"
+let ext_dll = "%%EXT_DLL%%"
+let supports_shared_libraries = %%SUPPORTS_SHARED_LIBRARIES%%
+let mkdll = "%%MKDLL%%"
+let byteccrpath = "%%BYTECCRPATH%%"
+let nativeccrpath = "%%NATIVECCRPATH%%"
+let mksharedlibrpath = "%%MKSHAREDLIBRPATH%%"
+let toolpref = "%%TOOLPREF%%"
+(* Those two following lines should be generated from config/Makefile *)
+let syslib x = "-l"^x;;
+let mklib out files opts = Printf.sprintf "ar rc %s %s %s; ranlib %s" out opts files out;;

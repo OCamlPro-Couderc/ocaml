@@ -89,12 +89,15 @@ begin config "link-with-new-ocaml"
   requires += [ "std_exit" (tolink = false) ]
 (*  asmlink += [ "-cclib" "-lasmrun" ] *)
 end
-
-
+ 
   VERSION_MAJOR = "4"
   VERSION_MINOR = "02"
-  VERSION_PATCH = "03"
+  VERSION_PATCH = "3"
   VERSION_ADDITIONAL = "using-ocp"
+  VERSION_FULL =
+               %string (strings =
+               [ VERSION_MAJOR "." VERSION_MINOR "." VERSION_PATCH
+                      "+" VERSION_ADDITIONAL ])
 PREFIX="/home/pcouderc/thesis/dev/ocaml/ocpbuild-installed"
 
 

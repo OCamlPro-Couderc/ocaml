@@ -101,7 +101,7 @@ toplevel_files =
 
 if include "config.ocpc" then {} else {}
 
-begin library "ocaml-conf"
+begin rules "ocaml-conf"
     files = [ ]
     build_rules = [
         "utils/config.ml" (
@@ -115,17 +115,36 @@ begin library "ocaml-conf"
     requires = [ "ocamlrun" ]
 end
 
-begin library "ocaml-bytecomp-conf"
-    files = [ ]
-        build_rules = [
-        "bytecomp/runtimedef.ml" (
-          source = [ ]
-            commands = [{ "make" "bytecomp/runtimedef.ml" }])
-          "bytecomp/opcodes.ml" (
-          source = [ ]
-            commands = [{ "make" "bytecomp/opcodes.ml" }])
+begin rules "ocaml-bytecomp-conf";
+  files = [ ];
+  build_rules = [
+    "bytecomp/runtimedef.ml" (
+      targets = [ "bytecomp/runtimedef.ml" ];
+      sources = [ "byterun/primitives" "byterun/caml/fail.h" ];
+      commands = [
+        { "bash" "-c"
+         "(echo 'let builtin_exceptions = [|';
+	 sed -n -e 's|.*/\* \(\"[A-Za-z_]*\"\) \*/$|  \1;|p' %{ocamlrun_FULL_SRC_DIR}%/caml/fail.h |
+	 sed -e '$s/;$//';
+	 echo '|]';
+	 echo 'let builtin_primitives = [|';
+	 sed -e 's/.*/  \"&\";/' -e '$s/;$//' %{ocamlrun_FULL_SRC_DIR}%/primitives;
+	 echo '|]')" } (stdout = "bytecomp/runtimedef.ml" )
+      ]);
+    "bytecomp/opcodes.ml" (
+      targets = [ "bytecomp/opcodes.ml" ];
+      sources = [ "byterun/caml/instruct.h" ];
+      commands = [
+        { "sed" "-n" "-e" "/^enum/p" "-e" "s/,//g" "-e" "/^  /p"
+             "/instruct.h" }
+          ( stdout = "opcodes.ml.temp" );
+	{ "awk" "-f" "tools/make-opcodes" "opcodes.ml.temp" }
+          (stdout = "opcodes.ml");
+        { "rm" "-f" "opcodes.ml.temp" }
       ]
-        requires = [ "ocamlrun" ]
+      commands = [{ "make" "bytecomp/opcodes.ml" }]);
+  ];
+  requires = [ "ocamlrun" ]
 end
 (* TODO: generate files without `make` *)
 begin rules "ocaml-asmcomp-conf"
@@ -133,30 +152,37 @@ begin rules "ocaml-asmcomp-conf"
     files = [ ]
         build_rules = [
         "asmcomp/arch.ml" (
+          targets = [ "asmcomp/arch.ml" ]
           src = %path (path = [ "asmcomp" ARCH "arch.ml" ])
           sources = [ src ]
             commands = [{ "cp" src "asmcomp/arch.ml" }])
           "asmcomp/proc.ml" (
+          targets = [ "asmcomp/proc.ml" ]
           src = %path (path = [ "asmcomp" ARCH "proc.ml" ])
           sources = [ ]
             commands = [{ "cp" src "asmcomp/proc.ml" }])
           "asmcomp/selection.ml" (
+          targets = [ "asmcomp/selection.ml" ]
           src = %path (path = [ "asmcomp" ARCH "selection.ml" ])
           sources = [ src ]
             commands = [{ "cp" src "asmcomp/selection.ml" }])
           "asmcomp/CSE.ml" (
+          targets = [ "asmcomp/CSE.ml" ]
           src = %path (path = [ "asmcomp" ARCH "CSE.ml" ])
           sources = [ src ]
             commands = [{ "cp" src "asmcomp/CSE.ml" }])
           "asmcomp/reload.ml" (
+          targets = [ "asmcomp/reload.ml" ]
           src = %path (path = [ "asmcomp" ARCH "reload.ml" ])
           sources = [ src ]
             commands = [{ "cp" src "asmcomp/reload.ml" }])
           "asmcomp/scheduling.ml" (
+          targets = [ "asmcomp/scheduling.ml" ]
           src = %path (path = [ "asmcomp" ARCH "scheduling.ml" ])
           sources = [ src ]
             commands = [{ "cp" src "asmcomp/scheduling.ml" }])
           "asmcomp/emit.ml" (
+          targets = [ "asmcomp/emit.ml" ]
             src = %path (path = [ "asmcomp" ARCH "emit.mlp" ])
             sources = [ "%{cvt_emit_FULL_DST_DIR}%/cvt_emit.byte" "boot/ocamlrun" ]
             commands = [
@@ -173,7 +199,7 @@ begin
   begin library "ocaml-utils-boot"
       use "boot-ocamlc"
       subdir = [ "utils" ]
-          files = [ utils_files (use "boot-ocamlc") ]
+          files = [ utils_files ]
           requires = [ "ocaml-conf" "stdlib-boot" "std_exit-boot" ]
   end
 
