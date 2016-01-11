@@ -305,3 +305,12 @@ and ext_status =
     Text_first                     (* first constructor of an extension *)
   | Text_next                      (* not first constructor of an extension *)
   | Text_exception                 (* an exception *)
+
+type typedtree_type =
+    Val of type_expr
+  | Ty of type_declaration
+  | Ext of extension_constructor
+  | Mod of signature
+  | Mty of signature
+  | Class of class_type
+  | Cty of class_type

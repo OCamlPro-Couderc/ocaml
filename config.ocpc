@@ -23,11 +23,11 @@ begin config "boot-ocamlc"
      has_byte = true
      has_asm = false
      ocamlrun = "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun"
-     ocamlc = [ ocamlrun "boot/ocamlc" ]
-     ocamlcc = [ ocamlrun "boot/ocamlc" ]
-     ocamldep = [ ocamlrun "boot/ocamldep" ]
-     ocamllex = [ ocamlrun "boot/ocamllex" ]
-     ocamlyacc = [ "yacc/ocamlyacc" ]
+     ocamlc = [ ocamlrun "%{ocamlrun_FULL_SRC_DIR}%/../boot/ocamlc" ]
+     ocamlcc = [ ocamlrun "%{ocamlrun_FULL_SRC_DIR}%/../boot/ocamlc" ]
+     ocamldep = [ ocamlrun "%{ocamlrun_FULL_SRC_DIR}%/../boot/ocamldep" ]
+     ocamllex = [ ocamlrun "%{ocamlrun_FULL_SRC_DIR}%/../boot/ocamllex" ]
+     ocamlyacc = [ "%{ocamlrun_FULL_SRC_DIR}%/../yacc/ocamlyacc" ]
      ocamlyacc_deps = [ "%{ocamlyacc_FULL_SRC_DIR}%/ocamlyacc" ]
      ocamlc_deps = [ "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun" ]
      ocamllex_deps = [ "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun" ]
