@@ -33,13 +33,13 @@ let share c =
   match c with
     Const_block (n, l) when l <> [] ->
       begin try
-        Lvar (Hashtbl.find consts c)
+        mk_lambda @@ Lvar (Hashtbl.find consts c)
       with Not_found ->
         let id = Ident.create "shared" in
         Hashtbl.add consts c id;
-        Lvar id
+        mk_lambda @@ Lvar id
       end
-  | _ -> Lconst c
+  | _ -> mk_lambda @@ Lconst c
 
 (* Collect labels *)
 
@@ -48,14 +48,15 @@ let method_cache = ref lambda_unit
 let method_count = ref 0
 let method_table = ref []
 
-let meth_tag s = Lconst(Const_base(Const_int(Btype.hash_variant s)))
+let meth_tag s = mk_lambda @@ Lconst(Const_base(Const_int(Btype.hash_variant s)))
 
 let next_cache tag =
   let n = !method_count in
   incr method_count;
-  (tag, [!method_cache; Lconst(Const_base(Const_int n))])
+  (tag, [!method_cache; mk_lambda @@ Lconst(Const_base(Const_int n))])
 
-let rec is_path = function
+let rec is_path l =
+  match l.lb_expr with
     Lvar _ | Lprim (Pgetglobal _, []) | Lconst _ -> true
   | Lprim (Pfield _, [lam]) -> is_path lam
   | Lprim ((Parrayrefu _ | Parrayrefs _), [lam1; lam2]) ->
@@ -86,8 +87,8 @@ let reset_labels () =
 
 (* Insert labels *)
 
-let string s = Lconst (Const_base (Const_string (s, None)))
-let int n = Lconst (Const_base (Const_int n))
+let string s = mk_lambda @@ Lconst (Const_base (Const_string (s, None)))
+let int n = mk_lambda @@ Lconst (Const_base (Const_int n))
 
 let prim_makearray =
   { prim_name = "caml_make_vect"; prim_arity = 2; prim_alloc = true;
@@ -97,12 +98,14 @@ let prim_makearray =
 let transl_label_init expr =
   let expr =
     Hashtbl.fold
-      (fun c id expr -> Llet(Alias, id, Lconst c, expr))
+      (fun c id expr ->
+         mk_lambda @@ Llet(Alias, id, mk_lambda @@ Lconst c, expr))
       consts expr
   in
   let expr =
     List.fold_right
-      (fun id expr -> Lsequence(Lprim(Pgetglobal id, []), expr))
+      (fun id expr ->
+         mk_lambda @@ Lsequence(mk_lambda @@ Lprim(Pgetglobal id, []), expr))
       (Env.get_required_globals ()) expr
   in
   Env.reset_required_globals ();
@@ -110,15 +113,18 @@ let transl_label_init expr =
   expr
 
 let transl_store_label_init glob size f arg =
-  method_cache := Lprim(Pfield size, [Lprim(Pgetglobal glob, [])]);
+  method_cache :=
+    mk_lambda @@ Lprim(Pfield size, [mk_lambda @@ Lprim(Pgetglobal glob, [])]);
   let expr = f arg in
   let (size, expr) =
     if !method_count = 0 then (size, expr) else
     (size+1,
+     mk_lambda @@
      Lsequence(
-     Lprim(Psetfield(size, false),
-           [Lprim(Pgetglobal glob, []);
-            Lprim (Pccall prim_makearray, [int !method_count; int 0])]),
+       mk_lambda @@
+       Lprim(Psetfield(size, false),
+           [mk_lambda @@ Lprim(Pgetglobal glob, []);
+            mk_lambda @@ Lprim (Pccall prim_makearray, [int !method_count; int 0])]),
      expr))
   in
   (size, transl_label_init expr)
@@ -149,8 +155,10 @@ let oo_wrap env req f x =
     let lambda =
       List.fold_left
         (fun lambda id ->
-          Llet(StrictOpt, id,
-               Lprim(Pmakeblock(0, Mutable),
+           mk_lambda @@
+           Llet(StrictOpt, id,
+                mk_lambda @@
+                Lprim(Pmakeblock(0, Mutable),
                      [lambda_unit; lambda_unit; lambda_unit]),
                lambda))
         lambda !classes

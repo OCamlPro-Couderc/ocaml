@@ -239,7 +239,8 @@ let primitive ppf = function
   | Pbbswap(bi) -> print_boxed_integer "bswap" ppf bi
   | Pint_as_pointer -> fprintf ppf "int_as_pointer"
 
-let rec lam ppf = function
+let rec lam ppf l =
+  match l.lb_expr with
   | Lvar id ->
       Ident.print ppf id
   | Lconst cst ->
@@ -267,7 +268,7 @@ let rec lam ppf = function
       let kind = function
         Alias -> "a" | Strict -> "" | StrictOpt -> "o" | Variable -> "v" in
       let rec letbody = function
-        | Llet(str, id, arg, body) ->
+        | { lb_expr = Llet(str, id, arg, body) } ->
             fprintf ppf "@ @[<2>%a =%s@ %a@]" Ident.print id (kind str) lam arg;
             letbody body
         | expr -> expr in
@@ -382,7 +383,7 @@ let rec lam ppf = function
       fprintf ppf "@[<2>(ifused@ %a@ %a)@]" Ident.print id lam expr
 
 and sequence ppf = function
-  | Lsequence(l1, l2) ->
+  | { lb_expr = Lsequence(l1, l2) } ->
       fprintf ppf "%a@ %a" sequence l1 sequence l2
   | l ->
       lam ppf l

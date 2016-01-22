@@ -193,6 +193,7 @@ type lambda_expr =
 and lambda =
   { lb_expr: lambda_expr;
     lb_tt_type: Types.typedtree_type option;
+    lb_from: string option;
   }
 
 and lambda_switch =
@@ -216,10 +217,13 @@ and lambda_event_kind =
 let const_unit = Const_pointer 0
 
 let lambda_unit =
-  { lb_expr = Lconst const_unit; lb_tt_type = Some (Val Predef.type_unit) }
+  { lb_expr = Lconst const_unit;
+    lb_tt_type = Some (Val Predef.type_unit);
+    lb_from = None;
+  }
 
-let mk_lambda ?ty l =
-  { lb_expr = l; lb_tt_type = ty }
+let mk_lambda ?ty ?from l =
+  { lb_expr = l; lb_tt_type = ty; lb_from = from }
 
 (* Build sharing keys *)
 (*
@@ -469,20 +473,20 @@ let rec patch_guarded patch l =
 
 (* Translate an access path *)
 
-let rec transl_normal_path = function
+let rec transl_normal_path ?ty = function
     Pident id ->
       if Ident.global id then
-        mk_lambda @@ Lprim(Pgetglobal id, [])
-      else mk_lambda @@ Lvar id
+        mk_lambda ?ty @@ Lprim(Pgetglobal id, [])
+      else mk_lambda ?ty @@ Lvar id
   | Pdot(p, s, pos) ->
-      mk_lambda @@ Lprim(Pfield pos, [transl_normal_path p])
+      mk_lambda ?ty @@ Lprim(Pfield pos, [transl_normal_path p])
   | Papply(p1, p2) ->
       fatal_error "Lambda.transl_path"
 
 (* Translation of value identifiers *)
 
-let transl_path ?(loc=Location.none) env path =
-  transl_normal_path (Env.normalize_path (Some loc) env path)
+let transl_path ?(loc=Location.none) env ?ty path =
+  transl_normal_path ?ty (Env.normalize_path (Some loc) env path)
 
 (* Compile a sequence of expressions *)
 

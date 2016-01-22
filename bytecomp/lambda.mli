@@ -203,6 +203,7 @@ type lambda_expr =
 and lambda =
   { lb_expr: lambda_expr;
     lb_tt_type: Types.typedtree_type option;
+    lb_from: string option;
   }
 
 and lambda_switch =
@@ -222,6 +223,8 @@ and lambda_event_kind =
   | Lev_after of Types.type_expr
   | Lev_function
 
+val mk_lambda: ?ty: Types.typedtree_type -> ?from: string -> lambda_expr -> lambda
+
 (* Sharing key *)
 val make_key: lambda -> lambda option
 
@@ -235,8 +238,8 @@ module IdentSet: Set.S with type elt = Ident.t
 val free_variables: lambda -> IdentSet.t
 val free_methods: lambda -> IdentSet.t
 
-val transl_normal_path: Path.t -> lambda   (* Path.t is already normal *)
-val transl_path: ?loc:Location.t -> Env.t -> Path.t -> lambda
+val transl_normal_path: ?ty:Types.typedtree_type -> Path.t -> lambda   (* Path.t is already normal *)
+val transl_path: ?loc:Location.t -> Env.t -> ?ty:Types.typedtree_type -> Path.t -> lambda
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 
 val subst_lambda: lambda Ident.tbl -> lambda -> lambda

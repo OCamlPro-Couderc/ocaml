@@ -476,7 +476,7 @@ let make_catch d k = match d with
 | Lstaticraise (_,[]) -> k d
 | _ ->
     let e = next_raise_count () in
-    Lstaticcatch (k (make_exit e),(e,[]),d)
+    Lstaticcatch (!k (make_exit e),(e,[]),d)
 
 (* Introduce a catch, if worth it, delayed version *)
 let rec as_simple_exit = function
