@@ -56,46 +56,62 @@ let transl_extension_constructor env path ext =
       None -> Ident.name ext.ext_id
     | Some p -> Path.name p
   in
+  let ty =
+    match ext.ext_ret_type with
+      None -> Val (Ctype.newconstr ext.ext_type_path ext.ext_type_params)
+    | Some ty -> Val ty
+  in
+  let mk l = mk_lambda ~ty ~from:"transl_exception_constructor" l in
   match ext.ext_kind with
     Text_decl(args, ret) ->
+      mk @@
       Lprim(prim_set_oo_id,
-            [Lprim(Pmakeblock(Obj.object_tag, Mutable),
-                   [Lconst(Const_base(Const_string (name,None)));
-                    Lconst(Const_base(Const_int 0))])])
+            [mk @@
+             Lprim(Pmakeblock(Obj.object_tag, Mutable),
+                   [mk @@ Lconst(Const_base(Const_string (name,None)));
+                    mk @@ Lconst(Const_base(Const_int 0))])])
   | Text_rebind(path, lid) ->
-      transl_path ~loc:ext.ext_loc env path
+      mk @@ transl_path ~loc:ext.ext_loc env path
 
 let transl_type_extension env rootpath tyext body =
+  let mk l =
+    mk_lambda ~ty:body.lb_tt_type ~from:"transl_type_extension" in
   List.fold_right
     (fun ext body ->
       let lam =
         transl_extension_constructor env (field_path rootpath ext.ext_id) ext
       in
-      Llet(Strict, ext.ext_id, lam, body))
+      mk @@ Llet(Strict, ext.ext_id, lam, body))
     tyext.tyext_constructors
     body
 
 (* Compile a coercion *)
 
 let rec apply_coercion strict restr arg =
+  let mk l = mk_lambda ~from:"apply_coercion" l in
   match restr with
     Tcoerce_none ->
       arg
   | Tcoerce_structure(pos_cc_list, id_pos_list) ->
       name_lambda strict arg (fun id ->
-        let get_field pos = Lprim(Pfield pos,[Lvar id]) in
-        let lam =
-          Lprim(Pmakeblock(0, Immutable),
-                List.map (apply_coercion_field get_field) pos_cc_list)
-        in
-        wrap_id_pos_list id_pos_list get_field lam)
+          let get_field pos =
+            mk @@
+            Lprim(Pfield pos,[mk @@ Lvar id]) in
+          let lam =
+            mk @@
+            Lprim(Pmakeblock(0, Immutable),
+                  List.map (apply_coercion_field get_field) pos_cc_list)
+          in
+          wrap_id_pos_list id_pos_list get_field lam)
   | Tcoerce_functor(cc_arg, cc_res) ->
       let param = Ident.create "funarg" in
       name_lambda strict arg (fun id ->
+          mk @@
         Lfunction(Curried, [param],
           apply_coercion Strict cc_res
-            (Lapply(Lvar id, [apply_coercion Alias cc_arg (Lvar param)],
-                    Location.none))))
+            (mk @@ Lapply(mk @@ Lvar id,
+                          [apply_coercion Alias cc_arg (mk @@ Lvar param)],
+                          Location.none))))
   | Tcoerce_primitive p ->
       transl_primitive Location.none p
   | Tcoerce_alias (path, cc) ->
@@ -114,8 +130,8 @@ and wrap_id_pos_list id_pos_list get_field lam =
     List.fold_left (fun (lam,s) (id',pos,c) ->
       if IdentSet.mem id' fv then
         let id'' = Ident.create (Ident.name id') in
-        (Llet(Alias,id'',
-              apply_coercion Alias c (get_field pos),lam),
+        (mk @@ Llet(Alias,id'',
+                    apply_coercion Alias c (get_field pos),lam),
          Ident.add id' (Lvar id'') s)
       else (lam,s))
       (lam, Ident.empty) id_pos_list
@@ -180,13 +196,15 @@ let record_primitive = function
 let mod_prim name =
   try
     transl_normal_path
-      (fst (Env.lookup_value (Ldot (Lident "CamlinternalMod", name))
-                             Env.empty))
+      (fst (Env.lookup_value (mk_lambda ~from:"mod_prim"
+                              @@ Ldot (Lident "CamlinternalMod", name))
+              Env.empty))
   with Not_found ->
     fatal_error ("Primitive " ^ name ^ " not found.")
 
 let undefined_location loc =
   let (fname, line, char) = Location.get_pos_info loc.Location.loc_start in
+  mk_lambda ~from:"undefined_location" @@
   Lconst(Const_block(0,
                      [Const_base(Const_string (fname, None));
                       Const_base(Const_int line);
@@ -232,6 +250,7 @@ let init_shape modl =
   in
   try
     Some(undefined_location modl.mod_loc,
+         mk_lambda ~ty:(Mod modl.mod_type) ~from:"init_shape" @@
          Lconst(init_shape_mod modl.mod_env modl.mod_type))
   with Not_found ->
     None
@@ -274,29 +293,42 @@ let reorder_rec_bindings bindings =
 
 let eval_rec_bindings bindings cont =
   let rec bind_inits = function
-    [] ->
-      bind_strict bindings
-  | (id, None, rhs) :: rem ->
-      bind_inits rem
-  | (id, Some(loc, shape), rhs) :: rem ->
-      Llet(Strict, id, Lapply(mod_prim "init_mod", [loc; shape], Location.none),
-           bind_inits rem)
+      [] ->
+        bind_strict bindings
+    | (id, None, rhs) :: rem ->
+        bind_inits rem
+    | (id, Some(loc, shape), rhs) :: rem ->
+        let rem = bind_inits rem in
+        mk_lambda ~ty:rm.lb_tt_type ~from:"eval_rec_bindings.bind_inits" @@
+        Llet(Strict, id,
+             mk_lambda ~from:"eval_rec_bindings.bind_inits" @@
+             Lapply(mod_prim "init_mod", [loc; shape], Location.none),
+             rem)
   and bind_strict = function
     [] ->
       patch_forwards bindings
-  | (id, None, rhs) :: rem ->
-      Llet(Strict, id, rhs, bind_strict rem)
-  | (id, Some(loc, shape), rhs) :: rem ->
-      bind_strict rem
+    | (id, None, rhs) :: rem ->
+        let rem = bind_strict rem in
+        mk_lambda ~ty:rem.lb_tt_type ~from:"eval_rec_bindings.bind_strict" @@
+        Llet(Strict, id, rhs, rem)
+    | (id, Some(loc, shape), rhs) :: rem ->
+        bind_strict rem
   and patch_forwards = function
-    [] ->
-      cont
-  | (id, None, rhs) :: rem ->
-      patch_forwards rem
-  | (id, Some(loc, shape), rhs) :: rem ->
-      Lsequence(Lapply(mod_prim "update_mod", [shape; Lvar id; rhs],
-                       Location.none),
-                patch_forwards rem)
+      [] ->
+        cont
+    | (id, None, rhs) :: rem ->
+        patch_forwards rem
+    | (id, Some(loc, shape), rhs) :: rem ->
+        let rem = patch_forwards rem in
+        mk_lambda ~ty:rem.lb_tt_type ~from:"eval_rec_bindings.patch_forwards" @@
+        Lsequence(
+          mk_lambda ~from:"eval_rec_bindings.patch_forwards" @@
+          Lapply(mod_prim "update_mod",
+                 [shape;
+                  mk_lambda ~from:"eval_rec_bindings.patch_forwards" @@ Lvar id;
+                  rhs],
+                 Location.none),
+          rem)
   in
     bind_inits bindings
 
