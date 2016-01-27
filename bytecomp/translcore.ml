@@ -1136,8 +1136,9 @@ and transl_let rec_flag pat_expr_list body =
         if not (check_recursive_lambda idlist lam) then
           raise(Error(expr.exp_loc, Illegal_letrec_expr));
         (id, lam) in
-      mk_lambda ~ty:body.lb_tt_type @@
-      Lletrec(List.map2 transl_case pat_expr_list idlist, body)
+      { body with
+        lb_expr = Lletrec(List.map2 transl_case pat_expr_list idlist, body);
+        lb_from = Some "transl_let" }
 
 and transl_setinstvar self var expr =
   mk_lambda @@ (* /!\   To Check *)
@@ -1162,8 +1163,8 @@ and transl_record all_labels repres lbl_expr_list opt_init_expr =
               Record_regular -> Pfield i
             | Record_float -> Pfloatfield i in
           lv.(i) <-
-            mk_lambda ~ty:all_labels.(i).lbl_res @@
-            Lprim(access, [Lvar init_id])
+            mk_lambda ~ty:(Val all_labels.(i).lbl_res) @@
+            Lprim(access, [mk_lambda @@ Lvar init_id])
         done
     end;
     List.iter
@@ -1177,7 +1178,7 @@ and transl_record all_labels repres lbl_expr_list opt_init_expr =
     let lam =
       try
         if mut = Mutable then raise Not_constant;
-        let cl, _ = List.map extract_constant ll |> List.filter in
+        let cl, _ = List.map extract_constant ll |> List.split in
         match repres with
           Record_regular -> mk_lambda @@ Lconst(Const_block(0, cl))
         | Record_float ->

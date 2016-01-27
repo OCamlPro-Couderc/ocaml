@@ -310,7 +310,7 @@ type typedtree_type =
     Val of type_expr
   | Ty of type_declaration
   | Ext of extension_constructor
-  | Mod of signature
-  | Mty of signature
+  | Mod of module_type
+  | Mty of module_type option
   | Class of class_type
   | Cty of class_type
