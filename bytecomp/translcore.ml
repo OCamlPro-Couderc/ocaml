@@ -1064,8 +1064,7 @@ and transl_apply lam sargs ?ty loc =
           match build_apply handle ((mk_lambda @@ Lvar id_arg, optional)::args') l with
             { lb_expr = Lfunction(Curried, ids, lam) } ->
               mk_lambda @@ Lfunction(Curried, id_arg::ids, lam)
-          | { lb_expr = Levent({ lb_expr = Lfunction(Curried, ids, lam)}, _) }
-            as lb ->
+          | { lb_expr = Levent({ lb_expr = Lfunction(Curried, ids, lam)}, _) } ->
               mk_lambda @@ Lfunction(Curried, id_arg::ids, lam)
           | lam ->
               mk_lambda @@ Lfunction(Curried, [id_arg], lam)

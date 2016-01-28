@@ -658,7 +658,7 @@ let transl_store_structure glob map prims str =
         mk_lambda
           ~ty:(Mod (Mty_signature str.str_type))
           ~from:"transl_store_structure"
-          lambda_unit
+          lambda_unit.lb_expr
     | item :: rem ->
         match item.str_desc with
   | Tstr_eval (expr, _attrs) ->
@@ -754,7 +754,7 @@ let transl_store_structure glob map prims str =
         [] -> transl_store rootpath (add_idents true ids subst) rem
         | id :: idl ->
             mk_u @@
-            Llet(Alias, id, mk_u @@ Lprim(Pfield pos, [Lvar mid]),
+            Llet(Alias, id, mk_u @@ Lprim(Pfield pos, [mk_u @@ Lvar mid]),
                  mk_u @@
                  Lsequence(store_ident id, store_idents (pos + 1) idl)) in
       mk_u @@
@@ -770,7 +770,7 @@ let transl_store_structure glob map prims str =
   and store_ident id =
     try
       let (pos, cc) = Ident.find_same id map in
-      let init_val = apply_coercion Alias cc (Lvar id) in
+      let init_val = apply_coercion Alias cc (mk_u @@ Lvar id) in
       mk_u @@
       Lprim(Psetfield(pos, false),
             [mk_u @@ Lprim(Pgetglobal glob, []); init_val])
@@ -806,7 +806,7 @@ let transl_store_structure glob map prims str =
               cont)
 
   in List.fold_right store_primitive prims
-                     (transl_store (global_path glob) !transl_store_subst str)
+    (transl_store (global_path glob) !transl_store_subst str.str_items)
 
 (* Transform a coercion and the list of value identifiers defined by
    a toplevel structure into a table [id -> (pos, coercion)],
@@ -851,17 +851,20 @@ let build_ident_map restr idlist more_ids =
 (* Compile an implementation using transl_store_structure
    (for the native-code compiler). *)
 
-let transl_store_gen module_name ({ str_items = str }, restr) topl =
+let transl_store_gen module_name (str, restr) topl =
   reset_labels ();
   primitive_declarations := [];
   let module_id = Ident.create_persistent module_name in
   let (map, prims, size) =
-    build_ident_map restr (defined_idents str) (more_idents str) in
-  let f = function
+    build_ident_map restr
+      (defined_idents str.str_items)
+      (more_idents str.str_items) in
+  let f str =
+    match str.str_items with
     | [ { str_desc = Tstr_eval (expr, _attrs) } ] when topl ->
         assert (size = 0);
         subst_lambda !transl_store_subst (transl_exp expr)
-    | str -> transl_store_structure module_id map prims str in
+    | _ -> transl_store_structure module_id map prims str in
   transl_store_label_init module_id size f str
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
@@ -902,6 +905,7 @@ let toploop_getvalue id =
          Location.none)
 
 let toploop_setvalue id lam =
+  let mk_u l = mk_lambda ~from:"toploop_setvalue" l in
   mk_u @@
   Lapply(mk_u @@
          Lprim(Pfield toploop_setvalue_pos,
@@ -909,7 +913,8 @@ let toploop_setvalue id lam =
          [mk_u @@ Lconst(Const_base(Const_string (toplevel_name id, None))); lam],
          Location.none)
 
-let toploop_setvalue_id id = toploop_setvalue id (Lvar id)
+let toploop_setvalue_id id =
+  toploop_setvalue id (mk_lambda ~from:"toploop_setvalue_id" @@ Lvar id)
 
 let close_toplevel_term lam =
   IdentSet.fold (fun id l ->
@@ -970,7 +975,8 @@ let transl_toplevel_item item =
           lambda_unit
       | id :: ids ->
           mk_u @@
-          Lsequence(toploop_setvalue id (Lprim(Pfield pos, [Lvar mid])),
+          Lsequence(toploop_setvalue id
+                      (mk_u @@ Lprim(Pfield pos, [mk_u @@ Lvar mid])),
                     set_idents (pos + 1) ids) in
       mk_u @@
       Llet(Strict, mid, transl_module Tcoerce_none None modl, set_idents 0 ids)
@@ -992,8 +998,8 @@ let transl_toplevel_definition str =
 (* Compile the initialization code for a packed library *)
 
 let get_component = function
-    None -> Lconst const_unit
-  | Some id -> Lprim(Pgetglobal id, [])
+    None -> mk_lambda ~from:"get_component" @@ Lconst const_unit
+  | Some id -> mk_lambda ~from:"get_component" @@ Lprim(Pgetglobal id, [])
 
 let transl_package component_names target_name coercion =
   let mk_u l = mk_lambda ~from:"transl_package" l in
@@ -1048,7 +1054,7 @@ let transl_store_package component_names target_name coercion =
                   mk_u @@
                   Lprim(Psetfield(pos, false),
                         [mk_u @@ Lprim(Pgetglobal target_name, []);
-                         mk_u @@ Lprim(Pfield pos, [Lvar blk])]))
+                         mk_u @@ Lprim(Pfield pos, [mk_u @@ Lvar blk])]))
                0 pos_cc_list))
   (*
               (* ignore id_pos_list as the ids are already bound *)
