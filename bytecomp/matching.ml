@@ -469,17 +469,18 @@ module StoreExp =
     end)
 
 
-let make_exit i = Lstaticraise (i,[])
+let make_exit i = mk_lambda ~from:"make_exit" @@ Lstaticraise (i,[])
 
 (* Introduce a catch, if worth it *)
-let make_catch d k = match d with
+let make_catch d k = match d.lb_expr with
 | Lstaticraise (_,[]) -> k d
 | _ ->
     let e = next_raise_count () in
-    Lstaticcatch (!k (make_exit e),(e,[]),d)
+    mk_lambda ~from:"make_catch" @@ Lstaticcatch (k (make_exit e),(e,[]),d)
 
 (* Introduce a catch, if worth it, delayed version *)
-let rec as_simple_exit = function
+let rec as_simple_exit l =
+  match l.lb_expr with
   | Lstaticraise (i,[]) -> Some i
   | Llet (Alias,_,_,e) -> as_simple_exit e
   | _ -> None
@@ -493,10 +494,10 @@ let make_catch_delayed handler = match as_simple_exit handler with
     Printf.eprintf "SHARE LAMBDA: %i\n%s\n" i (string_of_lam handler);
 *)
     i,
-    (fun body -> match body with
+    (fun body -> match body.lb_expr with
     | Lstaticraise (j,_) ->
         if i=j then handler else body
-    | _ -> Lstaticcatch (body,(i,[]),handler))
+    | _ -> { body with lb_expr = Lstaticcatch (body,(i,[]),handler) })
 
 
 let raw_action l =

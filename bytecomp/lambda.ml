@@ -240,6 +240,7 @@ let make_key e =
   and make_key = Ident.make_key_generator () in
   (* make_key is used for normalizing let-bound variables *)
   let rec tr_rec env e =
+    let e = { e with lb_tt_type = None; lb_from = None } in
     incr count ;
     if !count > max_raw then raise Not_simple ; (* Too big ! *)
     match e.lb_expr with
