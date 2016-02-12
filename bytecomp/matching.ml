@@ -1075,7 +1075,7 @@ and split_constr cls args def k =
 
 and precompile_var  args cls def k = match args with
 | []  -> assert false
-| _::((Lvar v as av,_) as arg)::rargs ->
+| _::(({ lb_expr = Lvar v } as av) ,_) as arg)::rargs ->
     begin match cls with
     | [ps,_] -> (* as splitted as it can *)
         dont_precompile_var args cls def k
@@ -1144,8 +1144,9 @@ and precompile_or argo cls ors args def k = match ors with
           let new_patl = Parmatch.omega_list patl in
 
           let mk_new_action vs =
+            mk_lambda ~from:"precompile_or" ~ty:(Val orp.pat_type) @@
             Lstaticraise
-              (or_num, List.map (fun v -> Lvar v) vs) in
+              (or_num, List.map (fun v -> mk_lambda @@ Lvar v) vs) in
 
           let do_optrec,body,handlers = do_cases rem in
           do_opt && do_optrec,
