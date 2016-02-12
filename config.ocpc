@@ -22,12 +22,16 @@ requires = []
 begin config "boot-ocamlc"
      has_byte = true
      has_asm = false
+     root = "%{ocamlrun_FULL_SRC_DIR}%/.."
      ocamlrun = "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun"
-     ocamlc = [ ocamlrun "boot/ocamlc" ]
-     ocamlcc = [ ocamlrun "boot/ocamlc" ]
-     ocamldep = [ ocamlrun "boot/ocamldep" ]
-     ocamllex = [ ocamlrun "boot/ocamllex" ]
-     ocamlyacc = [ "yacc/ocamlyacc" ]
+     ocamlc_path = %path (path = [ root "boot/ocamlc"])
+     ocamlc = [ ocamlrun ocamlc_path ]
+     ocamlcc = [ ocamlrun ocamlc_path ]
+     ocamldep_path = %path (path = [ root "boot/ocamldep" ])
+     ocamldep = [ ocamlrun ocamldep_path ]
+     ocamllex_path = %path (path = [ root "boot/ocamllex" ])
+     ocamllex = [ ocamlrun ocamllex_path]
+     ocamlyacc = %path (path = [ root "yacc/ocamlyacc" ])
      ocamlyacc_deps = [ "%{ocamlyacc_FULL_SRC_DIR}%/ocamlyacc" ]
      ocamlc_deps = [ "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun" ]
      ocamllex_deps = [ "%{ocamlrun_FULL_SRC_DIR}%/ocamlrun" ]
@@ -44,14 +48,17 @@ begin config "new-ocaml-without-stdlib"
      ocamlc = [ ocamlrun "%{ocamlc-boot_FULL_DST_DIR}%/ocamlc-boot.byte" ]
      ocamlcc = [ ocamlrun "%{ocamlc-boot_FULL_DST_DIR}%/ocamlc-boot.byte" ]
      ocamlopt = [ ocamlrun "%{ocamlopt-boot_FULL_DST_DIR}%/ocamlopt-boot.byte" ]
-     ocamldep = [ ocamlrun "boot/ocamldep"]
-     ocamllex = [ ocamlrun "boot/ocamllex" ]
+     root = "%{ocamlrun_FULL_SRC_DIR}%/.."
+     ocamldep_path = %path (path = [ root "boot/ocamldep" ])
+     ocamldep = [ ocamlrun ocamldep_path ]
+     ocamllex_path = %path (path = [ root "boot/ocamllex" ])
+     ocamllex = [ ocamlrun ocamllex_path]
      ocamlmklib = [ ocamlrun "%{ocamlmklib_FULL_DST_DIR}%/ocamlmklib.byte" ]
      ocamlmklib_deps = [ ocamlrun "%{ocamlmklib_FULL_DST_DIR}%/ocamlmklib.byte" ]
      comp += [ "-nostdlib" ]
      link += [ "-nostdlib" "-nopervasives" ]
 
-     ocamlyacc = [ "./yacc/ocamlyacc" ]
+     ocamlyacc = %path (path = [ root "yacc/ocamlyacc" ])
      ocamlyacc_deps = [ "%{ocamlyacc_FULL_SRC_DIR}%/ocamlyacc" ]
 
      ocamlc_deps = ocamlc
