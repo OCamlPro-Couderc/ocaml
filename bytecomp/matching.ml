@@ -1075,7 +1075,7 @@ and split_constr cls args def k =
 
 and precompile_var  args cls def k = match args with
 | []  -> assert false
-| _::(({ lb_expr = Lvar v } as av) ,_) as arg)::rargs ->
+| _::(({ lb_expr = Lvar v } as av ,_) as arg)::rargs ->
     begin match cls with
     | [ps,_] -> (* as splitted as it can *)
         dont_precompile_var args cls def k
@@ -1273,9 +1273,6 @@ let make_constant_matching p def ctx = function
         ctx = ctx ;
         pat = normalize_pat p}
 
-
-
-
 let divide_constant ctx m =
   divide
     make_constant_matching
@@ -1290,7 +1287,7 @@ let make_field_args binding_kind arg first_pos last_pos argl =
   let rec make_args pos =
     if pos > last_pos
     then argl
-    else (Lprim(Pfield pos, [arg]), binding_kind) :: make_args (pos + 1)
+    else (mk_lambda @@ Lprim(Pfield pos, [arg]), binding_kind) :: make_args (pos + 1)
   in make_args first_pos
 
 let get_key_constr = function
@@ -1405,7 +1402,9 @@ let make_variant_matching_nonconst p lab def ctx = function
       let def = make_default (matcher_variant_nonconst lab) def
       and ctx = filter_ctx p ctx in
       {pm=
-        {cases = []; args = (Lprim(Pfield 1, [arg]), Alias) :: argl;
+         {cases = [];
+          (* How can we recover the type? By introspection of `p`? *)
+          args = (mk_lambda @@ Lprim(Pfield 1, [arg]), Alias) :: argl;
           default=def} ;
         ctx=ctx ;
         pat = normalize_pat p}
@@ -1485,13 +1484,14 @@ let get_mod_field modname field =
     try
       let mod_ident = Ident.create_persistent modname in
       let env = Env.open_pers_signature modname Env.initial_safe_string in
-      let p = try
+      let p, ty = try
         match Env.lookup_value (Longident.Lident field) env with
-        | (Path.Pdot(_,_,i), _) -> i
-        | _ -> fatal_error ("Primitive "^modname^"."^field^" not found.")
+          | (Path.Pdot(_,_,i), td) -> i, td.val_type
+          | _ -> fatal_error ("Primitive "^modname^"."^field^" not found.")
       with Not_found ->
         fatal_error ("Primitive "^modname^"."^field^" not found.")
       in
+      mk_lambda ~ty:(Val ty) ~from:"get_mod_field" @@
       Lprim(Pfield p, [Lprim(Pgetglobal mod_ident, [])])
     with Not_found -> fatal_error ("Module "^modname^" unavailable.")
   )
@@ -1511,24 +1511,45 @@ let code_force_lazy_block =
 *)
 
 let inline_lazy_force_cond arg loc =
+  let ty = match arg.lb_tt_type with
+      Some (Val ({ desc = Tconstr (p, [ty], _) }))
+      when p == Predef.path_lazy ->
+        Some (Val ty)
+    | _ -> None in
+  let lb_from = Some "inline_lazy_from" in
+  let as_arg l = { arg with lb_expr = l; lb_from; } in
+  let as_forced_arg l = { lb_expr = l; lb_from; lb_tt_type = ty; } in
+  let as_bool = mk_lambda ~ty:(Val Predef.type_bool) ~from:"inline_lazy_force" in
+  let as_int = mk_lambda ~ty:(Val Predef.type_int) ~from:"inline_lazy_force" in
   let idarg = Ident.create "lzarg" in
-  let varg = Lvar idarg in
+  let varg = as_arg @@ Lvar idarg in
   let tag = Ident.create "tag" in
   let force_fun = Lazy.force code_force_lazy_block in
   Llet(Strict, idarg, arg,
-       Llet(Alias, tag, Lprim(Pccall prim_obj_tag, [varg]),
+       as_forced_arg @@
+       Llet(Alias, tag,
+            mk_lambda ~from:"inline_lazy_force+(of type int)" @@
+            Lprim(Pccall prim_obj_tag, [varg]),
+            as_forced_arg @@
             Lifthenelse(
               (* if (tag == Obj.forward_tag) then varg.(0) else ... *)
+              as_bool @@
               Lprim(Pintcomp Ceq,
-                    [Lvar tag; Lconst(Const_base(Const_int Obj.forward_tag))]),
-              Lprim(Pfield 0, [varg]),
+                    [mk_lambda @@ Lvar tag;
+                     as_int @@ Lconst(Const_base(Const_int Obj.forward_tag))]),
+              as_forced_arg @@ Lprim(Pfield 0, [varg]),
+              as_forced_arg @@
               Lifthenelse(
                 (* ... if (tag == Obj.lazy_tag) then Lazy.force varg else ... *)
+                as_bool @@
                 Lprim(Pintcomp Ceq,
-                      [Lvar tag; Lconst(Const_base(Const_int Obj.lazy_tag))]),
-                Lapply(force_fun, [varg], loc),
+                      [mk_lambda @@ Lvar tag;
+                       as_int @@ Lconst(Const_base(Const_int Obj.lazy_tag))]),
+                as_forced_arg @@ Lapply(force_fun, [varg], loc),
                 (* ... arg *)
                   varg))))
+(* if it is not a lazy value and thus cannot be forced, it is returned. This
+   piece of code is obviously ill-typed. *) 
 
 let inline_lazy_force_switch arg loc =
   let idarg = Ident.create "lzarg" in
