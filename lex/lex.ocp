@@ -1,0 +1,7 @@
+begin program "ocamllex"
+  use "new-ocaml"
+  bytelink += [ "-compat-32" ]
+  files = [ "cset.ml" "syntax.ml" "parser.mly" "lexer.mll" "table.ml"
+            "lexgen.ml" "compact.ml" "common.ml" "output.ml" "outputbis.ml"
+            "main.ml" ] 
+end
