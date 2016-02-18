@@ -225,6 +225,48 @@ let lambda_unit =
 let mk_lambda ?ty ?from l =
   { lb_expr = l; lb_tt_type = ty; lb_from = from }
 
+let as_int = mk_lambda ~ty:(Val Predef.type_int)
+let as_char = mk_lambda ~ty:(Val Predef.type_char)
+let as_string = mk_lambda ~ty:(Val Predef.type_string)
+let as_bytes = mk_lambda ~ty:(Val Predef.type_bytes)
+let as_float = mk_lambda ~ty:(Val Predef.type_float)
+let as_bool = mk_lambda ~ty:(Val Predef.type_bool)
+let as_unit = mk_lambda ~ty:(Val Predef.type_unit)
+let as_exn = mk_lambda ~ty:(Val Predef.type_exn)
+let as_array ?from ty l = mk_lambda ~ty:(Val (Predef.type_array ty)) ?from l
+let as_list ?from ty l = mk_lambda ~ty:(Val (Predef.type_list ty)) ?from l
+let as_option ?from ty l = mk_lambda ~ty:(Val (Predef.type_option ty)) ?from l
+let as_nativeint = mk_lambda ~ty:(Val Predef.type_nativeint)
+let as_int32 = mk_lambda ~ty:(Val Predef.type_int32)
+let as_int64 = mk_lambda ~ty:(Val Predef.type_int64)
+let as_lazy_t ?from ty l = mk_lambda ~ty:(Val (Predef.type_lazy_t ty)) ?from l
+
+let as_arg ?from arg l = { arg with lb_expr = l; lb_from = from }
+let as_constr_arg ?from arg extract l =
+  let ty = match arg.lb_tt_type with
+      Some (Val ({ desc = Tconstr (p, tys, _) })) ->
+        (try Some (Val (extract p tys)) with _ -> None)
+    | _ -> None in
+  { lb_expr = l; lb_from = from; lb_tt_type = ty }
+
+let as_constr_arg1 ?from arg extract l =
+  as_constr_arg ?from arg (fun p tys ->
+      match tys with [ty] -> extract p ty | _ -> raise Not_found) l
+
+let as_constr_arg2 ?from arg extract l =
+  as_constr_arg ?from arg (fun p tys ->
+      match tys with [ty1; ty2] -> extract p ty1 ty2 | _ -> raise Not_found) l
+
+let as_constr_arg3 ?from arg extract l =
+  as_constr_arg ?from arg (fun p tys ->
+      match tys with [ty1; ty2; ty3] -> extract p ty1 ty2 ty3
+                   | _ -> raise Not_found) l
+
+let as_constr_arg4 ?from arg extract l =
+  as_constr_arg ?from arg (fun p tys ->
+      match tys with [ty1; ty2; ty3; ty4] -> extract p ty1 ty2 ty3 ty4
+                   | _ -> raise Not_found) l
+  
 (* Build sharing keys *)
 (*
    Those keys are later compared with Pervasives.compare.

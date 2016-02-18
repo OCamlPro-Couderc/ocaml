@@ -672,7 +672,7 @@ and transl_exp0 e =
         let obj = Ident.create "obj" and meth = Ident.create "meth" in
         mk @@
         Lfunction(Curried, [obj; meth],
-                  mk_lambda' @@
+                  mk @@
                   Lsend(kind,
                         mk @@ Lvar meth,
                         mk_u @@ Lvar obj, (* /!\ we don't know the type of the
@@ -1180,7 +1180,7 @@ and transl_record all_labels repres lbl_expr_list opt_init_expr =
       if List.exists (fun (_, lbl, expr) -> lbl.lbl_mut = Mutable) lbl_expr_list
       then Mutable
       else Immutable in
-    let mk = mk_lambda ~ty:(Val lv.(0).lbl res) ~from:"transl_record" in
+    let mk = as_arg ~from:"transl_record" lv.(0) in
     let lam =
       try
         if mut = Mutable then raise Not_constant;
@@ -1213,13 +1213,14 @@ and transl_record all_labels repres lbl_expr_list opt_init_expr =
       as_cont @@
       Lsequence(as_cont @@
                 Lprim(upd, [mk_lambda ~ty:(Val lbl.lbl_arg) @@
-                            Lvar copy_id; transl_exp expr]), cont); } in
+                            Lvar copy_id; transl_exp expr]), cont) in
     begin match opt_init_expr with
       None -> assert false
     | Some init_expr ->
-        mk_lambda ~ty:(Val lv.(0).lbl res) ~from:"transl_record" @@
+        let (_, lbl, _) = List.hd lbl_expr_list in
+        mk_lambda ~ty:(Val lbl.lbl_res) ~from:"transl_record" @@
         Llet(Strict, copy_id,
-             mk_lambda @@
+             mk_lambda ~ty:(Val init_expr.exp_type) @@
              Lprim(Pduprecord (repres, size), [transl_exp init_expr]),
              List.fold_right update_field lbl_expr_list (mk_lambda @@ Lvar copy_id))
     end

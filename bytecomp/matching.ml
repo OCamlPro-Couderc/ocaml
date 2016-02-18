@@ -1511,18 +1511,12 @@ let code_force_lazy_block =
 *)
 
 let inline_lazy_force_cond arg loc =
-  let ty = match arg.lb_tt_type with
-      Some (Val ({ desc = Tconstr (p, [ty], _) }))
-      when p == Predef.path_lazy ->
-        Some (Val ty)
-    | _ -> None in
-  let lb_from = Some "inline_lazy_from" in
-  let as_arg l = { arg with lb_expr = l; lb_from; } in
-  let as_forced_arg l = { lb_expr = l; lb_from; lb_tt_type = ty; } in
-  let as_bool = mk_lambda ~ty:(Val Predef.type_bool) ~from:"inline_lazy_force" in
-  let as_int = mk_lambda ~ty:(Val Predef.type_int) ~from:"inline_lazy_force" in
+  let from = Some "inline_lazy_from" in
+  let as_forced_arg l =
+    as_constr_arg1 ~from arg
+      (fun p ty -> if p == Predef.path_lazy then ty else raise Not_found) l in
   let idarg = Ident.create "lzarg" in
-  let varg = as_arg @@ Lvar idarg in
+  let varg = as_arg ~from arg @@ Lvar idarg in
   let tag = Ident.create "tag" in
   let force_fun = Lazy.force code_force_lazy_block in
   Llet(Strict, idarg, arg,
@@ -1533,40 +1527,51 @@ let inline_lazy_force_cond arg loc =
             as_forced_arg @@
             Lifthenelse(
               (* if (tag == Obj.forward_tag) then varg.(0) else ... *)
-              as_bool @@
+              as_bool ~from @@
               Lprim(Pintcomp Ceq,
                     [mk_lambda @@ Lvar tag;
-                     as_int @@ Lconst(Const_base(Const_int Obj.forward_tag))]),
+                     as_int ~from @@ Lconst(Const_base(Const_int Obj.forward_tag))]),
               as_forced_arg @@ Lprim(Pfield 0, [varg]),
               as_forced_arg @@
               Lifthenelse(
                 (* ... if (tag == Obj.lazy_tag) then Lazy.force varg else ... *)
-                as_bool @@
+                as_bool ~from @@
                 Lprim(Pintcomp Ceq,
                       [mk_lambda @@ Lvar tag;
-                       as_int @@ Lconst(Const_base(Const_int Obj.lazy_tag))]),
+                       as_int ~from @@ Lconst(Const_base(Const_int Obj.lazy_tag))]),
                 as_forced_arg @@ Lapply(force_fun, [varg], loc),
                 (* ... arg *)
                   varg))))
 (* if it is not a lazy value and thus cannot be forced, it is returned. This
-   piece of code is obviously ill-typed. *) 
+   piece of code is obviously ill-typed as Lambda. However, it is correct since
+  the type checker will check that the value forced is of course of lazy type.. *) 
 
 let inline_lazy_force_switch arg loc =
+  let from = Some "inline_lazy_force_switch" in
+  let as_forced_arg l =
+    as_constr_arg1 ~from arg
+      (fun p ty -> if p == Predef.path_lazy then ty else raise Not_found) l in
   let idarg = Ident.create "lzarg" in
-  let varg = Lvar idarg in
+  let varg = as_arg ~from @@ Lvar idarg in
   let force_fun = Lazy.force code_force_lazy_block in
+  as_forced_arg @@
   Llet(Strict, idarg, arg,
+       as_forced_arg @@
        Lifthenelse(
+         as_bool ~from @@
          Lprim(Pisint, [varg]), varg,
-         (Lswitch
+         (as_forced_arg @@
+          Lswitch
             (varg,
              { sw_numconsts = 0; sw_consts = [];
                sw_numblocks = 256;  (* PR#6033 - tag ranges from 0 to 255 *)
                sw_blocks =
-                 [ (Obj.forward_tag, Lprim(Pfield 0, [varg]));
+                 [ (Obj.forward_tag, as_forced_arg @@ Lprim(Pfield 0, [varg]));
                    (Obj.lazy_tag,
-                    Lapply(force_fun, [varg], loc)) ];
+                    as_forced_arg @@ Lapply(force_fun, [varg], loc)) ];
                sw_failaction = Some varg } ))))
+(* once  again, if the block is neither forward or lazy, we return *)
+(* it. Illtyped as lambda expression but correct due to type checking *)
 
 let inline_lazy_force arg loc =
   if !Clflags.native_code then
@@ -1649,6 +1654,8 @@ let make_record_matching all_labels def = function
       let rec make_args pos =
         if pos >= Array.length all_labels then argl else begin
           let lbl = all_labels.(pos) in
+          let as_field =
+            mk_lambda ~ty:(Val lbl.lbl_arg) ~from:"make_record_matching" in
           let access =
             match lbl.lbl_repres with
               Record_regular -> Pfield lbl.lbl_pos
@@ -1657,7 +1664,7 @@ let make_record_matching all_labels def = function
             match lbl.lbl_mut with
               Immutable -> Alias
             | Mutable -> StrictOpt in
-          (Lprim(access, [arg]), str) :: make_args(pos + 1)
+          (as_field @@ Lprim(access, [arg]), str) :: make_args(pos + 1)
         end in
       let nfields = Array.length all_labels in
       let def= make_default (matcher_record nfields) def in
@@ -1695,7 +1702,8 @@ let make_array_matching kind p def ctx = function
       let rec make_args pos =
         if pos >= len
         then argl
-        else (Lprim(Parrayrefu kind, [arg; Lconst(Const_base(Const_int pos))]),
+        else (Lprim(Parrayrefu kind,
+                    [arg; mk_lambdaLconst(Const_base(Const_int pos))]),
               StrictOpt) :: make_args (pos + 1) in
       let def = make_default (matcher_array len) def
       and ctx = filter_ctx p ctx in

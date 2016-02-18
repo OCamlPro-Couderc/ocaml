@@ -223,8 +223,53 @@ and lambda_event_kind =
   | Lev_after of Types.type_expr
   | Lev_function
 
-val mk_lambda: ?ty: Types.typedtree_type -> ?from: string -> lambda_expr -> lambda
+val mk_lambda: ?ty: Types.typedtree_type -> ?from:string -> lambda_expr -> lambda
 
+(* Utility functions to generate lambda with builtin types *)
+val as_int: ?from:string -> lambda_expr -> lambda
+val as_char: ?from:string -> lambda_expr -> lambda
+val as_string: ?from:string -> lambda_expr -> lambda
+val as_bytes: ?from:string -> lambda_expr -> lambda
+val as_float: ?from:string -> lambda_expr -> lambda
+val as_bool: ?from:string -> lambda_expr -> lambda
+val as_unit: ?from:string -> lambda_expr -> lambda
+val as_exn: ?from:string -> lambda_expr -> lambda
+val as_array: ?from:string -> Types.type_expr -> lambda_expr -> lambda
+val as_list: ?from:string -> Types.type_expr -> lambda_expr -> lambda
+val as_option: ?from:string -> Types.type_expr -> lambda_expr -> lambda
+val as_nativeint: ?from:string -> lambda_expr -> lambda
+val as_int32: ?from:string -> lambda_expr -> lambda
+val as_int64: ?from:string -> lambda_expr -> lambda
+val as_lazy_t: ?from:string -> Types.type_expr -> lambda_expr -> lambda
+
+(* Returns a lambda with the same type as the one given *) 
+val as_arg: ?from:string -> lambda -> lambda_expr -> lambda
+
+(* The following functions returns a lambda whose type is the type argument of
+   a type constructor, if the lambda's type is a type_constructor. *)
+val as_constr_arg:
+  ?from:string -> lambda
+  -> (Path.t -> Types.type_expr list -> Types.type_expr)
+  -> lambda_expr -> lambda
+val as_constr_arg1:
+  ?from:string -> lambda
+  -> (Path.t -> Types.type_expr -> Types.type_expr)
+  -> lambda_expr -> lambda
+val as_constr_arg2: 
+  ?from:string -> lambda
+  -> (Path.t -> Types.type_expr -> Types.type_expr -> Types.type_expr)
+  -> lambda_expr -> lambda
+val as_constr_arg3:
+  ?from:string -> lambda
+  -> (Path.t -> Types.type_expr -> Types.type_expr -> Types.type_expr ->
+      Types.type_expr)
+  -> lambda_expr -> lambda
+val as_constr_arg4:
+  ?from:string -> lambda
+  -> (Path.t -> Types.type_expr -> Types.type_expr -> Types.type_expr ->
+      Types.type_expr -> Types.type_expr)
+  -> lambda_expr -> lambda
+  
 (* Sharing key *)
 val make_key: lambda -> lambda option
 
