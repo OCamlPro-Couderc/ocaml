@@ -266,7 +266,14 @@ let as_constr_arg4 ?from arg extract l =
   as_constr_arg ?from arg (fun p tys ->
       match tys with [ty1; ty2; ty3; ty4] -> extract p ty1 ty2 ty3 ty4
                    | _ -> raise Not_found) l
-  
+
+let as_tuple_arg ?from arg pos l =
+  let ty = match arg.lb_tt_type with
+      Some (Val { desc = Ttuple tys }) ->
+        (try Some (Val (List.nth tys pos)) with Not_found -> None)
+    | _ -> None in
+  { lb_expr = l; lb_from = from; lb_tt_type = ty }
+
 (* Build sharing keys *)
 (*
    Those keys are later compared with Pervasives.compare.

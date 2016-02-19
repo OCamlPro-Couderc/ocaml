@@ -185,8 +185,8 @@ type lambda_expr =
   | Lletrec of (Ident.t * lambda) list * lambda
   | Lprim of primitive * lambda list
   | Lswitch of lambda * lambda_switch
-(* switch on strings, clauses are sorted by string order,
-   strings are pairwise distinct *)
+  (* switch on strings, clauses are sorted by string order,
+     strings are pairwise distinct *)
   | Lstringswitch of lambda * (string * lambda) list * lambda option
   | Lstaticraise of int * lambda list
   | Lstaticcatch of lambda * (int * Ident.t list) * lambda
@@ -269,7 +269,9 @@ val as_constr_arg4:
   -> (Path.t -> Types.type_expr -> Types.type_expr -> Types.type_expr ->
       Types.type_expr -> Types.type_expr)
   -> lambda_expr -> lambda
-  
+
+val as_tuple_arg: ?from:string -> lambda -> int -> lambda_expr -> lambda
+
 (* Sharing key *)
 val make_key: lambda -> lambda option
 
