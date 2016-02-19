@@ -132,17 +132,20 @@ type rhs_kind =
 ;;
 
 let rec check_recordwith_updates id e =
-  match e with
-  | Lsequence (Lprim ((Psetfield _ | Psetfloatfield _), [Lvar id2; _]), cont)
+  match e.lb_expr with
+  | Lsequence (
+      {lb_expr = Lprim ((Psetfield _ | Psetfloatfield _),
+                        [{ lb_expr = Lvar id2}; _])}, cont)
       -> id2 = id && check_recordwith_updates id cont
   | Lvar id2 -> id2 = id
   | _ -> false
 ;;
 
-let rec size_of_lambda = function
-  | Lfunction(kind, params, body) as funct ->
-      RHS_function (1 + IdentSet.cardinal(free_variables funct), List.length params)
-  | Llet (Strict, id, Lprim (Pduprecord (kind, size), _), body)
+let rec size_of_lambda l =
+  match l.lb_expr with
+  | Lfunction(kind, params, body) ->
+      RHS_function (1 + IdentSet.cardinal(free_variables l), List.length params)
+  | Llet (Strict, id, {lb_expr = Lprim (Pduprecord (kind, size), _)}, body)
     when check_recordwith_updates id body ->
       begin match kind with
       | Record_regular -> RHS_block size
@@ -252,7 +255,7 @@ let find_raise_label i =
         ("exit("^string_of_int i^") outside appropriated catch")
 
 (* Will the translation of l lead to a jump to label ? *)
-let code_as_jump l sz = match l with
+let code_as_jump l sz = match l.lb_expr with
 | Lstaticraise (i,[]) ->
     let label,size,tb = find_raise_label i in
     if sz = size && tb == !try_blocks then
@@ -428,7 +431,7 @@ module Storer =
 
 let rec comp_expr env exp sz cont =
   if sz > !max_stack_used then max_stack_used := sz;
-  match exp with
+  match exp.lb_expr with
     Lvar id ->
       begin try
         let pos = Ident.find_same id env.ce_stack in
@@ -469,7 +472,7 @@ let rec comp_expr env exp sz cont =
       let nargs = List.length args + 1 in
       let getmethod, args' =
         if kind = Self then (Kgetmethod, met::obj::args) else
-        match met with
+        match met.lb_expr with
           Lconst(Const_base(Const_int n)) -> (Kgetpubmet n, obj::args)
         | _ -> (Kgetdynmet, met::obj::args)
       in
@@ -493,7 +496,7 @@ let rec comp_expr env exp sz cont =
         { params = params; body = body; label = lbl;
           free_vars = fv; num_defs = 1; rec_vars = []; rec_pos = 0 } in
       Stack.push to_compile functions_to_compile;
-      comp_args env (List.map (fun n -> Lvar n) fv) sz
+      comp_args env (List.map (fun n -> mk_lambda @@ Lvar n) fv) sz
         (Kclosure(lbl, List.length fv) :: cont)
   | Llet(str, id, arg, body) ->
       comp_expr env arg sz
@@ -501,15 +504,16 @@ let rec comp_expr env exp sz cont =
           (add_pop 1 cont))
   | Lletrec(decl, body) ->
       let ndecl = List.length decl in
-      if List.for_all (function (_, Lfunction(_,_,_)) -> true | _ -> false)
+      if List.for_all (function (_, {lb_expr = Lfunction(_,_,_)}) -> true | _ -> false)
                       decl then begin
         (* let rec of functions *)
         let fv =
-          IdentSet.elements (free_variables (Lletrec(decl, lambda_unit))) in
+          IdentSet.elements (free_variables (
+              as_unit @@Lletrec(decl, lambda_unit))) in
         let rec_idents = List.map (fun (id, lam) -> id) decl in
         let rec comp_fun pos = function
             [] -> []
-          | (id, Lfunction(kind, params, body)) :: rem ->
+          | (id, {lb_expr = Lfunction(kind, params, body)}) :: rem ->
               let lbl = new_label() in
               let to_compile =
                 { params = params; body = body; label = lbl; free_vars = fv;
@@ -518,7 +522,7 @@ let rec comp_expr env exp sz cont =
               lbl :: comp_fun (pos + 1) rem
           | _ -> assert false in
         let lbls = comp_fun 0 decl in
-        comp_args env (List.map (fun n -> Lvar n) fv) sz
+        comp_args env (List.map (fun n -> mk_lambda @@ Lvar n) fv) sz
           (Kclosurerec(lbls, List.length fv) ::
             (comp_expr (add_vars rec_idents (sz+1) env) body (sz + ndecl)
                        (add_pop ndecl cont)))
@@ -568,7 +572,7 @@ let rec comp_expr env exp sz cont =
       comp_expr env arg sz (add_const_unit cont)
   | Lprim(Pdirapply loc, [func;arg])
   | Lprim(Prevapply loc, [arg;func]) ->
-      let exp = Lapply(func, [arg], loc) in
+      let exp = mk_lambda @@ Lapply(func, [arg], loc) in
       comp_expr env exp sz cont
   | Lprim(Pnot, [arg]) ->
       let newcont =
@@ -607,10 +611,10 @@ let rec comp_expr env exp sz cont =
       end
   | Lprim(Praise k, [arg]) ->
       comp_expr env arg sz (Kraise k :: discard_dead_code cont)
-  | Lprim(Paddint, [arg; Lconst(Const_base(Const_int n))])
+  | Lprim(Paddint, [arg; {lb_expr = Lconst(Const_base(Const_int n))}])
     when is_immed n ->
       comp_expr env arg sz (Koffsetint n :: cont)
-  | Lprim(Psubint, [arg; Lconst(Const_base(Const_int n))])
+  | Lprim(Psubint, [arg; {lb_expr = Lconst(Const_base(Const_int n))}])
     when is_immed (-n) ->
       comp_expr env arg sz (Koffsetint (-n) :: cont)
   | Lprim (Poffsetint n, [arg])
@@ -633,7 +637,7 @@ let rec comp_expr env exp sz cont =
                   Kccall("caml_make_array", 1) :: cont)
       end
 (* Integer first for enabling futher optimization (cf. emitcode.ml)  *)
-  | Lprim (Pintcomp c, [arg ; (Lconst _ as k)]) ->
+  | Lprim (Pintcomp c, [arg ; ({lb_expr = Lconst _ } as k)]) ->
       let p = Pintcomp (commute_comparison c)
       and args = [k ; arg] in
       comp_args env args sz (comp_primitive p args :: cont)
@@ -810,7 +814,7 @@ let rec comp_expr env exp sz cont =
           comp_expr env lam sz cont
       | Lev_after ty ->
           let info =
-            match lam with
+            match lam.lb_expr with
               Lapply(_, args, _)      -> Event_return (List.length args)
             | Lsend(_, _, _, args, _) -> Event_return (List.length args + 1)
             | _                       -> Event_other
@@ -848,7 +852,7 @@ and comp_expr_list_assign env exprl sz pos cont = match exprl with
 
 and comp_binary_test env cond ifso ifnot sz cont =
   let cont_cond =
-    if ifnot = Lconst const_unit then begin
+    if ifnot.lb_expr = Lconst const_unit then begin
       let (lbl_end, cont1) = label_code cont in
       Kstrictbranchifnot lbl_end :: comp_expr env ifso sz cont1
     end else

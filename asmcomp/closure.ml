@@ -103,11 +103,15 @@ let occurs_var var u =
 
 let split_default_wrapper fun_id kind params body =
   let rec aux map = function
-    | Llet(Strict, id, (Lifthenelse(Lvar optparam, _, _) as def), rest) when
-        Ident.name optparam = "*opt*" && List.mem optparam params
-          && not (List.mem_assoc optparam map)
+    | { lb_expr =
+          Llet(Strict, id,
+               ({ lb_expr = Lifthenelse(
+                    { lb_expr = Lvar optparam }, _, _) } as def), rest) }
+      when Ident.name optparam = "*opt*" && List.mem optparam params
+           && not (List.mem_assoc optparam map)
       ->
         let wrapper_body, inner = aux ((optparam, id) :: map) rest in
+        as_arg ~from:"split_default_wrapper" wrapper_body @@
         Llet(Strict, id, def, wrapper_body), inner
     | _ when map = [] -> raise Exit
     | body ->
@@ -118,25 +122,33 @@ let split_default_wrapper fun_id kind params body =
 
         let inner_id = Ident.create (Ident.name fun_id ^ "_inner") in
         let map_param p = try List.assoc p map with Not_found -> p in
-        let args = List.map (fun p -> Lvar (map_param p)) params in
-        let wrapper_body = Lapply (Lvar inner_id, args, Location.none) in
+        let args = List.map (fun p ->
+            mk_lambda ~from:"split_default_wrapper" @@ Lvar (map_param p)) params in
+        let wrapper_body =
+          as_arg ~from:"split_defalut_wrapper" body @@
+          Lapply (mk_lambda ~from:"split_default_wrapper" @@
+                  Lvar inner_id, args, Location.none) in
 
         let inner_params = List.map map_param params in
         let new_ids = List.map Ident.rename inner_params in
         let subst = List.fold_left2
             (fun s id new_id ->
-               Ident.add id (Lvar new_id) s)
+               Ident.add id (mk_lambda ~from:"split_default_wrapper" @@
+                             Lvar new_id) s)
             Ident.empty inner_params new_ids
         in
         let body = Lambda.subst_lambda subst body in
-        let inner_fun = Lfunction(Curried, new_ids, body) in
+        let inner_fun =
+          mk_lambda ~from:"split_default_wrapper" @@ Lfunction(Curried, new_ids, body) in
         (wrapper_body, (inner_id, inner_fun))
   in
   try
     let wrapper_body, inner = aux [] body in
-    [(fun_id, Lfunction(kind, params, wrapper_body)); inner]
+    [(fun_id, mk_lambda ~from:"split_default_wrapper" @@
+      Lfunction(kind, params, wrapper_body)); inner]
   with Exit ->
-    [(fun_id, Lfunction(kind, params, body))]
+    [(fun_id, mk_lambda ~from:"split_default_wrapper" @@
+      Lfunction(kind, params, body))]
 
 
 (* Determine whether the estimated size of a clambda term is below
@@ -661,7 +673,8 @@ let bind_params fpc params args body =
 (* Check if a lambda term is ``pure'',
    that is without side-effects *and* not containing function definitions *)
 
-let rec is_pure = function
+let rec is_pure l =
+  match l.lb_expr with
     Lvar v -> true
   | Lconst cst -> true
   | Lprim((Psetglobal _ | Psetfield _ | Psetfloatfield _ | Pduprecord _ |
@@ -778,7 +791,8 @@ let close_approx_var fenv cenv id =
 let close_var fenv cenv id =
   let (ulam, app) = close_approx_var fenv cenv id in ulam
 
-let rec close fenv cenv = function
+let rec close fenv cenv lam =
+  match lam.lb_expr with
     Lvar id ->
       close_approx_var fenv cenv id
   | Lconst cst ->
@@ -809,8 +823,8 @@ let rec close fenv cenv = function
         | Const_base(Const_nativeint x) -> str (Uconst_nativeint x)
       in
       make_const (transl cst)
-  | Lfunction(kind, params, body) as funct ->
-      close_one_function fenv cenv (Ident.create "fun") funct
+  | Lfunction(kind, params, body) ->
+      close_one_function fenv cenv (Ident.create "fun") lam
 
     (* We convert [f a] to [let a' = a in fun b c -> f a' b c]
        when fun_arity > nargs *)
@@ -842,12 +856,13 @@ let rec close fenv cenv = function
                 (Ulet ( arg1, arg2, body))
         in
         let internal_args =
-          (List.map (fun (arg1, arg2) -> Lvar arg1) first_args)
-          @ (List.map (fun arg -> Lvar arg ) final_args)
+          (List.map (fun (arg1, arg2) -> mk_lambda ~from:"close" @@ Lvar arg1) first_args)
+          @ (List.map (fun arg -> mk_lambda ~from:"close" @@ Lvar arg ) final_args)
         in
         let (new_fun, approx) = close fenv cenv
-          (Lfunction(
-            Curried, final_args, Lapply(funct, internal_args, loc)))
+          (mk_lambda ~from:"close" @@ Lfunction(
+             Curried, final_args,
+             mk_lambda ~from:"close" @@ Lapply(funct, internal_args, loc)))
         in
         let new_fun = iter first_args new_fun in
         (new_fun, approx)
@@ -881,7 +896,7 @@ let rec close fenv cenv = function
       end
   | Lletrec(defs, body) ->
       if List.for_all
-           (function (id, Lfunction(_, _, _)) -> true | _ -> false)
+           (function (id, { lb_expr = Lfunction(_, _, _)}) -> true | _ -> false)
            defs
       then begin
         (* Simple case: only function definitions *)
@@ -913,8 +928,8 @@ let rec close fenv cenv = function
       end
   | Lprim(Pdirapply loc,[funct;arg])
   | Lprim(Prevapply loc,[arg;funct]) ->
-      close fenv cenv (Lapply(funct, [arg], loc))
-  | Lprim(Pgetglobal id, []) as lam ->
+      close fenv cenv (mk_lambda ~from:"close" @@ Lapply(funct, [arg], loc))
+  | Lprim(Pgetglobal id, []) ->
       check_constant_result lam
                             (getglobal id)
                             (Compilenv.global_approx id)
@@ -922,13 +937,13 @@ let rec close fenv cenv = function
       let (ulam, approx) = close fenv cenv lam in
       check_constant_result lam (Uprim(Pfield n, [ulam], Debuginfo.none))
                             (field_approx n approx)
-  | Lprim(Psetfield(n, _), [Lprim(Pgetglobal id, []); lam]) ->
+  | Lprim(Psetfield(n, _), [{lb_expr = Lprim(Pgetglobal id, [])}; lam]) ->
       let (ulam, approx) = close fenv cenv lam in
       if approx <> Value_unknown then
         (!global_approx).(n) <- approx;
       (Uprim(Psetfield(n, false), [getglobal id; ulam], Debuginfo.none),
        Value_unknown)
-  | Lprim(Praise k, [Levent(arg, ev)]) ->
+  | Lprim(Praise k, [{lb_expr = Levent(arg, ev)}]) ->
       let (ulam, approx) = close fenv cenv arg in
       (Uprim(Praise k, [ulam], Debuginfo.from_raise ev),
        Value_unknown)
@@ -953,14 +968,14 @@ let rec close fenv cenv = function
 (* NB: failaction might get copied, thus it should be some Lstaticraise *)
       let fail = sw.sw_failaction in
       begin match fail with
-      | None|Some (Lstaticraise (_,_)) -> fn fail
+      | None|Some ({lb_expr = Lstaticraise (_,_)}) -> fn fail
       | Some lamfail ->
           if
             (sw.sw_numconsts - List.length sw.sw_consts) +
             (sw.sw_numblocks - List.length sw.sw_blocks) > 1
           then
             let i = next_raise_count () in
-            let ubody,_ = fn (Some (Lstaticraise (i,[])))
+            let ubody,_ = fn (Some (mk_lambda ~from:"close" @@ Lstaticraise (i,[])))
             and uhandler,_ = close fenv cenv lamfail in
             Ucatch (i,[],ubody,uhandler),Value_unknown
           else fn fail
@@ -1035,7 +1050,7 @@ and close_list_approx fenv cenv = function
       (ulam :: ulams, approx :: approxs)
 
 and close_named fenv cenv id = function
-    Lfunction(kind, params, body) as funct ->
+    { lb_expr = Lfunction(kind, params, body) } as funct ->
       close_one_function fenv cenv id funct
   | lam ->
       close fenv cenv lam
@@ -1047,7 +1062,7 @@ and close_functions fenv cenv fun_defs =
     List.flatten
       (List.map
          (function
-           | (id, Lfunction(kind, params, body)) ->
+           | (id, {lb_expr = Lfunction(kind, params, body)}) ->
                split_default_wrapper id kind params body
            | _ -> assert false
          )
@@ -1060,14 +1075,15 @@ and close_functions fenv cenv fun_defs =
     !function_nesting_depth < excessive_function_nesting_depth in
   (* Determine the free variables of the functions *)
   let fv =
-    IdentSet.elements (free_variables (Lletrec(fun_defs, lambda_unit))) in
+    IdentSet.elements (free_variables (as_unit ~from:"close_functions" @@
+                                       Lletrec(fun_defs, lambda_unit))) in
   (* Build the function descriptors for the functions.
      Initially all functions are assumed not to need their environment
      parameter. *)
   let uncurried_defs =
     List.map
       (function
-          (id, Lfunction(kind, params, body)) ->
+          (id, {lb_expr = Lfunction(kind, params, body)}) ->
             let label = Compilenv.make_symbol (Some (Ident.unique_name id)) in
             let arity = List.length params in
             let fundesc =
@@ -1100,7 +1116,7 @@ and close_functions fenv cenv fun_defs =
   let useless_env = ref initially_closed in
   (* Translate each function definition *)
   let clos_fundef (id, params, body, fundesc) env_pos =
-    let dbg = match body with
+    let dbg = match body.lb_expr with
       | Levent (_,({lev_kind=Lev_function} as ev)) -> Debuginfo.from_call ev
       | _ -> Debuginfo.none in
     let env_param = Ident.create "env" in
@@ -1168,7 +1184,7 @@ and close_functions fenv cenv fun_defs =
 
 (* Same, for one non-recursive function *)
 
-and close_one_function fenv cenv id funct =
+and close_one_function fenv cenv id (funct: lambda) =
   match close_functions fenv cenv [id, funct] with
   | (clos, (i, _, approx) :: _) when id = i -> (clos, approx)
   | _ -> fatal_error "Closure.close_one_function"
@@ -1201,7 +1217,7 @@ and close_switch arg fenv cenv cases num_keys default =
   let actions =
     Array.map
       (function
-        | Single lam|Shared (Lstaticraise (_,[]) as lam) ->
+        | Single lam|Shared ({lb_expr = Lstaticraise (_,[])} as lam) ->
             let ulam,_ = close fenv cenv lam in
             ulam
         | Shared lam ->
