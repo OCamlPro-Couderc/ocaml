@@ -113,3 +113,8 @@ let runtime_variant = ref "";;      (* -runtime-variant *)
 let keep_docs = ref false              (* -keep-docs *)
 let keep_locs = ref false              (* -keep-locs *)
 let unsafe_string = ref true;;         (* -safe-string / -unsafe-string *)
+
+let dump_lambda_types = ref false;;     (* -dlambda-types *)
+let dump_lambda_infos = ref false;;     (* -dlambda-infos *)
+let output_rawlambda = ref false;;
+let output_lambda = ref false;;

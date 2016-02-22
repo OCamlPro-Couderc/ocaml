@@ -239,8 +239,8 @@ let primitive ppf = function
   | Pbbswap(bi) -> print_boxed_integer "bswap" ppf bi
   | Pint_as_pointer -> fprintf ppf "int_as_pointer"
 
-let rec lam ppf l =
-  match l.lb_expr with
+let rec expr ppf l =
+  match l with
   | Lvar id ->
       Ident.print ppf id
   | Lconst cst ->
@@ -382,6 +382,38 @@ let rec lam ppf l =
   | Lifused(id, expr) ->
       fprintf ppf "@[<2>(ifused@ %a@ %a)@]" Ident.print id lam expr
 
+and lam ppf l =
+  match l.lb_tt_type, l.lb_from with
+    None, None -> expr ppf l.lb_expr
+  | Some _, None when not !(Clflags.dump_lambda_types) -> expr ppf l.lb_expr
+  | None, Some _ when not !(Clflags.dump_lambda_infos) -> expr ppf l.lb_expr
+  | ty, inf -> 
+      fprintf ppf "[%a%a%a]"
+        expr l.lb_expr
+        tt_type ty
+        infos inf
+
+and tt_type ppf ty =
+  let f ppf = function
+      None -> ()
+    | Some (Val ty) -> Printtyp.type_expr ppf ty
+    | Some (Ty td) ->
+        Printtyp.type_declaration (Ident.create "*typedecl*") ppf td
+    | Some (Ext ec) ->
+        Printtyp.extension_constructor (Ident.create "*extension*") ppf ec
+    | Some (Mod mty | Mty (Some mty)) -> Printtyp.modtype ppf mty
+    | Some (Mty None) -> fprintf ppf "*abstract_modtype*"
+    | Some (Class cty | Cty cty) ->
+        Printtyp.class_type ppf cty
+  in
+  if !(Clflags.dump_lambda_types) && ty <> None then
+    fprintf ppf ": %a" f ty
+
+and infos ppf = function
+    None -> ()
+  | Some _ when not !(Clflags.dump_lambda_infos) -> ()
+  | Some infos -> fprintf ppf "@[<2>(* %s *)@]" infos
+      
 and sequence ppf = function
   | { lb_expr = Lsequence(l1, l2) } ->
       fprintf ppf "%a@ %a" sequence l1 sequence l2

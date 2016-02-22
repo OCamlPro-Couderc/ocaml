@@ -97,3 +97,7 @@ val keep_docs : bool ref
 val keep_locs : bool ref
 val unsafe_string : bool ref
 val opaque : bool ref
+val dump_lambda_types : bool ref
+val dump_lambda_infos : bool ref
+val output_rawlambda : bool ref
+val output_lambda : bool ref
