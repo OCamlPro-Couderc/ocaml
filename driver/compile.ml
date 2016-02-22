@@ -53,6 +53,20 @@ let print_if ppf flag printer arg =
   if !flag then fprintf ppf "%a@." printer arg;
   arg
 
+let output_if outputprefix suffix flag printer arg =
+  if !flag then
+    begin
+      try
+        let oc = open_out (outputprefix ^ suffix) in
+        (try
+           fprintf (Format.formatter_of_out_channel oc) ";;from %s.ml\n%a"
+             outputprefix printer arg
+         with _ -> close_out oc);
+        close_out oc
+      with _ -> ()
+    end;
+  arg
+
 let (++) x f = f x
 
 let implementation ppf sourcefile outputprefix =
@@ -78,8 +92,10 @@ let implementation ppf sourcefile outputprefix =
         (typedtree, coercion)
         ++ Translmod.transl_implementation modulename
         ++ print_if ppf Clflags.dump_rawlambda Printlambda.lambda
+        ++ output_if outputprefix ".raw.l" Clflags.output_rawlambda Printlambda.lambda
         ++ Simplif.simplify_lambda
         ++ print_if ppf Clflags.dump_lambda Printlambda.lambda
+        ++ output_if outputprefix ".l" Clflags.output_lambda Printlambda.lambda
         ++ Bytegen.compile_implementation modulename
         ++ print_if ppf Clflags.dump_instr Printinstr.instrlist
       in

@@ -388,7 +388,7 @@ and lam ppf l =
   | Some _, None when not !(Clflags.dump_lambda_types) -> expr ppf l.lb_expr
   | None, Some _ when not !(Clflags.dump_lambda_infos) -> expr ppf l.lb_expr
   | ty, inf -> 
-      fprintf ppf "[%a%a%a]"
+      fprintf ppf "(%a%a%a)"
         expr l.lb_expr
         tt_type ty
         infos inf
@@ -407,12 +407,12 @@ and tt_type ppf ty =
         Printtyp.class_type ppf cty
   in
   if !(Clflags.dump_lambda_types) && ty <> None then
-    fprintf ppf ": %a" f ty
+    fprintf ppf ":: %a" f ty
 
 and infos ppf = function
     None -> ()
   | Some _ when not !(Clflags.dump_lambda_infos) -> ()
-  | Some infos -> fprintf ppf "@[<2>(* %s *)@]" infos
+  | Some infos -> fprintf ppf "@[<2>#| %s |#@]" infos
       
 and sequence ppf = function
   | { lb_expr = Lsequence(l1, l2) } ->

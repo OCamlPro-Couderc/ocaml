@@ -488,6 +488,14 @@ let mk_dlambda_infos f =
   "-dlambda-infos", Arg.Unit f, " (undocumented)"
 ;;
 
+let mk_output_rawlambda f =
+  "-o-rawlambda", Arg.Unit f, " (undocumented)"
+;;
+
+let mk_output_lambda f =
+  "-o-lambda", Arg.Unit f, " (undocumented)"
+;;
+
 module type Common_options = sig
   val _absname : unit -> unit
   val _I : string -> unit
@@ -559,6 +567,8 @@ module type Compiler_options = sig
   val _verbose : unit -> unit
   val _where : unit -> unit
   val _nopervasives : unit -> unit
+  val _o_rawlambda : unit -> unit
+  val _o_lambda : unit -> unit
 end
 ;;
 
@@ -736,6 +746,8 @@ struct
 
     mk_dlambda_types F._dlambda_types;
     mk_dlambda_infos F._dlambda_infos;
+    mk_output_rawlambda F._o_rawlambda;
+    mk_output_lambda F._o_lambda;
   ]
 end;;
 
@@ -873,6 +885,8 @@ struct
     
     mk_dlambda_types F._dlambda_types;
     mk_dlambda_infos F._dlambda_infos;
+    mk_output_rawlambda F._o_rawlambda;
+    mk_output_lambda F._o_lambda;
   ]
 end;;
 

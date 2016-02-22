@@ -111,6 +111,8 @@ module Options = Main_args.Make_bytecomp_options (struct
 
   let _dlambda_types = option "-dlambda-types"
   let _dlambda_infos = option "-dlambda-infos"
+  let _o_rawlambda = option "-o-rawlambda"
+  let _o_lambda = option "-o-lambda"
   
   let anonymous = process_file
 end);;

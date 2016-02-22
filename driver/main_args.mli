@@ -85,6 +85,9 @@ module type Compiler_options =  sig
   val _where : unit -> unit
 
   val _nopervasives : unit -> unit
+    
+  val _o_rawlambda : unit -> unit
+  val _o_lambda : unit -> unit
 end
 ;;
 

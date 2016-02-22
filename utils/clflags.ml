@@ -116,4 +116,5 @@ let unsafe_string = ref true;;         (* -safe-string / -unsafe-string *)
 
 let dump_lambda_types = ref false;;     (* -dlambda-types *)
 let dump_lambda_infos = ref false;;     (* -dlambda-infos *)
-
+let output_rawlambda = ref false;;
+let output_lambda = ref false;;
