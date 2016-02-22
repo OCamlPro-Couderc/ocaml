@@ -125,6 +125,9 @@ module Options = Main_args.Make_optcomp_options (struct
   let _dstartup = option "-dstartup"
   let _opaque = option "-opaque"
 
+  let _dlambda_types = option "-dlambda-types"
+  let _dlambda_infos = option "-dlambda-infos"
+
   let anonymous = process_file
 end);;
 

@@ -480,6 +480,14 @@ let mk__ f =
   "<file>  Treat <file> as a file name (even if it starts with `-')"
 ;;
 
+let mk_dlambda_types f =
+  "-dlambda-types", Arg.Unit f, " (undocumented)"
+;;
+
+let mk_dlambda_infos f =
+  "-dlambda-infos", Arg.Unit f, " (undocumented)"
+;;
+
 module type Common_options = sig
   val _absname : unit -> unit
   val _I : string -> unit
@@ -510,6 +518,9 @@ module type Common_options = sig
   val _dtypedtree : unit -> unit
   val _drawlambda : unit -> unit
   val _dlambda : unit -> unit
+
+  val _dlambda_types : unit -> unit
+  val _dlambda_infos : unit -> unit
 
   val anonymous : string -> unit
 end;;
@@ -722,6 +733,9 @@ struct
     mk_drawlambda F._drawlambda;
     mk_dlambda F._dlambda;
     mk_dinstr F._dinstr;
+
+    mk_dlambda_types F._dlambda_types;
+    mk_dlambda_infos F._dlambda_infos;
   ]
 end;;
 
@@ -764,6 +778,9 @@ struct
     mk_drawlambda F._drawlambda;
     mk_dlambda F._dlambda;
     mk_dinstr F._dinstr;
+
+    mk_dlambda_types F._dlambda_types;
+    mk_dlambda_infos F._dlambda_infos;
   ]
 end;;
 
@@ -853,6 +870,9 @@ struct
     mk_dlinear F._dlinear;
     mk_dstartup F._dstartup;
     mk_opaque F._opaque;
+    
+    mk_dlambda_types F._dlambda_types;
+    mk_dlambda_infos F._dlambda_infos;
   ]
 end;;
 
@@ -910,6 +930,9 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_dscheduling F._dscheduling;
     mk_dlinear F._dlinear;
     mk_dstartup F._dstartup;
+    
+    mk_dlambda_types F._dlambda_types;
+    mk_dlambda_infos F._dlambda_infos;
   ]
 end;;
 

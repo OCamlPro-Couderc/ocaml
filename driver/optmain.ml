@@ -155,6 +155,9 @@ module Options = Main_args.Make_optcomp_options (struct
   let _dstartup = set keep_startup_file
   let _opaque = set opaque
 
+  let _dlambda_types = set dump_lambda_types
+  let _dlambda_infos = set dump_lambda_infos
+
   let anonymous = anonymous
 end);;
 

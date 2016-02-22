@@ -98,6 +98,9 @@ module Options = Main_args.Make_bytetop_options (struct
   let _dlambda = set dump_lambda
   let _dinstr = set dump_instr
 
+  let _dlambda_types = set dump_lambda_types
+  let _dlambda_infos = set dump_lambda_infos
+
   let anonymous s = file_argument s
 end);;
 
