@@ -401,18 +401,20 @@ and tt_type ppf ty =
         Printtyp.type_declaration (Ident.create "*typedecl*") ppf td
     | Some (Ext ec) ->
         Printtyp.extension_constructor (Ident.create "*extension*") ppf ec
-    | Some (Mod mty | Mty (Some mty)) -> Printtyp.modtype ppf mty
+    | Some (Mod mty | Mty (Some mty)) ->
+        (*Printtyp.modtype ppf mty *)
+        fprintf ppf "*modtype*"
     | Some (Mty None) -> fprintf ppf "*abstract_modtype*"
     | Some (Class cty | Cty cty) ->
         Printtyp.class_type ppf cty
   in
   if !(Clflags.dump_lambda_types) && ty <> None then
-    fprintf ppf ":: %a" f ty
+    fprintf ppf ": %a" f ty
 
 and infos ppf = function
     None -> ()
   | Some _ when not !(Clflags.dump_lambda_infos) -> ()
-  | Some infos -> fprintf ppf "@[<2>#| %s |#@]" infos
+  | Some infos -> fprintf ppf "@[<2> #| %s |# @]" infos
       
 and sequence ppf = function
   | { lb_expr = Lsequence(l1, l2) } ->

@@ -523,20 +523,25 @@ let rec patch_guarded patch l =
 
 (* Translate an access path *)
 
-let rec transl_normal_path ?ty = function
+let rec transl_normal_path ?ty env = function
     Pident id ->
       if Ident.global id then
-        mk_lambda ?ty @@ Lprim(Pgetglobal id, [])
+        mk_lambda ?ty ~from:"transl_normal_path" @@
+        Lprim(Pgetglobal id, [])
       else mk_lambda ?ty @@ Lvar id
   | Pdot(p, s, pos) ->
-      mk_lambda ?ty @@ Lprim(Pfield pos, [transl_normal_path p])
+      let ty' =
+        try Some (Mod (Env.find_module p env).md_type)
+        with Not_found -> None in
+      mk_lambda ?ty  ~from:"transl_normal_path" @@
+      Lprim(Pfield pos, [transl_normal_path ?ty:ty' env p])
   | Papply(p1, p2) ->
       fatal_error "Lambda.transl_path"
 
 (* Translation of value identifiers *)
 
 let transl_path ?(loc=Location.none) env ?ty path =
-  transl_normal_path ?ty (Env.normalize_path (Some loc) env path)
+  transl_normal_path env ?ty (Env.normalize_path (Some loc) env path)
 
 (* Compile a sequence of expressions *)
 

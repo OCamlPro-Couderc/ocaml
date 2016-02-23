@@ -633,7 +633,8 @@ let assert_failed exp =
         [event_after exp
            (mk_lambda ~ty:(Val Predef.type_exn) ~from:"assert_failed" @@
             Lprim(Pmakeblock(0, Immutable),
-                  [transl_normal_path Predef.path_assert_failure;
+                  [transl_normal_path Env.empty ~ty:(Val Predef.type_exn)
+                     Predef.path_assert_failure;
                    mk_lambda ~from:"assert_failed" @@
                    Lconst(Const_block(0,
                                       [Const_base(Const_string (fname, None));
@@ -898,17 +899,28 @@ and transl_exp0 e =
       Lapply(mk_u @@ Lprim(Pfield 0, [transl_path ~loc e.exp_env cl]),
              [lambda_unit], Location.none)
   | Texp_instvar(path_self, path, _) ->
+      let self_ty =
+        try Some (Val (Env.find_value path_self e.exp_env).val_type)
+        with Not_found -> None in
       mk @@
       Lprim(Parrayrefu Paddrarray,
-            [transl_normal_path path_self; transl_normal_path path])
+            [transl_normal_path ?ty:self_ty e.exp_env path_self;
+             transl_normal_path ?ty:(Some (Val e.exp_type)) e.exp_env path])
   | Texp_setinstvar(path_self, path, _, expr) ->
-      transl_setinstvar (transl_normal_path path_self) path expr
+      let self_ty =
+        try Some (Val (Env.find_value path_self e.exp_env).val_type)
+        with Not_found -> None in
+      transl_setinstvar (transl_normal_path ?ty:self_ty e.exp_env path_self) path expr
   | Texp_override(path_self, modifs) ->
+      let self_ty =
+        try Some (Val (Env.find_value path_self e.exp_env).val_type)
+        with Not_found -> None in
       let cpy = Ident.create "copy" in
       mk @@
       Llet(Strict, cpy,
            mk @@
-           Lapply(Translobj.oo_prim "copy", [transl_normal_path path_self],
+           Lapply(Translobj.oo_prim "copy",
+                  [transl_normal_path ?ty:self_ty e.exp_env path_self],
                   Location.none),
            List.fold_right
              (fun (path, _, expr) rem ->
@@ -1147,8 +1159,11 @@ and transl_let rec_flag pat_expr_list body =
 
 and transl_setinstvar self var expr =
   mk_lambda ~ty:(Val Predef.type_unit) @@ (* /!\   To Check *)
-  Lprim(Parraysetu (if maybe_pointer expr then Paddrarray else Pintarray),
-                    [self; transl_normal_path var; transl_exp expr])
+  Lprim(Parraysetu
+          (if maybe_pointer expr then Paddrarray else Pintarray),
+        [self;
+         transl_normal_path ?ty:(Some (Val expr.exp_type)) expr.exp_env var;
+         transl_exp expr])
 
 and transl_record all_labels repres lbl_expr_list opt_init_expr =
   let size = Array.length all_labels in

@@ -93,7 +93,7 @@ let transl_type_extension env rootpath tyext body =
 
 (* Compile a coercion *)
 
-let rec apply_coercion strict restr arg =
+let rec apply_coercion env strict restr arg =
   let mk l = mk_lambda ~from:"apply_coercion" l in
   match restr with
     Tcoerce_none ->
@@ -106,28 +106,28 @@ let rec apply_coercion strict restr arg =
           let lam =
             mk @@
             Lprim(Pmakeblock(0, Immutable),
-                  List.map (apply_coercion_field get_field) pos_cc_list)
+                  List.map (apply_coercion_field env get_field) pos_cc_list)
           in
-          wrap_id_pos_list id_pos_list get_field lam)
+          wrap_id_pos_list env id_pos_list get_field lam)
   | Tcoerce_functor(cc_arg, cc_res) ->
       let param = Ident.create "funarg" in
       name_lambda strict arg (fun id ->
           mk @@
         Lfunction(Curried, [param],
-          apply_coercion Strict cc_res
+          apply_coercion env Strict cc_res
             (mk @@ Lapply(mk @@ Lvar id,
-                          [apply_coercion Alias cc_arg (mk @@ Lvar param)],
+                          [apply_coercion env Alias cc_arg (mk @@ Lvar param)],
                           Location.none))))
   | Tcoerce_primitive p ->
       transl_primitive Location.none p
   | Tcoerce_alias (path, cc) ->
       name_lambda strict arg
-        (fun id -> apply_coercion Alias cc (transl_normal_path path))
+        (fun id -> apply_coercion env Alias cc (transl_normal_path env path))
 
-and apply_coercion_field get_field (pos, cc) =
-  apply_coercion Alias cc (get_field pos)
+and apply_coercion_field env get_field (pos, cc) =
+  apply_coercion env Alias cc (get_field pos)
 
-and wrap_id_pos_list id_pos_list get_field lam =
+and wrap_id_pos_list env id_pos_list get_field lam =
   let mk l = mk_lambda ~from:"apply_wrap_id_pos_list" l in
   let fv = free_variables lam in
   (*Format.eprintf "%a@." Printlambda.lambda lam;
@@ -138,7 +138,7 @@ and wrap_id_pos_list id_pos_list get_field lam =
       if IdentSet.mem id' fv then
         let id'' = Ident.create (Ident.name id') in
         (mk @@ Llet(Alias,id'',
-                    apply_coercion Alias c (get_field pos),lam),
+                    apply_coercion env Alias c (get_field pos),lam),
          Ident.add id' (mk @@ Lvar id'') s)
       else (lam,s))
       (lam, Ident.empty) id_pos_list
@@ -203,6 +203,7 @@ let record_primitive = function
 let mod_prim name =
   try
     transl_normal_path
+      Env.empty
       (fst (Env.lookup_value (Ldot (Lident "CamlinternalMod", name))
               Env.empty))
   with Not_found ->
@@ -372,13 +373,13 @@ let rec transl_module cc rootpath mexp =
     mk_lambda ~ty:(Mod mexp.mod_type) ~from:"transl_module" l in
   match mexp.mod_type with
     Mty_alias _ ->
-      { (apply_coercion Alias cc lambda_unit) with
+      { (apply_coercion mexp.mod_env Alias cc lambda_unit) with
         lb_tt_type = Some (Mod mexp.mod_type);
         lb_from = Some "transl_module"; }
   | _ ->
   match mexp.mod_desc with
     Tmod_ident (path,_) ->
-      apply_coercion Strict cc
+      apply_coercion mexp.mod_env Strict cc
         (transl_path ~loc:mexp.mod_loc mexp.mod_env path)
   | Tmod_structure str ->
       transl_struct [] cc rootpath str
@@ -399,7 +400,7 @@ let rec transl_module cc rootpath mexp =
                       { body' with
                         lb_expr =
                           Llet(Alias, param,
-                               apply_coercion Alias ccarg
+                               apply_coercion mexp.mod_env Alias ccarg
                                  (mk_lambda
                                     ~ty:(Mod (Btype.default_mty mty_t))
                                     ~from:"transl_module"
@@ -410,19 +411,19 @@ let rec transl_module cc rootpath mexp =
         cc
   | Tmod_apply(funct, arg, ccarg) ->
       oo_wrap mexp.mod_env true
-        (apply_coercion Strict cc)
+        (apply_coercion mexp.mod_env Strict cc)
         (mk @@
          Lapply(transl_module Tcoerce_none None funct,
                 [transl_module ccarg None arg], mexp.mod_loc))
   | Tmod_constraint(arg, mty, _, ccarg) ->
       transl_module (compose_coercions cc ccarg) rootpath arg
   | Tmod_unpack(arg, _) ->
-      apply_coercion Strict cc (Translcore.transl_exp arg)
+      apply_coercion mexp.mod_env Strict cc (Translcore.transl_exp arg)
 
 and transl_struct fields cc rootpath str =
-  transl_structure (Mty_signature str.str_type) fields cc rootpath str.str_items
+  transl_structure Env.empty (Mty_signature str.str_type) fields cc rootpath str.str_items
 
-and transl_structure mty fields cc rootpath items =
+and transl_structure env mty fields cc rootpath items =
   let mk l = mk_lambda ~ty:(Mod mty) ~from:"transl_structure" l
   and mk_u l = mk_lambda ~from:"transl_structure" l in
   match items with
@@ -447,44 +448,46 @@ and transl_structure mty fields cc rootpath items =
                   (fun (pos, cc) ->
                     match cc with
                       Tcoerce_primitive p -> transl_primitive Location.none p
-                    | _ -> apply_coercion Strict cc (get_field pos))
+                    | _ -> apply_coercion env Strict cc (get_field pos))
                   pos_cc_list))
           and id_pos_list =
             List.filter (fun (id,_,_) -> not (IdentSet.mem id ids)) id_pos_list
           in
-          wrap_id_pos_list id_pos_list get_field lam
+          wrap_id_pos_list env id_pos_list get_field lam
       | _ ->
           fatal_error "Translmod.transl_structure"
       end
   | item :: rem ->
+      let env = item.str_env in
       match item.str_desc with
       | Tstr_eval (expr, _) ->
-          mk_u @@ Lsequence(transl_exp expr, transl_structure mty fields cc rootpath rem)
+          mk_u @@
+          Lsequence(transl_exp expr, transl_structure env mty fields cc rootpath rem)
       | Tstr_value(rec_flag, pat_expr_list) ->
           let ext_fields = rev_let_bound_idents pat_expr_list @ fields in
           transl_let rec_flag pat_expr_list
-            (transl_structure mty ext_fields cc rootpath rem)
+            (transl_structure env mty ext_fields cc rootpath rem)
       | Tstr_primitive descr ->
           record_primitive descr.val_val;
-          transl_structure mty fields cc rootpath rem
+          transl_structure env mty fields cc rootpath rem
       | Tstr_type decls ->
-          transl_structure mty fields cc rootpath rem
+          transl_structure env mty fields cc rootpath rem
       | Tstr_typext(tyext) ->
           let ids = List.map (fun ext -> ext.ext_id) tyext.tyext_constructors in
           transl_type_extension item.str_env rootpath tyext
-            (transl_structure mty (List.rev_append ids fields) cc rootpath rem)
+            (transl_structure env mty (List.rev_append ids fields) cc rootpath rem)
       | Tstr_exception ext ->
           let id = ext.ext_id in
           let path = field_path rootpath id in
           mk_u @@
           Llet(Strict, id, transl_extension_constructor item.str_env path ext,
-               transl_structure mty (id :: fields) cc rootpath rem)
+               transl_structure env mty (id :: fields) cc rootpath rem)
       | Tstr_module mb ->
           let id = mb.mb_id in
           mk_u @@
           Llet(pure_module mb.mb_expr, id,
                transl_module Tcoerce_none (field_path rootpath id) mb.mb_expr,
-               transl_structure mty (id :: fields) cc rootpath rem)
+               transl_structure env mty (id :: fields) cc rootpath rem)
       | Tstr_recmodule bindings ->
           let ext_fields =
             List.rev_append (List.map (fun mb -> mb.mb_id) bindings) fields
@@ -493,7 +496,7 @@ and transl_structure mty fields cc rootpath items =
             (fun id modl ->
                transl_module Tcoerce_none (field_path rootpath id) modl)
             bindings
-            (transl_structure mty ext_fields cc rootpath rem)
+            (transl_structure env mty ext_fields cc rootpath rem)
       | Tstr_class cl_list ->
           let ids = List.map (fun (ci,_,_) -> ci.ci_id_class) cl_list in
           mk_u @@
@@ -503,14 +506,14 @@ and transl_structure mty fields cc rootpath items =
                        let cl = ci.ci_expr in
                        (id, transl_class ids id meths cl vf ))
                     cl_list,
-                  transl_structure mty (List.rev_append ids fields) cc rootpath rem)
+                  transl_structure env mty (List.rev_append ids fields) cc rootpath rem)
       | Tstr_include incl ->
           let ids = bound_value_identifiers incl.incl_type in
           let modl = incl.incl_mod in
           let mid = Ident.create "include" in
           let rec rebind_idents pos newfields = function
               [] ->
-                transl_structure mty newfields cc rootpath rem
+                transl_structure env mty newfields cc rootpath rem
             | id :: ids ->
                 mk_u @@
                 Llet(Alias, id, mk_u @@ Lprim(Pfield pos, [mk_u @@ Lvar mid]),
@@ -523,7 +526,7 @@ and transl_structure mty fields cc rootpath items =
       | Tstr_open _
       | Tstr_class_type _
       | Tstr_attribute _ ->
-          transl_structure mty fields cc rootpath rem
+          transl_structure env mty fields cc rootpath rem
 
 and pure_module m =
   match m.mod_desc with
@@ -770,7 +773,7 @@ let transl_store_structure glob map prims str =
   and store_ident id =
     try
       let (pos, cc) = Ident.find_same id map in
-      let init_val = apply_coercion Alias cc (mk_u @@ Lvar id) in
+      let init_val = apply_coercion Env.empty Alias cc (mk_u @@ Lvar id) in
       mk_u @@
       Lprim(Psetfield(pos, false),
             [mk_u @@ Lprim(Pgetglobal glob, []); init_val])
@@ -1007,7 +1010,7 @@ let transl_package component_names target_name coercion =
     mk_u @@
     Lprim(Pmakeblock(0, Immutable), List.map get_component component_names) in
   mk_u @@
-  Lprim(Psetglobal target_name, [apply_coercion Strict coercion components])
+  Lprim(Psetglobal target_name, [apply_coercion Env.empty Strict coercion components])
   (*
   let components =
     match coercion with
@@ -1048,7 +1051,7 @@ let transl_store_package component_names target_name coercion =
       let blk = Ident.create "block" in
       (List.length pos_cc_list,
        mk_u @@
-       Llet (Strict, blk, apply_coercion Strict coercion components,
+       Llet (Strict, blk, apply_coercion Env.empty Strict coercion components,
              make_sequence
                (fun pos id ->
                   mk_u @@

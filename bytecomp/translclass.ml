@@ -374,7 +374,7 @@ let rec build_class_init cla cstr super inh_init cl_init msubst top cl =
       begin match cl.cl_desc, inh_init with
         Tcl_ident (path, _, _), (obj_init, path')::inh_init ->
           assert (Path.same (normalize_cl_path cl path) path');
-          let lpath = transl_normal_path path' in
+          let lpath = transl_normal_path cl.cl_env path' in
           let inh = Ident.create "inh"
           and ofs = List.length vals + 1
           and valids, methids = super in
@@ -499,7 +499,7 @@ let transl_class_rebind ids cl vf =
     if not (Translcore.check_recursive_lambda ids obj_init') then
       raise(Error(cl.cl_loc, Illegal_class_expr));
     let id = (obj_init' = lfunction [self] obj_init0) in
-    if id then transl_normal_path path else
+    if id then transl_normal_path cl.cl_env path else
 
     let cla = Ident.create "class"
     and new_init = Ident.create "new_init"
@@ -511,7 +511,7 @@ let transl_class_rebind ids cl vf =
     Strict, new_init, lfunction [obj_init] obj_init',
     mk_lambda ~ty:(Class cl.cl_type) ~from:"transl_class_rebind" @@
     Llet(
-    Alias, cla, transl_normal_path path,
+    Alias, cla, transl_normal_path cl.cl_env path,
     mk_lambda ~ty:(Class cl.cl_type) ~from:"transl_class_rebind" @@
     Lprim(Pmakeblock(0, Immutable),
           [mkappl(mk_lambda @@ Lvar new_init, [lfield cla 0]);
@@ -830,7 +830,8 @@ let transl_class ids cl_id pub_meths cl vflag =
       Lprim(Pmakeblock(0, Immutable),
             menv :: List.map (fun id -> mk_lambda @@ Lvar id) !new_ids_init)
   and linh_envs =
-    List.map (fun (_, p) -> mk_lambda @@ Lprim(Pfield 3, [transl_normal_path p]))
+    List.map (fun (_, p) -> mk_lambda @@
+               Lprim(Pfield 3, [transl_normal_path cl.cl_env p]))
       (List.rev inh_init)
   in
   let make_envs lam =
@@ -850,7 +851,8 @@ let transl_class ids cl_id pub_meths cl vflag =
     List.filter
       (fun (_,path) -> List.mem (Path.head path) new_ids) inh_init in
   let inh_keys =
-    List.map (fun (_,p) -> mk_lambda @@ Lprim(Pfield 1, [transl_normal_path p])) inh_paths in
+    List.map (fun (_,p) -> mk_lambda @@
+               Lprim(Pfield 1, [transl_normal_path cl.cl_env p])) inh_paths in
   let lclass lam =
     mk_lambda @@
     Llet(Strict, class_init,
