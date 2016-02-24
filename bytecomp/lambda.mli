@@ -187,7 +187,7 @@ type lambda_expr =
   | Lswitch of lambda * lambda_switch
   (* switch on strings, clauses are sorted by string order,
      strings are pairwise distinct *)
-  | Lstringswitch of lambda * (string * lambda) list * lambda option
+  | Lstringswitch of lambda * (string * switch_case_extra * lambda) list * lambda option
   | Lstaticraise of int * lambda list
   | Lstaticcatch of lambda * (int * Ident.t list) * lambda
   | Ltrywith of lambda * Ident.t * lambda
@@ -208,10 +208,16 @@ and lambda =
 
 and lambda_switch =
   { sw_numconsts: int;                  (* Number of integer cases *)
-    sw_consts: (int * lambda) list;     (* Integer cases *)
+    sw_consts: (int * switch_case_extra * lambda) list;     (* Integer cases *)
     sw_numblocks: int;                  (* Number of tag block cases *)
-    sw_blocks: (int * lambda) list;     (* Tag block cases *)
+    sw_blocks: (int * switch_case_extra * lambda) list;     (* Tag block cases *)
     sw_failaction : lambda option}      (* Action to take if failure *)
+
+and switch_case_extra =
+  { pattern_type: Types.type_expr option;
+    pattern_from: string option;
+  }
+
 and lambda_event =
   { lev_loc: Location.t;
     lev_kind: lambda_event_kind;
@@ -271,6 +277,15 @@ val as_constr_arg4:
   -> lambda_expr -> lambda
 
 val as_tuple_arg: ?from:string -> lambda -> int -> lambda_expr -> lambda
+
+val mk_switch_extr:
+  ?ty:Types.type_expr -> ?from:string -> unit -> switch_case_extra
+
+val mk_switch_extr_as:
+  ?from:string -> lambda -> switch_case_extra
+
+val mk_lambda_as_extr:
+  switch_case_extra -> ?from:string -> lambda_expr -> lambda
 
 (* Sharing key *)
 val make_key: lambda -> lambda option

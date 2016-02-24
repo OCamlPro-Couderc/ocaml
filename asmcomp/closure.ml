@@ -984,7 +984,7 @@ let rec close fenv cenv lam =
       let uarg,_ = close fenv cenv arg in
       let usw =
         List.map
-          (fun (s,act) ->
+          (fun (s,_,act) ->
             let uact,_ = close fenv cenv act in
             s,uact)
           sw in
@@ -1204,7 +1204,7 @@ and close_switch arg fenv cenv cases num_keys default =
   end ;
   (* Then all other cases *)
   List.iter
-    (fun (key,lam) ->
+    (fun (key, _, lam) ->
      index.(key) <- store.act_store lam)
     cases ;
 

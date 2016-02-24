@@ -64,16 +64,16 @@ let rec eliminate_ref id lam =
       mk @@ Lswitch(eliminate_ref id e,
         {sw_numconsts = sw.sw_numconsts;
          sw_consts =
-            List.map (fun (n, e) -> (n, eliminate_ref id e)) sw.sw_consts;
+            List.map (fun (n, extr, e) -> (n, extr, eliminate_ref id e)) sw.sw_consts;
          sw_numblocks = sw.sw_numblocks;
          sw_blocks =
-            List.map (fun (n, e) -> (n, eliminate_ref id e)) sw.sw_blocks;
+            List.map (fun (n, extr, e) -> (n, extr, eliminate_ref id e)) sw.sw_blocks;
          sw_failaction =
             Misc.may_map (eliminate_ref id) sw.sw_failaction; })
   | Lstringswitch(e, sw, default) ->
       mk @@ Lstringswitch
         (eliminate_ref id e,
-         List.map (fun (s, e) -> (s, eliminate_ref id e)) sw,
+         List.map (fun (s, extr, e) -> (s, extr, eliminate_ref id e)) sw,
          Misc.may_map (eliminate_ref id) default)
   | Lstaticraise (i,args) ->
       mk @@ Lstaticraise (i,List.map (eliminate_ref id) args)
@@ -141,11 +141,11 @@ let simplify_exits lam =
   | Lswitch(l, sw) ->
       count_default sw ;
       count l;
-      List.iter (fun (_, l) -> count l) sw.sw_consts;
-      List.iter (fun (_, l) -> count l) sw.sw_blocks
+      List.iter (fun (_, _, l) -> count l) sw.sw_consts;
+      List.iter (fun (_, _, l) -> count l) sw.sw_blocks
   | Lstringswitch(l, sw, d) ->
       count l;
-      List.iter (fun (_, l) -> count l) sw;
+      List.iter (fun (_, _, l) -> count l) sw;
       begin match  d with
       | None -> ()
       | Some d -> match sw with
@@ -245,8 +245,8 @@ let simplify_exits lam =
      end
   | Lswitch(l, sw) ->
       let new_l = simplif l
-      and new_consts =  List.map (fun (n, e) -> (n, simplif e)) sw.sw_consts
-      and new_blocks =  List.map (fun (n, e) -> (n, simplif e)) sw.sw_blocks
+      and new_consts =  List.map (fun (n, extr, e) -> (n, extr, simplif e)) sw.sw_consts
+      and new_blocks =  List.map (fun (n, extr, e) -> (n, extr, simplif e)) sw.sw_blocks
       and new_fail = Misc.may_map simplif sw.sw_failaction in
       mk @@
       Lswitch
@@ -256,7 +256,7 @@ let simplify_exits lam =
   | Lstringswitch(l,sw,d) ->
       mk @@
       Lstringswitch
-        (simplif l,List.map (fun (s,l) -> s,simplif l) sw,
+        (simplif l,List.map (fun (s,extr,l) -> s,extr,simplif l) sw,
          Misc.may_map simplif d)
   | Lstaticraise (i,[]) ->
       begin try
@@ -399,11 +399,11 @@ let simplify_lets lam =
   | Lswitch(l, sw) ->
       count_default bv sw ;
       count bv l;
-      List.iter (fun (_, l) -> count bv l) sw.sw_consts;
-      List.iter (fun (_, l) -> count bv l) sw.sw_blocks
+      List.iter (fun (_, _, l) -> count bv l) sw.sw_consts;
+      List.iter (fun (_, _, l) -> count bv l) sw.sw_blocks
   | Lstringswitch(l, sw, d) ->
       count bv l ;
-      List.iter (fun (_, l) -> count bv l) sw ;
+      List.iter (fun (_, _, l) -> count bv l) sw ;
       begin match d with
       | Some d ->
           begin match sw with
@@ -512,8 +512,8 @@ let simplify_lets lam =
   | Lprim(p, ll) -> mk @@ Lprim(p, List.map simplif ll)
   | Lswitch(l, sw) ->
       let new_l = simplif l
-      and new_consts =  List.map (fun (n, e) -> (n, simplif e)) sw.sw_consts
-      and new_blocks =  List.map (fun (n, e) -> (n, simplif e)) sw.sw_blocks
+      and new_consts =  List.map (fun (n, extr, e) -> (n, extr, simplif e)) sw.sw_consts
+      and new_blocks =  List.map (fun (n, extr, e) -> (n, extr, simplif e)) sw.sw_blocks
       and new_fail = Misc.may_map simplif sw.sw_failaction in
       mk @@
       Lswitch
@@ -523,7 +523,7 @@ let simplify_lets lam =
   | Lstringswitch (l,sw,d) ->
       mk @@
       Lstringswitch
-        (simplif l,List.map (fun (s,l) -> s,simplif l) sw,
+        (simplif l,List.map (fun (s,extr,l) -> s,extr,simplif l) sw,
          Misc.may_map simplif d)
   | Lstaticraise (i,ls) ->
       mk @@ Lstaticraise (i, List.map simplif ls)
@@ -584,13 +584,13 @@ let rec emit_tail_infos is_tail lambda =
       list_emit_tail_infos false l
   | Lswitch (lam, sw) ->
       emit_tail_infos false lam;
-      list_emit_tail_infos_fun snd is_tail sw.sw_consts;
-      list_emit_tail_infos_fun snd is_tail sw.sw_blocks;
+      list_emit_tail_infos_fun Misc.thd3 is_tail sw.sw_consts;
+      list_emit_tail_infos_fun Misc.thd3 is_tail sw.sw_blocks;
       Misc.may  (emit_tail_infos is_tail) sw.sw_failaction
   | Lstringswitch (lam, sw, d) ->
       emit_tail_infos false lam;
       List.iter
-        (fun (_,lam) ->  emit_tail_infos is_tail lam)
+        (fun (_, _, lam) ->  emit_tail_infos is_tail lam)
         sw ;
       Misc.may (emit_tail_infos is_tail) d
   | Lstaticraise (_, l) ->

@@ -177,7 +177,7 @@ type lambda_expr =
   | Lletrec of (Ident.t * lambda) list * lambda
   | Lprim of primitive * lambda list
   | Lswitch of lambda * lambda_switch
-  | Lstringswitch of lambda * (string * lambda) list * lambda option
+  | Lstringswitch of lambda * (string * switch_case_extra * lambda) list * lambda option
   | Lstaticraise of int * lambda list
   | Lstaticcatch of lambda * (int * Ident.t list) * lambda
   | Ltrywith of lambda * Ident.t * lambda
@@ -195,14 +195,18 @@ and lambda =
     lb_tt_type: Types.typedtree_type option;
     lb_from: string option;
   }
-
+  
 and lambda_switch =
-  { sw_numconsts: int;
-    sw_consts: (int * lambda) list;
-    sw_numblocks: int;
-    sw_blocks: (int * lambda) list;
-    sw_failaction : lambda option}
+  { sw_numconsts: int;                  (* Number of integer cases *)
+    sw_consts: (int * switch_case_extra * lambda) list;     (* Integer cases *)
+    sw_numblocks: int;                  (* Number of tag block cases *)
+    sw_blocks: (int * switch_case_extra * lambda) list;     (* Tag block cases *)
+    sw_failaction : lambda option}      (* Action to take if failure *)
 
+and switch_case_extra =
+  { pattern_type: type_expr option;
+    pattern_from: string option;
+  }
 and lambda_event =
   { lev_loc: Location.t;
     lev_kind: lambda_event_kind;
@@ -274,6 +278,32 @@ let as_tuple_arg ?from arg pos l =
     | _ -> None in
   { lb_expr = l; lb_from = from; lb_tt_type = ty }
 
+
+let mk_switch_extr ?ty ?from () =
+  { pattern_type = ty; pattern_from = from; }
+
+let mk_switch_extr_as ?from l =
+  let ty =
+    match l.lb_tt_type with
+      Some (Val ty) -> Some ty
+    | _ -> None in
+  mk_switch_extr ?ty ?from ()
+
+let mk_lambda_as_extr extr ?from l =
+  let from =
+    match extr.pattern_from, from with
+      None, None -> None
+    | Some s, None | None, Some s -> Some s
+    | Some extr, Some from -> Some (Printf.sprintf "%s+%s" extr from)
+  in
+  let ty =
+    match extr.pattern_type with
+      None -> None | Some ty -> Some (Val ty) in
+  { lb_expr = l;
+    lb_tt_type = ty;
+    lb_from = from;
+  }
+
 (* Build sharing keys *)
 (*
    Those keys are later compared with Pervasives.compare.
@@ -324,7 +354,7 @@ let make_key e =
        { e with
          lb_expr = Lstringswitch
            (tr_rec env e,
-            List.map (fun (s,e) -> s,tr_rec env e) sw,
+            List.map (fun (s,extr,e) -> s,extr,tr_rec env e) sw,
             tr_opt env d) }
     | Lstaticraise (i,es) ->
         { e with
@@ -361,8 +391,8 @@ let make_key e =
 
   and tr_sw env sw =
     { sw with
-      sw_consts = List.map (fun (i,e) -> i,tr_rec env e) sw.sw_consts ;
-      sw_blocks = List.map (fun (i,e) -> i,tr_rec env e) sw.sw_blocks ;
+      sw_consts = List.map (fun (i, extr, e) -> i, extr, tr_rec env e) sw.sw_consts ;
+      sw_blocks = List.map (fun (i, extr, e) -> i, extr, tr_rec env e) sw.sw_blocks ;
       sw_failaction = tr_opt env sw.sw_failaction ; }
 
   and tr_opt env = function
@@ -415,12 +445,12 @@ let iter f l =
       List.iter f args
   | Lswitch(arg, sw) ->
       f arg;
-      List.iter (fun (key, case) -> f case) sw.sw_consts;
-      List.iter (fun (key, case) -> f case) sw.sw_blocks;
+      List.iter (fun (key, extr, case) -> f case) sw.sw_consts;
+      List.iter (fun (key, extr, case) -> f case) sw.sw_blocks;
       iter_opt f sw.sw_failaction
   | Lstringswitch (arg,cases,default) ->
       f arg ;
-      List.iter (fun (_,act) -> f act) cases ;
+      List.iter (fun (_,_,act) -> f act) cases ;
       iter_opt f default
   | Lstaticraise (_,args) ->
       List.iter f args
@@ -608,8 +638,8 @@ let subst_lambda s lam =
   | Lifused (v, e) ->
       { l with lb_expr = Lifused (v, subst e) }
   and subst_decl (id, exp) = (id, subst exp)
-  and subst_case (key, case) = (key, subst case)
-  and subst_strcase (key, case) = (key, subst case)
+  and subst_case (key, extr, case) = (key, extr, subst case)
+  and subst_strcase (key, extr, case) = (key, extr, subst case)
   and subst_opt = function
     | None -> None
     | Some e -> Some (subst e)

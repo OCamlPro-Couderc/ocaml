@@ -294,14 +294,14 @@ let rec expr ppf l =
       let switch ppf sw =
         let spc = ref false in
         List.iter
-         (fun (n, l) ->
+         (fun (n, extr, l) ->
            if !spc then fprintf ppf "@ " else spc := true;
-           fprintf ppf "@[<hv 1>case int %i:@ %a@]" n lam l)
+           fprintf ppf "@[<hv 1>case int %i%a:@ %a@]" n switch_extras extr lam l)
          sw.sw_consts;
         List.iter
-          (fun (n, l) ->
+          (fun (n, extr, l) ->
             if !spc then fprintf ppf "@ " else spc := true;
-            fprintf ppf "@[<hv 1>case tag %i:@ %a@]" n lam l)
+            fprintf ppf "@[<hv 1>case tag %i%a:@ %a@]" n switch_extras extr lam l)
           sw.sw_blocks ;
         begin match sw.sw_failaction with
         | None  -> ()
@@ -317,9 +317,10 @@ let rec expr ppf l =
       let switch ppf cases =
         let spc = ref false in
         List.iter
-         (fun (s, l) ->
+         (fun (s, extr, l) ->
            if !spc then fprintf ppf "@ " else spc := true;
-           fprintf ppf "@[<hv 1>case \"%s\":@ %a@]" (String.escaped s) lam l)
+           fprintf ppf "@[<hv 1>case \"%s\"%a:@ %a@]"
+             (String.escaped s) switch_extras extr lam l)
           cases;
         begin match default with
         | Some default ->
@@ -392,6 +393,20 @@ and lam ppf l =
         expr l.lb_expr
         tt_type ty
         infos inf
+
+and switch_extras ppf e =
+  begin
+    match e.pattern_type with 
+      None -> ()
+    | Some _ when not !(Clflags.dump_lambda_types) -> ()
+    | Some ty -> fprintf ppf ": %a" Printtyp.type_expr ty
+  end;
+  begin
+    match e.pattern_from with 
+      None -> ()
+    | Some _ when not !(Clflags.dump_lambda_infos) -> ()
+    | Some inf -> fprintf ppf " #| %s |#" inf
+  end
 
 and tt_type ppf ty =
   let f ppf = function
