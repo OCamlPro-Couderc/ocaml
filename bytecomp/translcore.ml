@@ -1106,8 +1106,10 @@ and transl_function loc untuplify_fn repr partial cases =
       let ((_, params), body) =
         transl_function exp.exp_loc false repr partial' pl in
       ((Curried, param :: params),
-       Matching.for_function loc None (mk_lambda (Lvar param)) [pat, body] partial)
-  | {c_lhs={pat_desc = Tpat_tuple pl}} :: _ when untuplify_fn ->
+       Matching.for_function loc None
+         (mk_lambda ~ty:(Val pat.pat_type) ~from:"transl_function" (Lvar param))
+         [pat, body] partial)
+  | {c_lhs={pat_desc = Tpat_tuple pl; pat_type}} :: _ when untuplify_fn ->
       begin try
         let size = List.length pl in
         let pats_expr_list =
@@ -1122,13 +1124,23 @@ and transl_function loc untuplify_fn repr partial cases =
       with Matching.Cannot_flatten ->
         let param = name_pattern "param" cases in
         ((Curried, [param]),
-         Matching.for_function loc repr (mk_lambda @@ (Lvar param))
+         Matching.for_function loc repr
+           (mk_lambda ~ty:(Val pat_type) ~from:"transl_function" @@ (Lvar param))
            (transl_cases cases) partial)
       end
-  | _ ->
+  | {c_lhs={pat_type}} :: _ ->
+      (* we assume all the patterns have the same type, *)
+      (* which is true without GATDs *)
       let param = name_pattern "param" cases in
       ((Curried, [param]),
-       Matching.for_function loc repr (mk_lambda @@ Lvar param)
+       Matching.for_function loc repr
+         (mk_lambda ~ty:(Val pat_type) ~from:"transl_function" @@ Lvar param)
+         (transl_cases cases) partial)
+  | [] ->  (* Impossible due to typing? *)
+      let param = name_pattern "param" cases in
+      ((Curried, [param]),
+       Matching.for_function loc repr
+         (mk_lambda ~from:"transl_function" @@ Lvar param)
          (transl_cases cases) partial)
 
 and transl_let rec_flag pat_expr_list body =
@@ -1167,6 +1179,7 @@ and transl_setinstvar self var expr =
 
 and transl_record all_labels repres lbl_expr_list opt_init_expr =
   let size = Array.length all_labels in
+  let mk = mk_lambda ~ty:(Val all_labels.(0).lbl_res) ~from:"transl_record" in
   (* Determine if there are "enough" new fields *)
   if 3 + 2 * List.length lbl_expr_list >= size
   then begin
@@ -1195,7 +1208,6 @@ and transl_record all_labels repres lbl_expr_list opt_init_expr =
       if List.exists (fun (_, lbl, expr) -> lbl.lbl_mut = Mutable) lbl_expr_list
       then Mutable
       else Immutable in
-    let mk = as_arg ~from:"transl_record" lv.(0) in
     let lam =
       try
         if mut = Mutable then raise Not_constant;
@@ -1232,8 +1244,7 @@ and transl_record all_labels repres lbl_expr_list opt_init_expr =
     begin match opt_init_expr with
       None -> assert false
     | Some init_expr ->
-        let (_, lbl, _) = List.hd lbl_expr_list in
-        mk_lambda ~ty:(Val lbl.lbl_res) ~from:"transl_record" @@
+        mk @@
         Llet(Strict, copy_id,
              mk_lambda ~ty:(Val init_expr.exp_type) @@
              Lprim(Pduprecord (repres, size), [transl_exp init_expr]),
@@ -1247,13 +1258,13 @@ and transl_match e arg pat_expr_list exn_pat_expr_list partial =
   and exn_cases = transl_cases exn_pat_expr_list in
   let static_catch body val_ids handler =
     let static_exception_id = next_negative_raise_count () in
-    mk_lambda @@
+    mk_lambda ~from:"transl_match" @@
     Lstaticcatch
-      (mk_lambda @@
+      (mk_lambda ~from:"transl_match" @@
        Ltrywith
-         (mk_lambda @@
+         (mk_lambda ~from:"transl_match" @@
           Lstaticraise (static_exception_id, body), id,
-          Matching.for_trywith (mk_lambda @@ Lvar id) exn_cases),
+          Matching.for_trywith (mk_lambda ~from:"transl_match" @@ Lvar id) exn_cases),
        (static_exception_id, val_ids),
        handler)
   in
@@ -1262,7 +1273,10 @@ and transl_match e arg pat_expr_list exn_pat_expr_list partial =
     Matching.for_multiple_match e.exp_loc (transl_list argl) cases partial
   | {exp_desc = Texp_tuple argl}, _ :: _ ->
     let val_ids = List.map (fun _ -> name_pattern "val" []) argl in
-    let lvars = List.map (fun id -> mk_lambda @@ Lvar id) val_ids in
+    let lvars = List.map2
+        (fun id exp -> mk_lambda ~ty:(Val exp.exp_type) ~from:"transl_match" @@
+          Lvar id)
+        val_ids argl in
     static_catch (transl_list argl) val_ids
       (Matching.for_multiple_match e.exp_loc lvars cases partial)
   | arg, [] ->
@@ -1270,7 +1284,9 @@ and transl_match e arg pat_expr_list exn_pat_expr_list partial =
   | arg, _ :: _ ->
     let val_id = name_pattern "val" pat_expr_list in
     static_catch [transl_exp arg] [val_id]
-      (Matching.for_function e.exp_loc None (mk_lambda @@ Lvar val_id) cases partial)
+      (Matching.for_function e.exp_loc None
+         (mk_lambda ~ty:(Val arg.exp_type) ~from:"transl_match" @@
+          Lvar val_id) cases partial)
 
 
 (* Wrapper for class compilation *)

@@ -250,12 +250,19 @@ let as_constr_arg ?from arg extract l =
   let ty = match arg.lb_tt_type with
       Some (Val ({ desc = Tconstr (p, tys, _) })) ->
         (try Some (Val (extract p tys)) with _ -> None)
+    | Some (Val ty) ->
+        begin
+          match Btype.repr ty with
+            { desc = Tconstr (p, tys, _) } ->
+              (try Some (Val (extract p tys)) with _ -> None)
+          | _ -> None
+        end 
     | _ -> None in
   { lb_expr = l; lb_from = from; lb_tt_type = ty }
 
 let as_constr_arg1 ?from arg extract l =
   as_constr_arg ?from arg (fun p tys ->
-      match tys with [ty] -> extract p ty | _ -> raise Not_found) l
+      match tys with ty :: _ -> extract p ty | _ -> raise Not_found) l
 
 let as_constr_arg2 ?from arg extract l =
   as_constr_arg ?from arg (fun p tys ->
@@ -570,7 +577,7 @@ let rec transl_normal_path ?ty env = function
 
 (* Translation of value identifiers *)
 
-let transl_path ?(loc=Location.none) env ?ty path =
+let transl_path ?(loc=Location.none) ?ty env path =
   transl_normal_path env ?ty (Env.normalize_path (Some loc) env path)
 
 (* Compile a sequence of expressions *)

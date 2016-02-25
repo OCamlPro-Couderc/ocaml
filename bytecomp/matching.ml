@@ -1528,11 +1528,11 @@ let code_force_lazy_block =
 
 let inline_lazy_force_cond arg loc =
   let from = "inline_lazy_from" in
-  let as_forced_arg l =
-    as_constr_arg1 ~from arg
-      (fun p ty -> if p == Predef.path_lazy_t then ty else raise Not_found) l in
   let idarg = Ident.create "lzarg" in
   let varg = as_arg ~from arg @@ Lvar idarg in
+  let as_forced_arg l =
+    as_constr_arg1 ~from varg
+      (fun p ty -> if p == Predef.path_lazy_t then ty else raise Not_found) l in
   let tag = Ident.create "tag" in
   let force_fun = Lazy.force code_force_lazy_block in
   as_forced_arg @@
