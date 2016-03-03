@@ -412,10 +412,10 @@ let transl_primitive loc p =
   match prim with
   | Plazyforce ->
       let parm = Ident.create "prim" in
-      Lambda.mk_lambda ~from:"transl_primitive" @@
+      mk_lambda ?ty:None ~from:"transl_primitive" @@
       Lfunction(Curried, [parm],
                 Matching.inline_lazy_force
-                  (mk_lambda ~from:"transl_primitive" @@ Lvar parm)
+                  (mk_lambda ?ty:None ~from:"transl_primitive" @@ Lvar parm)
                   Location.none)
   | Ploc kind ->
     let lam = lam_of_loc kind loc in
@@ -423,11 +423,11 @@ let transl_primitive loc p =
       | 0 -> lam
       | 1 -> (* TODO: we should issue a warning ? *)
           let param = Ident.create "prim" in
-          mk_lambda @@
+          mk_lambda ?ty:None ~from:"transl_primitive" @@
           Lfunction(Curried, [param],
-                    Lambda.mk_lambda ~from:"transl_primitive" @@
+                    Lambda.mk_lambda ?ty:None ~from:"transl_primitive" @@
                     Lprim(Pmakeblock(0, Immutable),
-                          [lam; mk_lambda
+                          [lam; mk_lambda ?ty:None
                              ~from:"transl_primitive" @@ Lvar param]))
       | _ -> assert false
     end
@@ -435,11 +435,11 @@ let transl_primitive loc p =
       let rec make_params n =
         if n <= 0 then [] else Ident.create "prim" :: make_params (n-1) in
       let params = make_params p.prim_arity in
-      mk_lambda ~from:"transl_primitive" @@
+      mk_lambda ?ty:None ~from:"transl_primitive" @@
       Lfunction(Curried, params,
-                mk_lambda ~from:"transl_primitive" @@
+                mk_lambda ?ty:None ~from:"transl_primitive" @@
                 Lprim(prim, List.map (fun id ->
-                    mk_lambda ~from:"transl_primitive" @@ Lvar id) params))
+                    mk_lambda ?ty:None ~from:"transl_primitive" @@ Lvar id) params))
 
 (* To check the well-formedness of r.h.s. of "let rec" definitions *)
 
@@ -586,7 +586,7 @@ let event_before exp lam = match lam.lb_expr with
 | Lstaticraise (_,_) -> lam
 | _ ->
   if !Clflags.debug
-  then mk_lambda @@
+  then as_arg ~from:"event_after" lam @@
     Levent(lam, {lev_loc = exp.exp_loc;
                  lev_kind = Lev_before;
                  lev_repr = None;
@@ -595,7 +595,7 @@ let event_before exp lam = match lam.lb_expr with
 
 let event_after exp lam =
   if !Clflags.debug
-  then mk_lambda @@
+  then as_arg ~from:"event_after" lam @@
     Levent(lam, {lev_loc = exp.exp_loc;
                  lev_kind = Lev_after exp.exp_type;
                  lev_repr = None;
@@ -607,7 +607,7 @@ let event_function exp lam =
     let repr = Some (ref 0) in
     let (info, body) = lam repr in
     (info,
-     mk_lambda @@
+     as_arg ~from:"event_function" body @@
      Levent(body, {lev_loc = exp.exp_loc;
                    lev_kind = Lev_function;
                    lev_repr = repr;
@@ -635,7 +635,7 @@ let assert_failed exp =
             Lprim(Pmakeblock(0, Immutable),
                   [transl_normal_path Env.empty ~ty:(Val Predef.type_exn)
                      Predef.path_assert_failure;
-                   mk_lambda ~from:"assert_failed" @@
+                   mk_lambda ~ty:loc_type ~from:"assert_failed" @@
                    Lconst(Const_block(0,
                                       [Const_base(Const_string (fname, None));
                                        Const_base(Const_int line);

@@ -38,51 +38,59 @@ let lapply func args loc =
   | _ ->
       { func with lb_expr = Lapply(func, args, loc) }
 
-let mkappl (func, args) = mk_lambda @@ Lapply (func, args, Location.none);;
+let mkappl (func, args) =
+  mk_lambda ?ty:None ~from:"mkappl" @@
+  Lapply (func, args, Location.none);;
 
 let lsequence l1 l2 =
   if l2.lb_expr = lambda_unit.lb_expr then l1 else { l2 with lb_expr = Lsequence(l1, l2) }
 
-let lfield v i = mk_lambda @@ Lprim(Pfield i, [mk_lambda @@ Lvar v])
+let lfield v i =
+  mk_lambda ?ty:None ~from:"lfield" @@
+  Lprim(Pfield i, [mk_lambda ?ty:None ~from:"lfield" @@ Lvar v])
 
 let transl_label l = share (Const_immstring l)
 
 let transl_meth_list lst =
-  if lst = [] then mk_lambda @@ Lconst (Const_pointer 0) else
-  share (Const_block
-            (0, List.map (fun lab -> Const_immstring lab) lst))
+  if lst = [] then mk_lambda ?ty:None ~from:"transl_meth_list" @@ Lconst (Const_pointer 0)
+  else
+    share (Const_block
+             (0, List.map (fun lab -> Const_immstring lab) lst))
 
 let set_inst_var obj id expr =
   let kind = if Typeopt.maybe_pointer expr then Paddrarray else Pintarray in
-  mk_lambda @@
+  as_unit ~from:"set_inst_var" @@
   Lprim(Parraysetu kind,
-        [mk_lambda @@ Lvar obj; mk_lambda @@ Lvar id; transl_exp expr])
+        [mk_lambda ?ty:None ~from:"set_inst_var" @@ Lvar obj;
+         mk_lambda ?ty:None ~from:"set_inst_var" @@ Lvar id;
+         transl_exp expr])
 
 let copy_inst_var obj id expr templ offset =
   let kind = if Typeopt.maybe_pointer expr then Paddrarray else Pintarray in
   let id' = Ident.create (Ident.name id) in
-  mk_lambda @@
+  let mk_u l = mk_lambda ?ty:None ~from:"copy_inst_var" l in
+  mk_u @@
   Llet(Strict, id',
-       mk_lambda @@
-       Lprim (Pidentity, [mk_lambda @@ Lvar id]),
-       mk_lambda @@
+       mk_u @@
+       Lprim (Pidentity, [mk_u @@ Lvar id]),
+       mk_u @@
        Lprim(Parraysetu kind,
-             [mk_lambda @@ Lvar obj; mk_lambda @@ Lvar id';
-              mk_lambda @@
+             [mk_u @@ Lvar obj; mk_u @@ Lvar id';
+              mk_u @@
               Lprim(Parrayrefu kind,
-                    [mk_lambda @@ Lvar templ;
-                     mk_lambda @@ Lprim(Paddint,
-                                        [mk_lambda @@ Lvar id';
-                                         mk_lambda @@ Lvar offset])])]))
+                    [mk_u @@ Lvar templ;
+                     mk_u @@ Lprim(Paddint,
+                                   [mk_u @@ Lvar id';
+                                    mk_u @@ Lvar offset])])]))
 
 let transl_val tbl create name =
   mkappl (oo_prim (if create then "new_variable" else "get_variable"),
-          [mk_lambda @@ Lvar tbl; transl_label name])
+          [mk_lambda ?ty:None ~from:"transl_val" @@ Lvar tbl; transl_label name])
 
 let transl_vals tbl create strict vals rem =
   List.fold_right
     (fun (name, id) rem ->
-      mk_lambda @@ Llet(strict, id, transl_val tbl create name, rem))
+      as_arg ~from:"transl_vals" rem @@ Llet(strict, id, transl_val tbl create name, rem))
     vals rem
 
 let meths_super tbl meths inh_meths =
@@ -91,8 +99,8 @@ let meths_super tbl meths inh_meths =
        try
          (nm, id,
           mkappl(oo_prim "get_method",
-                 [mk_lambda @@ Lvar tbl;
-                  mk_lambda @@ Lvar (Meths.find nm meths)]))
+                 [mk_lambda ?ty:None ~from:"meths_super" @@ Lvar tbl;
+                  mk_lambda ?ty:None ~from:"meths_super" @@ Lvar (Meths.find nm meths)]))
          :: rem
        with Not_found -> rem)
     inh_meths []
@@ -100,29 +108,31 @@ let meths_super tbl meths inh_meths =
 let bind_super tbl (vals, meths) cl_init =
   transl_vals tbl false StrictOpt vals
     (List.fold_right (fun (nm, id, def) rem ->
-         mk_lambda @@ Llet(StrictOpt, id, def, rem))
+         as_arg ~from:"bind_super" rem @@ Llet(StrictOpt, id, def, rem))
         meths cl_init)
 
-let create_object cl obj init =
+let create_object ?ty cl obj init =
+  let mk_u = mk_lambda ?ty:None ~from:"create_object" in
+  let mk = mk_lambda ?ty ~from:"create_object" in
   let obj' = Ident.create "self" in
   let (inh_init, obj_init, has_init) = init obj' in
   if obj_init.lb_expr = lambda_unit.lb_expr then
     (inh_init,
      mkappl (oo_prim (if has_init then "create_object_and_run_initializers"
                       else"create_object_opt"),
-             [obj; mk_lambda @@ Lvar cl]))
+             [obj; mk_u @@ Lvar cl]))
   else begin
    (inh_init,
-    mk_lambda @@
+    mk @@
     Llet(Strict, obj',
-         mkappl (oo_prim "create_object_opt", [obj; mk_lambda @@ Lvar cl]),
-         mk_lambda @@
+         mkappl (oo_prim "create_object_opt", [obj; mk_u @@ Lvar cl]),
+         mk @@
          Lsequence(obj_init,
-                   if not has_init then mk_lambda @@ Lvar obj' else
+                   if not has_init then mk @@ Lvar obj' else
                    mkappl (oo_prim "run_initializers_opt",
                            [obj;
-                            mk_lambda @@ Lvar obj';
-                            mk_lambda @@ Lvar cl]))))
+                            mk @@ Lvar obj';
+                            mk_u @@ Lvar cl]))))
   end
 
 let name_pattern default p =
@@ -143,12 +153,13 @@ let rec build_object_init cl_table obj params inh_init obj_init cl =
         match envs with
           None -> []
         | Some envs ->
-            [mk_lambda @@ Lprim(Pfield (List.length inh_init + 1),
-                                [mk_lambda @@ Lvar envs])]
+            [mk_lambda ?ty:None ~from:"build_object_init" @@
+             Lprim(Pfield (List.length inh_init + 1),
+                   [mk_lambda ?ty:None ~from:"build_object_init" @@ Lvar envs])]
       in
       ((envs, (obj_init, normalize_cl_path cl path)
         ::inh_init),
-       mkappl(mk_lambda @@ Lvar obj_init, env @ [obj]))
+       mkappl(mk_lambda ?ty:None ~from:"build_object_init" @@ Lvar obj_init, env @ [obj]))
   | Tcl_structure str ->
       create_object cl_table obj (fun obj ->
         let (inh_init, obj_init, has_init) =
@@ -157,7 +168,9 @@ let rec build_object_init cl_table obj params inh_init obj_init cl =
                match field.cf_desc with
                  Tcf_inherit (_, cl, _, _, _) ->
                    let (inh_init, obj_init') =
-                     build_object_init cl_table (mk_lambda @@ Lvar obj) [] inh_init
+                     build_object_init cl_table
+                       (mk_lambda ?ty:None ~from:"build_object_init" @@ Lvar obj)
+                       [] inh_init
                        (fun _ -> lambda_unit) cl
                    in
                    (inh_init, lsequence obj_init' obj_init, true)
@@ -175,7 +188,8 @@ let rec build_object_init cl_table obj params inh_init obj_init cl =
         (inh_init,
          List.fold_right
            (fun (id, expr) rem ->
-              lsequence (mk_lambda @@ Lifused (id, set_inst_var obj id expr)) rem)
+              lsequence (mk_lambda ?ty:None ~from:"build_object_init" @@
+                         Lifused (id, set_inst_var obj id expr)) rem)
            params obj_init,
          has_init))
   | Tcl_fun (_, pat, vals, cl, partial) ->
@@ -186,11 +200,12 @@ let rec build_object_init cl_table obj params inh_init obj_init cl =
       (inh_init,
        let build params rem =
          let param = name_pattern "param" pat in
-         mk_lambda @@
+         mk_lambda ?ty:None ~from:"build_object_init" @@
          Lfunction (Curried, param::params,
                     Matching.for_function
-                      pat.pat_loc None (mk_lambda @@
-                                        Lvar param) [pat, rem] partial)
+                      pat.pat_loc None
+                      (mk_lambda ?ty:None ~from:"build_object_init" @@
+                       Lvar param) [pat, rem] partial)
        in
        begin match obj_init.lb_expr with
          Lfunction (Curried, params, rem) -> build params rem
@@ -218,7 +233,8 @@ let rec build_object_init_0 cl_table params cl copy_env subst_env top ids =
   | _ ->
       let self = Ident.create "self" in
       let env = Ident.create "env" in
-      let obj = if ids = [] then lambda_unit else mk_lambda @@ Lvar self in
+      let obj = if ids = [] then lambda_unit
+        else mk_lambda ?ty:None ~from:"build_object_init_0" @@ Lvar self in
       let envs = if top then None else Some env in
       let ((_,inh_init), obj_init) =
         build_object_init cl_table obj params (envs,[]) (copy_env env) cl in
@@ -228,9 +244,10 @@ let rec build_object_init_0 cl_table params cl copy_env subst_env top ids =
 
 
 let bind_method tbl lab id cl_init =
-  mk_lambda @@
-  Llet(Strict, id, mkappl (oo_prim "get_method_label",
-                           [mk_lambda @@ Lvar tbl; transl_label lab]),
+  mk_lambda ?ty:None ~from:"build_object_init" @@
+  Llet(Strict, id, mkappl
+         (oo_prim "get_method_label",
+          [mk_lambda ?ty:None ~from:"build_object_init" @@ Lvar tbl; transl_label lab]),
        cl_init)
 
 let bind_methods tbl meths vals cl_init =
@@ -244,14 +261,14 @@ let bind_methods tbl meths vals cl_init =
     if nvals = 0 then "get_method_labels", [] else
     "new_methods_variables", [transl_meth_list (List.map fst vals)]
   in
-  mk_lambda ~from:"bind_methods" @@
+  as_arg ~from:"bind_methods" cl_init @@
   Llet(Strict, ids,
        mkappl (oo_prim getter,
-               [mk_lambda @@
+               [mk_lambda ?ty:None ~from:"bind_methods" @@
                 Lvar tbl; transl_meth_list (List.map fst methl)] @ names),
        List.fold_right
          (fun (lab,id) lam -> decr i;
-           mk_lambda @@ Llet(StrictOpt, id, lfield ids !i, lam))
+           as_arg ~from:"bind_methods" lam @@ Llet(StrictOpt, id, lfield ids !i, lam))
          (methl @ vals) cl_init)
 
 let output_methods tbl methods lam =
@@ -259,11 +276,11 @@ let output_methods tbl methods lam =
     [] -> lam
   | [lab; code] ->
       lsequence (mkappl(oo_prim "set_method", [
-          mk_lambda ~from:"output_methods" @@ Lvar tbl; lab; code])) lam
+          mk_lambda ?ty:None ~from:"output_methods" @@ Lvar tbl; lab; code])) lam
   | _ ->
       lsequence (mkappl(oo_prim "set_methods",
-                        [mk_lambda ~from:"output_method" @@ Lvar tbl;
-                         mk_lambda ~from:"output_method" @@
+                        [mk_lambda ?ty:None ~from:"output_method" @@ Lvar tbl;
+                         mk_lambda ?ty:None ~from:"output_method" @@
                          Lprim(Pmakeblock(0,Immutable), methods)]))
         lam
 
@@ -287,11 +304,14 @@ let rec build_class_init cla cstr super inh_init cl_init msubst top cl =
         (obj_init, path')::inh_init ->
           let lpath = transl_path ~loc:cl.cl_loc cl.cl_env path in
           (inh_init,
-           mk_lambda ~from:"build_class_init: Tcl_ident" @@
+           mk_lambda ?ty:None ~from:"build_class_init: Tcl_ident" @@
            Llet (Strict, obj_init,
                  mkappl(
-                   mk_lambda @@ Lprim(Pfield 1, [lpath]), (mk_lambda @@ Lvar cla) ::
-                        if top then [mk_lambda @@ Lprim(Pfield 3, [lpath])] else []),
+                   mk_lambda ?ty:None ~from:"build_class_init" @@ Lprim(Pfield 1, [lpath]),
+                   (mk_lambda ?ty:None ~from:"build_class_init" @@ Lvar cla) ::
+                   if top then
+                     [mk_lambda ?ty:None ~from:"build_class_init" @@
+                      Lprim(Pfield 3, [lpath])] else []),
                  bind_super cla super cl_init))
       | _ ->
           assert false
@@ -324,20 +344,22 @@ let rec build_class_init cla cstr super inh_init cl_init msubst top cl =
                   if !Clflags.native_code && List.length met_code = 1 then
                     (* Force correct naming of method for profiles *)
                     let met = Ident.create ("method_" ^ name.txt) in
-                    [mk_lambda @@ Llet(Strict, met, List.hd met_code,
-                                       mk_lambda @@ Lvar met)]
+                    [mk_lambda ?ty:None ~from:"build_class_init"@@
+                     Llet(Strict, met, List.hd met_code,
+                          mk_lambda ?ty:None ~from:"build_class_init" @@ Lvar met)]
                   else met_code
                 in
                 (inh_init, cl_init,
-                 (mk_lambda @@
+                 (mk_lambda ?ty:None ~from:"build_class_init" @@
                  Lvar(Meths.find name.txt str.cstr_meths)) :: met_code @ methods,
                  values)
             | Tcf_initializer exp ->
                 (inh_init,
-                 mk_lambda @@
-                 Lsequence(mkappl (oo_prim "add_initializer",
-                                   (mk_lambda @@
-                                   Lvar cla) :: msubst false (transl_exp exp)),
+                 mk_lambda ?ty:None ~from:"build_class_init" @@
+                 Lsequence(mkappl
+                             (oo_prim "add_initializer",
+                              (mk_lambda ?ty:None ~from:"build_class_init" @@
+                               Lvar cla) :: msubst false (transl_exp exp)),
                            cl_init),
                  methods, values)
             | Tcf_attribute _ ->
@@ -366,7 +388,7 @@ let rec build_class_init cla cstr super inh_init cl_init msubst top cl =
         List.filter (fun lab -> not (Concr.mem lab concr_meths)) meths in
       let concr_meths = Concr.elements concr_meths in
       let narrow_args =
-        [mk_lambda @@ Lvar cla;
+        [mk_lambda ?ty:None ~from:"build_class_init" @@ Lvar cla;
          transl_meth_list vals;
          transl_meth_list virt_meths;
          transl_meth_list concr_meths] in
@@ -381,24 +403,24 @@ let rec build_class_init cla cstr super inh_init cl_init msubst top cl =
           let cl_init =
             List.fold_left
               (fun init (nm, id, _) ->
-                 mk_lambda @@
+                 as_arg ~from:"build_class_init" init @@
                  Llet(StrictOpt, id, lfield inh (index nm concr_meths + ofs),
                       init))
               cl_init methids in
           let cl_init =
             List.fold_left
               (fun init (nm, id) ->
-                 mk_lambda @@
+                 as_arg ~from:"build_class_init" cl_init @@
                  Llet(StrictOpt, id, lfield inh (index nm vals + 1), init))
               cl_init valids in
           (inh_init,
-           mk_lambda @@
+           as_arg ~from:"build_class_init" cl_init @@
            Llet (Strict, inh,
                  mkappl(oo_prim "inherits",
                         narrow_args @
-                        [lpath; mk_lambda @@
+                        [lpath; mk_lambda ?ty:None ~from:"build_class_init" @@
                          Lconst(Const_pointer(if top then 1 else 0))]),
-                 mk_lambda @@
+                 as_arg ~from:"build_class_init" cl_init @@
                  Llet(StrictOpt, obj_init, lfield inh 0, cl_init)))
       | _ ->
           let core cl_init =
@@ -406,12 +428,14 @@ let rec build_class_init cla cstr super inh_init cl_init msubst top cl =
           in
           if cstr then core cl_init else
           let (inh_init, cl_init) =
-            core (mk_lambda @@
-                  Lsequence (mkappl (oo_prim "widen",
-                                     [mk_lambda @@ Lvar cla]), cl_init))
+            core (as_arg ~from:"build_class_init" cl_init @@
+                    Lsequence (mkappl
+                                 (oo_prim "widen",
+                                  [mk_lambda ?ty:None ~from:"build_class_init" @@
+                                   Lvar cla]), cl_init))
           in
           (inh_init,
-           mk_lambda @@
+           as_arg ~from:"build_class_init" cl_init @@
            Lsequence(mkappl (oo_prim "narrow", narrow_args),
                      cl_init))
       end
@@ -454,10 +478,12 @@ let rec transl_class_rebind obj_init cl vf =
       let path, obj_init = transl_class_rebind obj_init cl vf in
       let build params rem =
         let param = name_pattern "param" pat in
-        mk_lambda ~from:"transl_class_rebind:Tcl_fun" @@
+        mk_lambda ?ty:None ~from:"transl_class_rebind:Tcl_fun" @@
         Lfunction (Curried, param::params,
                    Matching.for_function
-                     pat.pat_loc None (mk_lambda @@ Lvar param) [pat, rem] partial)
+                     pat.pat_loc None
+                     (mk_lambda ?ty:None ~from:"transl_class_rebind:Tcl_fun" @@
+                      Lvar param) [pat, rem] partial)
       in
       (path,
        match obj_init.lb_expr with
@@ -493,8 +519,10 @@ let transl_class_rebind ids cl vf =
   try
     let obj_init = Ident.create "obj_init"
     and self = Ident.create "self" in
-    let obj_init0 = lapply (mk_lambda @@ Lvar obj_init)
-        [mk_lambda @@ Lvar self] Location.none in
+    let obj_init0 = lapply
+        (mk_lambda ?ty:None ~from:"transl_class_rebind" @@ Lvar obj_init)
+        [mk_lambda ?ty:None ~from:"transl_class_rebind" @@ Lvar self]
+        Location.none in
     let path, obj_init' = transl_class_rebind_0 self obj_init0 cl vf in
     if not (Translcore.check_recursive_lambda ids obj_init') then
       raise(Error(cl.cl_loc, Illegal_class_expr));
@@ -506,6 +534,7 @@ let transl_class_rebind ids cl vf =
     and env_init = Ident.create "env_init"
     and table = Ident.create "table"
     and envs = Ident.create "envs" in
+    let mk_u = mk_lambda ?ty:None ~from:"transl_class_rebind" in
     mk_lambda ~ty:(Class cl.cl_type) ~from:"transl_class_rebind" @@
     Llet(
     Strict, new_init, lfunction [obj_init] obj_init',
@@ -514,15 +543,15 @@ let transl_class_rebind ids cl vf =
     Alias, cla, transl_normal_path cl.cl_env path,
     mk_lambda ~ty:(Class cl.cl_type) ~from:"transl_class_rebind" @@
     Lprim(Pmakeblock(0, Immutable),
-          [mkappl(mk_lambda @@ Lvar new_init, [lfield cla 0]);
+          [mkappl(mk_u @@ Lvar new_init, [lfield cla 0]);
            lfunction [table]
-             (mk_lambda @@
+             (mk_u @@
               Llet(Strict, env_init,
-                   mkappl(lfield cla 1, [mk_lambda @@ Lvar table]),
+                   mkappl(lfield cla 1, [mk_u @@ Lvar table]),
                    lfunction [envs]
-                     (mkappl(mk_lambda @@ Lvar new_init,
-                             [mkappl(mk_lambda @@ Lvar env_init,
-                                     [mk_lambda @@ Lvar envs])]))));
+                     (mkappl(mk_u @@ Lvar new_init,
+                             [mkappl(mk_u @@ Lvar env_init,
+                                     [mk_u @@ Lvar envs])]))));
            lfield cla 2;
            lfield cla 3])))
   with Exit ->
@@ -555,9 +584,10 @@ let rec builtin_meths self env env2 body =
     | _ when const_path l -> "const", [l]
     | Lprim(Parrayrefu _, [{lb_expr = Lvar s}; {lb_expr = Lvar n}])
       when List.mem s self ->
-        "var", [mk_lambda @@ Lvar n]
+        "var", [mk_lambda ?ty:None ~from:"buildin_meths" @@ Lvar n]
     | Lprim(Pfield n, [{lb_expr = Lvar e}]) when Ident.same e env ->
-        "env", [mk_lambda @@ Lvar env2; mk_lambda @@ Lconst(Const_pointer n)]
+        "env", [mk_lambda ?ty:None ~from:"buildin_meths" @@ Lvar env2;
+                mk_lambda ?ty:None ~from:"buildin_meths" @@ Lconst(Const_pointer n)]
     | Lsend(Self, met, {lb_expr = Lvar s}, [], _) when List.mem s self ->
         "meth", [met]
     | _ -> raise Not_found
@@ -632,7 +662,8 @@ module M = struct
     | "send_env"   -> SendEnv
     | "send_meth"  -> SendMeth
     | _ -> assert false
-    in (mk_lambda @@ Lconst(Const_pointer(Obj.magic tag))) :: args
+    in (mk_lambda ?ty:None ~from:"M.buildin_meths"
+        @@ Lconst(Const_pointer(Obj.magic tag))) :: args
 end
 open M
 
@@ -710,12 +741,12 @@ let transl_class ids cl_id pub_meths cl vflag =
         with Not_found ->
           [lfunction (self :: args)
              (if not (IdentSet.mem env (free_variables body')) then body' else
-                mk_lambda @@
+                mk_lambda ?ty:None ~from:"transl_class" @@
                 Llet(Alias, env,
-                     mk_lambda @@
+                     mk_lambda ?ty:None ~from:"transl_class" @@
                      Lprim(Parrayrefu Paddrarray,
-                           [mk_lambda @@ Lvar self;
-                            mk_lambda @@ Lvar env2]), body'))]
+                           [mk_lambda ?ty:None ~from:"transl_class" @@ Lvar self;
+                            mk_lambda ?ty:None ~from:"transl_class" @@ Lvar env2]), body'))]
         end
       | _ -> assert false
   in
@@ -723,22 +754,26 @@ let transl_class ids cl_id pub_meths cl vflag =
   let env1 = Ident.create "env" and env1' = Ident.create "env'" in
   let copy_env envs self =
     if top then lambda_unit else
-      mk_lambda @@
-      Lifused(env2, mk_lambda @@
+      mk_lambda ?ty:None ~from:"transl_class" @@
+      Lifused(env2, mk_lambda ?ty:None ~from:"transl_class" @@
               Lprim(Parraysetu Paddrarray,
-                    [mk_lambda @@ Lvar self;
-                     mk_lambda @@ Lvar env2;
-                     mk_lambda @@ Lvar env1']))
+                    [mk_lambda ?ty:None ~from:"transl_class" @@ Lvar self;
+                     mk_lambda ?ty:None ~from:"transl_class" @@ Lvar env2;
+                     mk_lambda ?ty:None ~from:"transl_class" @@ Lvar env1']))
   and subst_env envs l lam =
     if top then lam else
     (* must be called only once! *)
       let lam = subst_lambda (subst env1 lam 1 new_ids_init) lam in
-      mk_lambda @@
+      as_arg ~from:"transl_class" lam @@
       Llet(Alias, env1,
-           (if l = [] then mk_lambda @@ Lvar envs else lfield envs 0),
-           mk_lambda @@
+           (if l = [] then
+              mk_lambda ?ty:None ~from:"transl_class" @@ Lvar envs
+            else lfield envs 0),
+           as_arg ~from:"transl_class" lam @@
            Llet(Alias, env1',
-                (if !new_ids_init = [] then mk_lambda @@ Lvar env1 else lfield env1 0),
+                (if !new_ids_init = [] then
+                   mk_lambda ?ty:None ~from:"transl_class" @@ Lvar env1
+                 else lfield env1 0),
                 lam))
   in
 
@@ -767,46 +802,57 @@ let transl_class ids cl_id pub_meths cl vflag =
       if name' <> name then raise(Error(cl.cl_loc, Tags(name, name'))))
     tags pub_meths;
   let ltable table lam =
-    mk_lambda @@ Llet(Strict, table,
+    as_arg ~from:"transl_class" lam @@ Llet(Strict, table,
          mkappl (oo_prim "create_table", [transl_meth_list pub_meths]), lam)
   and ldirect obj_init =
-    mk_lambda @@
+    mk_lambda ?ty:None ~from:"transl_class" @@
     Llet(Strict, obj_init, cl_init,
-         mk_lambda @@
-         Lsequence(mkappl (oo_prim "init_class", [mk_lambda @@ Lvar cla]),
-                   mkappl (mk_lambda @@ Lvar obj_init, [lambda_unit])))
+         mk_lambda ?ty:None ~from:"transl_class" @@
+         Lsequence(mkappl (oo_prim "init_class",
+                           [mk_lambda ?ty:None ~from:"transl_class" @@ Lvar cla]),
+                   mkappl (mk_lambda ?ty:None ~from:"transl_class" @@ Lvar obj_init,
+                           [lambda_unit])))
   in
   (* Simplest case: an object defined at toplevel (ids=[]) *)
   if top && ids = [] then llets (ltable cla (ldirect obj_init)) else
 
   let concrete = (vflag = Concrete)
   and lclass lam =
-    let cl_init = llets (mk_lambda @@ Lfunction(Curried, [cla], cl_init)) in
-    mk_lambda @@ Llet(Strict, class_init, cl_init, lam (free_variables cl_init))
+    let res = lam (free_variables cl_init) in
+    let cl_init = llets (mk_lambda ?ty:None ~from:"transl_class" @@
+                         Lfunction(Curried, [cla], cl_init)) in
+    as_arg ~from:"transl_class" res @@
+    Llet(Strict, class_init, cl_init, res)
   and lbody fv =
     if List.for_all (fun id -> not (IdentSet.mem id fv)) ids then
-      mkappl (oo_prim "make_class",[transl_meth_list pub_meths;
-                                    mk_lambda @@ Lvar class_init])
+      mkappl (oo_prim "make_class",
+              [transl_meth_list pub_meths;
+               mk_lambda ?ty:None ~from:"transl_class" @@ Lvar class_init])
     else
       ltable table (
-        mk_lambda @@
+        mk_lambda ?ty:None ~from:"transl_class" @@
         Llet(
-          Strict, env_init, mkappl (mk_lambda @@ Lvar class_init,
-                                    [mk_lambda @@ Lvar table]),
-          mk_lambda @@
+          Strict, env_init, mkappl
+            (mk_lambda ?ty:None ~from:"transl_class" @@ Lvar class_init,
+             [mk_lambda ?ty:None ~from:"transl_class" @@ Lvar table]),
+          mk_lambda ?ty:None ~from:"transl_class" @@
           Lsequence(
-            mkappl (oo_prim "init_class", [mk_lambda @@ Lvar table]),
-            mk_lambda @@
+            mkappl (oo_prim "init_class",
+                    [mk_lambda ?ty:None ~from:"transl_class" @@ Lvar table]),
+            mk_lambda ?ty:None ~from:"transl_class" @@
             Lprim(Pmakeblock(0, Immutable),
-                  [mkappl (mk_lambda @@ Lvar env_init, [lambda_unit]);
-                   mk_lambda @@ Lvar class_init;
-                   mk_lambda @@ Lvar env_init;
+                  [mkappl
+                     (mk_lambda ?ty:None ~from:"transl_class" @@
+                      Lvar env_init, [lambda_unit]);
+                   mk_lambda ?ty:None ~from:"transl_class" @@ Lvar class_init;
+                   mk_lambda ?ty:None ~from:"transl_class" @@ Lvar env_init;
                    lambda_unit]))))
   and lbody_virt lenvs =
-    mk_lambda @@
+    mk_lambda ?ty:None ~from:"transl_class" @@
     Lprim(Pmakeblock(0, Immutable),
           [lambda_unit;
-           mk_lambda @@ Lfunction(Curried,[cla], cl_init); lambda_unit; lenvs])
+           mk_lambda ?ty:None ~from:"transl_class" @@
+           Lfunction(Curried,[cla], cl_init); lambda_unit; lenvs])
   in
   (* Still easy: a class defined at toplevel *)
   if top && concrete then lclass lbody else
@@ -818,86 +864,98 @@ let transl_class ids cl_id pub_meths cl vflag =
   let lenvs =
     if !new_ids_meths = [] && !new_ids_init = [] && inh_init = []
     then lambda_unit
-    else mk_lambda @@ Lvar envs in
+    else mk_lambda ?ty:None ~from:"transl_class" @@ Lvar envs in
   let lenv =
     let menv =
       if !new_ids_meths = [] then lambda_unit else
-        mk_lambda @@
+        mk_lambda ?ty:None ~from:"transl_class" @@
         Lprim(Pmakeblock(0, Immutable),
-              List.map (fun id -> mk_lambda @@ Lvar id) !new_ids_meths) in
+              List.map (fun id ->
+                  mk_lambda ?ty:None ~from:"transl_class" @@ Lvar id) !new_ids_meths) in
     if !new_ids_init = [] then menv else
-      mk_lambda @@
+      mk_lambda ?ty:None ~from:"transl_class" @@
       Lprim(Pmakeblock(0, Immutable),
-            menv :: List.map (fun id -> mk_lambda @@ Lvar id) !new_ids_init)
+            menv :: List.map (fun id ->
+                mk_lambda ?ty:None ~from:"transl_class" @@ Lvar id) !new_ids_init)
   and linh_envs =
-    List.map (fun (_, p) -> mk_lambda @@
+    List.map (fun (_, p) -> mk_lambda ?ty:None ~from:"transl_class" @@
                Lprim(Pfield 3, [transl_normal_path cl.cl_env p]))
       (List.rev inh_init)
   in
   let make_envs lam =
-    mk_lambda @@
+    as_arg ~from:"transl_class" lam @@
     Llet(StrictOpt, envs,
          (if linh_envs = [] then lenv else
-            mk_lambda @@
+            mk_lambda ?ty:None ~from:"transl_class" @@
             Lprim(Pmakeblock(0, Immutable), lenv :: linh_envs)),
          lam)
   and def_ids cla lam =
-    mk_lambda @@
+    as_arg ~from:"transl_class" lam @@
     Llet(StrictOpt, env2,
-         mkappl (oo_prim "new_variable", [mk_lambda @@ Lvar cla; transl_label ""]),
+         mkappl (oo_prim "new_variable",
+                 [mk_lambda ?ty:None ~from:"transl_class" @@ Lvar cla; transl_label ""]),
          lam)
   in
   let inh_paths =
     List.filter
       (fun (_,path) -> List.mem (Path.head path) new_ids) inh_init in
   let inh_keys =
-    List.map (fun (_,p) -> mk_lambda @@
+    List.map (fun (_,p) -> mk_lambda ?ty:None ~from:"transl_class" @@
                Lprim(Pfield 1, [transl_normal_path cl.cl_env p])) inh_paths in
   let lclass lam =
-    mk_lambda @@
+    as_arg ~from:"transl_class" lam @@
     Llet(Strict, class_init,
-         mk_lambda @@
+         mk_lambda ?ty:None ~from:"transl_class" @@
          Lfunction(Curried, [cla], def_ids cla cl_init), lam)
   and lcache lam =
     if inh_keys = [] then
-      mk_lambda @@ Llet(Alias, cached, mk_lambda @@ Lvar tables, lam)
+      as_arg ~from:"transl_class" lam @@
+      Llet(Alias, cached, mk_lambda ?ty:None ~from:"transl_class" @@ Lvar tables, lam)
     else
-      mk_lambda @@
+      as_arg ~from:"transl_class" lam @@
       Llet(Strict, cached,
            mkappl (oo_prim "lookup_tables",
-                   [mk_lambda @@ Lvar tables;
-                    mk_lambda @@ Lprim(Pmakeblock(0, Immutable), inh_keys)]),
+                   [mk_lambda ?ty:None ~from:"transl_class" @@
+                    Lvar tables;
+                    mk_lambda ?ty:None ~from:"transl_class" @@
+                    Lprim(Pmakeblock(0, Immutable), inh_keys)]),
            lam)
   and lset cached i lam =
-    mk_lambda @@
-    Lprim(Psetfield(i, true), [mk_lambda @@ Lvar cached; lam])
+    mk_lambda ?ty:None ~from:"transl_class" @@
+    Lprim(Psetfield(i, true), [mk_lambda  ?ty:None ~from:"transl_class" @@
+                               Lvar cached; lam])
   in
   let ldirect () =
     ltable cla
-      (mk_lambda @@
+      (mk_lambda ?ty:None ~from:"transl_class" @@
        Llet(Strict, env_init, def_ids cla cl_init,
-            mk_lambda @@
-            Lsequence(mkappl (oo_prim "init_class", [mk_lambda @@ Lvar cla]),
-                      lset cached 0 (mk_lambda @@ Lvar env_init))))
+            mk_lambda ?ty:None ~from:"transl_class" @@
+            Lsequence(mkappl (oo_prim "init_class",
+                              [mk_lambda  ?ty:None ~from:"transl_class" @@ Lvar cla]),
+                      lset cached 0 (mk_lambda ?ty:None ~from:"transl_class" @@
+                                     Lvar env_init))))
   and lclass_virt () =
-    lset cached 0 (mk_lambda @@ Lfunction(Curried, [cla], def_ids cla cl_init))
+    lset cached 0 (mk_lambda ?ty:None ~from:"transl_class" @@
+                   Lfunction(Curried, [cla], def_ids cla cl_init))
   in
   llets (
     lcache (
-      mk_lambda @@
+      mk_lambda ?ty:None ~from:"transl_class" @@
       Lsequence(
-        mk_lambda @@
+        mk_lambda ?ty:None ~from:"transl_class" @@
         Lifthenelse(lfield cached 0, lambda_unit,
                     if ids = [] then ldirect () else
                     if not concrete then lclass_virt () else
                       lclass (
                         mkappl (oo_prim "make_class_store",
                                 [transl_meth_list pub_meths;
-                                 mk_lambda @@ Lvar class_init;
-                                 mk_lambda @@ Lvar cached]))),
+                                 mk_lambda ?ty:None ~from:"transl_class" @@
+                                 Lvar class_init;
+                                 mk_lambda ?ty:None ~from:"transl_class" @@
+                                 Lvar cached]))),
         make_envs (
           if ids = [] then mkappl (lfield cached 0, [lenvs]) else
-            mk_lambda @@
+            mk_lambda ?ty:None ~from:"transl_class" @@
             Lprim(Pmakeblock(0, Immutable),
                   if concrete then
                     [mkappl (lfield cached 0, [lenvs]);

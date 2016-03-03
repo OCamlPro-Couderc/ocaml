@@ -211,7 +211,9 @@ let mod_prim name =
 
 let undefined_location loc =
   let (fname, line, char) = Location.get_pos_info loc.Location.loc_start in
-  mk_lambda ~from:"undefined_location" @@
+  mk_lambda
+    ~ty:loc_type
+    ~from:"undefined_location" @@
   Lconst(Const_block(0,
                      [Const_base(Const_string (fname, None));
                       Const_base(Const_int line);
@@ -309,7 +311,7 @@ let eval_rec_bindings bindings cont =
         { rem with
           lb_from = Some "eval_rec_bindings.bind_inits";
           lb_expr = Llet(Strict, id,
-                         mk_lambda ~from:"eval_rec_bindings.bind_inits" @@
+                         mk_lambda ?ty:None ~from:"eval_rec_bindings.bind_inits" @@
                          Lapply(mod_prim "init_mod", [loc; shape], Location.none),
                          rem); }
   and bind_strict = function
@@ -333,10 +335,10 @@ let eval_rec_bindings bindings cont =
           lb_from = Some "eval_rec_bindings.patch_forwards";
           lb_expr =
             Lsequence(
-              mk_lambda ~from:"eval_rec_bindings.patch_forwards" @@
+              mk_lambda ?ty:None ~from:"eval_rec_bindings.patch_forwards" @@
               Lapply(mod_prim "update_mod",
                      [shape;
-                      mk_lambda ~from:"eval_rec_bindings.patch_forwards" @@ Lvar id;
+                      mk_lambda ?ty:None ~from:"eval_rec_bindings.patch_forwards" @@ Lvar id;
                       rhs],
                      Location.none),
               rem); }
@@ -909,7 +911,7 @@ let toploop_getvalue id =
 
 let toploop_setvalue id lam =
   let mk_u l = mk_lambda ~from:"toploop_setvalue" l in
-  mk_u @@
+  as_unit ~from:"toploop_setvalue" @@
   Lapply(mk_u @@
          Lprim(Pfield toploop_setvalue_pos,
                [mk_u @@ Lprim(Pgetglobal toploop_ident, [])]),
@@ -917,11 +919,11 @@ let toploop_setvalue id lam =
          Location.none)
 
 let toploop_setvalue_id id =
-  toploop_setvalue id (mk_lambda ~from:"toploop_setvalue_id" @@ Lvar id)
+  toploop_setvalue id (mk_lambda ?ty:None ~from:"toploop_setvalue_id" @@ Lvar id)
 
 let close_toplevel_term lam =
   IdentSet.fold (fun id l ->
-      mk_lambda ~from:"close_toplevel" @@ Llet(Strict, id, toploop_getvalue id, l))
+      as_arg ~from:"close_toplevel" l @@ Llet(Strict, id, toploop_getvalue id, l))
     (free_variables lam) lam
 
 let transl_toplevel_item item =
@@ -1001,11 +1003,11 @@ let transl_toplevel_definition str =
 (* Compile the initialization code for a packed library *)
 
 let get_component = function
-    None -> mk_lambda ~from:"get_component" @@ Lconst const_unit
-  | Some id -> mk_lambda ~from:"get_component" @@ Lprim(Pgetglobal id, [])
+    None -> mk_lambda ?ty:None ~from:"get_component" @@ Lconst const_unit
+  | Some id -> mk_lambda ?ty:None ~from:"get_component" @@ Lprim(Pgetglobal id, [])
 
 let transl_package component_names target_name coercion =
-  let mk_u l = mk_lambda ~from:"transl_package" l in
+  let mk_u l = mk_lambda ?ty:None ~from:"transl_package" l in
   let components =
     mk_u @@
     Lprim(Pmakeblock(0, Immutable), List.map get_component component_names) in

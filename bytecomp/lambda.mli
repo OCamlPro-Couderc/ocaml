@@ -329,6 +329,7 @@ val is_guarded: lambda -> bool
 val patch_guarded : lambda -> lambda -> lambda
 
 val raise_kind: raise_kind -> string
+val loc_type: Types.typedtree_type (* (string * int * int) *)
 val lam_of_loc : loc_kind -> Location.t -> lambda
 
 val reset: unit -> unit

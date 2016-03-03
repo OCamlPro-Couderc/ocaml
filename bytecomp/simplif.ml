@@ -272,7 +272,8 @@ let simplify_exits lam =
         let ys = List.map Ident.rename xs in
         let env =
           List.fold_right2
-            (fun x y t -> Ident.add x (mk_lambda @@ Lvar y) t)
+            (fun x y t ->
+               Ident.add x (mk_lambda ?ty:None ~from:"simplify_exits" @@ Lvar y) t)
             xs ys Ident.empty in
         List.fold_right2
           (fun y l r ->

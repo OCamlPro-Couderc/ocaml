@@ -496,7 +496,9 @@ let rec comp_expr env exp sz cont =
         { params = params; body = body; label = lbl;
           free_vars = fv; num_defs = 1; rec_vars = []; rec_pos = 0 } in
       Stack.push to_compile functions_to_compile;
-      comp_args env (List.map (fun n -> mk_lambda @@ Lvar n) fv) sz
+      comp_args env
+        (List.map (fun n ->
+             mk_lambda ?ty:None ~from:"comp_expr" @@ Lvar n) fv) sz
         (Kclosure(lbl, List.length fv) :: cont)
   | Llet(str, id, arg, body) ->
       comp_expr env arg sz
@@ -509,7 +511,7 @@ let rec comp_expr env exp sz cont =
         (* let rec of functions *)
         let fv =
           IdentSet.elements (free_variables (
-              as_unit @@Lletrec(decl, lambda_unit))) in
+              as_unit ~from:"comp_expr" @@ Lletrec(decl, lambda_unit))) in
         let rec_idents = List.map (fun (id, lam) -> id) decl in
         let rec comp_fun pos = function
             [] -> []
@@ -522,7 +524,8 @@ let rec comp_expr env exp sz cont =
               lbl :: comp_fun (pos + 1) rem
           | _ -> assert false in
         let lbls = comp_fun 0 decl in
-        comp_args env (List.map (fun n -> mk_lambda @@ Lvar n) fv) sz
+        comp_args env
+          (List.map (fun n -> mk_lambda ?ty:None ~from:"comp_expr" @@ Lvar n) fv) sz
           (Kclosurerec(lbls, List.length fv) ::
             (comp_expr (add_vars rec_idents (sz+1) env) body (sz + ndecl)
                        (add_pop ndecl cont)))
@@ -572,7 +575,7 @@ let rec comp_expr env exp sz cont =
       comp_expr env arg sz (add_const_unit cont)
   | Lprim(Pdirapply loc, [func;arg])
   | Lprim(Prevapply loc, [arg;func]) ->
-      let exp = mk_lambda @@ Lapply(func, [arg], loc) in
+      let exp = as_ag ~from:"comp_expr" exp @@ Lapply(func, [arg], loc) in
       comp_expr env exp sz cont
   | Lprim(Pnot, [arg]) ->
       let newcont =

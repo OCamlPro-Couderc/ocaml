@@ -325,8 +325,9 @@ let make_key e =
   let count = ref 0   (* Used for controling size *)
   and make_key = Ident.make_key_generator () in
   (* make_key is used for normalizing let-bound variables *)
-  let rec tr_rec env e =
-    let e = { e with lb_tt_type = None; lb_from = None } in
+  let rec tr_rec env e = 
+    let e = { e with  lb_tt_type = None; lb_from = None } in
+    let mk = mk_lambda ?ty:None ~from:"make_key" in
     incr count ;
     if !count > max_raw then raise Not_simple ; (* Too big ! *)
     match e.lb_expr with
@@ -350,7 +351,9 @@ let make_key e =
         let ex = tr_rec env ex in
         let y = make_key x in
         { e with
-          lb_expr = Llet (str,y,ex,tr_rec (Ident.add x (mk_lambda @@ Lvar y) env) e) }
+          lb_expr =
+            Llet (str,y,ex,tr_rec
+                    (Ident.add x (mk @@ Lvar y) env) e) }
     | Lprim (p,es) ->
         { e with
           lb_expr = Lprim (p,tr_recs env es) }
@@ -425,9 +428,9 @@ let name_lambda_list args fn =
       name_list (arg :: names) rem
   | arg :: rem ->
       let id = Ident.create "let" in
-      mk_lambda @@
-      Llet(Strict, id, arg,
-           name_list ({arg with lb_expr = Lvar id} :: names) rem) in
+      let name_list_rem =  name_list ({arg with lb_expr = Lvar id} :: names) rem in
+      as_arg ~from:"name_lambda_list" name_list_rem @@ 
+      Llet(Strict, id, arg, name_list_rem) in
   name_list [] args
 
 
@@ -539,7 +542,7 @@ let next_negative_raise_count () =
 
 (* Anticipated staticraise, for guards *)
 let staticfail =
-  mk_lambda @@ Lstaticraise (0,[])
+  mk_lambda ?ty:None ~from:"staticfail" @@ Lstaticraise (0,[])
 
 let rec is_guarded l =
   match l.lb_expr with
@@ -565,7 +568,7 @@ let rec transl_normal_path ?ty env = function
       if Ident.global id then
         mk_lambda ?ty ~from:"transl_normal_path" @@
         Lprim(Pgetglobal id, [])
-      else mk_lambda ?ty @@ Lvar id
+      else mk_lambda ?ty ~from:"transl_normal_path" @@ Lvar id
   | Pdot(p, s, pos) ->
       let ty' =
         try Some (Mod (Env.find_module p env).md_type)
@@ -586,7 +589,9 @@ let rec make_sequence fn = function
     [] -> lambda_unit
   | [x] -> fn x
   | x::rem ->
-      let lam = fn x in mk_lambda @@ Lsequence(lam, make_sequence fn rem)
+      let lam = fn x in
+      let lam' = make_sequence fn rem in
+      as_arg ~from:"make_sequence" lam' @@ Lsequence(lam, lam')
 
 (* Apply a substitution to a lambda-term.
    Assumes that the bound variables of the lambda-term do not
@@ -658,7 +663,7 @@ let subst_lambda s lam =
 let bind str var exp body =
   match exp.lb_expr with
     Lvar var' when Ident.same var var' -> body
-  | _ -> mk_lambda @@ Llet(str, var, exp, body)
+  | _ -> as_arg ~from:"bind" body @@ Llet(str, var, exp, body)
 
 and commute_comparison = function
 | Ceq -> Ceq| Cneq -> Cneq
@@ -675,6 +680,9 @@ let raise_kind = function
   | Raise_reraise -> "reraise"
   | Raise_notrace -> "raise_notrace"
 
+let loc_type =
+  Val (Btype.newgenty (Ttuple [Predef.type_string; Predef.type_int; Predef.type_int]))
+
 let lam_of_loc kind loc =
   let loc_start = loc.Location.loc_start in
   let (file, lnum, cnum) = Location.get_pos_info loc_start in
@@ -682,7 +690,7 @@ let lam_of_loc kind loc =
       loc_start.Lexing.pos_cnum + cnum in
   match kind with
   | Loc_POS ->
-      mk_lambda @@
+      mk_lambda ~ty:loc_type ~from:"lam_of_loc" @@
       Lconst (Const_block (0, [
           Const_immstring file;
           Const_base (Const_int lnum);
@@ -690,18 +698,18 @@ let lam_of_loc kind loc =
           Const_base (Const_int enum);
         ]))
   | Loc_FILE ->
-      mk_lambda @@ Lconst (Const_immstring file)
+      as_string ~from:"lam_of_loc" @@ Lconst (Const_immstring file)
   | Loc_MODULE ->
     let filename = Filename.basename file in
     let name = Env.get_unit_name () in
     let module_name = if name = "" then "//"^filename^"//" else name in
-    mk_lambda @@ Lconst (Const_immstring module_name)
+    as_string ~from:"lam_of_loc" @@ Lconst (Const_immstring module_name)
   | Loc_LOC ->
-    let loc = Printf.sprintf "File %S, line %d, characters %d-%d"
-        file lnum cnum enum in
-    mk_lambda @@ Lconst (Const_immstring loc)
+      let loc = Printf.sprintf "File %S, line %d, characters %d-%d"
+          file lnum cnum enum in
+      as_string ~from:"lam_of_loc" @@ Lconst (Const_immstring loc)
   | Loc_LINE ->
-      mk_lambda @@ Lconst (Const_base (Const_int lnum))
+      as_int ~from:"lam_of_loc" @@ Lconst (Const_base (Const_int lnum))
 
 let reset () =
   raise_count := 0
