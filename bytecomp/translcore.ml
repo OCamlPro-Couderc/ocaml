@@ -1044,7 +1044,7 @@ and transl_tupled_cases patl_expr_list =
     patl_expr_list
 
 and transl_apply lam sargs ?ty loc =
-  let mk l = mk_lambda ?ty l in
+  let mk l = mk_lambda ?ty ~from:"transl_apply" l in
   let lapply funct args =
     match funct.lb_expr with
       Lsend(k, lmet, lobj, largs, loc) ->
@@ -1056,8 +1056,18 @@ and transl_apply lam sargs ?ty loc =
     | _ ->
         mk @@ Lapply(funct, args, loc)
   in
+  let rec extract_label_type ty l =
+    match ty with
+      Some (Val ty) ->
+        (match (Btype.repr ty).desc with
+           Tarrow (l', td, tcd, _) ->
+             if l = l' then Some (Val (td))
+             else extract_label_type (Some (Val tcd)) l
+         | _ -> None)
+    | _ -> None
+  in
   let rec build_apply lam args = function
-      (None, optional) :: l ->
+      (label, None, optional) :: l ->
         let defs = ref [] in
         let protect name lam =
           match lam.lb_expr with
@@ -1073,13 +1083,17 @@ and transl_apply lam sargs ?ty loc =
         let lam =
           if args = [] then lam else lapply lam (List.rev_map fst args) in
         let handle = protect "func" lam
-        and l = List.map (fun (arg, opt) -> may_map (protect "arg") arg, opt) l
-        and id_arg = Ident.create "param" in
+        and l = List.map (fun (label, arg, opt) -> label, may_map (protect "arg") arg, opt) l
+        and id_arg = Ident.create "param"
+        and ty_arg = extract_label_type ty label in
         let body =
           (* For the generated function, we need at least the type of the
              argument. If we reuse the type of the function, the generated
              abstraction is not included in it. *)
-          match build_apply handle ((mk_lambda @@ Lvar id_arg, optional)::args') l with
+          match build_apply handle
+                  ((mk_lambda ?ty:ty_arg ~from:"transl_apply" @@
+                    Lvar id_arg, optional)::args')
+                  l with
             { lb_expr = Lfunction(Curried, ids, lam) } ->
               mk_lambda @@ Lfunction(Curried, id_arg::ids, lam)
           | { lb_expr = Levent({ lb_expr = Lfunction(Curried, ids, lam)}, _) } ->
@@ -1090,12 +1104,12 @@ and transl_apply lam sargs ?ty loc =
         List.fold_left
           (fun body (id, lam) -> { body with lb_expr = Llet(Strict, id, lam, body)})
           body !defs
-    | (Some arg, optional) :: l ->
+    | (label, Some arg, optional) :: l ->
         build_apply lam ((arg, optional) :: args) l
     | [] ->
         lapply lam (List.rev_map fst args)
   in
-  build_apply lam [] (List.map (fun (l, x,o) -> may_map transl_exp x, o) sargs)
+  build_apply lam [] (List.map (fun (l, x, o) -> l, may_map transl_exp x, o) sargs)
 
 and transl_function loc untuplify_fn repr partial cases =
   match cases with
