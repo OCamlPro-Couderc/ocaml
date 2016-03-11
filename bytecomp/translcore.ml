@@ -1095,11 +1095,11 @@ and transl_apply lam sargs ?ty loc =
                     Lvar id_arg, optional)::args')
                   l with
             { lb_expr = Lfunction(Curried, ids, lam) } ->
-              mk_lambda @@ Lfunction(Curried, id_arg::ids, lam)
+              mk @@ Lfunction(Curried, id_arg::ids, lam)
           | { lb_expr = Levent({ lb_expr = Lfunction(Curried, ids, lam)}, _) } ->
-              mk_lambda @@ Lfunction(Curried, id_arg::ids, lam)
+              mk @@ Lfunction(Curried, id_arg::ids, lam)
           | lam ->
-              mk_lambda @@ Lfunction(Curried, [id_arg], lam)
+              mk @@ Lfunction(Curried, [id_arg], lam)
         in
         List.fold_left
           (fun body (id, lam) -> { body with lb_expr = Llet(Strict, id, lam, body)})
@@ -1154,7 +1154,7 @@ and transl_function loc untuplify_fn repr partial cases =
       let param = name_pattern "param" cases in
       ((Curried, [param]),
        Matching.for_function loc repr
-         (mk_lambda ~from:"transl_function" @@ Lvar param)
+         (mk_lambda ?ty:None ~from:"transl_function(no cases)" @@ Lvar param)
          (transl_cases cases) partial)
 
 and transl_let rec_flag pat_expr_list body =
@@ -1184,7 +1184,7 @@ and transl_let rec_flag pat_expr_list body =
         lb_from = Some "transl_let" }
 
 and transl_setinstvar self var expr =
-  mk_lambda ~ty:(Val Predef.type_unit) @@ (* /!\   To Check *)
+  mk_lambda ~ty:(Val Predef.type_unit) ~from:"transl_setinstvar"@@ (* /!\   To Check *)
   Lprim(Parraysetu
           (if maybe_pointer expr then Paddrarray else Pintarray),
         [self;
@@ -1210,8 +1210,8 @@ and transl_record all_labels repres lbl_expr_list opt_init_expr =
               Record_regular -> Pfield i
             | Record_float -> Pfloatfield i in
           lv.(i) <-
-            mk_lambda ~ty:(Val all_labels.(i).lbl_arg) @@
-            Lprim(access, [mk_lambda @@ Lvar init_id])
+            mk_lambda ~ty:(Val all_labels.(i).lbl_arg) ~from:"transl_record" @@
+            Lprim(access, [mk @@ Lvar init_id])
         done
     end;
     List.iter
@@ -1253,16 +1253,16 @@ and transl_record all_labels repres lbl_expr_list opt_init_expr =
         { cont with lb_expr = l; lb_from = Some "transl_record" } in
       as_cont @@
       Lsequence(as_cont @@
-                Lprim(upd, [mk_lambda ~ty:(Val lbl.lbl_arg) @@
+                Lprim(upd, [mk_lambda ~ty:(Val lbl.lbl_arg) ~from:"transl_record" @@
                             Lvar copy_id; transl_exp expr]), cont) in
     begin match opt_init_expr with
       None -> assert false
     | Some init_expr ->
         mk @@
         Llet(Strict, copy_id,
-             mk_lambda ~ty:(Val init_expr.exp_type) @@
+             mk_lambda ~ty:(Val init_expr.exp_type) ~from:"transl_record" @@
              Lprim(Pduprecord (repres, size), [transl_exp init_expr]),
-             List.fold_right update_field lbl_expr_list (mk_lambda @@ Lvar copy_id))
+             List.fold_right update_field lbl_expr_list (mk @@ Lvar copy_id))
     end
   end
 
@@ -1272,13 +1272,13 @@ and transl_match e arg pat_expr_list exn_pat_expr_list partial =
   and exn_cases = transl_cases exn_pat_expr_list in
   let static_catch body val_ids handler =
     let static_exception_id = next_negative_raise_count () in
-    mk_lambda ~from:"transl_match" @@
+    as_arg handler ~from:"transl_match" @@
     Lstaticcatch
-      (mk_lambda ~from:"transl_match" @@
+      (as_arg handler ~from:"transl_match" @@
        Ltrywith
-         (mk_lambda ~from:"transl_match" @@
+         (as_arg handler ~from:"transl_match" @@
           Lstaticraise (static_exception_id, body), id,
-          Matching.for_trywith (mk_lambda ~from:"transl_match" @@ Lvar id) exn_cases),
+          Matching.for_trywith (as_exn ~from:"transl_match" @@ Lvar id) exn_cases),
        (static_exception_id, val_ids),
        handler)
   in

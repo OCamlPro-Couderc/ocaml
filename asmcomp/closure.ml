@@ -123,31 +123,33 @@ let split_default_wrapper fun_id kind params body =
         let inner_id = Ident.create (Ident.name fun_id ^ "_inner") in
         let map_param p = try List.assoc p map with Not_found -> p in
         let args = List.map (fun p ->
-            mk_lambda ~from:"split_default_wrapper" @@ Lvar (map_param p)) params in
+            mk_lambda ?ty:None ~from:"split_default_wrapper" @@
+            Lvar (map_param p)) params in
         let wrapper_body =
           as_arg ~from:"split_defalut_wrapper" body @@
-          Lapply (mk_lambda ~from:"split_default_wrapper" @@
+          Lapply (mk_lambda ?ty:None ~from:"split_default_wrapper" @@
                   Lvar inner_id, args, Location.none) in
 
         let inner_params = List.map map_param params in
         let new_ids = List.map Ident.rename inner_params in
         let subst = List.fold_left2
             (fun s id new_id ->
-               Ident.add id (mk_lambda ~from:"split_default_wrapper" @@
+               Ident.add id (mk_lambda ?ty:None ~from:"split_default_wrapper" @@
                              Lvar new_id) s)
             Ident.empty inner_params new_ids
         in
         let body = Lambda.subst_lambda subst body in
         let inner_fun =
-          mk_lambda ~from:"split_default_wrapper" @@ Lfunction(Curried, new_ids, body) in
+          mk_lambda ?ty:None ~from:"split_default_wrapper" @@
+          Lfunction(Curried, new_ids, body) in
         (wrapper_body, (inner_id, inner_fun))
   in
   try
     let wrapper_body, inner = aux [] body in
-    [(fun_id, mk_lambda ~from:"split_default_wrapper" @@
+    [(fun_id, mk_lambda ?ty:None ~from:"split_default_wrapper" @@
       Lfunction(kind, params, wrapper_body)); inner]
   with Exit ->
-    [(fun_id, mk_lambda ~from:"split_default_wrapper" @@
+    [(fun_id, mk_lambda ?ty:None ~from:"split_default_wrapper" @@
       Lfunction(kind, params, body))]
 
 
@@ -856,13 +858,15 @@ let rec close fenv cenv lam =
                 (Ulet ( arg1, arg2, body))
         in
         let internal_args =
-          (List.map (fun (arg1, arg2) -> mk_lambda ~from:"close" @@ Lvar arg1) first_args)
-          @ (List.map (fun arg -> mk_lambda ~from:"close" @@ Lvar arg ) final_args)
+          (List.map (fun (arg1, arg2) ->
+               mk_lambda ?ty:None ~from:"close" @@ Lvar arg1) first_args)
+          @ (List.map (fun arg ->
+              mk_lambda ?ty:None ~from:"close" @@ Lvar arg ) final_args)
         in
         let (new_fun, approx) = close fenv cenv
-          (mk_lambda ~from:"close" @@ Lfunction(
+          (mk_lambda ?ty:None ~from:"close" @@ Lfunction(
              Curried, final_args,
-             mk_lambda ~from:"close" @@ Lapply(funct, internal_args, loc)))
+             mk_lambda ?ty:None ~from:"close" @@ Lapply(funct, internal_args, loc)))
         in
         let new_fun = iter first_args new_fun in
         (new_fun, approx)
@@ -928,7 +932,7 @@ let rec close fenv cenv lam =
       end
   | Lprim(Pdirapply loc,[funct;arg])
   | Lprim(Prevapply loc,[arg;funct]) ->
-      close fenv cenv (mk_lambda ~from:"close" @@ Lapply(funct, [arg], loc))
+      close fenv cenv (as_arg lam ~from:"close" @@ Lapply(funct, [arg], loc))
   | Lprim(Pgetglobal id, []) ->
       check_constant_result lam
                             (getglobal id)
@@ -975,7 +979,7 @@ let rec close fenv cenv lam =
             (sw.sw_numblocks - List.length sw.sw_blocks) > 1
           then
             let i = next_raise_count () in
-            let ubody,_ = fn (Some (mk_lambda ~from:"close" @@ Lstaticraise (i,[])))
+            let ubody,_ = fn (Some (as_arg lamfail ~from:"close" @@ Lstaticraise (i,[])))
             and uhandler,_ = close fenv cenv lamfail in
             Ucatch (i,[],ubody,uhandler),Value_unknown
           else fn fail
