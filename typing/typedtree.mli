@@ -508,7 +508,7 @@ val let_bound_idents_with_loc:
     value_binding list -> (Ident.t * string loc) list
 
 (* Alpha conversion of patterns *)
-val alpha_pat: (Ident.t * Ident.t) list -> pattern -> pattern
+val alpha_pat: (Ident.t * Types.typedtree_type option * Ident.t) list -> pattern -> pattern
 
 val mknoloc: 'a -> 'a Asttypes.loc
 val mkloc: 'a -> Location.t -> 'a Asttypes.loc

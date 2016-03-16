@@ -492,6 +492,12 @@ module IdentSet =
     let compare = compare
   end)
 
+module IdentMap =
+  Map.Make(struct
+    type t = Ident.t
+    let compare = compare
+  end)
+
 let free_ids get l =
   let fv = ref IdentSet.empty in
   let rec free l =
@@ -517,9 +523,39 @@ let free_ids get l =
     | Lifthenelse _ | Lsequence _ | Lwhile _
     | Lsend _ | Levent _ | Lifused _ -> ()
   in free l; !fv
+    
+let free_ids_map get l =
+  let fv = ref IdentMap.empty in
+  let rec free l =
+    iter free l;
+    fv := List.fold_right (fun (id, ty) acc -> IdentMap.add id ty acc) (get l) !fv;
+    match l.lb_expr with
+      Lfunction(kind, params, body) ->
+        List.iter (fun param -> fv := IdentMap.remove param !fv) params
+    | Llet(str, id, arg, body) ->
+        fv := IdentMap.remove id !fv
+    | Lletrec(decl, body) ->
+        List.iter (fun (id, exp) -> fv := IdentMap.remove id !fv) decl
+    | Lstaticcatch(e1, (_,vars), e2) ->
+        List.iter (fun id -> fv := IdentMap.remove id !fv) vars
+    | Ltrywith(e1, exn, e2) ->
+        fv := IdentMap.remove exn !fv
+    | Lfor(v, e1, e2, dir, e3) ->
+        fv := IdentMap.remove v !fv
+    | Lassign(id, e) ->
+        fv := IdentMap.add id e.lb_tt_type !fv
+    | Lvar _ | Lconst _ | Lapply _
+    | Lprim _ | Lswitch _ | Lstringswitch _ | Lstaticraise _
+    | Lifthenelse _ | Lsequence _ | Lwhile _
+    | Lsend _ | Levent _ | Lifused _ -> ()
+  in free l; !fv
 
 let free_variables l =
   free_ids (function { lb_expr = Lvar id } -> [id] | _ -> []) l
+
+let free_variables_typed l =
+  free_ids_map (function { lb_expr = Lvar id; lb_tt_type } ->
+      [id, lb_tt_type] | _ -> []) l  
 
 let free_methods l =
   free_ids

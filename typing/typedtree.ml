@@ -562,7 +562,8 @@ let let_bound_idents_with_loc pat_expr_list =
 let rev_let_bound_idents pat = List.map fst (rev_let_bound_idents_with_loc pat)
 let let_bound_idents pat = List.map  fst (let_bound_idents_with_loc pat)
 
-let alpha_var env id = List.assoc id env
+let alpha_var env id =
+  List.find (fun (id', ty, al) -> id = id') env |> thd3
 
 let rec alpha_pat env p = match p.pat_desc with
 | Tpat_var (id, s) -> (* note the ``Not_found'' case *)

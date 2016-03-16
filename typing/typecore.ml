@@ -449,7 +449,7 @@ let enter_orpat_variables loc env  p1_vs p2_vs =
             | Unify trace ->
                 raise(Error(loc, env, Or_pattern_type_clash(x1, trace)))
             end;
-          (x2,x1)::unify_vars rem1 rem2
+          (x2, Some (Val t1), x1)::unify_vars rem1 rem2
           end
       | [],[] -> []
       | (x,_,_,_,_)::_, [] -> raise (Error (loc, env, Orpat_vars x))

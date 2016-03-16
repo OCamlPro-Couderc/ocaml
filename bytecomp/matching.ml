@@ -715,8 +715,8 @@ exception Cannot_flatten
 
 let mk_alpha_env arg aliases ids =
   List.map
-    (fun id -> id,
-      if List.mem id aliases then
+    (fun (id, ty) -> id, ty,
+      if List.mem_assoc id aliases then
         match arg with
         | Some v -> v
         | _      -> raise Cannot_flatten
@@ -731,18 +731,33 @@ let rec explode_or_pat arg patl mk_action rem vars aliases = function
         (explode_or_pat arg patl mk_action rem vars aliases p2)
         vars aliases p1
   | {pat_desc = Tpat_alias (p,id, _)} ->
-      explode_or_pat arg patl mk_action rem vars (id::aliases) p
-  | {pat_desc = Tpat_var (x, _)} ->
-      let env = mk_alpha_env arg (x::aliases) vars in
-      (omega::patl,mk_action (List.map snd env))::rem
+      explode_or_pat arg
+        patl mk_action rem vars
+        ((id, Some (Val p.pat_type)) ::aliases) p
+  | {pat_desc = Tpat_var (x, _); pat_type = ty} ->
+      let env = mk_alpha_env arg
+          ((x, Some (Val ty))::aliases) vars in
+      let tys = List.map snd3 env in
+      (omega::patl,mk_action ?ty:None tys (List.map thd3 env))::rem
   | p ->
       let env = mk_alpha_env arg aliases vars in
-      (alpha_pat env p::patl,mk_action (List.map snd env))::rem
+      let tys = List.map snd3 env in
+      (alpha_pat env p::patl,mk_action ?ty:None tys (List.map thd3 env))::rem
 
 let pm_free_variables {cases=cases} =
   List.fold_right
     (fun (_,act) r -> IdentSet.union (free_variables act) r)
     cases IdentSet.empty
+let pm_free_variables_types { cases } =
+  List.fold_right
+    (fun (_,act) r ->
+       IdentMap.merge
+         (fun _ t1 t2 ->
+            match t1, t2 with
+              (Some _ as t), _ | _, (Some _ as t) -> t
+            | _, _ -> None)
+        (free_variables_typed act) r)
+    cases IdentMap.empty 
 
 
 (* Basic grouping predicates *)
@@ -1141,19 +1156,22 @@ and precompile_or argo cls ors args def k = match ors with
               (IdentSet.inter
                  (extract_vars IdentSet.empty orp)
                  (pm_free_variables orpm)) in
+          let tys = pm_free_variables_types orpm in
+          let vars_with_ty =
+            List.map (fun id -> id, IdentMap.find id tys) vars in
           let or_num = next_raise_count () in
           let new_patl = Parmatch.omega_list patl in
 
-          let mk_new_action vs =
-            mk_lambda ~from:"precompile_or" ~ty:(Val orp.pat_type) @@
+          let mk_new_action ?ty ty_vars vs =
+            mk_lambda ~from:"precompile_or" ?ty @@
             Lstaticraise
-              (or_num, List.map (fun v ->
-                   mk_lambda ?ty:None ~from:"precompile_or" @@ Lvar v) vs) in
+              (or_num, List.map2 (fun v ty ->
+                   mk_lambda ?ty ~from:"precompile_or" @@ Lvar v) vs ty_vars) in
 
           let do_optrec,body,handlers = do_cases rem in
           do_opt && do_optrec,
           explode_or_pat
-            argo new_patl mk_new_action body vars [] orp,
+            argo new_patl mk_new_action body vars_with_ty [] orp,
           let mat = if do_opt then [[orp]] else [[omega]] in
           ((mat, or_num, vars , orpm):: handlers)
       | cl::rem ->
@@ -2330,11 +2348,11 @@ let mk_res get_key env last_choice idef cant_fail ctx =
     to jump to in case of failure of elementary tests
 *)
 
-let mk_failaction_neg partial ctx def = match partial with
+let mk_failaction_neg ty partial ctx def = match partial with
 | Partial ->
     begin match def with
     | (_,idef)::_ ->
-        Some (mk_lambda ?ty:None ~from:"mk_failaction" @@
+        Some (mk_lambda ?ty ~from:"mk_failaction" @@
               Lstaticraise (idef,[])),[],jumps_singleton idef ctx
     | _ ->
        (* Act as Total, this means
@@ -2389,7 +2407,7 @@ and mk_failaction_pos partial seen ctx defs : ('a * 'b * 'c) list * 'd=
 let combine_constant arg cst partial ctx def
     ((const_lambda_list : ('a * 'b * 'c) list), total, pats) =
   let fail, to_add, local_jumps =
-    mk_failaction_neg partial ctx def in
+    mk_failaction_neg None partial ctx def in
   let const_lambda_list = to_add@const_lambda_list in
   let lambda1 =
     match cst with
@@ -2479,7 +2497,7 @@ let combine_constructor arg ex_pat cstr partial ctx def
   if cstr.cstr_consts < 0 then begin
     (* Special cases for extensions *)
     let fail, to_add, local_jumps =
-      mk_failaction_neg partial ctx def in
+      mk_failaction_neg None partial ctx def in
     let tag_lambda_list = to_add@tag_lambda_list in
     let lambda1 =
       let consts, nonconsts = split_extension_cases tag_lambda_list in
@@ -2621,7 +2639,7 @@ let combine_variant row arg partial ctx def (tag_lambda_list, total1, pats) =
     then
       None, [], jumps_empty
     else
-      mk_failaction_neg partial ctx def in
+      mk_failaction_neg None partial ctx def in
   let tag_lambda_list = to_add@tag_lambda_list in
   let (consts, nonconsts) = split_cases tag_lambda_list in
   let lambda1 = match fail, one_action with
@@ -2656,7 +2674,7 @@ let combine_variant row arg partial ctx def (tag_lambda_list, total1, pats) =
 
 let combine_array arg kind partial ctx def
     (len_lambda_list, total1, pats)  =
-  let fail, to_add, local_jumps = mk_failaction_neg partial  ctx def in
+  let fail, to_add, local_jumps = mk_failaction_neg None partial  ctx def in
   let len_lambda_list = to_add @ len_lambda_list in
   let lambda1 =
     let newvar = Ident.create "len" in
@@ -2767,7 +2785,7 @@ let compile_test compile_fun partial divide combine ctx to_match =
   let c_div = compile_list compile_fun division in
   match c_div with
   | [],_,_ ->
-     begin match mk_failaction_neg partial ctx to_match.default with
+     begin match mk_failaction_neg None partial ctx to_match.default with
      | None,_,_ -> raise Unused
      | Some l,_,total -> l,total
      end

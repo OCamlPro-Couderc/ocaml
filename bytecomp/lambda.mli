@@ -297,7 +297,9 @@ val name_lambda_list: lambda list -> (lambda list -> lambda) -> lambda
 
 val iter: (lambda -> unit) -> lambda -> unit
 module IdentSet: Set.S with type elt = Ident.t
+module IdentMap: Map.S with type key = Ident.t
 val free_variables: lambda -> IdentSet.t
+val free_variables_typed: lambda -> Types.typedtree_type option IdentMap.t
 val free_methods: lambda -> IdentSet.t
 
 val transl_normal_path: ?ty:Types.typedtree_type -> Env.t -> Path.t -> lambda   (* Path.t is already normal *)

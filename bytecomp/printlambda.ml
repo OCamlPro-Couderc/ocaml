@@ -410,7 +410,7 @@ and switch_extras ppf e =
 
 and tt_type ppf ty =
   let f ppf = function
-      None -> ()
+      None -> fprintf ppf "*untyped*"
     | Some (Val ty) -> Printtyp.type_expr ppf ty
     | Some (Ty td) ->
         Printtyp.type_declaration (Ident.create "*typedecl*") ppf td
