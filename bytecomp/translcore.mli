@@ -21,7 +21,8 @@ val transl_exp: expression -> lambda
 val transl_apply: lambda -> (label * expression option * optional) list
                   -> ?ty:Types.typedtree_type -> Location.t -> lambda
 val transl_let: rec_flag -> value_binding list -> lambda -> lambda
-val transl_primitive: Location.t -> Primitive.description -> lambda
+val transl_primitive:
+  Location.t -> Types.typedtree_type option -> Primitive.description -> lambda
 
 val check_recursive_lambda: Ident.t list -> lambda -> bool
 

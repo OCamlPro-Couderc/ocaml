@@ -285,7 +285,6 @@ let as_tuple_arg ?from arg pos l =
     | _ -> None in
   { lb_expr = l; lb_from = from; lb_tt_type = ty }
 
-
 let mk_switch_extr ?ty ?from () =
   { pattern_type = ty; pattern_from = from; }
 

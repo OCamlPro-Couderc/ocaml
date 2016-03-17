@@ -398,7 +398,7 @@ let transl_prim loc prim args =
 
 (* Eta-expand a primitive without knowing the types of its arguments *)
 
-let transl_primitive loc p =
+let transl_primitive loc ty p =
   let prim =
     try
       let (gencomp, _, _, _, _, _, _, _) =
@@ -412,10 +412,11 @@ let transl_primitive loc p =
   match prim with
   | Plazyforce ->
       let parm = Ident.create "prim" in
-      mk_lambda ?ty:None ~from:"transl_primitive" @@
+      mk_lambda ?ty ~from:"transl_primitive" @@
       Lfunction(Curried, [parm],
                 Matching.inline_lazy_force
-                  (mk_lambda ?ty:None ~from:"transl_primitive" @@ Lvar parm)
+                  (mk_lambda ?ty:None
+                     ~from:"transl_primitive" @@ Lvar parm)
                   Location.none)
   | Ploc kind ->
     let lam = lam_of_loc kind loc in
@@ -423,9 +424,11 @@ let transl_primitive loc p =
       | 0 -> lam
       | 1 -> (* TODO: we should issue a warning ? *)
           let param = Ident.create "prim" in
-          mk_lambda ?ty:None ~from:"transl_primitive" @@
+          mk_lambda
+            ?ty:None
+            ~from:"transl_primitive" @@
           Lfunction(Curried, [param],
-                    Lambda.mk_lambda ?ty:None ~from:"transl_primitive" @@
+                    Lambda.mk_lambda ~ty:loc_type ~from:"transl_primitive" @@
                     Lprim(Pmakeblock(0, Immutable),
                           [lam; mk_lambda ?ty:None
                              ~from:"transl_primitive" @@ Lvar param]))
@@ -435,8 +438,10 @@ let transl_primitive loc p =
       let rec make_params n =
         if n <= 0 then [] else Ident.create "prim" :: make_params (n-1) in
       let params = make_params p.prim_arity in
-      mk_lambda ?ty:None ~from:"transl_primitive" @@
+      mk_lambda ?ty ~from:"transl_primitive" @@
       Lfunction(Curried, params,
+                (* We must recover the type of primitive arguments + result
+                   => expand_head, which needs the environment *)
                 mk_lambda ?ty:None ~from:"transl_primitive" @@
                 Lprim(prim, List.map (fun id ->
                     mk_lambda ?ty:None ~from:"transl_primitive" @@ Lvar id) params))
@@ -694,7 +699,7 @@ and transl_exp0 e =
                           mk_u @@ Lvar pos],
                         e.exp_loc))
       else
-        transl_primitive e.exp_loc p
+        transl_primitive e.exp_loc (Some (Val e.exp_type)) p
   | Texp_ident(path, _, {val_kind = Val_anc _}) ->
       raise(Error(e.exp_loc, Free_super_var))
   | Texp_ident(path, _, {val_kind = Val_reg | Val_self _}) ->
