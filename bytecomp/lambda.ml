@@ -194,6 +194,7 @@ and lambda =
   { lb_expr: lambda_expr;
     lb_tt_type: Types.typedtree_type option;
     lb_from: string option;
+    lb_env: Env.t option;
   }
   
 and lambda_switch =
@@ -206,6 +207,7 @@ and lambda_switch =
 and switch_case_extra =
   { pattern_type: type_expr option;
     pattern_from: string option;
+    pattern_env: Env.t option;
   }
 and lambda_event =
   { lev_loc: Location.t;
@@ -224,10 +226,11 @@ let lambda_unit =
   { lb_expr = Lconst const_unit;
     lb_tt_type = Some (Val Predef.type_unit);
     lb_from = None;
+    lb_env = None;
   }
 
-let mk_lambda ?ty ?from l =
-  { lb_expr = l; lb_tt_type = ty; lb_from = from }
+let mk_lambda ?ty ?from ?env l =
+  { lb_expr = l; lb_tt_type = ty; lb_from = from; lb_env = env; }
 
 let as_int = mk_lambda ~ty:(Val Predef.type_int)
 let as_char = mk_lambda ~ty:(Val Predef.type_char)
@@ -237,16 +240,28 @@ let as_float = mk_lambda ~ty:(Val Predef.type_float)
 let as_bool = mk_lambda ~ty:(Val Predef.type_bool)
 let as_unit = mk_lambda ~ty:(Val Predef.type_unit)
 let as_exn = mk_lambda ~ty:(Val Predef.type_exn)
-let as_array ?from ty l = mk_lambda ~ty:(Val (Predef.type_array ty)) ?from l
-let as_list ?from ty l = mk_lambda ~ty:(Val (Predef.type_list ty)) ?from l
-let as_option ?from ty l = mk_lambda ~ty:(Val (Predef.type_option ty)) ?from l
+let as_array ?from ?env ty l =
+  mk_lambda ~ty:(Val (Predef.type_array ty)) ?from ?env l
+let as_list ?from ?env ty l =
+  mk_lambda ~ty:(Val (Predef.type_list ty)) ?from ?env l
+let as_option ?from ?env ty l =
+  mk_lambda ~ty:(Val (Predef.type_option ty)) ?from ?env l
 let as_nativeint = mk_lambda ~ty:(Val Predef.type_nativeint)
 let as_int32 = mk_lambda ~ty:(Val Predef.type_int32)
 let as_int64 = mk_lambda ~ty:(Val Predef.type_int64)
-let as_lazy_t ?from ty l = mk_lambda ~ty:(Val (Predef.type_lazy_t ty)) ?from l
+let as_lazy_t ?from ?env ty l =
+  mk_lambda ~ty:(Val (Predef.type_lazy_t ty)) ?from ?env l
 
-let as_arg ?from arg l = { arg with lb_expr = l; lb_from = from }
-let as_constr_arg ?from arg extract l =
+let as_arg ?from ?env arg l =
+  let lb_env = match env with
+      Some _ -> env
+    | _ -> arg.lb_env in
+  { arg with lb_expr = l; lb_from = from; lb_env }
+
+let as_constr_arg ?from ?env arg extract l =
+  let lb_env = match env with
+      Some _ -> env
+    | _ -> arg.lb_env in
   let ty = match arg.lb_tt_type with
       Some (Val ({ desc = Tconstr (p, tys, _) })) ->
         (try Some (Val (extract p tys)) with _ -> None)
@@ -258,44 +273,47 @@ let as_constr_arg ?from arg extract l =
           | _ -> None
         end 
     | _ -> None in
-  { lb_expr = l; lb_from = from; lb_tt_type = ty }
+  { lb_expr = l; lb_from = from; lb_tt_type = ty; lb_env; }
 
-let as_constr_arg1 ?from arg extract l =
-  as_constr_arg ?from arg (fun p tys ->
+let as_constr_arg1 ?from ?env arg extract l =
+  as_constr_arg ?from ?env arg (fun p tys ->
       match tys with ty :: _ -> extract p ty | _ -> raise Not_found) l
 
-let as_constr_arg2 ?from arg extract l =
-  as_constr_arg ?from arg (fun p tys ->
+let as_constr_arg2 ?from ?env arg extract l =
+  as_constr_arg ?from ?env arg (fun p tys ->
       match tys with [ty1; ty2] -> extract p ty1 ty2 | _ -> raise Not_found) l
 
-let as_constr_arg3 ?from arg extract l =
-  as_constr_arg ?from arg (fun p tys ->
+let as_constr_arg3 ?from ?env arg extract l =
+  as_constr_arg ?from ?env arg (fun p tys ->
       match tys with [ty1; ty2; ty3] -> extract p ty1 ty2 ty3
                    | _ -> raise Not_found) l
 
-let as_constr_arg4 ?from arg extract l =
-  as_constr_arg ?from arg (fun p tys ->
+let as_constr_arg4 ?from ?env arg extract l =
+  as_constr_arg ?from ?env arg (fun p tys ->
       match tys with [ty1; ty2; ty3; ty4] -> extract p ty1 ty2 ty3 ty4
                    | _ -> raise Not_found) l
 
-let as_tuple_arg ?from arg pos l =
+let as_tuple_arg ?from ?env arg pos l =
+  let env = match env with Some _ -> env | None -> arg.lb_env in
   let ty = match arg.lb_tt_type with
       Some (Val { desc = Ttuple tys }) ->
         (try Some (Val (List.nth tys pos)) with Not_found -> None)
     | _ -> None in
-  { lb_expr = l; lb_from = from; lb_tt_type = ty }
+  { lb_expr = l; lb_from = from; lb_tt_type = ty; lb_env = env; }
 
-let mk_switch_extr ?ty ?from () =
-  { pattern_type = ty; pattern_from = from; }
+let mk_switch_extr ?ty ?from ?env () =
+  { pattern_type = ty; pattern_from = from; pattern_env = env; }
 
-let mk_switch_extr_as ?from l =
+let mk_switch_extr_as ?from ?env l =
+  let env = match env with Some _ -> env | None -> l.lb_env in
   let ty =
     match l.lb_tt_type with
       Some (Val ty) -> Some ty
     | _ -> None in
-  mk_switch_extr ?ty ?from ()
+  mk_switch_extr ?ty ?from ?env ()
 
-let mk_lambda_as_extr extr ?from l =
+let mk_lambda_as_extr extr ?from ?env l =
+  let env = match env with Some _ -> env | None -> extr.pattern_env in
   let from =
     match extr.pattern_from, from with
       None, None -> None
@@ -308,6 +326,7 @@ let mk_lambda_as_extr extr ?from l =
   { lb_expr = l;
     lb_tt_type = ty;
     lb_from = from;
+    lb_env = env;
   }
 
 (* Build sharing keys *)
@@ -325,8 +344,8 @@ let make_key e =
   and make_key = Ident.make_key_generator () in
   (* make_key is used for normalizing let-bound variables *)
   let rec tr_rec env e = 
-    let e = { e with  lb_tt_type = None; lb_from = None } in
-    let mk = mk_lambda ?ty:None ~from:"make_key" in
+    let e = { e with  lb_tt_type = None; lb_from = None; lb_env = None } in
+    let mk = mk_lambda ?ty:None ?env:None ~from:"make_key" in
     incr count ;
     if !count > max_raw then raise Not_simple ; (* Too big ! *)
     match e.lb_expr with
@@ -577,7 +596,7 @@ let next_negative_raise_count () =
 
 (* Anticipated staticraise, for guards *)
 let staticfail =
-  mk_lambda ?ty:None ~from:"staticfail" @@ Lstaticraise (0,[])
+  mk_lambda ?ty:None ?env:None ~from:"staticfail" @@ Lstaticraise (0,[])
 
 let rec is_guarded l =
   match l.lb_expr with
@@ -601,14 +620,14 @@ let rec patch_guarded patch l =
 let rec transl_normal_path ?ty env = function
     Pident id ->
       if Ident.global id then
-        mk_lambda ?ty ~from:"transl_normal_path" @@
+        mk_lambda ?ty ~from:"transl_normal_path" ~env @@
         Lprim(Pgetglobal id, [])
-      else mk_lambda ?ty ~from:"transl_normal_path" @@ Lvar id
+      else mk_lambda ?ty ~from:"transl_normal_path" ~env @@ Lvar id
   | Pdot(p, s, pos) ->
       let ty' =
         try Some (Mod (Env.find_module p env).md_type)
         with Not_found -> None in
-      mk_lambda ?ty  ~from:"transl_normal_path" @@
+      mk_lambda ?ty  ~from:"transl_normal_path" ~env @@
       Lprim(Pfield pos, [transl_normal_path ?ty:ty' env p])
   | Papply(p1, p2) ->
       fatal_error "Lambda.transl_path"
@@ -718,14 +737,14 @@ let raise_kind = function
 let loc_type =
   Val (Btype.newgenty (Ttuple [Predef.type_string; Predef.type_int; Predef.type_int]))
 
-let lam_of_loc kind loc =
+let lam_of_loc ?env kind loc =
   let loc_start = loc.Location.loc_start in
   let (file, lnum, cnum) = Location.get_pos_info loc_start in
   let enum = loc.Location.loc_end.Lexing.pos_cnum -
       loc_start.Lexing.pos_cnum + cnum in
   match kind with
   | Loc_POS ->
-      mk_lambda ~ty:loc_type ~from:"lam_of_loc" @@
+      mk_lambda ~ty:loc_type ?env ~from:"lam_of_loc" @@
       Lconst (Const_block (0, [
           Const_immstring file;
           Const_base (Const_int lnum);
@@ -733,18 +752,18 @@ let lam_of_loc kind loc =
           Const_base (Const_int enum);
         ]))
   | Loc_FILE ->
-      as_string ~from:"lam_of_loc" @@ Lconst (Const_immstring file)
+      as_string ~from:"lam_of_loc" ?env @@ Lconst (Const_immstring file)
   | Loc_MODULE ->
     let filename = Filename.basename file in
     let name = Env.get_unit_name () in
     let module_name = if name = "" then "//"^filename^"//" else name in
-    as_string ~from:"lam_of_loc" @@ Lconst (Const_immstring module_name)
+    as_string ~from:"lam_of_loc" ?env @@ Lconst (Const_immstring module_name)
   | Loc_LOC ->
       let loc = Printf.sprintf "File %S, line %d, characters %d-%d"
           file lnum cnum enum in
-      as_string ~from:"lam_of_loc" @@ Lconst (Const_immstring loc)
+      as_string ~from:"lam_of_loc" ?env @@ Lconst (Const_immstring loc)
   | Loc_LINE ->
-      as_int ~from:"lam_of_loc" @@ Lconst (Const_base (Const_int lnum))
+      as_int ~from:"lam_of_loc" ?env @@ Lconst (Const_base (Const_int lnum))
 
 let reset () =
   raise_count := 0

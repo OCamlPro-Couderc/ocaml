@@ -498,7 +498,7 @@ let rec comp_expr env exp sz cont =
       Stack.push to_compile functions_to_compile;
       comp_args env
         (List.map (fun n ->
-             mk_lambda ?ty:None ~from:"comp_expr" @@ Lvar n) fv) sz
+             mk_lambda ?ty:None ~from:"comp_expr" ?env:exp.lb_env @@ Lvar n) fv) sz
         (Kclosure(lbl, List.length fv) :: cont)
   | Llet(str, id, arg, body) ->
       comp_expr env arg sz
@@ -511,7 +511,7 @@ let rec comp_expr env exp sz cont =
         (* let rec of functions *)
         let fv =
           IdentSet.elements (free_variables (
-              as_unit ~from:"comp_expr" @@ Lletrec(decl, lambda_unit))) in
+              as_unit ~from:"comp_expr" ?env:exp.lb_env @@ Lletrec(decl, lambda_unit))) in
         let rec_idents = List.map (fun (id, lam) -> id) decl in
         let rec comp_fun pos = function
             [] -> []
@@ -525,7 +525,8 @@ let rec comp_expr env exp sz cont =
           | _ -> assert false in
         let lbls = comp_fun 0 decl in
         comp_args env
-          (List.map (fun n -> mk_lambda ?ty:None ~from:"comp_expr" @@ Lvar n) fv) sz
+          (List.map (fun n -> mk_lambda ?ty:None ~from:"comp_expr" ?env:exp.lb_env @@
+                      Lvar n) fv) sz
           (Kclosurerec(lbls, List.length fv) ::
             (comp_expr (add_vars rec_idents (sz+1) env) body (sz + ndecl)
                        (add_pop ndecl cont)))

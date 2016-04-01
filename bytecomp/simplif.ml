@@ -36,7 +36,9 @@ let rec eliminate_ref id lam =
   and mk_u l =
     { lb_expr = l;
       lb_tt_type = None;
-      lb_from = update_from lam.lb_from "eliminate_ref" } in
+      lb_from = update_from lam.lb_from "eliminate_ref";
+      lb_env = lam.lb_env;
+    } in
   match lam.lb_expr with
     Lvar v ->
       if Ident.same v id then raise Real_reference else lam
@@ -273,7 +275,9 @@ let simplify_exits lam =
         let env =
           List.fold_right2
             (fun x y t ->
-               Ident.add x (mk_lambda ?ty:None ~from:"simplify_exits" @@ Lvar y) t)
+               Ident.add x
+                 (mk_lambda ?ty:None ~from:"simplify_exits" ?env:None @@ Lvar y)
+                 t)
             xs ys Ident.empty in
         List.fold_right2
           (fun y l r ->

@@ -204,6 +204,7 @@ and lambda =
   { lb_expr: lambda_expr;
     lb_tt_type: Types.typedtree_type option;
     lb_from: string option;
+    lb_env: Env.t option;
   }
 
 and lambda_switch =
@@ -216,6 +217,7 @@ and lambda_switch =
 and switch_case_extra =
   { pattern_type: Types.type_expr option;
     pattern_from: string option;
+    pattern_env: Env.t option;
   }
 
 and lambda_event =
@@ -229,63 +231,65 @@ and lambda_event_kind =
   | Lev_after of Types.type_expr
   | Lev_function
 
-val mk_lambda: ?ty: Types.typedtree_type -> ?from:string -> lambda_expr -> lambda
+val mk_lambda:
+  ?ty: Types.typedtree_type -> ?from:string -> ?env:Env.t -> lambda_expr -> lambda
 
 (* Utility functions to generate lambda with builtin types *)
-val as_int: ?from:string -> lambda_expr -> lambda
-val as_char: ?from:string -> lambda_expr -> lambda
-val as_string: ?from:string -> lambda_expr -> lambda
-val as_bytes: ?from:string -> lambda_expr -> lambda
-val as_float: ?from:string -> lambda_expr -> lambda
-val as_bool: ?from:string -> lambda_expr -> lambda
-val as_unit: ?from:string -> lambda_expr -> lambda
-val as_exn: ?from:string -> lambda_expr -> lambda
-val as_array: ?from:string -> Types.type_expr -> lambda_expr -> lambda
-val as_list: ?from:string -> Types.type_expr -> lambda_expr -> lambda
-val as_option: ?from:string -> Types.type_expr -> lambda_expr -> lambda
-val as_nativeint: ?from:string -> lambda_expr -> lambda
-val as_int32: ?from:string -> lambda_expr -> lambda
-val as_int64: ?from:string -> lambda_expr -> lambda
-val as_lazy_t: ?from:string -> Types.type_expr -> lambda_expr -> lambda
+val as_int: ?from:string -> ?env:Env.t -> lambda_expr -> lambda
+val as_char: ?from:string -> ?env:Env.t -> lambda_expr -> lambda
+val as_string: ?from:string -> ?env:Env.t -> lambda_expr -> lambda
+val as_bytes: ?from:string -> ?env:Env.t -> lambda_expr -> lambda
+val as_float: ?from:string -> ?env:Env.t -> lambda_expr -> lambda
+val as_bool: ?from:string -> ?env:Env.t -> lambda_expr -> lambda
+val as_unit: ?from:string -> ?env:Env.t -> lambda_expr -> lambda
+val as_exn: ?from:string -> ?env:Env.t -> lambda_expr -> lambda
+val as_array: ?from:string -> ?env:Env.t -> Types.type_expr -> lambda_expr -> lambda
+val as_list: ?from:string -> ?env:Env.t -> Types.type_expr -> lambda_expr -> lambda
+val as_option: ?from:string -> ?env:Env.t -> Types.type_expr -> lambda_expr -> lambda
+val as_nativeint: ?from:string -> ?env:Env.t -> lambda_expr -> lambda
+val as_int32: ?from:string -> ?env:Env.t -> lambda_expr -> lambda
+val as_int64: ?from:string -> ?env:Env.t -> lambda_expr -> lambda
+val as_lazy_t: ?from:string -> ?env:Env.t -> Types.type_expr -> lambda_expr -> lambda
 
 (* Returns a lambda with the same type as the one given *) 
-val as_arg: ?from:string -> lambda -> lambda_expr -> lambda
+val as_arg: ?from:string -> ?env:Env.t -> lambda -> lambda_expr -> lambda
 
 (* The following functions returns a lambda whose type is the type argument of
    a type constructor, if the lambda's type is a type_constructor. *)
 val as_constr_arg:
-  ?from:string -> lambda
+  ?from:string -> ?env:Env.t -> lambda
   -> (Path.t -> Types.type_expr list -> Types.type_expr)
   -> lambda_expr -> lambda
 val as_constr_arg1:
-  ?from:string -> lambda
+  ?from:string -> ?env:Env.t -> lambda
   -> (Path.t -> Types.type_expr -> Types.type_expr)
   -> lambda_expr -> lambda
 val as_constr_arg2: 
-  ?from:string -> lambda
+  ?from:string -> ?env:Env.t -> lambda
   -> (Path.t -> Types.type_expr -> Types.type_expr -> Types.type_expr)
   -> lambda_expr -> lambda
 val as_constr_arg3:
-  ?from:string -> lambda
+  ?from:string -> ?env:Env.t -> lambda
   -> (Path.t -> Types.type_expr -> Types.type_expr -> Types.type_expr ->
       Types.type_expr)
   -> lambda_expr -> lambda
 val as_constr_arg4:
-  ?from:string -> lambda
+  ?from:string -> ?env:Env.t -> lambda
   -> (Path.t -> Types.type_expr -> Types.type_expr -> Types.type_expr ->
       Types.type_expr -> Types.type_expr)
   -> lambda_expr -> lambda
 
-val as_tuple_arg: ?from:string -> lambda -> int -> lambda_expr -> lambda
+val as_tuple_arg:
+  ?from:string -> ?env:Env.t -> lambda -> int -> lambda_expr -> lambda
 
 val mk_switch_extr:
-  ?ty:Types.type_expr -> ?from:string -> unit -> switch_case_extra
+  ?ty:Types.type_expr -> ?from:string -> ?env:Env.t -> unit -> switch_case_extra
 
 val mk_switch_extr_as:
-  ?from:string -> lambda -> switch_case_extra
+  ?from:string -> ?env:Env.t -> lambda -> switch_case_extra
 
 val mk_lambda_as_extr:
-  switch_case_extra -> ?from:string -> lambda_expr -> lambda
+  switch_case_extra -> ?from:string -> ?env:Env.t -> lambda_expr -> lambda
 
 (* Sharing key *)
 val make_key: lambda -> lambda option
@@ -332,6 +336,6 @@ val patch_guarded : lambda -> lambda -> lambda
 
 val raise_kind: raise_kind -> string
 val loc_type: Types.typedtree_type (* (string * int * int) *)
-val lam_of_loc : loc_kind -> Location.t -> lambda
+val lam_of_loc : ?env:Env.t -> loc_kind -> Location.t -> lambda
 
 val reset: unit -> unit

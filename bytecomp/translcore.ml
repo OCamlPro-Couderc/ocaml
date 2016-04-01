@@ -398,7 +398,7 @@ let transl_prim loc prim args =
 
 (* Eta-expand a primitive without knowing the types of its arguments *)
 
-let transl_primitive loc ty p =
+let transl_primitive loc ty env p =
   let prim =
     try
       let (gencomp, _, _, _, _, _, _, _) =
@@ -412,11 +412,11 @@ let transl_primitive loc ty p =
   match prim with
   | Plazyforce ->
       let parm = Ident.create "prim" in
-      mk_lambda ?ty ~from:"transl_primitive" @@
+      mk_lambda ?ty ~from:"transl_primitive" ~env @@
       Lfunction(Curried, [parm],
                 Matching.inline_lazy_force
                   (mk_lambda ?ty:None
-                     ~from:"transl_primitive" @@ Lvar parm)
+                     ~from:"transl_primitive" ~env @@ Lvar parm)
                   Location.none)
   | Ploc kind ->
     let lam = lam_of_loc kind loc in
@@ -426,25 +426,25 @@ let transl_primitive loc ty p =
           let param = Ident.create "prim" in
           mk_lambda
             ?ty:None
-            ~from:"transl_primitive" @@
+            ~from:"transl_primitive" ~env @@
           Lfunction(Curried, [param],
-                    Lambda.mk_lambda ~ty:loc_type ~from:"transl_primitive" @@
+                    Lambda.mk_lambda ~ty:loc_type ~from:"transl_primitive" ~env @@
                     Lprim(Pmakeblock(0, Immutable),
                           [lam; mk_lambda ?ty:None
-                             ~from:"transl_primitive" @@ Lvar param]))
+                             ~from:"transl_primitive" ~env @@ Lvar param]))
       | _ -> assert false
     end
   | _ ->
       let rec make_params n =
         if n <= 0 then [] else Ident.create "prim" :: make_params (n-1) in
       let params = make_params p.prim_arity in
-      mk_lambda ?ty ~from:"transl_primitive" @@
+      mk_lambda ?ty ~from:"transl_primitive" ~env @@
       Lfunction(Curried, params,
                 (* We must recover the type of primitive arguments + result
                    => expand_head, which needs the environment *)
-                mk_lambda ?ty:None ~from:"transl_primitive" @@
+                mk_lambda ?ty:None ~from:"transl_primitive" ~env @@
                 Lprim(prim, List.map (fun id ->
-                    mk_lambda ?ty:None ~from:"transl_primitive" @@ Lvar id) params))
+                    mk_lambda ?ty:None ~from:"transl_primitive" ~env @@ Lvar id) params))
 
 (* To check the well-formedness of r.h.s. of "let rec" definitions *)
 
@@ -630,17 +630,19 @@ let primitive_is_ccall = function
 (* Assertions *)
 
 let assert_failed exp =
-  let mk l = mk_lambda ~ty:(Val exp.exp_type) ~from:"assert_failed" l in
+  let mk l =
+    mk_lambda ~ty:(Val exp.exp_type) ~from:"assert_failed" ~env:exp.exp_env l in
   let (fname, line, char) =
     Location.get_pos_info exp.exp_loc.Location.loc_start in
   mk @@
   Lprim(Praise Raise_regular,
         [event_after exp
-           (mk_lambda ~ty:(Val Predef.type_exn) ~from:"assert_failed" @@
+           (mk_lambda ~ty:(Val Predef.type_exn)
+              ~from:"assert_failed" ~env:exp.exp_env @@
             Lprim(Pmakeblock(0, Immutable),
                   [transl_normal_path Env.empty ~ty:(Val Predef.type_exn)
                      Predef.path_assert_failure;
-                   mk_lambda ~ty:loc_type ~from:"assert_failed" @@
+                   mk_lambda ~ty:loc_type ~from:"assert_failed" ~env:exp.exp_env @@
                    Lconst(Const_block(0,
                                       [Const_base(Const_string (fname, None));
                                        Const_base(Const_int line);
@@ -668,8 +670,8 @@ let rec transl_exp e =
 
 and transl_exp0 e =
   let ty = Val e.exp_type in
-  let mk l = mk_lambda ~ty l ~from:"transl_exp0" in
-  let mk_u l = mk_lambda l ~from:"transl_exp0" in
+  let mk l = mk_lambda ~ty l ~from:"transl_exp0" ~env:e.exp_env in
+  let mk_u l = mk_lambda l ~from:"transl_exp0" ~env:e.exp_env in
   match e.exp_desc with
     Texp_ident(path, _, {val_kind = Val_prim p}) ->
       let public_send = p.prim_name = "%send" in
@@ -699,7 +701,7 @@ and transl_exp0 e =
                           mk_u @@ Lvar pos],
                         e.exp_loc))
       else
-        transl_primitive e.exp_loc (Some (Val e.exp_type)) p
+        transl_primitive e.exp_loc (Some (Val e.exp_type)) e.exp_env p
   | Texp_ident(path, _, {val_kind = Val_anc _}) ->
       raise(Error(e.exp_loc, Free_super_var))
   | Texp_ident(path, _, {val_kind = Val_reg | Val_self _}) ->
@@ -727,7 +729,7 @@ and transl_exp0 e =
       let wrap f =
         if args' = []
         then event_after e f
-        else event_after e (transl_apply f args' e.exp_loc)
+        else event_after e (transl_apply  e.exp_env f args' e.exp_loc ~ty:(Val e.exp_type))
       in
       let wrap0 f =
         if args' = [] then f else wrap f in
@@ -775,9 +777,9 @@ and transl_exp0 e =
             end
       end
   | Texp_apply(funct, oargs) ->
-      event_after e (transl_apply (transl_exp funct) oargs ~ty e.exp_loc)
+      event_after e (transl_apply e.exp_env (transl_exp funct) oargs ~ty e.exp_loc)
   | Texp_match(arg, pat_expr_list, exn_pat_expr_list, partial) ->
-    transl_match e arg pat_expr_list exn_pat_expr_list partial
+    transl_match e.exp_env e arg pat_expr_list exn_pat_expr_list partial
   | Texp_try(body, pat_expr_list) ->
       let id = name_pattern "exn" pat_expr_list in
       mk @@
@@ -830,7 +832,7 @@ and transl_exp0 e =
                   [mk @@ Lconst(Const_base(Const_int tag)); lam])
       end
   | Texp_record ((_, lbl1, _) :: _ as lbl_expr_list, opt_init_expr) ->
-      transl_record lbl1.lbl_all lbl1.lbl_repres lbl_expr_list opt_init_expr
+      transl_record e.exp_env lbl1.lbl_all lbl1.lbl_repres lbl_expr_list opt_init_expr
   | Texp_record ([], _) ->
       fatal_error "Translcore.transl_exp: bad Texp_record"
   | Texp_field(arg, _, lbl) ->
@@ -1048,8 +1050,8 @@ and transl_tupled_cases patl_expr_list =
   List.map (fun (patl, guard, expr) -> (patl, transl_guard guard expr))
     patl_expr_list
 
-and transl_apply lam sargs ?ty loc =
-  let mk l = mk_lambda ?ty ~from:"transl_apply" l in
+and transl_apply env lam sargs ?ty loc =
+  let mk l = mk_lambda ?ty ~from:"transl_apply" ~env l in
   let lapply funct args =
     match funct.lb_expr with
       Lsend(k, lmet, lobj, largs, loc) ->
@@ -1096,7 +1098,7 @@ and transl_apply lam sargs ?ty loc =
              argument. If we reuse the type of the function, the generated
              abstraction is not included in it. *)
           match build_apply handle
-                  ((mk_lambda ?ty:ty_arg ~from:"transl_apply" @@
+                  ((mk_lambda ?ty:ty_arg ~from:"transl_apply" ~env @@
                     Lvar id_arg, optional)::args')
                   l with
             { lb_expr = Lfunction(Curried, ids, lam) } ->
@@ -1128,7 +1130,7 @@ and transl_function loc untuplify_fn repr partial cases =
        Matching.for_function loc None
          (mk_lambda ~ty:(Val pat.pat_type) ~from:"transl_function" (Lvar param))
          [pat, body] partial)
-  | {c_lhs={pat_desc = Tpat_tuple pl; pat_type}} :: _ when untuplify_fn ->
+  | {c_lhs={pat_desc = Tpat_tuple pl; pat_type; pat_env }} :: _ when untuplify_fn ->
       begin try
         let size = List.length pl in
         let pats_expr_list =
@@ -1144,22 +1146,25 @@ and transl_function loc untuplify_fn repr partial cases =
         let param = name_pattern "param" cases in
         ((Curried, [param]),
          Matching.for_function loc repr
-           (mk_lambda ~ty:(Val pat_type) ~from:"transl_function" @@ (Lvar param))
+           (mk_lambda ~ty:(Val pat_type) ~from:"transl_function" ~env:pat_env @@
+            (Lvar param))
            (transl_cases cases) partial)
       end
-  | {c_lhs={pat_type}} :: _ ->
+  | {c_lhs={pat_type; pat_env}} :: _ ->
       (* we assume all the patterns have the same type, *)
       (* which is true without GATDs *)
       let param = name_pattern "param" cases in
       ((Curried, [param]),
        Matching.for_function loc repr
-         (mk_lambda ~ty:(Val pat_type) ~from:"transl_function" @@ Lvar param)
+         (mk_lambda ~ty:(Val pat_type) ~from:"transl_function" ~env:pat_env @@
+          Lvar param)
          (transl_cases cases) partial)
   | [] ->  (* Impossible due to typing? *)
       let param = name_pattern "param" cases in
       ((Curried, [param]),
        Matching.for_function loc repr
-         (mk_lambda ?ty:None ~from:"transl_function(no cases)" @@ Lvar param)
+         (mk_lambda ?ty:None ~from:"transl_function(no cases)" ~env:Env.empty @@
+          Lvar param)
          (transl_cases cases) partial)
 
 and transl_let rec_flag pat_expr_list body =
@@ -1189,16 +1194,17 @@ and transl_let rec_flag pat_expr_list body =
         lb_from = Some "transl_let" }
 
 and transl_setinstvar self var expr =
-  mk_lambda ~ty:(Val Predef.type_unit) ~from:"transl_setinstvar"@@ (* /!\   To Check *)
+  mk_lambda ~ty:(Val Predef.type_unit) ~from:"transl_setinstvar" ~env:expr.exp_env @@
+  (* /!\   To Check *)
   Lprim(Parraysetu
           (if maybe_pointer expr then Paddrarray else Pintarray),
         [self;
          transl_normal_path ?ty:(Some (Val expr.exp_type)) expr.exp_env var;
          transl_exp expr])
 
-and transl_record all_labels repres lbl_expr_list opt_init_expr =
+and transl_record env all_labels repres lbl_expr_list opt_init_expr =
   let size = Array.length all_labels in
-  let mk = mk_lambda ~ty:(Val all_labels.(0).lbl_res) ~from:"transl_record" in
+  let mk = mk_lambda ~ty:(Val all_labels.(0).lbl_res) ~from:"transl_record" ~env in
   (* Determine if there are "enough" new fields *)
   if 3 + 2 * List.length lbl_expr_list >= size
   then begin
@@ -1215,7 +1221,8 @@ and transl_record all_labels repres lbl_expr_list opt_init_expr =
               Record_regular -> Pfield i
             | Record_float -> Pfloatfield i in
           lv.(i) <-
-            mk_lambda ~ty:(Val all_labels.(i).lbl_arg) ~from:"transl_record" @@
+            mk_lambda ~ty:(Val all_labels.(i).lbl_arg)
+              ~from:"transl_record" ~env:init_expr.exp_env @@
             Lprim(access, [mk @@ Lvar init_id])
         done
     end;
@@ -1258,20 +1265,21 @@ and transl_record all_labels repres lbl_expr_list opt_init_expr =
         { cont with lb_expr = l; lb_from = Some "transl_record" } in
       as_cont @@
       Lsequence(as_cont @@
-                Lprim(upd, [mk_lambda ~ty:(Val lbl.lbl_arg) ~from:"transl_record" @@
-                            Lvar copy_id; transl_exp expr]), cont) in
+                Lprim(upd,
+                      [mk_lambda ~ty:(Val lbl.lbl_arg) ~from:"transl_record" ~env @@
+                       Lvar copy_id; transl_exp expr]), cont) in
     begin match opt_init_expr with
       None -> assert false
     | Some init_expr ->
         mk @@
         Llet(Strict, copy_id,
-             mk_lambda ~ty:(Val init_expr.exp_type) ~from:"transl_record" @@
+             mk_lambda ~ty:(Val init_expr.exp_type) ~from:"transl_record" ~env @@
              Lprim(Pduprecord (repres, size), [transl_exp init_expr]),
              List.fold_right update_field lbl_expr_list (mk @@ Lvar copy_id))
     end
   end
 
-and transl_match e arg pat_expr_list exn_pat_expr_list partial =
+and transl_match env e arg pat_expr_list exn_pat_expr_list partial =
   let id = name_pattern "exn" exn_pat_expr_list
   and cases = transl_cases pat_expr_list
   and exn_cases = transl_cases exn_pat_expr_list in
@@ -1283,7 +1291,7 @@ and transl_match e arg pat_expr_list exn_pat_expr_list partial =
        Ltrywith
          (as_arg handler ~from:"transl_match" @@
           Lstaticraise (static_exception_id, body), id,
-          Matching.for_trywith (as_exn ~from:"transl_match" @@ Lvar id) exn_cases),
+          Matching.for_trywith (as_exn ~from:"transl_match" ~env @@ Lvar id) exn_cases),
        (static_exception_id, val_ids),
        handler)
   in
@@ -1293,7 +1301,8 @@ and transl_match e arg pat_expr_list exn_pat_expr_list partial =
   | {exp_desc = Texp_tuple argl}, _ :: _ ->
     let val_ids = List.map (fun _ -> name_pattern "val" []) argl in
     let lvars = List.map2
-        (fun id exp -> mk_lambda ~ty:(Val exp.exp_type) ~from:"transl_match" @@
+        (fun id exp ->
+           mk_lambda ~ty:(Val exp.exp_type) ~from:"transl_match" ~env @@
           Lvar id)
         val_ids argl in
     static_catch (transl_list argl) val_ids
@@ -1304,7 +1313,7 @@ and transl_match e arg pat_expr_list exn_pat_expr_list partial =
     let val_id = name_pattern "val" pat_expr_list in
     static_catch [transl_exp arg] [val_id]
       (Matching.for_function e.exp_loc None
-         (mk_lambda ~ty:(Val arg.exp_type) ~from:"transl_match" @@
+         (mk_lambda ~ty:(Val arg.exp_type) ~from:"transl_match" ~env @@
           Lvar val_id) cases partial)
 
 
