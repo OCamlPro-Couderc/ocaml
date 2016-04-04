@@ -6,29 +6,37 @@ CMXS=$(CMOS:.cmo=.cmx)
 XCMXS=$(XCMOS:.cmo=.cmx)
 YCMXS=$(YCMOS:.cmo=.cmx)
 
+STDLIB = ../../../stdlib
+CAMLC = ../../../ocamlc.opt -I $(STDLIB)
+CAMLOPT = ../../../ocamlopt.opt -S -I $(STDLIB)
+CAMLRUN = ../../../byterun/ocamlrun
+FLAGS =	-g -no-alias-deps
+
 all:
-	ocamlc -c intf.mli
-	ocamlc -c -functor intf.cmi builder.ml
-	ocamlc -c -functor intf.cmi mod.ml
-	ocamlc -c x/res.ml
-	ocamlc -c -apply x/res.cmi builder.cmo
-	ocamlc -c -apply x/res.cmi mod.cmo
-	ocamlc -c y/arg.ml
-	ocamlc -c -apply y/arg.cmi builder.cmo
-	ocamlc -c -apply y/arg.cmi mod.cmo
-	ocamlc -o res.byte $(CMOS) $(XCMOS) $(YCMOS) test.ml
+	$(CAMLC) -c intf.mli
+	$(CAMLC) -c -functor intf.cmi builder.ml
+	$(CAMLC) -c -functor intf.cmi mod.ml
+	$(CAMLC) -c x/res.ml
+	$(CAMLC) -c -apply x/res.cmi builder.cmo
+	$(CAMLC) -c -apply x/res.cmi mod.cmo
+	$(CAMLC) -c y/arg.ml
+	$(CAMLC) -c -apply y/arg.cmi builder.cmo
+	$(CAMLC) -c -apply y/arg.cmi mod.cmo
+	$(CAMLC) -o res.byte $(CMOS) $(XCMOS) $(YCMOS) test.ml
+	$(CAMLRUN) ./res.byte
 
 opt:
-	ocamlopt -c -g intf.mli
-	ocamlopt -c -g -functor intf.cmi -dlambda builder.ml
-	ocamlopt -c -g -functor intf.cmi -dlambda mod.ml
-	ocamlopt -c -g x/res.ml
-	ocamlopt -c -g -apply x/res.cmi -dlambda builder.cmx
-	ocamlopt -c -g -apply x/res.cmi -dlambda mod.cmx
-	ocamlopt -c -g y/arg.ml
-	ocamlopt -c -g -apply y/arg.cmi builder.cmx
-	ocamlopt -c -g -apply y/arg.cmi mod.cmx
-	ocamlopt -o res.opt -g $(CMXS) $(XCMXS) $(YCMXS) test.ml
+	$(CAMLOPT)  -c -g intf.mli
+	$(CAMLOPT)  -c -g -functor intf.cmi -dlambda builder.ml
+	$(CAMLOPT)  -c -g -functor intf.cmi -dlambda mod.ml
+	$(CAMLOPT)  -c -g x/res.ml
+	$(CAMLOPT)  -c -g -apply x/res.cmi -dlambda builder.cmx
+	$(CAMLOPT)  -c -g -apply x/res.cmi -dlambda mod.cmx
+	$(CAMLOPT)  -c -g y/arg.ml
+	$(CAMLOPT)  -c -g -apply y/arg.cmi builder.cmx
+	$(CAMLOPT)  -c -g -apply y/arg.cmi mod.cmx
+	$(CAMLOPT)  -o res.opt -g $(CMXS) $(XCMXS) $(YCMXS) test.ml
+	./res.opt
 
 clean:
 	rm -f *.cm* */*.cm* *.opt *.byte *.o */*.o *~

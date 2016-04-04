@@ -72,8 +72,10 @@ SRCS = $(X_IMPL_SRC) $(X_INTF_SRC) $(Y_IMPL_SRC) $(Y_INTF_SRC) \
 	$(P1_IMPL_SRC) $(P1_INTF_SRC) $(P2_IMPL_SRC) $(P2_INTF_SRC) \
 	$(SRC_EXEC)
 
-CAMLC = ../../ocamlc.opt
-CAMLOPT = ../../ocamlopt.opt -S
+STDLIB = ../../stdlib
+CAMLC = ../../ocamlc.opt -I $(STDLIB)
+CAMLOPT = ../../ocamlopt.opt -S -I $(STDLIB)
+CAMLRUN = ../../byterun/ocamlrun
 FLAGS =	-g -no-alias-deps
 
 %.cmo: %.ml
@@ -94,7 +96,7 @@ opt: $(CMIS) $(NAT_EXEC)
 test-byte: byte
 	@for exec in $(BYTE_EXEC); do \
 		echo "Executing $$exec"; \
-		./$$exec; \
+		$(CAMLRUN) ./$$exec; \
 	done
 
 test-opt: opt
