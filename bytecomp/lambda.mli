@@ -226,7 +226,19 @@ type function_attribute = {
   is_a_functor: bool;
 }
 
+(* Representation of possible kind of Typedtree node that has a value at runtime. *)
+type typedtree_kind =
+    Val of Types.type_expr
+  | Module of Types.module_type
+  | Ext of Types.extension_constructor
+  | Class of Types.class_type
+
 type lambda =
+  { lb_desc: lambda_desc;
+    lb_typedtree_kind: typedtree_kind option;
+  }
+
+and lambda_desc =
     Lvar of Ident.t
   | Lconst of structured_constant
   | Lapply of lambda_apply
@@ -268,10 +280,13 @@ and lambda_apply =
 
 and lambda_switch =
   { sw_numconsts: int;                  (* Number of integer cases *)
-    sw_consts: (int * lambda) list;     (* Integer cases *)
+    sw_consts: lambda_case list;     (* Integer cases *)
     sw_numblocks: int;                  (* Number of tag block cases *)
-    sw_blocks: (int * lambda) list;     (* Tag block cases *)
+    sw_blocks: lambda_case list;     (* Tag block cases *)
     sw_failaction : lambda option}      (* Action to take if failure *)
+
+and lambda_case = int * typedtree_kind option * lambda
+
 and lambda_event =
   { lev_loc: Location.t;
     lev_kind: lambda_event_kind;
@@ -301,6 +316,57 @@ type program =
      Initialize_symbol(module_name, 0,
        [getfield 0; ...; getfield (main_module_block_size - 1)])
 *)
+
+(* Creates an lambda node from a description, with no propagated type. *)
+val mk_lambda: ?kind:typedtree_kind -> lambda_desc -> lambda
+  
+(* Utility functions to generate lambda with builtin types *)
+val as_int: lambda_desc -> lambda
+val as_char: lambda_desc -> lambda
+val as_string: lambda_desc -> lambda
+val as_bytes: lambda_desc -> lambda
+val as_float: lambda_desc -> lambda
+val as_bool: lambda_desc -> lambda
+val as_unit: lambda_desc -> lambda
+val as_exn: lambda_desc -> lambda
+val as_array: Types.type_expr -> lambda_desc -> lambda
+val as_list: Types.type_expr -> lambda_desc -> lambda
+val as_option: Types.type_expr -> lambda_desc -> lambda
+val as_nativeint: lambda_desc -> lambda
+val as_int32: lambda_desc -> lambda
+val as_int64: lambda_desc -> lambda
+val as_lazy_t: Types.type_expr -> lambda_desc -> lambda
+
+(* Returns a lambda with the same type as the one given *) 
+val as_arg: lambda -> lambda_desc -> lambda
+
+(* The following functions returns a lambda whose type is the type argument of
+   a type constructor, if the lambda's type is a type_constructor. *)
+val as_constr_arg:
+  lambda
+  -> (Path.t -> Types.type_expr list -> Types.type_expr)
+  -> lambda_desc -> lambda
+val as_constr_arg1:
+  lambda
+  -> (Path.t -> Types.type_expr -> Types.type_expr)
+  -> lambda_desc -> lambda
+val as_constr_arg2: 
+  lambda
+  -> (Path.t -> Types.type_expr -> Types.type_expr -> Types.type_expr)
+  -> lambda_desc -> lambda
+val as_constr_arg3:
+  lambda
+  -> (Path.t -> Types.type_expr -> Types.type_expr -> Types.type_expr ->
+      Types.type_expr)
+  -> lambda_desc -> lambda
+val as_constr_arg4:
+  lambda
+  -> (Path.t -> Types.type_expr -> Types.type_expr -> Types.type_expr ->
+      Types.type_expr -> Types.type_expr)
+  -> lambda_desc -> lambda
+
+val as_tuple_arg:
+  lambda -> int -> lambda_desc -> lambda
 
 (* Sharing key *)
 val make_key: lambda -> lambda option
@@ -347,6 +413,7 @@ val is_guarded: lambda -> bool
 val patch_guarded : lambda -> lambda -> lambda
 
 val raise_kind: raise_kind -> string
+val loc_kind: typedtree_kind (* Val (string * int * int) *)
 val lam_of_loc : loc_kind -> Location.t -> lambda
 
 val reset: unit -> unit
