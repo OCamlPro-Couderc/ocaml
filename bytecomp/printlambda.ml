@@ -434,7 +434,8 @@ let apply_specialised_attribute ppf = function
   | Always_specialise -> fprintf ppf " always_specialise"
   | Never_specialise -> fprintf ppf " never_specialise"
 
-let rec lam ppf = function
+let rec lam ppf l =
+  match l.lb_desc with
   | Lvar id ->
       Ident.print ppf id
   | Lconst cst ->
@@ -467,7 +468,7 @@ let rec lam ppf = function
           Alias -> "a" | Strict -> "" | StrictOpt -> "o" | Variable -> "v"
       in
       let rec letbody = function
-        | Llet(str, k, id, arg, body) ->
+        | { lb_desc = Llet(str, k, id, arg, body) } ->
             fprintf ppf "@ @[<2>%a =%s%s@ %a@]"
               Ident.print id (kind str) (value_kind k) lam arg;
             letbody body
@@ -585,7 +586,7 @@ let rec lam ppf = function
       fprintf ppf "@[<2>(ifused@ %a@ %a)@]" Ident.print id lam expr
 
 and sequence ppf = function
-  | Lsequence(l1, l2) ->
+  | { lb_desc = Lsequence(l1, l2) } ->
       fprintf ppf "%a@ %a" sequence l1 sequence l2
   | l ->
       lam ppf l

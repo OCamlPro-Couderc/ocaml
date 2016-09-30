@@ -261,12 +261,10 @@ and lambda_apply =
 
 and lambda_switch =
   { sw_numconsts: int;
-    sw_consts: lambda_case list;
+    sw_consts: (int * lambda) list;
     sw_numblocks: int;
-    sw_blocks: lambda_case list;
+    sw_blocks: (int * lambda) list;
     sw_failaction : lambda option}
-
-and lambda_case = int * typedtree_kind option * lambda
 
 and lambda_event =
   { lev_loc: Location.t;
@@ -449,8 +447,8 @@ let make_key e =
 
   and tr_sw env sw =
     { sw with
-      sw_consts = List.map (fun (i,_,e) -> i,None,tr_rec env e) sw.sw_consts ;
-      sw_blocks = List.map (fun (i,_,e) -> i,None,tr_rec env e) sw.sw_blocks ;
+      sw_consts = List.map (fun (i,e) -> i,tr_rec env e) sw.sw_consts ;
+      sw_blocks = List.map (fun (i,e) -> i,tr_rec env e) sw.sw_blocks ;
       sw_failaction = tr_opt env sw.sw_failaction ; }
 
   and tr_opt env = function
@@ -503,8 +501,8 @@ let iter f l =
       List.iter f args
   | Lswitch(arg, sw) ->
       f arg;
-      List.iter (fun (_key, _, case) -> f case) sw.sw_consts;
-      List.iter (fun (_key, _, case) -> f case) sw.sw_blocks;
+      List.iter (fun (_key, case) -> f case) sw.sw_consts;
+      List.iter (fun (_key, case) -> f case) sw.sw_blocks;
       iter_opt f sw.sw_failaction
   | Lstringswitch (arg,cases,default,_) ->
       f arg ;
@@ -684,7 +682,7 @@ let subst_lambda s lam =
   | Levent (lam, evt) -> as_arg lam @@ Levent (subst lam, evt)
   | Lifused (v, e) -> as_arg lam @@ Lifused (v, subst e)
   and subst_decl (id, exp) = (id, subst exp)
-  and subst_case (key, kind, case) = (key, kind, subst case)
+  and subst_case (key, case) = (key, subst case)
   and subst_strcase (key, case) = (key, subst case)
   and subst_opt = function
     | None -> None
@@ -724,10 +722,10 @@ let rec map f lam =
         Lswitch (map f e,
           { sw_numconsts = sw.sw_numconsts;
             sw_consts =
-              List.map (fun (n, k, e) -> (n, k, map f e)) sw.sw_consts;
+              List.map (fun (n, e) -> (n, map f e)) sw.sw_consts;
             sw_numblocks = sw.sw_numblocks;
             sw_blocks =
-              List.map (fun (n, k, e) -> (n, k, map f e)) sw.sw_blocks;
+              List.map (fun (n, e) -> (n, map f e)) sw.sw_blocks;
             sw_failaction = Misc.may_map (map f) sw.sw_failaction;
           })
     | Lstringswitch (e, sw, default, loc) ->

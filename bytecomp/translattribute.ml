@@ -144,7 +144,7 @@ let get_specialise_attribute l =
 let add_inline_attribute expr loc attributes =
   match expr, get_inline_attribute attributes with
   | expr, Default_inline -> expr
-  | Lfunction({ attr } as funct), inline_attribute ->
+  | { lb_desc = Lfunction({ attr } as funct)}, inline_attribute ->
       begin match attr.inline with
       | Default_inline -> ()
       | Always_inline | Never_inline | Unroll _ ->
@@ -152,7 +152,7 @@ let add_inline_attribute expr loc attributes =
             (Warnings.Duplicated_attribute "inline")
       end;
       let attr = { attr with inline = inline_attribute } in
-      Lfunction { funct with attr = attr }
+      mk_lambda @@ Lfunction { funct with attr = attr }
   | expr, (Always_inline | Never_inline | Unroll _) ->
       Location.prerr_warning loc
         (Warnings.Misplaced_attribute "inline");
@@ -161,7 +161,7 @@ let add_inline_attribute expr loc attributes =
 let add_specialise_attribute expr loc attributes =
   match expr, get_specialise_attribute attributes with
   | expr, Default_specialise -> expr
-  | Lfunction({ attr } as funct), specialise_attribute ->
+  | { lb_desc = Lfunction({ attr } as funct)}, specialise_attribute ->
       begin match attr.specialise with
       | Default_specialise -> ()
       | Always_specialise | Never_specialise ->
@@ -169,7 +169,7 @@ let add_specialise_attribute expr loc attributes =
             (Warnings.Duplicated_attribute "specialise")
       end;
       let attr = { attr with specialise = specialise_attribute } in
-      Lfunction { funct with attr }
+      mk_lambda @@ Lfunction { funct with attr }
   | expr, (Always_specialise | Never_specialise) ->
       Location.prerr_warning loc
         (Warnings.Misplaced_attribute "specialise");
