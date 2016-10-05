@@ -30,6 +30,8 @@ type t = {
   mutable imported_symbols : Symbol.Set.t;
 }
 
+let mk_simpl_lambda l = Lambda.{ lb_desc = l; lb_typedtree_kind = None }
+
 let add_default_argument_wrappers lam =
   (* CR-someday mshinwell: Temporary hack to mark default argument wrappers
      as stubs.  Other possibilities:
@@ -40,40 +42,46 @@ let add_default_argument_wrappers lam =
       Primitive.simple ~name:Closure_conversion_aux.stub_hack_prim_name
         ~arity:1 ~alloc:false
     in
-    Lprim (Pccall stub_prim, [body], Location.none)
+    mk_simpl_lambda @@ Lambda.Lprim (Pccall stub_prim, [body], Location.none)
   in
   let defs_are_all_functions (defs : (_ * Lambda.lambda) list) =
-    List.for_all (function (_, Lambda.Lfunction _) -> true | _ -> false) defs
+    List.for_all
+      (function (_, { Lambda.lb_desc = Lfunction _}) -> true | _ -> false) defs
   in
   let f (lam : Lambda.lambda) : Lambda.lambda =
-    match lam with
+    match lam.lb_desc with
     | Llet (( Strict | Alias | StrictOpt), _k, id,
-        Lfunction {kind; params; body = fbody; attr; loc}, body) ->
+            { lb_desc =
+                Lfunction {kind; params; body = fbody; attr; loc}}, body) ->
       begin match
         Simplif.split_default_wrapper id kind params fbody attr loc
           ~create_wrapper_body:stubify
       with
-      | [fun_id, def] -> Llet (Alias, Pgenval, fun_id, def, body)
+      | [fun_id, def] ->
+          mk_simpl_lambda @@ Lambda.Llet (Alias, Pgenval, fun_id, def, body)
       | [fun_id, def; inner_fun_id, def_inner] ->
-        Llet (Alias, Pgenval, inner_fun_id, def_inner,
-              Llet (Alias, Pgenval, fun_id, def, body))
+        mk_simpl_lambda @@  
+        Lambda.Llet (Alias, Pgenval, inner_fun_id, def_inner,
+                     mk_simpl_lambda @@
+                     Lambda.Llet (Alias, Pgenval, fun_id, def, body))
       | _ -> assert false
       end
-    | Lletrec (defs, body) as lam ->
+    | Lletrec (defs, body) ->
       if defs_are_all_functions defs then
         let defs =
           List.flatten
             (List.map
                (function
-                 | (id, Lambda.Lfunction {kind; params; body; attr; loc}) ->
+                 | (id, { Lambda.lb_desc =
+                                  Lfunction {kind; params; body; attr; loc}}) ->
                    Simplif.split_default_wrapper id kind params body attr loc
                      ~create_wrapper_body:stubify
                  | _ -> assert false)
                defs)
         in
-        Lletrec (defs, body)
+        mk_simpl_lambda @@ Lambda.Lletrec (defs, body)
       else lam
-    | lam -> lam
+    | _ -> lam
   in
   Lambda.map f lam
 
@@ -115,12 +123,14 @@ let rec eliminate_const_block (const : Lambda.structured_constant)
   match const with
   | Const_block (tag, consts) ->
     (* CR-soon mshinwell for lwhite: fix location *)
-    Lprim (Pmakeblock (tag, Asttypes.Immutable, None),
-      List.map eliminate_const_block consts, Location.none)
+      mk_simpl_lambda @@
+      Lambda.Lprim (Pmakeblock (tag, Asttypes.Immutable, None),
+                    List.map eliminate_const_block consts, Location.none)
   | Const_base _
   | Const_pointer _
   | Const_immstring _
-  | Const_float_array _ -> Lconst const
+  | Const_float_array _ ->
+    mk_simpl_lambda @@ Lambda.Lconst const
 
 let rec close_const t env (const : Lambda.structured_constant)
       : Flambda.named * string =
@@ -145,7 +155,7 @@ let rec close_const t env (const : Lambda.structured_constant)
     Expr (close t env (eliminate_const_block const)), "const_block"
 
 and close t env (lam : Lambda.lambda) : Flambda.t =
-  match lam with
+  match lam.lb_desc with
   | Lvar id ->
     begin match Env.find_var_exn env id with
     | var -> Var var
@@ -234,7 +244,7 @@ and close t env (lam : Lambda.lambda) : Flambda.t =
          will be named after the corresponding identifier in the [let rec]. *)
       List.map (function
           | (let_rec_ident,
-             Lambda.Lfunction { kind; params; body; attr; loc }) ->
+             { Lambda.lb_desc = Lfunction { kind; params; body; attr; loc }}) ->
             let closure_bound_var =
               Variable.create_with_same_name_as_ident let_rec_ident
             in
@@ -382,7 +392,7 @@ and close t env (lam : Lambda.lambda) : Flambda.t =
         ap_specialised = Default_specialise;
       }
     in
-    close t env (Lambda.Lapply apply)
+    close t env (mk_simpl_lambda @@ Lambda.Lapply apply)
   | Lprim (Praise kind, [arg], loc) ->
     let arg_var = Variable.create "raise_arg" in
     let dbg = Debuginfo.from_location loc in
@@ -390,11 +400,12 @@ and close t env (lam : Lambda.lambda) : Flambda.t =
       (name_expr
         (Prim (Praise kind, [arg_var], dbg))
         ~name:"raise")
-  | Lprim (Pfield _, [Lprim (Pgetglobal id, [],_)], _)
+  | Lprim (Pfield _, [{ lb_desc = Lprim (Pgetglobal id, [],_)}], _)
       when Ident.same id t.current_unit_id ->
     Misc.fatal_errorf "[Pfield (Pgetglobal ...)] for the current compilation \
         unit is forbidden upon entry to the middle end"
-  | Lprim (Psetfield (_, _, _), [Lprim (Pgetglobal _, [], _); _], _) ->
+  | Lprim (Psetfield (_, _, _),
+           [{ lb_desc = Lprim (Pgetglobal _, [], _)}; _], _) ->
     Misc.fatal_errorf "[Psetfield (Pgetglobal ...)] is \
         forbidden upon entry to the middle end"
   | Lprim (Pgetglobal id, [], _) when Ident.is_predef_exn id ->
@@ -580,7 +591,7 @@ and close_list t sb l = List.map (close t sb) l
 and close_let_bound_expression t ?let_rec_ident let_bound_var env
       (lam : Lambda.lambda) : Flambda.named =
   match lam with
-  | Lfunction { kind; params; body; attr; loc; } ->
+  | { lb_desc = Lfunction { kind; params; body; attr; loc; }} ->
     (* Ensure that [let] and [let rec]-bound functions have appropriate
        names. *)
     let closure_bound_var = Variable.rename let_bound_var in

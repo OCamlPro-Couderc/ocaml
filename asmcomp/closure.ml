@@ -680,7 +680,8 @@ let bind_params loc fpc params args body =
 (* Check if a lambda term is ``pure'',
    that is without side-effects *and* not containing function definitions *)
 
-let rec is_pure = function
+let rec is_pure l =
+  match l.lb_desc with
     Lvar _ -> true
   | Lconst _ -> true
   | Lprim((Psetglobal _ | Psetfield _ | Psetfloatfield _ | Pduprecord _ |
@@ -780,7 +781,8 @@ let close_approx_var fenv cenv id =
 let close_var fenv cenv id =
   let (ulam, _app) = close_approx_var fenv cenv id in ulam
 
-let rec close fenv cenv = function
+let rec close fenv cenv lam =
+  match lam.lb_desc with
     Lvar id ->
       close_approx_var fenv cenv id
   | Lconst cst ->
@@ -815,8 +817,8 @@ let rec close fenv cenv = function
         | Const_base(Const_nativeint x) -> str (Uconst_nativeint x)
       in
       make_const (transl cst)
-  | Lfunction _ as funct ->
-      close_one_function fenv cenv (Ident.create "fun") funct
+  | Lfunction _ ->
+      close_one_function fenv cenv (Ident.create "fun") lam
 
     (* We convert [f a] to [let a' = a in fun b c -> f a' b c]
        when fun_arity > nargs *)
@@ -851,14 +853,16 @@ let rec close fenv cenv = function
                 (Ulet (Immutable, Pgenval, arg1, arg2, body))
         in
         let internal_args =
-          (List.map (fun (arg1, _arg2) -> Lvar arg1) first_args)
-          @ (List.map (fun arg -> Lvar arg ) final_args)
+          (List.map (fun (arg1, _arg2) -> mk_lambda @@ Lvar arg1) first_args)
+          @ (List.map (fun arg -> mk_lambda @@ Lvar arg ) final_args)
         in
         let (new_fun, approx) = close fenv cenv
-          (Lfunction{
+            (mk_lambda @@
+             Lfunction{
                kind = Curried;
                params = final_args;
-               body = Lapply{ap_should_be_tailcall=false;
+               body = mk_lambda @@
+                      Lapply{ap_should_be_tailcall=false;
                              ap_loc=loc;
                              ap_func=funct;
                              ap_args=internal_args;
@@ -906,7 +910,7 @@ let rec close fenv cenv = function
       end
   | Lletrec(defs, body) ->
       if List.for_all
-           (function (_id, Lfunction _) -> true | _ -> false)
+           (function (_id, {lb_desc = Lfunction _}) -> true | _ -> false)
            defs
       then begin
         (* Simple case: only function definitions *)
@@ -939,13 +943,14 @@ let rec close fenv cenv = function
       end
   | Lprim(Pdirapply,[funct;arg], loc)
   | Lprim(Prevapply,[arg;funct], loc) ->
-      close fenv cenv (Lapply{ap_should_be_tailcall=false;
+      close fenv cenv
+         (mk_lambda @@ Lapply{ap_should_be_tailcall=false;
                               ap_loc=loc;
                               ap_func=funct;
                               ap_args=[arg];
                               ap_inlined=Default_inline;
                               ap_specialised=Default_specialise})
-  | Lprim(Pgetglobal id, [], loc) as lam ->
+  | Lprim(Pgetglobal id, [], loc) ->
       let dbg = Debuginfo.from_location loc in
       check_constant_result lam
                             (getglobal dbg id)
@@ -955,7 +960,8 @@ let rec close fenv cenv = function
       let dbg = Debuginfo.from_location loc in
       check_constant_result lam (Uprim(Pfield n, [ulam], dbg))
                             (field_approx n approx)
-  | Lprim(Psetfield(n, is_ptr, init), [Lprim(Pgetglobal id, [], _); lam], loc)->
+  | Lprim(Psetfield(n, is_ptr, init),
+          [{ lb_desc = Lprim(Pgetglobal id, [], _)}; lam], loc)->
       let (ulam, approx) = close fenv cenv lam in
       if approx <> Value_unknown then
         (!global_approx).(n) <- approx;
@@ -989,14 +995,14 @@ let rec close fenv cenv = function
 (* NB: failaction might get copied, thus it should be some Lstaticraise *)
       let fail = sw.sw_failaction in
       begin match fail with
-      | None|Some (Lstaticraise (_,_)) -> fn fail
+      | None|Some { lb_desc = Lstaticraise (_,_)} -> fn fail
       | Some lamfail ->
           if
             (sw.sw_numconsts - List.length sw.sw_consts) +
             (sw.sw_numblocks - List.length sw.sw_blocks) > 1
           then
             let i = next_raise_count () in
-            let ubody,_ = fn (Some (Lstaticraise (i,[])))
+            let ubody,_ = fn (Some (mk_lambda @@ Lstaticraise (i,[])))
             and uhandler,_ = close fenv cenv lamfail in
             Ucatch (i,[],ubody,uhandler),Value_unknown
           else fn fail
@@ -1070,26 +1076,26 @@ and close_list_approx fenv cenv = function
       (ulam :: ulams, approx :: approxs)
 
 and close_named fenv cenv id = function
-    Lfunction _ as funct ->
+    { lb_desc = Lfunction _ } as funct ->
       close_one_function fenv cenv id funct
   | lam ->
       close fenv cenv lam
 
 (* Build a shared closure for a set of mutually recursive functions *)
 
-and close_functions fenv cenv fun_defs =
+and close_functions fenv cenv (fun_defs : ('a * lambda) list) =
   let fun_defs =
     List.flatten
       (List.map
          (function
-           | (id, Lfunction{kind; params; body; attr; loc}) ->
+           | (id, {lb_desc = Lfunction{kind; params; body; attr; loc}}) ->
                Simplif.split_default_wrapper id kind params body attr loc
            | _ -> assert false
          )
          fun_defs)
   in
   let inline_attribute = match fun_defs with
-    | [_, Lfunction{attr = { inline }}] -> inline
+    | [_, {lb_desc = Lfunction{attr = { inline }}}] -> inline
     | _ -> Default_inline (* recursive functions can't be inlined *)
   in
 
@@ -1099,14 +1105,15 @@ and close_functions fenv cenv fun_defs =
     !function_nesting_depth < excessive_function_nesting_depth in
   (* Determine the free variables of the functions *)
   let fv =
-    IdentSet.elements (free_variables (Lletrec(fun_defs, lambda_unit))) in
+    IdentSet.elements
+      (free_variables (mk_lambda @@ Lletrec(fun_defs, lambda_unit))) in
   (* Build the function descriptors for the functions.
      Initially all functions are assumed not to need their environment
      parameter. *)
   let uncurried_defs =
     List.map
       (function
-          (id, Lfunction{kind; params; body; loc}) ->
+          (id, {lb_desc = Lfunction{kind; params; body; loc}}) ->
             let label = Compilenv.make_symbol (Some (Ident.unique_name id)) in
             let arity = List.length params in
             let fundesc =
@@ -1216,7 +1223,7 @@ and close_functions fenv cenv fun_defs =
 
 (* Same, for one non-recursive function *)
 
-and close_one_function fenv cenv id funct =
+and close_one_function fenv cenv id (funct : Lambda.lambda) =
   match close_functions fenv cenv [id, funct] with
   | (clos, (i, _, approx) :: _) when id = i -> (clos, approx)
   | _ -> fatal_error "Closure.close_one_function"
@@ -1249,7 +1256,8 @@ and close_switch fenv cenv cases num_keys default =
   let actions =
     Array.map
       (function
-        | Single lam|Shared (Lstaticraise (_,[]) as lam) ->
+        | Single lam
+        | Shared ({lb_desc = Lstaticraise (_,[])} as lam) ->
             let ulam,_ = close fenv cenv lam in
             ulam
         | Shared lam ->
