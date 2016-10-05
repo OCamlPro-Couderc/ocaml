@@ -227,15 +227,17 @@ type function_attribute = {
 }
 
 (* Representation of possible kind of Typedtree node that has a value at runtime. *)
-type typedtree_kind =
+type item_kind =
     Val of Types.type_expr
   | Module of Types.module_type
   | Ext of Types.extension_constructor
   | Class of Types.class_type
 
+type propagated_info = Env.summary * item_kind
+
 type lambda =
   { lb_desc: lambda_desc;
-    lb_typedtree_kind: typedtree_kind option;
+    lb_propagated: propagated_info option;
   }
 
 and lambda_desc =
@@ -316,7 +318,7 @@ type program =
 *)
 
 (* Creates an lambda node from a description, with no propagated type. *)
-val mk_lambda: ?kind:typedtree_kind -> lambda_desc -> lambda
+val mk_lambda: ?prop:propagated_info -> lambda_desc -> lambda
   
 (* Utility functions to generate lambda with builtin types *)
 val as_int: lambda_desc -> lambda
@@ -411,7 +413,7 @@ val is_guarded: lambda -> bool
 val patch_guarded : lambda -> lambda -> lambda
 
 val raise_kind: raise_kind -> string
-val loc_kind: typedtree_kind (* Val (string * int * int) *)
+val loc_kind: item_kind (* Val (string * int * int) *)
 val lam_of_loc : loc_kind -> Location.t -> lambda
 
 val reset: unit -> unit

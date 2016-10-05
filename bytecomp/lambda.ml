@@ -210,15 +210,17 @@ type function_attribute = {
   is_a_functor: bool;
 }
 
-type typedtree_kind =
+type item_kind =
     Val of Types.type_expr
   | Module of Types.module_type
   | Ext of Types.extension_constructor
   | Class of Types.class_type
 
+type propagated_info = Env.summary * item_kind
+  
 type lambda =
   { lb_desc : lambda_desc;
-    lb_typedtree_kind : typedtree_kind option;
+    lb_propagated : propagated_info option;
   }
 
 and lambda_desc =
@@ -284,8 +286,8 @@ type program =
     required_globals : Ident.Set.t;
     code : lambda }
 
-let mk_lambda ?kind l =
-  { lb_desc = l; lb_typedtree_kind = kind }
+let mk_lambda ?prop l =
+  { lb_desc = l; lb_propagated = prop }
 
 let const_unit = Const_pointer 0
 
@@ -299,40 +301,40 @@ let default_function_attribute = {
 
 (* Helpers to build lambda nodes *)
 
-let as_int = mk_lambda ~kind:(Val Predef.type_int)
-let as_char = mk_lambda ~kind:(Val Predef.type_char)
-let as_string = mk_lambda ~kind:(Val Predef.type_string)
-let as_bytes = mk_lambda ~kind:(Val Predef.type_bytes)
-let as_float = mk_lambda ~kind:(Val Predef.type_float)
-let as_bool = mk_lambda ~kind:(Val Predef.type_bool)
-let as_unit = mk_lambda ~kind:(Val Predef.type_unit)
-let as_exn = mk_lambda ~kind:(Val Predef.type_exn)
+let as_int = mk_lambda ~prop:(Env.Env_empty, Val Predef.type_int)
+let as_char = mk_lambda ~prop:(Env.Env_empty, Val Predef.type_char)
+let as_string = mk_lambda ~prop:(Env.Env_empty, Val Predef.type_string)
+let as_bytes = mk_lambda ~prop:(Env.Env_empty, Val Predef.type_bytes)
+let as_float = mk_lambda ~prop:(Env.Env_empty, Val Predef.type_float)
+let as_bool = mk_lambda ~prop:(Env.Env_empty, Val Predef.type_bool)
+let as_unit = mk_lambda ~prop:(Env.Env_empty, Val Predef.type_unit)
+let as_exn = mk_lambda ~prop:(Env.Env_empty, Val Predef.type_exn)
 let as_array ty l =
-  mk_lambda ~kind:(Val (Predef.type_array ty)) l
+  mk_lambda ~prop:(Env.Env_empty, Val (Predef.type_array ty)) l
 let as_list ty l =
-  mk_lambda ~kind:(Val (Predef.type_list ty)) l
+  mk_lambda ~prop:(Env.Env_empty, Val (Predef.type_list ty)) l
 let as_option ty l =
-  mk_lambda ~kind:(Val (Predef.type_option ty)) l
-let as_nativeint = mk_lambda ~kind:(Val Predef.type_nativeint)
-let as_int32 = mk_lambda ~kind:(Val Predef.type_int32)
-let as_int64 = mk_lambda ~kind:(Val Predef.type_int64)
+  mk_lambda ~prop:(Env.Env_empty, Val (Predef.type_option ty)) l
+let as_nativeint = mk_lambda ~prop:(Env.Env_empty, Val Predef.type_nativeint)
+let as_int32 = mk_lambda ~prop:(Env.Env_empty, Val Predef.type_int32)
+let as_int64 = mk_lambda ~prop:(Env.Env_empty, Val Predef.type_int64)
 let as_lazy_t ty l =
-  mk_lambda ~kind:(Val (Predef.type_lazy_t ty)) l
+  mk_lambda ~prop:(Env.Env_empty, Val (Predef.type_lazy_t ty)) l
 
 let as_arg arg l =
   { arg with lb_desc = l }
 
 let as_constr_arg arg extract l =
-  let kind = match arg.lb_typedtree_kind with
-      Some (Val ty) ->
+  let prop = match arg.lb_propagated with
+      Some (env, Val ty) ->
         begin
           match Btype.repr ty with
             { Types.desc = Types.Tconstr (p, tys, _) } ->
-              (try Some (Val (extract p tys)) with _ -> None)
+              (try Some (env, Val (extract p tys)) with _ -> None)
           | _ -> None
         end 
     | _ -> None in
-  { lb_desc = l; lb_typedtree_kind = kind }
+  { lb_desc = l; lb_propagated = prop }
 
 let as_constr_arg1 arg extract l =
   as_constr_arg arg (fun p tys ->
@@ -353,11 +355,11 @@ let as_constr_arg4 arg extract l =
                    | _ -> raise Not_found) l
 
 let as_tuple_arg arg pos l =
-  let kind = match arg.lb_typedtree_kind with
-      Some (Val { Types.desc = Types.Ttuple tys }) ->
-        (try Some (Val (List.nth tys pos)) with Not_found -> None)
+  let prop = match arg.lb_propagated with
+      Some (env, Val { Types.desc = Types.Ttuple tys }) ->
+        (try Some (env, Val (List.nth tys pos)) with Not_found -> None)
     | _ -> None in
-  { lb_desc = l; lb_typedtree_kind = kind }
+  { lb_desc = l; lb_propagated = prop }
 
 (* Build sharing keys *)
 (*
@@ -374,7 +376,7 @@ let make_key e =
   and make_key = Ident.make_key_generator () in
   (* make_key is used for normalizing let-bound variables *)
   let rec tr_rec env e : lambda =
-    let e = { e with lb_typedtree_kind = None } in
+    let e = { e with lb_propagated = None } in
     incr count ;
     if !count > max_raw then raise Not_simple ; (* Too big ! *)
     match e.lb_desc with
@@ -804,7 +806,7 @@ let lam_of_loc kind loc =
       loc_start.Lexing.pos_cnum + cnum in
   match kind with
   | Loc_POS ->
-    mk_lambda ~kind:loc_kind @@
+    mk_lambda ~prop:(Env.Env_empty, loc_kind) @@
     Lconst (Const_block (0, [
           Const_immstring file;
           Const_base (Const_int lnum);

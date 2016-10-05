@@ -30,7 +30,7 @@ type t = {
   mutable imported_symbols : Symbol.Set.t;
 }
 
-let mk_simpl_lambda l = Lambda.{ lb_desc = l; lb_typedtree_kind = None }
+let mk_simpl_lambda l = Lambda.{ lb_desc = l; lb_propagated = None }
 
 let add_default_argument_wrappers lam =
   (* CR-someday mshinwell: Temporary hack to mark default argument wrappers
