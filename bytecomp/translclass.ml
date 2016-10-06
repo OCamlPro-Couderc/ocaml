@@ -212,7 +212,7 @@ let rec build_object_init cl_table (obj:lambda) params inh_init obj_init cl =
       let (inh_init, obj_init) =
         build_object_init cl_table obj params inh_init obj_init cl
       in
-      (inh_init, transl_apply obj_init oexprs Location.none)
+      (inh_init, transl_apply None obj_init oexprs Location.none)
   | Tcl_let (rec_flag, defs, vals, cl) ->
       let vals = List.map (fun (id, _, e) -> id,e) vals in
       let (inh_init, obj_init) =
@@ -491,7 +491,7 @@ let rec transl_class_rebind obj_init cl vf =
        | rem -> build [] rem)
   | Tcl_apply (cl, oexprs) ->
       let path, obj_init = transl_class_rebind obj_init cl vf in
-      (path, transl_apply obj_init oexprs Location.none)
+      (path, transl_apply None obj_init oexprs Location.none)
   | Tcl_let (rec_flag, defs, _vals, cl) ->
       let path, obj_init = transl_class_rebind obj_init cl vf in
       (path, Translcore.transl_let rec_flag defs obj_init)

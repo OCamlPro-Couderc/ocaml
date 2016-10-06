@@ -59,7 +59,13 @@ let transl_extension_constructor env path ext =
   let loc = ext.ext_loc in
   match ext.ext_kind with
     Text_decl _ ->
-      mk_lambda @@ Lprim (Pmakeblock (Obj.object_tag, Immutable, None),
+      mk_lambda ~prop:(Env.summary env, Ext ext.ext_type) @@
+      Lprim (Pmakeblock (Obj.object_tag, Immutable, None),
+             (* We consider only the blog itself to have the propagated kind of
+                an extension, the tag and identifier themselves are not
+                propagated values. We could give them string and int type, but
+                that would not really make sense as they do not corresponds to
+                values from the surface language. *)
         [mk_lambda @@ Lconst (Const_base (Const_string (name, None)));
          mk_lambda @@
          Lprim (prim_fresh_oo_id,
@@ -431,6 +437,7 @@ let add_used_primitive loc env path =
   | _ -> ()
 
 let transl_primitive loc p env ty path =
+  let prop = (Env.summary env, Val ty) in
   let prim =
     try specialize_primitive p env ty ~has_constant_constructor:false
     with Not_found ->
@@ -440,9 +447,11 @@ let transl_primitive loc p env ty path =
   match prim with
   | Plazyforce ->
       let parm = Ident.create "prim" in
-      mk_lambda @@
+      mk_lambda ~prop @@
       Lfunction{kind = Curried; params = [parm];
                 body = Matching.inline_lazy_force
+                         (* TODO: retrieve the type of the argument from the
+                            function type *)
                     (mk_lambda @@ Lvar parm) Location.none;
                 loc = loc;
                 attr = default_function_attribute }
@@ -465,12 +474,13 @@ let transl_primitive loc p env ty path =
       let rec make_params n =
         if n <= 0 then [] else Ident.create "prim" :: make_params (n-1) in
       let params = make_params p.prim_arity in
-      mk_lambda @@
+      mk_lambda ~prop @@
       Lfunction{ kind = Curried; params;
                  attr = default_function_attribute;
                  loc = loc;
-                 body = mk_lambda @@
+                 body = mk_lambda ~prop @@
                    Lprim(prim, List.map (fun id ->
+                       (* TODO: retrieve arguments type from the function type *)
                        mk_lambda @@ Lvar id) params, loc) }
 
 let transl_primitive_application loc prim env ty path args =
@@ -697,15 +707,16 @@ let primitive_is_ccall = function
 (* Assertions *)
 
 let assert_failed exp =
+  let prop = Env.summary exp.exp_env, Val exp.exp_type in
   let (fname, line, char) =
     Location.get_pos_info exp.exp_loc.Location.loc_start in
-  mk_lambda @@
+  mk_lambda ~prop @@
   Lprim(Praise Raise_regular,
         [event_after exp
-           (mk_lambda @@
+           (as_exn @@
             Lprim(Pmakeblock(0, Immutable, None),
                   [transl_normal_path Predef.path_assert_failure;
-                   mk_lambda @@
+                   mk_lambda ~prop:(Env.summary exp.exp_env, loc_kind) @@
                    Lconst(
                      Const_block(0,
                                  [Const_base(Const_string (fname, None));
@@ -736,34 +747,37 @@ let rec transl_exp e =
   Translobj.oo_wrap e.exp_env true transl_exp0 e
 
 and transl_exp0 e =
+  let prop = Env.summary e.exp_env, Val (e.exp_type) in
+  let mk lb_desc = { lb_desc; lb_propagated = Some prop } in
+  let mk_u lb_desc = { lb_desc; lb_propagated = None } in 
   match e.exp_desc with
     Texp_ident(path, _, {val_kind = Val_prim p}) ->
       let public_send = p.prim_name = "%send" in
       if public_send || p.prim_name = "%sendself" then
         let kind = if public_send then Public else Self in
         let obj = Ident.create "obj" and meth = Ident.create "meth" in
-        mk_lambda @@
+        mk @@
         Lfunction{kind = Curried; params = [obj; meth];
                   attr = default_function_attribute;
                   loc = e.exp_loc;
-                  body = mk_lambda @@
+                  body = mk @@
                     Lsend(kind,
-                          mk_lambda @@ Lvar meth,
-                          mk_lambda @@ Lvar obj,
+                          mk @@ Lvar meth,
+                          mk_u @@ Lvar obj,
                           [],
                           e.exp_loc)}
       else if p.prim_name = "%sendcache" then
         let obj = Ident.create "obj" and meth = Ident.create "meth" in
         let cache = Ident.create "cache" and pos = Ident.create "pos" in
-        mk_lambda @@
+        mk @@
         Lfunction{kind = Curried; params = [obj; meth; cache; pos];
                   attr = default_function_attribute;
                   loc = e.exp_loc;
-                  body = mk_lambda @@
+                  body = mk @@
                     Lsend(Cached,
-                          mk_lambda @@ Lvar meth,
-                          mk_lambda @@ Lvar obj,
-                          [mk_lambda @@ Lvar cache; mk_lambda @@ Lvar pos],
+                          mk @@ Lvar meth,
+                          mk_u @@ Lvar obj,
+                          [mk_u @@ Lvar cache; mk_u @@ Lvar pos],
                           e.exp_loc)}
       else
         transl_primitive e.exp_loc p e.exp_env e.exp_type (Some path)
@@ -773,7 +787,7 @@ and transl_exp0 e =
       transl_path ~loc:e.exp_loc e.exp_env path
   | Texp_ident _ -> fatal_error "Translcore.transl_exp: bad Texp_ident"
   | Texp_constant cst ->
-      mk_lambda @@ Lconst(Const_base cst)
+      mk @@ Lconst(Const_base cst)
   | Texp_let(rec_flag, pat_expr_list, body) ->
       transl_let rec_flag pat_expr_list (event_before body (transl_exp body))
   | Texp_function (_, pat_expr_list, partial) ->
@@ -790,8 +804,7 @@ and transl_exp0 e =
       }
       in
       let loc = e.exp_loc in
-      mk_lambda @@
-      Lfunction{kind; params; body; attr; loc}
+      mk @@ Lfunction{kind; params; body; attr; loc}
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p});
                 exp_type = prim_type } as funct, oargs)
     when List.length oargs >= p.prim_arity
@@ -813,7 +826,7 @@ and transl_exp0 e =
           let e = { e with exp_desc = Texp_apply(funct, oargs) } in
           event_after e
             (transl_apply ~should_be_tailcall ~inlined ~specialised
-               f args' e.exp_loc)
+               (Some prop) f args' e.exp_loc)
       in
       let wrap0 f =
         if args' = [] then f else wrap f in
@@ -825,10 +838,10 @@ and transl_exp0 e =
       if public_send || p.prim_name = "%sendself" then
         let kind = if public_send then Public else Self in
         let obj = List.hd argl in
-        wrap (mk_lambda @@ Lsend (kind, List.nth argl 1, obj, [], e.exp_loc))
+        wrap (mk @@ Lsend (kind, List.nth argl 1, obj, [], e.exp_loc))
       else if p.prim_name = "%sendcache" then
         match argl with [obj; meth; cache; pos] ->
-          wrap (mk_lambda @@ Lsend(Cached, meth, obj, [cache; pos], e.exp_loc))
+          wrap (mk @@ Lsend(Cached, meth, obj, [cache; pos], e.exp_loc))
         | _ -> assert false
       else begin
         let prim = transl_primitive_application
@@ -844,13 +857,13 @@ and transl_exp0 e =
               | _ ->
                   k
             in
-            wrap0 (mk_lambda @@
+            wrap0 (mk @@
                    Lprim(Praise k, [event_after arg1 targ], e.exp_loc))
         | (Ploc kind, []) ->
           lam_of_loc kind e.exp_loc
         | (Ploc kind, [arg1]) ->
           let lam = lam_of_loc kind arg1.exp_loc in
-          mk_lambda @@
+          mk_u @@
           Lprim(Pmakeblock(0, Immutable, None), lam :: argl, e.exp_loc)
         | (Ploc _, _) -> assert false
         | (_, _) ->
@@ -858,7 +871,7 @@ and transl_exp0 e =
             | (Plazyforce, [a]) ->
                 wrap (Matching.inline_lazy_force a e.exp_loc)
             | (Plazyforce, _) -> assert false
-            |_ -> let p = mk_lambda @@ Lprim(prim, argl, e.exp_loc) in
+            |_ -> let p = mk @@ Lprim(prim, argl, e.exp_loc) in
                if primitive_is_ccall prim then wrap p else wrap0 p
             end
       end
@@ -875,23 +888,23 @@ and transl_exp0 e =
       let e = { e with exp_desc = Texp_apply(funct, oargs) } in
       event_after e
         (transl_apply ~should_be_tailcall ~inlined ~specialised
-           (transl_exp funct) oargs e.exp_loc)
+           (Some prop) (transl_exp funct) oargs e.exp_loc)
   | Texp_match(arg, pat_expr_list, exn_pat_expr_list, partial) ->
     transl_match e arg pat_expr_list exn_pat_expr_list partial
   | Texp_try(body, pat_expr_list) ->
       let id = name_pattern "exn" pat_expr_list in
-      mk_lambda @@
+      mk @@
       Ltrywith(transl_exp body, id,
                Matching.for_trywith
-                 (mk_lambda @@ Lvar id)
+                 (mk_u @@ Lvar id)
                  (transl_cases_try pat_expr_list))
   | Texp_tuple el ->
       let ll, shape = transl_list_with_shape el in
       begin try
-        mk_lambda @@
+        mk @@
         Lconst(Const_block(0, List.map extract_constant ll))
       with Not_constant ->
-        mk_lambda @@
+        mk @@
         Lprim(Pmakeblock(0, Immutable, Some shape), ll, e.exp_loc)
       end
   | Texp_construct(_, cstr, args) ->
@@ -901,21 +914,21 @@ and transl_exp0 e =
         | _ -> assert false
       end else begin match cstr.cstr_tag with
         Cstr_constant n ->
-          mk_lambda @@ Lconst(Const_pointer n)
+          mk @@ Lconst(Const_pointer n)
       | Cstr_unboxed ->
           (match ll with [v] -> v | _ -> assert false)
       | Cstr_block n ->
           begin try
-            mk_lambda @@ Lconst(Const_block(n, List.map extract_constant ll))
+            mk @@ Lconst(Const_block(n, List.map extract_constant ll))
           with Not_constant ->
-            mk_lambda @@
+            mk @@
             Lprim(Pmakeblock(n, Immutable, Some shape), ll, e.exp_loc)
           end
       | Cstr_extension(path, is_const) ->
           if is_const then
             transl_path e.exp_env path
           else
-            mk_lambda @@
+            mk @@
             Lprim(Pmakeblock(0, Immutable, Some (Pgenval :: shape)),
                   transl_path e.exp_env path :: ll, e.exp_loc)
       end
@@ -924,32 +937,33 @@ and transl_exp0 e =
   | Texp_variant(l, arg) ->
       let tag = Btype.hash_variant l in
       begin match arg with
-        None -> mk_lambda @@ Lconst(Const_pointer tag)
+        None -> mk @@ Lconst(Const_pointer tag)
       | Some arg ->
           let lam = transl_exp arg in
           try
-            mk_lambda @@
+            mk @@
             Lconst(Const_block(0, [Const_base(Const_int tag);
                                    extract_constant lam]))
           with Not_constant ->
-            mk_lambda @@
+            mk @@
             Lprim(Pmakeblock(0, Immutable, None),
-                  [mk_lambda @@
+                  [mk_u @@ (* Should we consider the tag to have the type of the
+                              variant? *)
                    Lconst(Const_base(Const_int tag)); lam], e.exp_loc)
       end
   | Texp_record {fields; representation; extended_expression} ->
-      transl_record e.exp_loc e.exp_env fields representation
+      transl_record e.exp_loc e.exp_env e.exp_type fields representation
         extended_expression
   | Texp_field(arg, _, lbl) ->
       let targ = transl_exp arg in
       begin match lbl.lbl_repres with
           Record_regular | Record_inlined _ ->
-          mk_lambda @@ Lprim (Pfield lbl.lbl_pos, [targ], e.exp_loc)
+          mk @@ Lprim (Pfield lbl.lbl_pos, [targ], e.exp_loc)
         | Record_unboxed _ -> targ
         | Record_float ->
-          mk_lambda @@ Lprim (Pfloatfield lbl.lbl_pos, [targ], e.exp_loc)
+          mk @@ Lprim (Pfloatfield lbl.lbl_pos, [targ], e.exp_loc)
         | Record_extension ->
-          mk_lambda @@ Lprim (Pfield (lbl.lbl_pos + 1), [targ], e.exp_loc)
+          mk @@ Lprim (Pfield (lbl.lbl_pos + 1), [targ], e.exp_loc)
       end
   | Texp_setfield(arg, _, lbl, newval) ->
       let access =
@@ -962,7 +976,7 @@ and transl_exp0 e =
         | Record_extension ->
           Psetfield (lbl.lbl_pos + 1, maybe_pointer newval, Assignment)
       in
-      mk_lambda @@ Lprim(access, [transl_exp arg; transl_exp newval], e.exp_loc)
+      mk @@ Lprim(access, [transl_exp arg; transl_exp newval], e.exp_loc)
   | Texp_array expr_list ->
       let kind = array_kind e in
       let ll = transl_list expr_list in
@@ -990,42 +1004,42 @@ and transl_exp0 e =
                When not [Pfloatarray], the exception propagates to the handler
                below. *)
             let imm_array =
-              mk_lambda @@ Lprim (Pmakearray (kind, Immutable), ll, e.exp_loc)
+              mk @@ Lprim (Pmakearray (kind, Immutable), ll, e.exp_loc)
             in
-            mk_lambda @@ Lprim (Pduparray (kind, Mutable), [imm_array], e.exp_loc)
+            mk @@ Lprim (Pduparray (kind, Mutable), [imm_array], e.exp_loc)
         | cl ->
             let imm_array =
               match kind with
               | Paddrarray | Pintarray ->
-                 mk_lambda @@ Lconst(Const_block(0, cl))
+                 mk @@ Lconst(Const_block(0, cl))
               | Pfloatarray ->
-                 mk_lambda @@ Lconst(Const_float_array(List.map extract_float cl))
+                 mk @@ Lconst(Const_float_array(List.map extract_float cl))
               | Pgenarray ->
                   raise Not_constant    (* can this really happen? *)
             in
-            mk_lambda @@ Lprim (Pduparray (kind, Mutable), [imm_array], e.exp_loc)
+            mk @@ Lprim (Pduparray (kind, Mutable), [imm_array], e.exp_loc)
         end
       with Not_constant ->
-        mk_lambda @@ Lprim(Pmakearray (kind, Mutable), ll, e.exp_loc)
+        mk @@ Lprim(Pmakearray (kind, Mutable), ll, e.exp_loc)
       end
   | Texp_ifthenelse(cond, ifso, Some ifnot) ->
-      mk_lambda @@
+      mk @@
       Lifthenelse(transl_exp cond,
                   event_before ifso (transl_exp ifso),
                   event_before ifnot (transl_exp ifnot))
   | Texp_ifthenelse(cond, ifso, None) ->
-      mk_lambda @@
+      mk @@
       Lifthenelse(transl_exp cond,
                   event_before ifso (transl_exp ifso),
                   lambda_unit)
   | Texp_sequence(expr1, expr2) ->
-      mk_lambda @@
+      mk @@
       Lsequence(transl_exp expr1, event_before expr2 (transl_exp expr2))
   | Texp_while(cond, body) ->
-      mk_lambda @@
+      mk @@
       Lwhile(transl_exp cond, event_before body (transl_exp body))
   | Texp_for(param, _, low, high, dir, body) ->
-      mk_lambda @@
+      mk @@
       Lfor(param, transl_exp low, transl_exp high, dir,
            event_before body (transl_exp body))
   | Texp_send(_, _, Some exp) -> transl_exp exp
@@ -1034,32 +1048,33 @@ and transl_exp0 e =
       let lam =
         match met with
           Tmeth_val id ->
-            mk_lambda @@ Lsend (Self, mk_lambda @@ Lvar id, obj, [], e.exp_loc)
+            mk @@ Lsend (Self, mk_u @@ Lvar id, obj, [], e.exp_loc)
         | Tmeth_name nm ->
             let (tag, cache) = Translobj.meth obj nm in
             let kind = if cache = [] then Public else Cached in
-            mk_lambda @@ Lsend (kind, tag, obj, cache, e.exp_loc)
+            mk @@ Lsend (kind, tag, obj, cache, e.exp_loc)
       in
       event_after e lam
   | Texp_new (cl, {Location.loc=loc}, _) ->
-      mk_lambda @@
+      mk @@
       Lapply{ap_should_be_tailcall=false;
              ap_loc=loc;
-             ap_func= mk_lambda @@ Lprim(Pfield 0, [transl_path ~loc e.exp_env cl], loc);
+             ap_func=
+               mk_u @@ Lprim(Pfield 0, [transl_path ~loc e.exp_env cl], loc);
              ap_args=[lambda_unit];
              ap_inlined=Default_inline;
              ap_specialised=Default_specialise}
   | Texp_instvar(path_self, path, _) ->
-      mk_lambda @@
+      mk @@
       Lprim(Parrayrefu Paddrarray,
             [transl_normal_path path_self; transl_normal_path path], e.exp_loc)
   | Texp_setinstvar(path_self, path, _, expr) ->
       transl_setinstvar e.exp_loc (transl_normal_path path_self) path expr
   | Texp_override(path_self, modifs) ->
       let cpy = Ident.create "copy" in
-      mk_lambda @@
+      mk @@
       Llet(Strict, Pgenval, cpy,
-           mk_lambda @@
+           mk @@
            Lapply{ap_should_be_tailcall=false;
                   ap_loc=Location.none;
                   ap_func=Translobj.oo_prim "copy";
@@ -1068,18 +1083,18 @@ and transl_exp0 e =
                   ap_specialised=Default_specialise},
            List.fold_right
              (fun (path, _, expr) rem ->
-                mk_lambda @@
+                mk @@
                 Lsequence(transl_setinstvar Location.none
-                            (mk_lambda @@ Lvar cpy) path expr, rem))
+                            (mk @@ Lvar cpy) path expr, rem))
              modifs
-             (mk_lambda @@ Lvar cpy))
+             (mk @@ Lvar cpy))
   | Texp_letmodule(id, _, modl, body) ->
-      mk_lambda @@
+      mk @@
       Llet(Strict, Pgenval, id,
            !transl_module Tcoerce_none None modl,
            transl_exp body)
   | Texp_letexception(cd, body) ->
-      mk_lambda @@
+      mk @@
       Llet(Strict, Pgenval,
            cd.ext_id, transl_extension_constructor e.exp_env None cd,
            transl_exp body)
@@ -1091,7 +1106,7 @@ and transl_exp0 e =
       if !Clflags.noassert
       then lambda_unit
       else
-        mk_lambda @@ Lifthenelse (transl_exp cond, lambda_unit, assert_failed e)
+        mk @@ Lifthenelse (transl_exp cond, lambda_unit, assert_failed e)
   | Texp_lazy e ->
       (* when e needs no computation (constants, identifiers, ...), we
          optimize the translation just as Lazy.lazy_from_val would
@@ -1103,11 +1118,13 @@ and transl_exp0 e =
           | Const_int32 _ | Const_int64 _ | Const_nativeint _ )
       | Texp_function(_, _, _)
       | Texp_construct (_, {cstr_arity = 0}, _)
-        -> transl_exp e
+        -> (* We can return a lazy type, however it is meaningless with constants
+              and functions, since it could prevent optimizations. *)
+          transl_exp e
       | Texp_constant(Const_float _) ->
           (* We don't need to wrap with Popaque: this forward
              block will never be shortcutted since it points to a float. *)
-          mk_lambda @@
+          mk @@
           Lprim(Pmakeblock(Obj.forward_tag, Immutable, None),
                 [transl_exp e], e.exp_loc)
       | Texp_ident _ ->
@@ -1119,21 +1136,23 @@ and transl_exp0 e =
              value may subsequently turn into an immediate... *)
           if Typeopt.lazy_val_requires_forward e.exp_env e.exp_type
           then
-            mk_lambda @@
+            mk @@
             Lprim (Popaque,
-                   [mk_lambda @@
+                   [mk @@
                     Lprim(Pmakeblock(Obj.forward_tag, Immutable, None),
                           [transl_exp e], e.exp_loc)],
                    e.exp_loc)
           else transl_exp e
       (* other cases compile to a lazy block holding a function *)
       | _ ->
-          let fn = mk_lambda @@
+          (* For naive propagation, we cannot give it the type 'unit -> ty',
+             which will be the case for smarter propagation. *)
+          let fn = mk_u @@ 
             Lfunction {kind = Curried; params = [Ident.create "param"];
                        attr = default_function_attribute;
                        loc = e.exp_loc;
                        body = transl_exp e} in
-          mk_lambda @@
+          mk @@
           Lprim(Pmakeblock(Config.lazy_tag, Mutable, None), [fn], e.exp_loc)
       end
   | Texp_object (cs, meths) ->
@@ -1165,7 +1184,7 @@ and transl_guard guard rhs =
   | None -> expr
   | Some cond ->
       event_before cond
-        (mk_lambda @@ Lifthenelse(transl_exp cond, expr, staticfail))
+        (as_arg expr @@ Lifthenelse(transl_exp cond, expr, staticfail))
 
 and transl_case {c_lhs; c_guard; c_rhs} =
   c_lhs, transl_guard c_guard c_rhs
@@ -1199,17 +1218,18 @@ and transl_tupled_cases patl_expr_list =
     patl_expr_list
 
 and transl_apply ?(should_be_tailcall=false) ?(inlined = Default_inline)
-      ?(specialised = Default_specialise) lam sargs loc =
+      ?(specialised = Default_specialise) prop lam sargs loc =
+  let mk lb_desc = {lb_desc; lb_propagated = prop;} in
   let lapply funct args =
     match funct.lb_desc with
       Lsend(k, lmet, lobj, largs, loc) ->
-        mk_lambda @@ Lsend(k, lmet, lobj, largs @ args, loc)
+        mk @@ Lsend(k, lmet, lobj, largs @ args, loc)
     | Levent({ lb_desc = Lsend(k, lmet, lobj, largs, loc)}, _) ->
-        mk_lambda @@ Lsend(k, lmet, lobj, largs @ args, loc)
+        mk @@ Lsend(k, lmet, lobj, largs @ args, loc)
     | Lapply ap ->
-        mk_lambda @@ Lapply {ap with ap_args = ap.ap_args @ args; ap_loc = loc}
+        mk @@ Lapply {ap with ap_args = ap.ap_args @ args; ap_loc = loc}
     | _ ->
-        mk_lambda @@
+        mk @@
         Lapply {ap_should_be_tailcall=should_be_tailcall;
                 ap_loc=loc;
                 ap_func=funct;
@@ -1217,8 +1237,18 @@ and transl_apply ?(should_be_tailcall=false) ?(inlined = Default_inline)
                 ap_inlined=inlined;
                 ap_specialised=specialised;}
   in
+  let rec extract_label_prop prop l =
+    match prop with
+      Some (env, Val ty) ->
+        (match (Btype.repr ty).desc with
+           Tarrow (l', td, tcd, _) ->
+             if l = l' then Some (env, Val (td))
+             else extract_label_prop (Some (env, Val tcd)) l
+         | _ -> None)
+    | _ -> None
+  in
   let rec build_apply lam args = function
-      (None, optional) :: l ->
+      (label, None, optional) :: l ->
         let defs = ref [] in
         let protect name lam =
           match lam.lb_desc with
@@ -1226,7 +1256,7 @@ and transl_apply ?(should_be_tailcall=false) ?(inlined = Default_inline)
           | _ ->
               let id = Ident.create name in
               defs := (id, lam) :: !defs;
-              mk_lambda @@ Lvar id
+              as_arg lam @@ Lvar id
         in
         let args, args' =
           if List.for_all (fun (_,opt) -> opt) args then [], args
@@ -1234,44 +1264,51 @@ and transl_apply ?(should_be_tailcall=false) ?(inlined = Default_inline)
         let lam =
           if args = [] then lam else lapply lam (List.rev_map fst args) in
         let handle = protect "func" lam
-        and l = List.map (fun (arg, opt) -> may_map (protect "arg") arg, opt) l
-        and id_arg = Ident.create "param" in
+        and l = List.map (fun (label, arg, opt) ->
+            label, may_map (protect "arg") arg, opt) l
+        and id_arg = Ident.create "param"
+        and mk_arg lb_desc =
+          { lb_desc;
+            lb_propagated = extract_label_prop lam.lb_propagated label; } in
         let body =
           match build_apply handle
-                  ((mk_lambda @@ Lvar id_arg, optional)::args') l with
+                  ((mk_arg @@ Lvar id_arg, optional)::args') l with
             { lb_desc =
                 Lfunction
-                  {kind = Curried; params = ids; body = lam; attr; loc}} ->
-              mk_lambda @@
+                  {kind = Curried; params = ids; body = lam; attr; loc}}
+            as funct ->
+              as_arg funct @@
               Lfunction{kind = Curried; params = id_arg::ids; body = lam; attr;
                         loc}
           | { lb_desc =
                 Levent({ lb_desc =
                            Lfunction{kind = Curried; params = ids;
-                                     body = lam; attr; loc}}, _)} ->
-              mk_lambda @@
+                                     body = lam; attr; loc}}, _)} as funct ->
+              as_arg funct @@
               Lfunction{kind = Curried; params = id_arg::ids; body = lam; attr;
                         loc}
           | lam ->
-              mk_lambda @@
+              as_arg lam @@
               Lfunction{kind = Curried; params = [id_arg]; body = lam;
                         attr = default_function_attribute; loc = loc}
         in
         List.fold_left
           (fun body (id, lam) ->
-             mk_lambda @@ Llet(Strict, Pgenval, id, lam, body))
+             as_arg body @@ Llet(Strict, Pgenval, id, lam, body))
           body !defs
-    | (Some arg, optional) :: l ->
+    | (_, Some arg, optional) :: l ->
         build_apply lam ((arg, optional) :: args) l
     | [] ->
         lapply lam (List.rev_map fst args)
   in
-  (build_apply lam [] (List.map (fun (l, x) ->
-                                   may_map transl_exp x, Btype.is_optional l)
-                                sargs)
+  (build_apply lam []
+     (List.map (fun (l, x) ->
+          l, may_map transl_exp x, Btype.is_optional l)
+         sargs)
      : Lambda.lambda)
 
 and transl_function loc untuplify_fn repr partial cases =
+  let param_prop pat = Env.summary pat.pat_env, Val pat.pat_type in
   match cases with
     [{c_lhs=pat; c_guard=None;
       c_rhs={exp_desc = Texp_function(_, pl,partial')} as exp}]
@@ -1281,8 +1318,10 @@ and transl_function loc untuplify_fn repr partial cases =
         transl_function exp.exp_loc false repr partial' pl in
       ((Curried, param :: params),
        Matching.for_function
-         loc None (mk_lambda @@ Lvar param) [pat, body] partial)
-  | {c_lhs={pat_desc = Tpat_tuple pl}} :: _ when untuplify_fn ->
+         loc None
+         (mk_lambda ~prop:(param_prop pat) @@ Lvar param)
+         [pat, body] partial)
+  | {c_lhs={pat_desc = Tpat_tuple pl} as pat} :: _ when untuplify_fn ->
       begin try
         let size = List.length pl in
         let pats_expr_list =
@@ -1297,12 +1336,14 @@ and transl_function loc untuplify_fn repr partial cases =
       with Matching.Cannot_flatten ->
         let param = name_pattern "param" cases in
         ((Curried, [param]),
-         Matching.for_function loc repr (mk_lambda @@ Lvar param)
+         Matching.for_function loc repr
+           (mk_lambda ~prop:(param_prop pat) @@ Lvar param)
            (transl_cases cases) partial)
       end
   | _ ->
       let param = name_pattern "param" cases in
       ((Curried, [param]),
+       (* TODO: retrieve arguments type from the function type *)
        Matching.for_function loc repr (mk_lambda @@ Lvar param)
          (transl_cases cases) partial)
 
@@ -1343,7 +1384,7 @@ and transl_let rec_flag pat_expr_list body =
         if not (check_recursive_lambda idlist lam) then
           raise(Error(expr.exp_loc, Illegal_letrec_expr));
         (id, lam) in
-      mk_lambda @@
+      as_arg body @@
       Lletrec(List.map2 transl_case pat_expr_list idlist, body)
 
 and transl_setinstvar loc self var expr =
@@ -1352,13 +1393,17 @@ and transl_setinstvar loc self var expr =
     | Pointer -> Paddrarray
     | Immediate -> Pintarray
   in
-  mk_lambda @@
+  as_unit @@
   Lprim(Parraysetu prim, [self; transl_normal_path var; transl_exp expr], loc)
 
-and transl_record loc env fields repres opt_init_expr =
+and transl_record loc env ty fields repres opt_init_expr =
   let size = Array.length fields in
   (* Determine if there are "enough" fields (only relevant if this is a
      functional-style record update *)
+  let as_init l = match opt_init_expr with
+      None -> mk_lambda l
+    | Some e -> mk_lambda ~prop:(Env.summary e.exp_env, Val e.exp_type) l in
+  let mk = mk_lambda ~prop:(Env.summary env, Val ty) in
   let no_init = match opt_init_expr with None -> true | _ -> false in
   if no_init || size < Config.max_young_wosize
   then begin
@@ -1371,14 +1416,15 @@ and transl_record loc env fields repres opt_init_expr =
            match definition with
            | Kept typ ->
                let field_kind = value_kind env typ in
+               let prop = Env.summary env, Val typ in
                let access =
                  match repres with
                    Record_regular | Record_inlined _ -> Pfield i
                  | Record_unboxed _ -> assert false
                  | Record_extension -> Pfield (i + 1)
                  | Record_float -> Pfloatfield i in
-               mk_lambda @@
-               Lprim(access, [mk_lambda @@ Lvar init_id], loc), field_kind
+               mk_lambda ~prop @@
+               Lprim(access, [as_init @@ Lvar init_id], loc), field_kind
            | Overridden (_lid, expr) ->
                let field_kind = value_kind expr.exp_env expr.exp_type in
                transl_exp expr, field_kind)
@@ -1394,23 +1440,23 @@ and transl_record loc env fields repres opt_init_expr =
         if mut = Mutable then raise Not_constant;
         let cl = List.map extract_constant ll in
         match repres with
-        | Record_regular -> mk_lambda @@ Lconst(Const_block(0, cl))
-        | Record_inlined tag -> mk_lambda @@ Lconst(Const_block(tag, cl))
+        | Record_regular -> mk @@ Lconst(Const_block(0, cl))
+        | Record_inlined tag -> mk @@ Lconst(Const_block(tag, cl))
         | Record_unboxed _ ->
-            mk_lambda @@ Lconst(match cl with [v] -> v | _ -> assert false)
+            mk @@ Lconst(match cl with [v] -> v | _ -> assert false)
         | Record_float ->
-            mk_lambda @@ Lconst(Const_float_array(List.map extract_float cl))
+            mk @@ Lconst(Const_float_array(List.map extract_float cl))
         | Record_extension ->
             raise Not_constant
       with Not_constant ->
         match repres with
           Record_regular ->
-            mk_lambda @@ Lprim(Pmakeblock(0, mut, Some shape), ll, loc)
+            mk @@ Lprim(Pmakeblock(0, mut, Some shape), ll, loc)
         | Record_inlined tag ->
-            mk_lambda @@ Lprim(Pmakeblock(tag, mut, Some shape), ll, loc)
+            mk @@ Lprim(Pmakeblock(tag, mut, Some shape), ll, loc)
         | Record_unboxed _ -> (match ll with [v] -> v | _ -> assert false)
         | Record_float ->
-            mk_lambda @@ Lprim(Pmakearray (Pfloatarray, mut), ll, loc)
+            mk @@ Lprim(Pmakearray (Pfloatarray, mut), ll, loc)
         | Record_extension ->
             let path =
               let (label, _) = fields.(0) in
@@ -1419,13 +1465,13 @@ and transl_record loc env fields repres opt_init_expr =
               | _ -> assert false
             in
             let slot = transl_path env path in
-            mk_lambda @@
+            mk @@
             Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape)), slot :: ll, loc)
     in
     begin match opt_init_expr with
       None -> lam
     | Some init_expr ->
-        mk_lambda @@
+        as_arg lam @@
         Llet(Strict, Pgenval, init_id,
              transl_exp init_expr, lam)
     end
@@ -1449,21 +1495,22 @@ and transl_record loc env fields repres opt_init_expr =
             | Record_extension ->
                 Psetfield(lbl.lbl_pos + 1, maybe_pointer expr, Assignment)
           in
-          mk_lambda @@
-          Lsequence(mk_lambda @@
+          as_arg cont @@
+          Lsequence(as_unit @@ (* TODO: is it considered as propagation? *)
                     Lprim(upd,
-                          [mk_lambda @@ Lvar copy_id; transl_exp expr],
+                          [mk @@ Lvar copy_id; transl_exp expr],
                           loc),
                     cont)
     in
     begin match opt_init_expr with
       None -> assert false
     | Some init_expr ->
-        mk_lambda @@
+        mk @@
         Llet(Strict, Pgenval, copy_id,
-             mk_lambda @@
+             as_init @@ (* TODO: the copied record does not necessarily have the
+                           same type as the initial record. *)
              Lprim(Pduprecord (repres, size), [transl_exp init_expr], loc),
-             Array.fold_left update_field (mk_lambda @@ Lvar copy_id) fields)
+             Array.fold_left update_field (mk @@ Lvar copy_id) fields)
     end
   end
 
@@ -1473,12 +1520,12 @@ and transl_match e arg pat_expr_list exn_pat_expr_list partial =
   and exn_cases = transl_cases_try exn_pat_expr_list in
   let static_catch body val_ids handler =
     let static_exception_id = next_negative_raise_count () in
-    mk_lambda @@
+    as_arg handler @@
     Lstaticcatch
-      (mk_lambda @@
-       Ltrywith (mk_lambda @@
+      (as_arg handler @@
+       Ltrywith (as_arg handler @@
                  Lstaticraise (static_exception_id, body), id,
-                 Matching.for_trywith (mk_lambda @@ Lvar id) exn_cases),
+                 Matching.for_trywith (as_exn @@ Lvar id) exn_cases),
        (static_exception_id, val_ids),
        handler)
   in
