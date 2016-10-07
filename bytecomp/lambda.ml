@@ -605,21 +605,38 @@ let rec patch_guarded patch l =
 
 (* Translate an access path *)
 
-let rec transl_normal_path = function
+let mk_path prop l =
+  match prop with
+    None -> mk_lambda l
+  | Some (env, ty) -> mk_lambda ~prop:(Env.summary env, ty) l
+
+let mod_ty prop p =
+  match prop with
+    None -> None
+  | Some (env, _) ->
+      Some (env, Module (Env.find_module p env).Types.md_type)
+
+let rec transl_normal_path ?prop = function
     Pident id ->
+      (* The type of a Pident is determined by the caller, since it can be a
+         value, a module or a class. *) 
       if Ident.global id
-      then mk_lambda @@ Lprim(Pgetglobal id, [], Location.none)
-      else mk_lambda @@ Lvar id
+      then mk_path prop @@ Lprim(Pgetglobal id, [], Location.none)
+      else mk_path prop @@ Lvar id
   | Pdot(p, _s, pos) ->
-      mk_lambda @@
-      Lprim(Pfield pos, [transl_normal_path p], Location.none)
+      mk_path prop @@
+      Lprim(Pfield pos,
+            (* The type of [p] is always a module. *)
+            [transl_normal_path ?prop:(mod_ty prop p) p],
+            Location.none)
   | Papply _ ->
       fatal_error "Lambda.transl_path"
 
 (* Translation of value identifiers *)
 
-let transl_path ?(loc=Location.none) env path =
-  transl_normal_path (Env.normalize_path (Some loc) env path)
+let transl_path ?(loc=Location.none) env ty path =
+  let prop = match ty with None -> None | Some k -> Some (env, k) in
+  transl_normal_path ?prop (Env.normalize_path (Some loc) env path)
 
 (* Compile a sequence of expressions *)
 

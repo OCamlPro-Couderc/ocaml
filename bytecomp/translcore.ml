@@ -72,7 +72,7 @@ let transl_extension_constructor env path ext =
                 [mk_lambda @@ Lconst (Const_base (Const_int 0))], loc)],
         loc)
   | Text_rebind(path, _lid) ->
-      transl_path ~loc env path
+      transl_path ~loc env (Some (Ext ext.ext_type)) path
 
 (* Translation of primitives *)
 
@@ -784,7 +784,8 @@ and transl_exp0 e =
   | Texp_ident(_, _, {val_kind = Val_anc _}) ->
       raise(Error(e.exp_loc, Free_super_var))
   | Texp_ident(path, _, {val_kind = Val_reg | Val_self _}) ->
-      transl_path ~loc:e.exp_loc e.exp_env path
+      transl_path ~loc:e.exp_loc
+        e.exp_env (Some (Val e.exp_type)) path
   | Texp_ident _ -> fatal_error "Translcore.transl_exp: bad Texp_ident"
   | Texp_constant cst ->
       mk @@ Lconst(Const_base cst)
@@ -926,14 +927,15 @@ and transl_exp0 e =
           end
       | Cstr_extension(path, is_const) ->
           if is_const then
-            transl_path e.exp_env path
+            transl_path e.exp_env (Some (Val e.exp_type)) path
           else
             mk @@
             Lprim(Pmakeblock(0, Immutable, Some (Pgenval :: shape)),
-                  transl_path e.exp_env path :: ll, e.exp_loc)
+                  transl_path e.exp_env  (Some (Val e.exp_type)) path :: ll,
+                  e.exp_loc)
       end
   | Texp_extension_constructor (_, path) ->
-      transl_path e.exp_env path
+      transl_path e.exp_env (Some (Val e.exp_type)) path
   | Texp_variant(l, arg) ->
       let tag = Btype.hash_variant l in
       begin match arg with
@@ -1055,12 +1057,15 @@ and transl_exp0 e =
             mk @@ Lsend (kind, tag, obj, cache, e.exp_loc)
       in
       event_after e lam
-  | Texp_new (cl, {Location.loc=loc}, _) ->
+  | Texp_new (cl, {Location.loc=loc}, cd) ->
       mk @@
       Lapply{ap_should_be_tailcall=false;
              ap_loc=loc;
              ap_func=
-               mk_u @@ Lprim(Pfield 0, [transl_path ~loc e.exp_env cl], loc);
+               mk_u @@
+               Lprim(Pfield 0,
+                     [transl_path ~loc e.exp_env (Some (Class cd.cty_type)) cl],
+                     loc);
              ap_args=[lambda_unit];
              ap_inlined=Default_inline;
              ap_specialised=Default_specialise}
@@ -1458,13 +1463,13 @@ and transl_record loc env ty fields repres opt_init_expr =
         | Record_float ->
             mk @@ Lprim(Pmakearray (Pfloatarray, mut), ll, loc)
         | Record_extension ->
-            let path =
+            let path, ty =
               let (label, _) = fields.(0) in
               match label.lbl_res.desc with
-              | Tconstr(p, _, _) -> p
+              | Tconstr(p, _, _) -> p, label.lbl_res
               | _ -> assert false
             in
-            let slot = transl_path env path in
+            let slot = transl_path env (Some (Val ty)) path in
             mk @@
             Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape)), slot :: ll, loc)
     in

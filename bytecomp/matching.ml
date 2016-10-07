@@ -2377,7 +2377,7 @@ let combine_constructor loc arg ex_pat cstr partial ctx def
                    Lifthenelse(mk_lambda @@
                                Lprim(Pintcomp Ceq,
                                      [mk_lambda @@ Lvar tag;
-                                      transl_path ex_pat.pat_env path], loc),
+                                      transl_path ex_pat.pat_env None path], loc),
                                act, rem))
                 nonconsts
                 default
@@ -2391,7 +2391,7 @@ let combine_constructor loc arg ex_pat cstr partial ctx def
              mk_lambda @@
              Lifthenelse(mk_lambda @@
                          Lprim(Pintcomp Ceq,
-                               [arg; transl_path ex_pat.pat_env path], loc),
+                               [arg; transl_path ex_pat.pat_env None path], loc),
                          act, rem))
           consts
           nonconst_lambda
