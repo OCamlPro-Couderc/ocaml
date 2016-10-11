@@ -54,7 +54,7 @@ let transl_type_extension env rootpath tyext body =
       let lam =
         transl_extension_constructor env (field_path rootpath ext.ext_id) ext
       in
-      mk_lambda @@
+      mk_lambda ~prop:(Env.summary env, Ext (ext.ext_type)) @@
       Llet(Strict, Pgenval, ext.ext_id, lam, body))
     tyext.tyext_constructors
     body
@@ -285,7 +285,8 @@ let eval_rec_bindings bindings cont =
   | (_id, None, _rhs) :: rem ->
       bind_inits rem
   | (id, Some(loc, shape), _rhs) :: rem ->
-      mk_lambda @@
+      let body = bind_inits rem in
+      as_arg body @@
       Llet(Strict, Pgenval, id,
            mk_lambda @@
            Lapply{ap_should_be_tailcall=false;
@@ -294,12 +295,13 @@ let eval_rec_bindings bindings cont =
                   ap_args=[loc; shape];
                   ap_inlined=Default_inline;
                   ap_specialised=Default_specialise},
-           bind_inits rem)
+           body)
   and bind_strict = function
     [] ->
       patch_forwards bindings
   | (id, None, rhs) :: rem ->
-      mk_lambda @@ Llet(Strict, Pgenval, id, rhs, bind_strict rem)
+      let body = bind_strict rem in
+      as_arg body @@ Llet(Strict, Pgenval, id, rhs, body)
   | (_id, Some _, _rhs) :: rem ->
       bind_strict rem
   and patch_forwards = function
@@ -308,7 +310,8 @@ let eval_rec_bindings bindings cont =
   | (_id, None, _rhs) :: rem ->
       patch_forwards rem
   | (id, Some(_loc, shape), rhs) :: rem ->
-      mk_lambda @@
+      let body = patch_forwards rem in
+      as_arg body @@
       Lsequence(mk_lambda @@
                 Lapply{ap_should_be_tailcall=false;
                        ap_loc=Location.none;
@@ -360,24 +363,30 @@ let rec transl_module cc rootpath mexp =
   List.iter (Translattribute.check_attribute_on_module mexp)
     mexp.mod_attributes;
   let loc = mexp.mod_loc in
+  let prop = (Env.summary mexp.mod_env, Module mexp.mod_type) in
+  let mk = mk_lambda ~prop in
   match mexp.mod_type with
     Mty_alias _ -> apply_coercion loc Alias cc lambda_unit
   | _ ->
       match mexp.mod_desc with
         Tmod_ident (path,_) ->
           apply_coercion loc Strict cc
-            (transl_path ~loc mexp.mod_env (Some (Module mexp.mod_type)) path)
+            (transl_path ~loc mexp.mod_env (Some (snd prop)) path)
       | Tmod_structure str ->
           fst (transl_struct loc [] cc rootpath str)
-      | Tmod_functor(param, _, _, body) ->
+      | Tmod_functor(param, _, arg_mty, body) ->
           let bodypath = functor_path rootpath param in
+          let arg_mty_t =
+            match arg_mty with None -> None | Some m -> Some m.mty_type in
+          let arg_prop =
+            Env.summary mexp.mod_env, Module (Btype.default_mty arg_mty_t) in
           let inline_attribute =
             Translattribute.get_inline_attribute mexp.mod_attributes
           in
           oo_wrap mexp.mod_env true
             (function
               | Tcoerce_none ->
-                  mk_lambda @@
+                  mk @@
                   Lfunction{kind = Curried; params = [param];
                             attr = { inline = inline_attribute;
                                      specialise = Default_specialise;
@@ -386,17 +395,18 @@ let rec transl_module cc rootpath mexp =
                             body = transl_module Tcoerce_none bodypath body}
               | Tcoerce_functor(ccarg, ccres) ->
                   let param' = Ident.create "funarg" in
-                  mk_lambda @@
+                  let lbody = transl_module ccres bodypath body in
+                  mk @@
                   Lfunction{kind = Curried; params = [param'];
                             attr = { inline = inline_attribute;
                                      specialise = Default_specialise;
                                      is_a_functor = true };
                             loc = loc;
-                            body = mk_lambda @@
+                            body = as_arg lbody @@
                                    Llet(Alias, Pgenval, param,
                                         apply_coercion loc Alias ccarg
-                                                       (mk_lambda @@ Lvar param'),
-                                        transl_module ccres bodypath body)}
+                                          (mk_lambda ~prop:arg_prop @@ Lvar param'),
+                                        lbody)}
               | _ ->
                   fatal_error "Translmod.transl_module")
             cc
@@ -406,7 +416,7 @@ let rec transl_module cc rootpath mexp =
           in
           oo_wrap mexp.mod_env true
             (apply_coercion loc Strict cc)
-            (mk_lambda @@
+            (mk @@
              Lapply{ap_should_be_tailcall=false;
                     ap_loc=loc;
                     ap_func=transl_module Tcoerce_none None funct;
