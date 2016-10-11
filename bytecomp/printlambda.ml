@@ -434,16 +434,24 @@ let apply_specialised_attribute ppf = function
   | Always_specialise -> fprintf ppf " always_specialise"
   | Never_specialise -> fprintf ppf " never_specialise"
 
+let _propagated_info _ppf (_, _kind) =
+  match _kind with
+    Val _ty -> ()
+  | Module _mty -> ()
+  | Ext _ext -> ()
+  | Class _cty -> ()
+
 let rec lam ppf l =
-  match l.lb_desc with
+  match l with
   | Lvar id ->
       Ident.print ppf id
   | Lconst cst ->
       struct_const ppf cst
   | Lapply ap ->
       let lams ppf largs =
-        List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
-      fprintf ppf "@[<2>(apply@ %a%a%a%a%a)@]" lam ap.ap_func lams ap.ap_args
+        List.iter (fun l -> fprintf ppf "@ %a" lam_prop l) largs in
+      fprintf ppf "@[<2>(apply@ %a%a%a%a%a)@]"
+        lam_prop ap.ap_func lams ap.ap_args
         apply_tailcall_attribute ap.ap_should_be_tailcall
         apply_inlined_attribute ap.ap_inlined
         apply_specialised_attribute ap.ap_specialised
@@ -462,7 +470,7 @@ let rec lam ppf l =
               params;
             fprintf ppf ")" in
       fprintf ppf "@[<2>(function%a@ %a%a)@]" pr_params params
-        function_attribute attr lam body
+        function_attribute attr lam_prop body
   | Llet(str, k, id, arg, body) ->
       let kind = function
           Alias -> "a" | Strict -> "" | StrictOpt -> "o" | Variable -> "v"
@@ -470,26 +478,26 @@ let rec lam ppf l =
       let rec letbody = function
         | { lb_desc = Llet(str, k, id, arg, body) } ->
             fprintf ppf "@ @[<2>%a =%s%s@ %a@]"
-              Ident.print id (kind str) (value_kind k) lam arg;
+              Ident.print id (kind str) (value_kind k) lam_prop arg;
             letbody body
         | expr -> expr in
       fprintf ppf "@[<2>(let@ @[<hv 1>(@[<2>%a =%s%s@ %a@]"
-        Ident.print id (kind str) (value_kind k) lam arg;
+        Ident.print id (kind str) (value_kind k) lam_prop arg;
       let expr = letbody body in
-      fprintf ppf ")@]@ %a)@]" lam expr
+      fprintf ppf ")@]@ %a)@]" lam_prop expr
   | Lletrec(id_arg_list, body) ->
       let bindings ppf id_arg_list =
         let spc = ref false in
         List.iter
           (fun (id, l) ->
             if !spc then fprintf ppf "@ " else spc := true;
-            fprintf ppf "@[<2>%a@ %a@]" Ident.print id lam l)
+            fprintf ppf "@[<2>%a@ %a@]" Ident.print id lam_prop l)
           id_arg_list in
       fprintf ppf
-        "@[<2>(letrec@ (@[<hv 1>%a@])@ %a)@]" bindings id_arg_list lam body
+        "@[<2>(letrec@ (@[<hv 1>%a@])@ %a)@]" bindings id_arg_list lam_prop body
   | Lprim(prim, largs, _) ->
       let lams ppf largs =
-        List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
+        List.iter (fun l -> fprintf ppf "@ %a" lam_prop l) largs in
       fprintf ppf "@[<2>(%a%a)@]" primitive prim lams largs
   | Lswitch(larg, sw) ->
       let switch ppf sw =
@@ -497,46 +505,46 @@ let rec lam ppf l =
         List.iter
          (fun (n, l) ->
            if !spc then fprintf ppf "@ " else spc := true;
-           fprintf ppf "@[<hv 1>case int %i:@ %a@]" n lam l)
+           fprintf ppf "@[<hv 1>case int %i:@ %a@]" n lam_prop l)
          sw.sw_consts;
         List.iter
           (fun (n, l) ->
             if !spc then fprintf ppf "@ " else spc := true;
-            fprintf ppf "@[<hv 1>case tag %i:@ %a@]" n lam l)
+            fprintf ppf "@[<hv 1>case tag %i:@ %a@]" n lam_prop l)
           sw.sw_blocks ;
         begin match sw.sw_failaction with
         | None  -> ()
         | Some l ->
             if !spc then fprintf ppf "@ " else spc := true;
-            fprintf ppf "@[<hv 1>default:@ %a@]" lam l
+            fprintf ppf "@[<hv 1>default:@ %a@]" lam_prop l
         end in
       fprintf ppf
        "@[<1>(%s %a@ @[<v 0>%a@])@]"
        (match sw.sw_failaction with None -> "switch*" | _ -> "switch")
-       lam larg switch sw
+       lam_prop larg switch sw
   | Lstringswitch(arg, cases, default, _) ->
       let switch ppf cases =
         let spc = ref false in
         List.iter
          (fun (s, l) ->
            if !spc then fprintf ppf "@ " else spc := true;
-           fprintf ppf "@[<hv 1>case \"%s\":@ %a@]" (String.escaped s) lam l)
+           fprintf ppf "@[<hv 1>case \"%s\":@ %a@]" (String.escaped s) lam_prop l)
           cases;
         begin match default with
         | Some default ->
             if !spc then fprintf ppf "@ " else spc := true;
-            fprintf ppf "@[<hv 1>default:@ %a@]" lam default
+            fprintf ppf "@[<hv 1>default:@ %a@]" lam_prop default
         | None -> ()
         end in
       fprintf ppf
-       "@[<1>(stringswitch %a@ @[<v 0>%a@])@]" lam arg switch cases
+       "@[<1>(stringswitch %a@ @[<v 0>%a@])@]" lam_prop arg switch cases
   | Lstaticraise (i, ls)  ->
       let lams ppf largs =
-        List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
+        List.iter (fun l -> fprintf ppf "@ %a" lam_prop l) largs in
       fprintf ppf "@[<2>(exit@ %d%a)@]" i lams ls;
   | Lstaticcatch(lbody, (i, vars), lhandler) ->
       fprintf ppf "@[<2>(catch@ %a@;<1 -1>with (%d%a)@ %a)@]"
-        lam lbody i
+        lam_prop lbody i
         (fun ppf vars -> match vars with
           | [] -> ()
           | _ ->
@@ -544,29 +552,31 @@ let rec lam ppf l =
                 (fun x -> fprintf ppf " %a" Ident.print x)
                 vars)
         vars
-        lam lhandler
+        lam_prop lhandler
   | Ltrywith(lbody, param, lhandler) ->
       fprintf ppf "@[<2>(try@ %a@;<1 -1>with %a@ %a)@]"
-        lam lbody Ident.print param lam lhandler
+        lam_prop lbody Ident.print param lam_prop lhandler
   | Lifthenelse(lcond, lif, lelse) ->
-      fprintf ppf "@[<2>(if@ %a@ %a@ %a)@]" lam lcond lam lif lam lelse
+      fprintf ppf "@[<2>(if@ %a@ %a@ %a)@]"
+        lam_prop lcond lam_prop lif lam_prop lelse
   | Lsequence(l1, l2) ->
-      fprintf ppf "@[<2>(seq@ %a@ %a)@]" lam l1 sequence l2
+      fprintf ppf "@[<2>(seq@ %a@ %a)@]" lam_prop l1 sequence l2
   | Lwhile(lcond, lbody) ->
-      fprintf ppf "@[<2>(while@ %a@ %a)@]" lam lcond lam lbody
+      fprintf ppf "@[<2>(while@ %a@ %a)@]" lam_prop lcond lam_prop lbody
   | Lfor(param, lo, hi, dir, body) ->
       fprintf ppf "@[<2>(for %a@ %a@ %s@ %a@ %a)@]"
-       Ident.print param lam lo
+       Ident.print param lam_prop lo
        (match dir with Upto -> "to" | Downto -> "downto")
-       lam hi lam body
+       lam_prop hi lam_prop body
   | Lassign(id, expr) ->
-      fprintf ppf "@[<2>(assign@ %a@ %a)@]" Ident.print id lam expr
+      fprintf ppf "@[<2>(assign@ %a@ %a)@]" Ident.print id lam_prop expr
   | Lsend (k, met, obj, largs, _) ->
       let args ppf largs =
-        List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
+        List.iter (fun l -> fprintf ppf "@ %a" lam_prop l) largs in
       let kind =
         if k = Self then "self" else if k = Cached then "cache" else "" in
-      fprintf ppf "@[<2>(send%s@ %a@ %a%a)@]" kind lam obj lam met args largs
+      fprintf ppf "@[<2>(send%s@ %a@ %a%a)@]"
+        kind lam_prop obj lam_prop met args largs
   | Levent(expr, ev) ->
       let kind =
        match ev.lev_kind with
@@ -581,18 +591,22 @@ let rec lam ppf l =
               (if ev.lev_loc.Location.loc_ghost then "<ghost>" else "")
               ev.lev_loc.Location.loc_start.Lexing.pos_cnum
               ev.lev_loc.Location.loc_end.Lexing.pos_cnum
-              lam expr
+              lam_prop expr
   | Lifused(id, expr) ->
-      fprintf ppf "@[<2>(ifused@ %a@ %a)@]" Ident.print id lam expr
+      fprintf ppf "@[<2>(ifused@ %a@ %a)@]" Ident.print id lam_prop expr
 
 and sequence ppf = function
   | { lb_desc = Lsequence(l1, l2) } ->
       fprintf ppf "%a@ %a" sequence l1 sequence l2
   | l ->
-      lam ppf l
+      lam_prop ppf l
+
+and lam_prop ppf l =
+  (* TODO: print according to a Cflag *)
+  lam ppf l.lb_desc
 
 let structured_constant = struct_const
 
-let lambda = lam
+let lambda = lam_prop
 
 let program ppf { code } = lambda ppf code
