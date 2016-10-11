@@ -22,6 +22,8 @@ let toremove = ref ([] : string list)
 let option opt () = compargs := opt :: !compargs
 let option_with_arg opt arg =
   compargs := (Filename.quote arg) :: opt :: !compargs
+let option_with_int opt arg =
+  option_with_arg opt (string_of_int arg)
 ;;
 
 let make_archive = ref false;;
@@ -126,6 +128,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _dflambda = option "-dflambda"
   let _dinstr = option "-dinstr"
   let _dtimings = option "-dtimings"
+  let _dlambda_verbosity s = option_with_int "-dlambda-verbosity" s
   let anonymous = process_file
 end);;
 

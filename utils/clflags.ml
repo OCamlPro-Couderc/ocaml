@@ -97,6 +97,7 @@ and dump_typedtree = ref false          (* -dtypedtree *)
 and dump_rawlambda = ref false          (* -drawlambda *)
 and dump_lambda = ref false             (* -dlambda *)
 and dump_rawclambda = ref false         (* -drawclambda *)
+and dump_lambda_verbosity = ref 0
 and dump_clambda = ref false            (* -dclambda *)
 and dump_rawflambda = ref false            (* -drawflambda *)
 and dump_flambda = ref false            (* -dflambda *)

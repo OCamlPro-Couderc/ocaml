@@ -610,6 +610,10 @@ let mk_dlambda f =
   "-dlambda", Arg.Unit f, " (undocumented)"
 ;;
 
+let mk_dlambda_verbosity f =
+  "-dlambda-verbosity", Arg.Int f, "(undocumented)"
+;;
+
 let mk_drawclambda f =
   "-drawclambda", Arg.Unit f, " (undocumented)"
 ;;
@@ -768,6 +772,8 @@ module type Common_options = sig
   val _drawlambda : unit -> unit
   val _dlambda : unit -> unit
 
+  val _dlambda_verbosity : int -> unit
+  
   val anonymous : string -> unit
 end
 
@@ -1019,6 +1025,7 @@ struct
     mk_warn_error F._warn_error;
     mk_warn_help F._warn_help;
     mk_where F._where;
+    mk_dlambda_verbosity F._dlambda_verbosity;
     mk__ F.anonymous;
 
     mk_nopervasives F._nopervasives;
@@ -1075,6 +1082,7 @@ struct
     mk_w F._w;
     mk_warn_error F._warn_error;
     mk_warn_help F._warn_help;
+    mk_dlambda_verbosity F._dlambda_verbosity;
     mk__ F.anonymous;
 
     mk_dsource F._dsource;
@@ -1183,6 +1191,7 @@ struct
     mk_warn_error F._warn_error;
     mk_warn_help F._warn_help;
     mk_where F._where;
+    mk_dlambda_verbosity F._dlambda_verbosity;
     mk__ F.anonymous;
 
     mk_nopervasives F._nopervasives;
@@ -1281,6 +1290,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_w F._w;
     mk_warn_error F._warn_error;
     mk_warn_help F._warn_help;
+    mk_dlambda_verbosity F._dlambda_verbosity;
     mk__ F.anonymous;
 
     mk_dsource F._dsource;

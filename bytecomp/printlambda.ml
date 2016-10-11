@@ -434,12 +434,19 @@ let apply_specialised_attribute ppf = function
   | Always_specialise -> fprintf ppf " always_specialise"
   | Never_specialise -> fprintf ppf " never_specialise"
 
-let _propagated_info _ppf (_, _kind) =
-  match _kind with
-    Val _ty -> ()
-  | Module _mty -> ()
-  | Ext _ext -> ()
-  | Class _cty -> ()
+let propagated_info verbosity ppf (_, kind) =
+  let open Printtyp in
+  match kind with
+    Val ty ->
+      if verbosity >= 3 then raw_type_expr ppf ty
+      else type_expr ppf ty
+  | Module mty -> if verbosity >= 3 then modtype ppf mty
+      else fprintf ppf "*Module*"
+  | Ext ext -> if verbosity >= 3 then 
+        extension_constructor (Ident.create "*dummy*") ppf ext
+      else fprintf ppf "*Ext constr*"
+  | Class cty -> if verbosity >= 3 then class_type ppf cty
+      else fprintf ppf "*Class*"
 
 let rec lam ppf l =
   match l with
@@ -602,8 +609,13 @@ and sequence ppf = function
       lam_prop ppf l
 
 and lam_prop ppf l =
-  (* TODO: print according to a Cflag *)
-  lam ppf l.lb_desc
+  match !Clflags.dump_lambda_verbosity, l.lb_desc, l.lb_propagated with
+  | _, _, None | 0, _, _ -> lam ppf l.lb_desc
+  | 1, (Lprim (Pmakeblock (_, _, _), _, _) as l), Some p ->
+      fprintf ppf "%a:@ %a" lam l (propagated_info 1) p
+  | 1, l, _ -> lam ppf l
+  | v, l, Some p ->
+      fprintf ppf "%a:@ %a" lam l (propagated_info v) p
 
 let structured_constant = struct_const
 

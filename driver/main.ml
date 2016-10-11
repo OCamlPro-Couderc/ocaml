@@ -172,6 +172,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _dlambda = set dump_lambda
   let _dinstr = set dump_instr
   let _dtimings = set print_timings
+  let _dlambda_verbosity i = dump_lambda_verbosity := i
   let anonymous = anonymous
 end)
 

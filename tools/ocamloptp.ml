@@ -141,7 +141,8 @@ module Options = Main_args.Make_optcomp_options (struct
   let _warn_help = option "-warn-help"
   let _color s = option_with_arg "-color" s
   let _where = option "-where"
-
+  let _dlambda_verbosity v = option_with_int "-dlambda-verbosity" v
+  
   let _nopervasives = option "-nopervasives"
   let _dsource = option "-dsource"
   let _dparsetree = option "-dparsetree"

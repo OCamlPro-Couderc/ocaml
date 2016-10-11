@@ -256,6 +256,7 @@ module Options = Main_args.Make_optcomp_options (struct
   let _drawlambda = set dump_rawlambda
   let _dlambda = set dump_lambda
   let _drawclambda = set dump_rawclambda
+  let _dlambda_verbosity i = dump_lambda_verbosity := i
   let _dclambda = set dump_clambda
   let _drawflambda = set dump_rawflambda
   let _dflambda = set dump_flambda

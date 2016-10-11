@@ -116,7 +116,8 @@ module Options = Main_args.Make_bytetop_options (struct
   let _dflambda = set dump_flambda
   let _dtimings = set print_timings
   let _dinstr = set dump_instr
-
+  let _dlambda_verbosity i = dump_lambda_verbosity := i
+  
   let anonymous s = file_argument s
 end);;
 

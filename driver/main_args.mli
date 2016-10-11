@@ -55,6 +55,8 @@ module type Common_options = sig
   val _drawlambda : unit -> unit
   val _dlambda : unit -> unit
 
+  val _dlambda_verbosity : int -> unit
+  
   val anonymous : string -> unit
 end;;
 
