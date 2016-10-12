@@ -41,6 +41,7 @@ val flatten_pattern: int -> pattern -> pattern list
 
 (* Expand stringswitch to  string test tree *)
 val expand_stringswitch:
-    Location.t -> lambda -> (string * lambda) list -> lambda option -> lambda
+  Location.t -> lambda -> (string * propagated_info option * lambda) list ->
+  lambda option -> lambda
 
 val inline_lazy_force : lambda -> Location.t -> lambda

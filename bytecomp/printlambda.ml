@@ -510,12 +510,12 @@ let rec lam ppf l =
       let switch ppf sw =
         let spc = ref false in
         List.iter
-         (fun (n, l) ->
+         (fun (n, _p, l) ->
            if !spc then fprintf ppf "@ " else spc := true;
            fprintf ppf "@[<hv 1>case int %i:@ %a@]" n lam_prop l)
          sw.sw_consts;
         List.iter
-          (fun (n, l) ->
+          (fun (n, _p, l) ->
             if !spc then fprintf ppf "@ " else spc := true;
             fprintf ppf "@[<hv 1>case tag %i:@ %a@]" n lam_prop l)
           sw.sw_blocks ;

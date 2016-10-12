@@ -434,7 +434,7 @@ and close t env (lam : Lambda.lambda) : Flambda.t =
           ~name)
   | Lswitch (arg, sw) ->
     let scrutinee = Variable.create "switch" in
-    let aux (i, lam) = i, close t env lam in
+    let aux (i, _, lam) = i, close t env lam in
     let zero_to_n = Numbers.Int.zero_to_n in
     Flambda.create_let scrutinee (Expr (close t env arg))
       (Switch (scrutinee,

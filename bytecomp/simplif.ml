@@ -62,10 +62,12 @@ let rec eliminate_ref id lam =
       Lswitch(eliminate_ref id e,
         {sw_numconsts = sw.sw_numconsts;
          sw_consts =
-            List.map (fun (n, e) -> (n, eliminate_ref id e)) sw.sw_consts;
+           List.map (fun (n, p, e) -> (n, p, eliminate_ref id e))
+             sw.sw_consts;
          sw_numblocks = sw.sw_numblocks;
          sw_blocks =
-            List.map (fun (n, e) -> (n, eliminate_ref id e)) sw.sw_blocks;
+           List.map (fun (n, p, e) -> (n, p, eliminate_ref id e))
+             sw.sw_blocks;
          sw_failaction =
             Misc.may_map (eliminate_ref id) sw.sw_failaction; })
   | Lstringswitch(e, sw, default, loc) ->
@@ -145,8 +147,8 @@ let simplify_exits lam =
   | Lswitch(l, sw) ->
       count_default sw ;
       count l;
-      List.iter (fun (_, l) -> count l) sw.sw_consts;
-      List.iter (fun (_, l) -> count l) sw.sw_blocks
+      List.iter (fun (_, _, l) -> count l) sw.sw_consts;
+      List.iter (fun (_, _, l) -> count l) sw.sw_blocks
   | Lstringswitch(l, sw, d, _) ->
       count l;
       List.iter (fun (_, l) -> count l) sw;
@@ -270,8 +272,10 @@ let simplify_exits lam =
      end
   | Lswitch(l, sw) ->
       let new_l = simplif l
-      and new_consts =  List.map (fun (n, e) -> (n, simplif e)) sw.sw_consts
-      and new_blocks =  List.map (fun (n, e) -> (n, simplif e)) sw.sw_blocks
+      and new_consts =
+        List.map (fun (n, p, e) -> (n, p, simplif e)) sw.sw_consts
+      and new_blocks =
+        List.map (fun (n, p, e) -> (n, p, simplif e)) sw.sw_blocks
       and new_fail = Misc.may_map simplif sw.sw_failaction in
       as_lam @@
       Lswitch
@@ -424,8 +428,8 @@ let simplify_lets lam =
   | Lswitch(l, sw) ->
       count_default bv sw ;
       count bv l;
-      List.iter (fun (_, l) -> count bv l) sw.sw_consts;
-      List.iter (fun (_, l) -> count bv l) sw.sw_blocks
+      List.iter (fun (_, _, l) -> count bv l) sw.sw_consts;
+      List.iter (fun (_, _, l) -> count bv l) sw.sw_blocks
   | Lstringswitch(l, sw, d, _) ->
       count bv l ;
       List.iter (fun (_, l) -> count bv l) sw ;
@@ -561,8 +565,10 @@ let simplify_lets lam =
   | Lprim(p, ll, loc) -> as_lam @@ Lprim(p, List.map simplif ll, loc)
   | Lswitch(l, sw) ->
       let new_l = simplif l
-      and new_consts =  List.map (fun (n, e) -> (n, simplif e)) sw.sw_consts
-      and new_blocks =  List.map (fun (n, e) -> (n, simplif e)) sw.sw_blocks
+      and new_consts =
+        List.map (fun (n, p, e) -> (n, p, simplif e)) sw.sw_consts
+      and new_blocks =
+        List.map (fun (n, p, e) -> (n, p, simplif e)) sw.sw_blocks
       and new_fail = Misc.may_map simplif sw.sw_failaction in
       as_lam @@
       Lswitch
@@ -640,8 +646,8 @@ let rec emit_tail_infos is_tail lambda =
       list_emit_tail_infos false l
   | Lswitch (lam, sw) ->
       emit_tail_infos false lam;
-      list_emit_tail_infos_fun snd is_tail sw.sw_consts;
-      list_emit_tail_infos_fun snd is_tail sw.sw_blocks;
+      list_emit_tail_infos_fun Misc.thd3 is_tail sw.sw_consts;
+      list_emit_tail_infos_fun Misc.thd3 is_tail sw.sw_blocks;
       Misc.may  (emit_tail_infos is_tail) sw.sw_failaction
   | Lstringswitch (lam, sw, d, _) ->
       emit_tail_infos false lam;

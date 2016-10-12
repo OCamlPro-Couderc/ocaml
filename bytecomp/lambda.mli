@@ -280,11 +280,13 @@ and lambda_apply =
     ap_inlined : inline_attribute; (* specified with the [@inlined] attribute *)
     ap_specialised : specialise_attribute; }
 
+and lambda_case = int * propagated_info option * lambda
+
 and lambda_switch =
   { sw_numconsts: int;                  (* Number of integer cases *)
-    sw_consts: (int * lambda) list;     (* Integer cases *)
+    sw_consts: lambda_case list;        (* Integer cases *)
     sw_numblocks: int;                  (* Number of tag block cases *)
-    sw_blocks: (int * lambda) list;     (* Tag block cases *)
+    sw_blocks: lambda_case list;        (* Tag block cases *)
     sw_failaction : lambda option}      (* Action to take if failure *)
 
 and lambda_event =
