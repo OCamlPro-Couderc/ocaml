@@ -436,17 +436,18 @@ let apply_specialised_attribute ppf = function
 
 let propagated_info verbosity ppf (_, kind) =
   let open Printtyp in
-  match kind with
-    Val ty ->
-      if verbosity >= 3 then raw_type_expr ppf ty
-      else type_expr ppf ty
-  | Module mty -> if verbosity >= 3 then modtype ppf mty
-      else fprintf ppf "*Module*"
-  | Ext ext -> if verbosity >= 3 then 
-        extension_constructor (Ident.create "*dummy*") ppf ext
-      else fprintf ppf "*Ext constr*"
-  | Class cty -> if verbosity >= 3 then class_type ppf cty
-      else fprintf ppf "*Class*"
+  if verbosity >= 1 then
+    match kind with
+      Val ty ->
+        if verbosity >= 3 then raw_type_expr ppf ty
+        else type_expr ppf ty
+    | Module mty -> if verbosity >= 3 then modtype ppf mty
+        else fprintf ppf "*Module*"
+    | Ext ext -> if verbosity >= 3 then 
+          extension_constructor (Ident.create "*dummy*") ppf ext
+        else fprintf ppf "*Ext constr*"
+    | Class cty -> if verbosity >= 3 then class_type ppf cty
+        else fprintf ppf "*Class*"
 
 let rec lam ppf l =
   match l with
@@ -510,14 +511,16 @@ let rec lam ppf l =
       let switch ppf sw =
         let spc = ref false in
         List.iter
-         (fun (n, _p, l) ->
+         (fun (n, p, l) ->
            if !spc then fprintf ppf "@ " else spc := true;
-           fprintf ppf "@[<hv 1>case int %i:@ %a@]" n lam_prop l)
+           lambda_case true ppf (n, p, l)
+           (* fprintf ppf "@[<hv 1>case int %i:@ %a@]" n lam_prop l *))
          sw.sw_consts;
         List.iter
-          (fun (n, _p, l) ->
-            if !spc then fprintf ppf "@ " else spc := true;
-            fprintf ppf "@[<hv 1>case tag %i:@ %a@]" n lam_prop l)
+          (fun (n, p, l) ->
+             if !spc then fprintf ppf "@ " else spc := true;
+             lambda_case false ppf (n, p, l)
+            (* fprintf ppf "@[<hv 1>case tag %i:@ %a@]" n lam_prop l *))
           sw.sw_blocks ;
         begin match sw.sw_failaction with
         | None  -> ()
@@ -607,6 +610,15 @@ and sequence ppf = function
       fprintf ppf "%a@ %a" sequence l1 sequence l2
   | l ->
       lam_prop ppf l
+
+and lambda_case is_int ppf (n, p, l) =
+  let kind = if is_int then "int" else "tag" in
+  match !Clflags.dump_lambda_verbosity, p with
+  | 0, _ | _, None ->
+      fprintf ppf "@[<hv 1>case %s %i:@ %a@]" kind n lam_prop l
+  | v, Some p ->
+      fprintf ppf "@[<hv 1>case %s %i(:@%a):@ %a@]"
+        kind n (propagated_info v) p lam_prop l
 
 and lam_prop ppf l =
   match !Clflags.dump_lambda_verbosity, l.lb_desc, l.lb_propagated with
