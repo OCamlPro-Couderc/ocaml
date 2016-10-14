@@ -617,7 +617,7 @@ and lambda_case is_int ppf (n, p, l) =
   | 0, _ | _, None ->
       fprintf ppf "@[<hv 1>case %s %i:@ %a@]" kind n lam_prop l
   | v, Some p ->
-      fprintf ppf "@[<hv 1>case %s %i(:@%a):@ %a@]"
+      fprintf ppf "@[<hv 1>case %s %i (:@ %a):@ %a@]"
         kind n (propagated_info v) p lam_prop l
 
 and lam_prop ppf l =
