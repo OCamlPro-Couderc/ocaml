@@ -13,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* From lambda to assembly code *)
+(* From Clambda to assembly code *)
 
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
@@ -52,7 +52,7 @@ let emit_fundecl =
 
 let rec regalloc ~ppf_dump round fd =
   if round > 50 then
-    fatal_error(fd.Mach.fun_name ^
+    fatal_error(Backend_sym.to_string fd.Mach.fun_name ^
                 ": function too complex, cannot complete register allocation");
   dump_if ppf_dump dump_live "Liveness analysis" fd;
   let num_stack_slots =
@@ -115,12 +115,19 @@ let compile_phrase ~ppf_dump p =
 (* For the native toplevel: generates generic functions unless
    they are already available in the process *)
 let compile_genfuns ~ppf_dump f =
+  let linking_state = Linking_state.Snapshot.create () in
+  let link_info =
+    Cmx_format.Unit_info_link_time.create ~curry_fun:linking_state.curry_fun
+      ~apply_fun:linking_state.apply_fun
+      ~send_fun:linking_state.send_fun
+      ~force_link:linking_state.force_link
+  in
   List.iter
     (function
        | (Cfunction {fun_name = name}) as ph when f name ->
            compile_phrase ~ppf_dump ph
        | _ -> ())
-    (Cmm_helpers.generic_functions true [Compilenv.current_unit_infos ()])
+    (Cmm_helpers.generic_functions true link_info)
 
 let compile_unit asm_filename keep_asm
       obj_filename gen =
@@ -147,9 +154,9 @@ let compile_unit asm_filename keep_asm
        if create_asm && not keep_asm then remove_file asm_filename
     )
 
-let end_gen_implementation ?toplevel ~ppf_dump
+let end_gen_implementation ?toplevel ~ppf_dump comp_unit
     (clambda : Clambda.with_constants) =
-  emit_begin_assembly ();
+  emit_begin_assembly comp_unit;
   clambda
   ++ Profile.record "cmm" Cmmgen.compunit
   ++ Profile.record "compile_phrases" (List.iter (compile_phrase ~ppf_dump))
@@ -160,13 +167,17 @@ let end_gen_implementation ?toplevel ~ppf_dump
      when part of a C library, won't be discarded by the linker.
      This is important if a module that uses such a symbol is later
      dynlinked. *)
-  compile_phrase ~ppf_dump
-    (Cmm_helpers.reference_symbols
-       (List.filter_map (fun prim ->
-           if not (Primitive.native_name_is_external prim) then None
-           else Some (Primitive.native_name prim))
-          !Translmod.primitive_declarations));
-  emit_end_assembly ()
+  let primitives =
+    List.fold_left (fun result prim ->
+        if not (Primitive.native_name_is_external prim) then result
+        else
+          let sym = Backend_sym.create_for_external_call prim in
+          Backend_sym.Set.add sym result)
+      Backend_sym.Set.empty
+      !Translmod.primitive_declarations
+  in
+  compile_phrase ~ppf_dump (Cmm_helpers.reference_symbols primitives);
+  emit_end_assembly comp_unit
 
 type middle_end =
      backend:(module Backend_intf.S)
@@ -177,7 +188,11 @@ type middle_end =
   -> Clambda.with_constants
 
 let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
-      ~ppf_dump (program : Lambda.program) =
+    ~ppf_dump (program : Lambda.program) =
+  let comp_unit =
+    Backend_compilation_unit.compilation_unit (
+      Compilation_unit.get_current_exn ())
+  in
   let asmfile =
     if !keep_asm_file || !Emitaux.binary_backend_available
     then prefixname ^ ext_asm
@@ -185,11 +200,12 @@ let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
   in
   compile_unit asmfile !keep_asm_file (prefixname ^ ext_obj)
     (fun () ->
-      Ident.Set.iter Compilenv.require_global program.required_globals;
+      Ident.Set.iter Compilation_state.require_global program.required_globals;
       let clambda_with_constants =
         middle_end ~backend ~filename ~prefixname ~ppf_dump program
       in
-      end_gen_implementation ?toplevel ~ppf_dump clambda_with_constants)
+      end_gen_implementation ?toplevel ~ppf_dump comp_unit
+        clambda_with_constants)
 
 (* Error report *)
 
