@@ -76,7 +76,9 @@ val list_remove: 'a -> 'a list -> 'a list
            element equal to [x] removed. *)
 val split_last: 'a list -> 'a list * 'a
         (* Return the last element and the other elements of the given list. *)
-
+val iter3: ('a -> 'b -> 'c -> unit) -> 'a list -> 'b list -> 'c list -> unit
+        (* Same as [List.iter2] but with 3 lists. Raise [Invalid_argument] if
+           the lists are not of the same length. *)
 type ref_and_value = R : 'a ref * 'a -> ref_and_value
 
 val protect_refs : ref_and_value list -> (unit -> 'a) -> 'a

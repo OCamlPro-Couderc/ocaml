@@ -22,6 +22,9 @@ let output_prefix name =
     | Some n -> if !compile_only then (output_name := None; n) else name in
   Filename.remove_extension oname
 
+let output_prefixes names =
+  List.map Filename.remove_extension names
+
 let print_version_and_library compiler =
   Printf.printf "The OCaml %s, version " compiler;
   print_string Config.version; print_newline();
@@ -579,6 +582,7 @@ let get_objfiles ~with_ocamlparam =
 type deferred_action =
   | ProcessImplementation of string
   | ProcessInterface of string
+  | ProcessRecInterfaces of string list
   | ProcessCFile of string
   | ProcessOtherFile of string
   | ProcessObjects of string list
@@ -588,7 +592,7 @@ let c_object_of_filename name =
   Filename.chop_suffix (Filename.basename name) ".c" ^ Config.ext_obj
 
 let process_action
-    (ppf, implementation, interface, ocaml_mod_ext, ocaml_lib_ext) action =
+    (ppf, implementation, interface, rec_interfaces, ocaml_mod_ext, ocaml_lib_ext) action =
   match action with
   | ProcessImplementation name ->
       readenv ppf (Before_compile name);
@@ -600,6 +604,13 @@ let process_action
       let opref = output_prefix name in
       interface ~source_file:name ~output_prefix:opref;
       if !make_package then objfiles := (opref ^ ".cmi") :: !objfiles
+  | ProcessRecInterfaces names ->
+      readenv ppf (Before_compile "*recmod*");
+      let opref = output_prefixes names in
+      rec_interfaces ~source_files:names ~output_prefixes:opref;
+      if !make_package then
+        objfiles := List.fold_left (fun objfiles opref ->
+            (opref ^ ".cmi") :: objfiles) !objfiles (List.rev opref)
   | ProcessCFile name ->
       readenv ppf (Before_compile name);
       Location.input_name := name;
@@ -623,6 +634,17 @@ let process_action
       else
         raise(Arg.Bad("don't know what to do with " ^ name))
 
+let aggregate_rec_interfaces actions =
+  if !Clflags.recmod then
+    let interfaces, others =
+      List.fold_left (fun (interfaces, others) action ->
+          match action with
+            ProcessInterface name -> name :: interfaces, others
+          | other -> interfaces, other :: others) ([], []) actions
+    in
+    List.rev (ProcessRecInterfaces interfaces :: others)
+  else
+    actions
 
 let action_of_file name =
   if Filename.check_suffix name ".ml"
@@ -652,7 +674,7 @@ let process_deferred_actions env =
     match final_output_name with
     | None -> ()
     | Some output_name ->
-        if !compile_only then begin
+        if !compile_only || !recmod then begin
           if List.filter (function
               | ProcessCFile name -> c_object_of_filename name <> output_name
               | _ -> false) !deferred_actions <> [] then
@@ -669,7 +691,8 @@ let process_deferred_actions env =
       | ProcessOtherFile name -> Filename.check_suffix name ".cmxa"
       | _ -> false) !deferred_actions then
     fatal "Option -a cannot be used with .cmxa input files.";
-  List.iter (process_action env) (List.rev !deferred_actions);
+  let actions = aggregate_rec_interfaces !deferred_actions in
+  List.iter (process_action env) (List.rev actions);
   output_name := final_output_name;
   stop_early :=
     !compile_only ||

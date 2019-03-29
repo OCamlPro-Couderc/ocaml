@@ -39,6 +39,7 @@ let main () =
         (ppf,
          Compile.implementation,
          Compile.interface,
+         Compile.rec_interfaces,
          ".cmo",
          ".cma");
     with Arg.Bad msg ->
