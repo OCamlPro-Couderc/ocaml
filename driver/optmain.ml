@@ -50,6 +50,8 @@ let main () =
         (ppf,
          Optcompile.implementation ~backend,
          Optcompile.interface,
+         (fun ~source_files ~output_prefixes -> ignore (source_files,
+                                                        output_prefixes); assert false),
          ".cmx",
          ".cmxa");
     with Arg.Bad msg ->

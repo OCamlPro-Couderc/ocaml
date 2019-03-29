@@ -21,7 +21,7 @@ type info = {
   module_name : Compilation_unit.Name.t;
   output_prefix : string;
   for_pack_prefix : Compilation_unit.Prefix.t;
-  env : Env.t;
+  env : Env.t option;
   ppf_dump : Format.formatter;
   tool_name : string;
   native : bool;
@@ -46,48 +46,53 @@ val with_info :
    calling [with_info] several times.
 *)
 
+val safe_with_info :
+  native:bool ->
+  tool_name:string ->
+  source_file:string ->
+  output_prefix:string ->
+  dump_ext:string ->
+  (info -> 'a) -> 'a
+(** [safe_with_info ~native ~tool_name ~source_file ~output_prefix ~dump_ext k]
+    is similar to [with_info], except it does no side effects, i.e. it doesn't
+    initialize the compilation environment. As such, it can be called several
+    time to compile multiple files. *)
+
 (** {2 Interfaces} *)
 
-val parse_intf : info -> Parsetree.signature
-(** [parse_intf info] parses an interface (usually an [.mli] file). *)
+val parse_intf : info -> Parsetree.signature (** [parse_intf info] parses an
+   interface (usually an [.mli] file). *)
 
-val typecheck_intf : info -> Parsetree.signature -> Typedtree.signature
-(** [typecheck_intf info parsetree] typechecks an interface and returns
-    the typedtree of the associated signature.
-*)
+val typecheck_intf : info -> Parsetree.signature -> Typedtree.signature (**
+   [typecheck_intf info parsetree] typechecks an interface and returns the
+   typedtree of the associated signature.  *)
 
 val emit_signature : info -> Parsetree.signature -> Typedtree.signature -> unit
-(** [emit_signature info parsetree typedtree] emits the [.cmi] file
-    containing the given signature.
-*)
+   (** [emit_signature info parsetree typedtree] emits the [.cmi] file
+   containing the given signature.  *)
 
-val interface : info -> unit
-(** The complete compilation pipeline for interfaces. *)
+val interface : info -> unit (** The complete compilation pipeline for
+   interfaces. *)
+
+val rec_interfaces : info list -> unit (** The complete compilation pipeline for
+   recursive interfaces. *)
 
 (** {2 Implementations} *)
 
-val parse_impl : info -> Parsetree.structure
-(** [parse_impl info] parses an implementation (usually an [.ml] file). *)
+val parse_impl : info -> Parsetree.structure (** [parse_impl info] parses an
+   implementation (usually an [.ml] file). *)
 
-val typecheck_impl :
-  info -> Parsetree.structure -> Typedtree.structure * Typedtree.module_coercion
-(** [typecheck_impl info parsetree] typechecks an implementation and returns
-    the typedtree of the associated module, along with a coercion against
-    its public interface.
-*)
+val typecheck_impl : info -> Parsetree.structure -> Typedtree.structure *
+   Typedtree.module_coercion (** [typecheck_impl info parsetree] typechecks an
+   implementation and returns the typedtree of the associated module, along with
+   a coercion against its public interface.  *)
 
-val implementation :
-  info ->
-  backend:(info -> Typedtree.structure * Typedtree.module_coercion -> unit) ->
-  unit
-(** The complete compilation pipeline for implementations. *)
+val implementation : info -> backend:(info -> Typedtree.structure *
+   Typedtree.module_coercion -> unit) -> unit (** The complete compilation
+   pipeline for implementations. *)
 
 (** {2 Build artifacts} *)
 
-val cmo : info -> string
-val cmx : info -> string
-val obj : info -> string
-val annot : info -> string
-(** Return the filename of some compiler build artifacts associated
-    with the file being compiled.
-*)
+val cmo : info -> string val cmx : info -> string val obj : info -> string val
+   annot : info -> string (** Return the filename of some compiler build
+   artifacts associated with the file being compiled.  *)

@@ -886,6 +886,11 @@ let mk__ f =
   "<file>  Treat <file> as a file name (even if it starts with `-')"
 ;;
 
+
+let mk_recmod f =
+  "-recmod", Arg.Unit f, "Undocumented"
+;;
+
 module type Common_options = sig
   val _absname : unit -> unit
   val _alert : string -> unit
@@ -993,6 +998,8 @@ module type Compiler_options = sig
 
   val _args: string -> string array
   val _args0: string -> string array
+
+  val _recmod: unit -> unit
 end
 ;;
 
@@ -1191,6 +1198,7 @@ struct
     mk_plugin F._plugin;
     mk_principal F._principal;
     mk_no_principal F._no_principal;
+    mk_recmod F._recmod;
     mk_rectypes F._rectypes;
     mk_no_rectypes F._no_rectypes;
     mk_runtime_variant F._runtime_variant;
@@ -1677,6 +1685,7 @@ module Default = struct
     let _nostdlib = set no_std_include
     let _open s = open_modules := (s :: (!open_modules))
     let _principal = set principal
+    let _recmod = set recmod
     let _rectypes = set recursive_types
     let _safe_string = clear unsafe_string
     let _short_paths = clear real_paths

@@ -42,6 +42,7 @@ module Options = Main_args.Make_optcomp_options (struct
   let _args = Arg.read_arg
   let _args0 = Arg.read_arg0
   let anonymous = process_file
+  let _recmod = ignore
 end);;
 
 let rev_compargs = ref ([] : string list)
