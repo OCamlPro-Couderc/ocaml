@@ -854,6 +854,10 @@ let mk_debug_compiler f =
   "-debug-mode", Arg.Unit f, "(undocumented)"
 ;;
 
+let mk_recmod f =
+  "-recmod", Arg.Unit f, "Undocumented"
+;;
+
 module type Common_options = sig
   val _absname : unit -> unit
   val _alert : string -> unit
@@ -952,6 +956,8 @@ module type Compiler_options = sig
 
   val _args: string -> string array
   val _args0: string -> string array
+
+  val _recmod: unit -> unit
 end
 ;;
 
@@ -1147,6 +1153,7 @@ struct
     mk_plugin F._plugin;
     mk_principal F._principal;
     mk_no_principal F._no_principal;
+    mk_recmod F._recmod;
     mk_rectypes F._rectypes;
     mk_no_rectypes F._no_rectypes;
     mk_runtime_variant F._runtime_variant;

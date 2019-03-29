@@ -143,6 +143,8 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _args = Arg.read_arg
   let _args0 = Arg.read_arg0
 
+  let _recmod = set recmod
+
   let anonymous = anonymous
 
   let _debug_compiler = set debug_compiler
@@ -164,6 +166,7 @@ let main () =
         (ppf,
          Compile.implementation,
          Compile.interface,
+         Compile.rec_interfaces,
          ".cmo",
          ".cma");
     with Arg.Bad msg ->

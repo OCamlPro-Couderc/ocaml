@@ -76,6 +76,7 @@ val list_remove: 'a -> 'a list -> 'a list
            element equal to [x] removed. *)
 val split_last: 'a list -> 'a list * 'a
         (* Return the last element and the other elements of the given list. *)
+val iter3: ('a -> 'b -> 'c -> unit) -> 'a list -> 'b list -> 'c list -> unit
 val may: ('a -> unit) -> 'a option -> unit
 val may_map: ('a -> 'b) -> 'a option -> 'b option
 

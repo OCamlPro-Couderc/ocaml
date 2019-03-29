@@ -244,6 +244,8 @@ module Options = Main_args.Make_optcomp_options (struct
   let _args = Arg.read_arg
   let _args0 = Arg.read_arg0
 
+  let _recmod = set recmod
+
   let anonymous = anonymous
 
   let _debug_compiler = set debug_compiler
@@ -268,6 +270,8 @@ let main () =
         (ppf,
          Optcompile.implementation ~backend,
          Optcompile.interface,
+         (fun ~source_files ~output_prefixes -> ignore (source_files,
+                                                        output_prefixes); assert false),
          ".cmx",
          ".cmxa");
     with Arg.Bad msg ->

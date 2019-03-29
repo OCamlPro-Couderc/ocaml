@@ -53,6 +53,7 @@ val check_unit_name : string -> string -> unit
 type deferred_action =
   | ProcessImplementation of string
   | ProcessInterface of string
+  | ProcessRecInterfaces of string list
   | ProcessCFile of string
   | ProcessOtherFile of string
   | ProcessObjects of string list
@@ -71,6 +72,8 @@ val process_deferred_actions :
   (* compile implementation *)
   (source_file:string -> output_prefix:string -> unit) *
   (* compile interface *)
+  (source_files:string list -> output_prefixes:string list -> unit) *
+  (* compile recursive interfaces *)
   string * (* ocaml module extension *)
   string -> (* ocaml library extension *)
   unit

@@ -84,6 +84,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _ppx _ = incompatible "-ppx"
   let _principal = ignore
   let _no_principal = ignore
+  let _recmod = ignore
   let _rectypes = ignore
   let _no_rectypes = ignore
   let _runtime_variant = ignore
