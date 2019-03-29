@@ -25,6 +25,18 @@ let interface ~source_file ~output_prefix =
   with_info ~source_file ~output_prefix ~dump_ext:"cmi" @@ fun info ->
   Compile_common.interface info
 
+let with_infos ~source_files ~output_prefixes ~dump_ext k =
+  (* Temporary hack *)
+  List.map2 (fun source_file output_prefix ->
+      safe_with_info ~native:false ~tool_name ~source_file ~output_prefix ~dump_ext
+        (fun info -> info))
+    source_files output_prefixes
+  |> k
+
+let rec_interfaces ~source_files ~output_prefixes =
+  with_infos ~source_files ~output_prefixes ~dump_ext:"cmi" @@ fun infos ->
+  Compile_common.rec_interfaces infos
+
 (** Bytecode compilation backend for .ml files. *)
 
 let to_bytecode i (typedtree, coercion) =

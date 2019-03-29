@@ -42,6 +42,9 @@ val type_implementation:
   Typedtree.structure * Typedtree.module_coercion
 val type_interface:
         string -> Env.t -> Parsetree.signature -> Typedtree.signature
+val type_rec_interfaces:
+  Env.t -> (string * Parsetree.signature * Location.t) list ->
+  Typedtree.signature list * Env.t
 val transl_signature:
         Env.t -> Parsetree.signature -> Typedtree.signature
 val check_nongen_schemes:

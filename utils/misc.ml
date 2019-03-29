@@ -92,6 +92,14 @@ let rec split_last = function
       let (lst, last) = split_last tl in
       (hd :: lst, last)
 
+let rec iter3 f l1 l2 l3 =
+  match l1, l2, l3 with
+    [], [], [] -> ()
+  | hd1 :: tl1, hd2 :: tl2, hd3 :: tl3 ->
+      f hd1 hd2 hd3;
+      iter3 f tl1 tl2 tl3
+  | _, _, _ -> invalid_arg "Misc.iter3"
+
 module Stdlib = struct
   module List = struct
     type 'a t = 'a list

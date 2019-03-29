@@ -20,7 +20,7 @@ type info = {
   source_file : string;
   module_name : string;
   output_prefix : string;
-  env : Env.t;
+  env : Env.t option;
   ppf_dump : Format.formatter;
   tool_name : string;
   native : bool;
@@ -45,6 +45,14 @@ val with_info :
    calling [with_info] several times.
 *)
 
+val safe_with_info :
+  native:bool ->
+  tool_name:string ->
+  source_file:string ->
+  output_prefix:string ->
+  dump_ext:string ->
+  (info -> 'a) -> 'a
+
 (** {2 Interfaces} *)
 
 val parse_intf : info -> Parsetree.signature
@@ -62,6 +70,9 @@ val emit_signature : info -> Parsetree.signature -> Typedtree.signature -> unit
 
 val interface : info -> unit
 (** The complete compilation pipeline for interfaces. *)
+
+val rec_interfaces : info list -> unit
+(** The complete compilation pipeline for recursive interfaces. *)
 
 (** {2 Implementations} *)
 

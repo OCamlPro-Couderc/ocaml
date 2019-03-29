@@ -841,6 +841,10 @@ let mk__ f =
   "<file>  Treat <file> as a file name (even if it starts with `-')"
 ;;
 
+let mk_recmod f =
+  "-recmod", Arg.Unit f, "Undocumented"
+;;
+
 module type Common_options = sig
   val _absname : unit -> unit
   val _alert : string -> unit
@@ -937,6 +941,8 @@ module type Compiler_options = sig
 
   val _args: string -> string array
   val _args0: string -> string array
+
+  val _recmod: unit -> unit
 end
 ;;
 
@@ -1179,6 +1185,8 @@ struct
 
     mk_args F._args;
     mk_args0 F._args0;
+
+    mk_recmod F._recmod
   ]
 end;;
 

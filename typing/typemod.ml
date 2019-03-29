@@ -1301,7 +1301,7 @@ and transl_signature env sg =
             final_env
         | Psig_recmodule sdecls ->
             let (decls, newenv) =
-              transl_recmodule_modtypes env sdecls in
+              transl_recmodule_modtypes ~persistent:false env sdecls in
             List.iter
               (fun md -> Signature_names.check_module names md.md_loc md.md_id)
               decls;
@@ -1454,7 +1454,7 @@ and transl_modtype_decl_aux names env
   in
   newenv, mtd, Sig_modtype(id, decl, Exported)
 
-and transl_recmodule_modtypes env sdecls =
+and transl_recmodule_modtypes ~persistent env sdecls =
   let make_env curr =
     List.fold_left
       (fun env (id, _, mty) ->
@@ -1481,7 +1481,9 @@ and transl_recmodule_modtypes env sdecls =
                     md_attributes = mty.mty_attributes})) in
   let scope = Ctype.create_scope () in
   let ids =
-    List.map (fun x -> Ident.create_scoped ~scope x.pmd_name.txt) sdecls
+    List.map (fun x ->
+        if persistent then Ident.create_persistent x.pmd_name.txt
+        else Ident.create_scoped ~scope x.pmd_name.txt) sdecls
   in
   let approx_env =
     (*
@@ -1941,6 +1943,65 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
   | Pmod_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
+and type_recmodule funct_body anchor names env sbind =
+  let sbind =
+    List.map
+      (function
+        | {pmb_name = name;
+           pmb_expr = {pmod_desc=Pmod_constraint(expr, typ)};
+           pmb_attributes = attrs;
+           pmb_loc = loc;
+          } ->
+            name, typ, expr, attrs, loc
+        | mb ->
+            raise (Error (mb.pmb_expr.pmod_loc, env,
+                          Recursive_module_require_explicit_type))
+      )
+      sbind
+  in
+  let (decls, newenv) =
+    transl_recmodule_modtypes ~persistent:false env
+      (List.map (fun (name, smty, _smodl, attrs, loc) ->
+           {pmd_name=name; pmd_type=smty;
+            pmd_attributes=attrs; pmd_loc=loc}) sbind
+      ) in
+  List.iter
+    Signature_names.(fun md -> check_module names md.md_loc md.md_id)
+    decls;
+  let bindings1 =
+    List.map2
+      (fun {md_id=id; md_type=mty} (name, _, smodl, attrs, loc) ->
+         let modl =
+           Builtin_attributes.warning_scope attrs
+             (fun () ->
+                type_module true funct_body (anchor_recmodule id)
+                  newenv smodl
+             )
+         in
+         let mty' =
+           enrich_module_type anchor (Ident.name id) modl.mod_type newenv
+         in
+         (id, name, mty, modl, mty', attrs, loc))
+      decls sbind in
+  let newenv = (* allow aliasing recursive modules from outside *)
+    List.fold_left
+      (fun env md ->
+         let mdecl =
+           {
+             md_type = md.md_type.mty_type;
+             md_attributes = md.md_attributes;
+             md_loc = md.md_loc;
+           }
+         in
+         Env.add_module_declaration ~check:true
+           md.md_id Mp_present mdecl env
+      )
+      env decls
+  in
+  let bindings2 =
+    check_recmodule_inclusion newenv bindings1 in
+  bindings2, newenv
+
 and type_open_decl ?used_slot ?toplevel funct_body names env sod =
   Builtin_attributes.warning_scope sod.popen_attributes
     (fun () ->
@@ -2114,70 +2175,15 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr scope =
                     }, Trec_not, Exported)],
         newenv
     | Pstr_recmodule sbind ->
-        let sbind =
-          List.map
-            (function
-              | {pmb_name = name;
-                 pmb_expr = {pmod_desc=Pmod_constraint(expr, typ)};
-                 pmb_attributes = attrs;
-                 pmb_loc = loc;
-                } ->
-                  name, typ, expr, attrs, loc
-              | mb ->
-                  raise (Error (mb.pmb_expr.pmod_loc, env,
-                                Recursive_module_require_explicit_type))
-            )
-            sbind
-        in
-        let (decls, newenv) =
-          transl_recmodule_modtypes env
-            (List.map (fun (name, smty, _smodl, attrs, loc) ->
-                 {pmd_name=name; pmd_type=smty;
-                  pmd_attributes=attrs; pmd_loc=loc}) sbind
-            ) in
-        List.iter
-          Signature_names.(fun md -> check_module names md.md_loc md.md_id)
-          decls;
-        let bindings1 =
-          List.map2
-            (fun {md_id=id; md_type=mty} (name, _, smodl, attrs, loc) ->
-               let modl =
-                 Builtin_attributes.warning_scope attrs
-                   (fun () ->
-                      type_module true funct_body (anchor_recmodule id)
-                        newenv smodl
-                   )
-               in
-               let mty' =
-                 enrich_module_type anchor (Ident.name id) modl.mod_type newenv
-               in
-               (id, name, mty, modl, mty', attrs, loc))
-            decls sbind in
-        let newenv = (* allow aliasing recursive modules from outside *)
-          List.fold_left
-            (fun env md ->
-               let mdecl =
-                 {
-                   md_type = md.md_type.mty_type;
-                   md_attributes = md.md_attributes;
-                   md_loc = md.md_loc;
-                 }
-               in
-               Env.add_module_declaration ~check:true
-                 md.md_id Mp_present mdecl env
-            )
-            env decls
-        in
-        let bindings2 =
-          check_recmodule_inclusion newenv bindings1 in
-        Tstr_recmodule bindings2,
+        let bindings, newenv = type_recmodule funct_body anchor names env sbind in
+        Tstr_recmodule bindings,
         map_rec (fun rs mb ->
             Sig_module(mb.mb_id, Mp_present, {
                 md_type=mb.mb_expr.mod_type;
                 md_attributes=mb.mb_attributes;
                 md_loc=mb.mb_loc;
               }, rs, Exported))
-           bindings2 [],
+           bindings [],
         newenv
     | Pstr_modtype pmtd ->
         (* check that it is non-abstract *)
@@ -2499,6 +2505,25 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
 
 let type_interface sourcefile env ast =
   InterfaceHooks.apply_hooks { Misc.sourcefile } (transl_signature env ast)
+
+let type_rec_interfaces env asts =
+  let mtys, recenv =
+    transl_recmodule_modtypes ~persistent:true env
+      (List.map (fun (name, ast, loc) ->
+           let modty =
+             { pmty_desc = Pmty_signature ast;
+               pmty_loc = loc;
+               pmty_attributes = [] }
+           in
+           {pmd_name=Location.mkloc name loc; pmd_type=modty;
+            pmd_attributes=[]; pmd_loc=loc}) asts)
+  in
+  List.map (fun { md_type } -> match md_type with
+        { mty_desc = Tmty_signature sg } -> sg
+      | _ -> assert false)
+    mtys,
+  recenv
+
 
 (* "Packaging" of several compilation units into one unit
    having them as sub-modules.  *)
