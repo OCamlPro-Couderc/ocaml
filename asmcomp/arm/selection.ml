@@ -107,25 +107,27 @@ method is_immediate n =
 
 method! is_simple_expr = function
   (* inlined floating-point ops are simple if their arguments are *)
-  | Cop(Cextcall("sqrt", _, _, _), args, _) when !fpu >= VFPv2 ->
+  | Cop(Cextcall("sqrt", _, _, _), args, _)
+    when !fpu >= VFPv2 ->
       List.for_all self#is_simple_expr args
   (* inlined byte-swap ops are simple if their arguments are *)
   | Cop(Cextcall("caml_bswap16_direct", _, _, _), args, _)
     when !arch >= ARMv6T2 ->
       List.for_all self#is_simple_expr args
-  | Cop(Cextcall("caml_int32_direct_bswap",_,_,_), args, _)
+  | Cop(Cextcall("caml_int32_direct_bswap", _, _, _), args, _)
     when !arch >= ARMv6 ->
       List.for_all self#is_simple_expr args
   | e -> super#is_simple_expr e
 
 method! effects_of e =
   match e with
-  | Cop(Cextcall("sqrt", _, _, _), args, _) when !fpu >= VFPv2 ->
+  | Cop(Cextcall("sqrt", _, _, _), args, _)
+      when !fpu >= VFPv2 ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
   | Cop(Cextcall("caml_bswap16_direct", _, _, _), args, _)
     when !arch >= ARMv6T2 ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
-  | Cop(Cextcall("caml_int32_direct_bswap",_,_,_), args, _)
+  | Cop(Cextcall("caml_int32_direct_bswap", _, _, _), args, _)
     when !arch >= ARMv6 ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
   | e -> super#effects_of e
@@ -220,7 +222,8 @@ method! select_operation op args dbg =
       (* See above for fix up of return register *)
       (self#iextcall("__aeabi_idivmod", false), args)
   (* Recognize 16-bit bswap instruction (ARMv6T2 because we need movt) *)
-  | (Cextcall("caml_bswap16_direct", _, _, _), args) when !arch >= ARMv6T2 ->
+  | (Cextcall("caml_bswap16_direct", _, _, _), args)
+      when !arch >= ARMv6T2 ->
       (Ispecific(Ibswap 16), args)
   (* Recognize 32-bit bswap instructions (ARMv6 and above) *)
   | (Cextcall("caml_int32_direct_bswap", _, _, _), args)

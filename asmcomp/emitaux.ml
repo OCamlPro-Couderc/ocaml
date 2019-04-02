@@ -34,10 +34,10 @@ let emit_symbol esc s =
   for i = 0 to String.length s - 1 do
     let c = s.[i] in
     match c with
-      'A'..'Z' | 'a'..'z' | '0'..'9' | '_' ->
+    'A'..'Z' | 'a'..'z' | '0'..'9' | '_' ->
         output_char !output_channel c
-    | _ ->
-        Printf.fprintf !output_channel "%c%02x" esc (Char.code c)
+             | _ ->
+                 Printf.fprintf !output_channel "%c%02x" esc (Char.code c)
   done
 
 let emit_string_literal s =

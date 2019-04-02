@@ -236,7 +236,7 @@ method! select_operation op args dbg =
   | Cextcall("caml_int32_direct_bswap", _, _, _) ->
       (Ispecific(Ibswap 32), args)
   | Cextcall(("caml_int64_direct_bswap"|"caml_nativeint_direct_bswap"),
-              _, _, _) ->
+             _, _, _) ->
       (Ispecific (Ibswap 64), args)
   (* Other operations are regular *)
   | _ ->

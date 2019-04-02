@@ -26,7 +26,7 @@ let command_line_options =
 open Format
 
 type addressing_mode =
-    Ibased of string * int              (* symbol + displ *)
+    Ibased of string * int       (* symbol + displ *)
   | Iindexed of int                     (* reg + displ *)
   | Iindexed2 of int                    (* reg + reg + displ *)
   | Iscaled of int * int                (* reg * scale + displ *)
@@ -117,8 +117,9 @@ let print_specific_operation printreg op ppf arg =
          (if is_assign then "(assign)" else "(init)")
   | Istore_symbol(lbl, addr, is_assign) ->
       fprintf ppf "[%a] := \"%s\" %s"
-         (print_addressing printreg addr) arg lbl
-         (if is_assign then "(assign)" else "(init)")
+          (print_addressing printreg addr) arg
+          lbl
+          (if is_assign then "(assign)" else "(init)")
   | Ioffset_loc(n, addr) ->
       fprintf ppf "[%a] +:= %i" (print_addressing printreg addr) arg n
   | Ipush ->
