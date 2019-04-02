@@ -105,7 +105,7 @@ let slot_offset loc cl =
 
 (* Symbols *)
 
-let emit_symbol s = Asm_symbol.to_escaped_string s
+let emit_symbol ?reloc s = Asm_symbol.to_escaped_string ?reloc s
 
 (* Record symbols used and defined - at the end generate extern for those
    used but not defined *)
@@ -150,7 +150,7 @@ let mem__imp s =
 let rel_plt s =
   if windows && !Clflags.dlcode then mem__imp s
   else
-    sym (if use_plt then emit_symbol s ^ "@PLT" else emit_symbol s)
+    sym (if use_plt then emit_symbol s ~reloc:"@PLT" else emit_symbol s)
 
 let emit_call s = I.call (rel_plt s)
 
@@ -161,7 +161,7 @@ let load_symbol_addr s arg =
     if windows then begin
       (* I.mov (mem__imp s) arg (\* mov __caml_imp_foo(%rip), ... *\) *)
       I.mov (sym (emit_symbol s)) arg (* movabsq $foo, ... *)
-    end else I.mov (mem64_rip QWORD (emit_symbol s ^ "@GOTPCREL")) arg
+    end else I.mov (mem64_rip QWORD (emit_symbol s ~reloc:"@GOTPCREL")) arg
   else if !Clflags.pic_code then
     I.lea (mem64_rip NONE (emit_symbol s)) arg
   else
@@ -1028,6 +1028,18 @@ let data l =
 
 (* Beginning / end of an assembly file *)
 
+let code_begin comp_unit =
+  let backend_sym =
+    Backend_sym.create
+      ~compilation_unit:comp_unit ~base_name:"code_begin" Backend_sym.Text in
+  S.create backend_sym
+
+let code_end comp_unit =
+  let backend_sym =
+    Backend_sym.create
+      ~compilation_unit:comp_unit ~base_name:"code_end" Backend_sym.Text in
+  S.create backend_sym
+
 let begin_assembly comp_unit =
   X86_proc.reset_asm_code ();
   reset_debug_info();                   (* PR#5603 *)
@@ -1067,13 +1079,7 @@ let begin_assembly comp_unit =
 
   D.data ();
   emit_global_symbol comp_unit Data "data_begin";
-
-  let code_begin =
-    let backend_sym =
-      Backend_sym.create ~base_name:"code_begin" Backend_sym.Text in
-    S.create backend_sym
-  in
-  emit_named_text_section (Some code_begin);
+  emit_named_text_section (Some (code_begin comp_unit));
   emit_global_symbol comp_unit Text "code_begin";
   if system = S_macosx then I.nop (); (* PR#4690 *)
   ()
@@ -1127,12 +1133,7 @@ let end_assembly comp_unit =
     end;
     List.iter (fun (cst,lbl) -> emit_float_constant cst lbl) !float_constants
   end;
-  let code_end =
-    let backend_sym =
-      Backend_sym.create ~base_name:"code_end" Backend_sym.Text in
-    S.create backend_sym
-  in
-  emit_named_text_section (Some code_end);
+  emit_named_text_section (Some (code_end comp_unit));
   if system = S_macosx then I.nop ();
   (* suppress "ld warning: atom sorting error" *)
 
@@ -1179,7 +1180,8 @@ let end_assembly comp_unit =
   if system = S_linux then begin
     let frametable =
       let backend_sym =
-        Backend_sym.create ~base_name:"frametable" Backend_sym.Text in
+        Backend_sym.create
+          ~compilation_unit:comp_unit ~base_name:"frametable" Backend_sym.Text in
       emit_symbol (S.create backend_sym)
     in
     D.size frametable (ConstSub (ConstThis, ConstLabel frametable))

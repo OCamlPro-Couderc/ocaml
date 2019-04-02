@@ -62,7 +62,7 @@ val object_file : t -> Object_file.t
 (** Convert a symbol to the corresponding textual form, suitable for direct
     emission into an assembly file.  This may be useful e.g. when emitting
     an instruction referencing a symbol.
-    
+
     The optional [reloc] parameter will be appended to the encoded symbol (with
     no escaping applied to [reloc]) if provided. *)
 val to_escaped_string : ?reloc:string -> t -> string
@@ -86,11 +86,6 @@ val is_generic_function : t -> bool
 
 (** The names of various predefined symbols, for convenience. *)
 module Names : sig
-  (** External variables from the C library. *)
-  val mcount : t
-  val _mcount : t
-  val __gnu_mcount_nc : t
-
   (** Global variables in the OCaml runtime accessed by OCaml code. *)
   val caml_young_ptr : t
   val caml_young_limit : t
