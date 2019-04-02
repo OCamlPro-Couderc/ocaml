@@ -91,7 +91,7 @@ let add_used_symbol s = symbols_used := S.Set.add s !symbols_used
 
 let trap_frame_size = Misc.align 8 stack_alignment
 
-let emit_symbol s = Asm_symbol.encode s
+let emit_symbol s = Asm_symbol.to_escaped_string s
 
 let immsym s = sym (emit_symbol s)
 
@@ -130,6 +130,10 @@ let register_name r =
   else Regf (float_reg_name.(r - 100))
 
 let sym32 ?ofs s = mem_sym ?ofs DWORD (emit_symbol s)
+
+let caml_extra_params =
+  S.of_external_name AS.Data Object_file.runtime_and_external_libs
+    "caml_extra_params"
 
 let reg = function
   | { loc = Reg r } -> register_name r
@@ -170,6 +174,7 @@ let arg32 i n = reg32 i.arg.(n)
 let addressing addr typ i n =
   match addr with
   | Ibased(s, ofs) ->
+      let s = S.create s in
       add_used_symbol s;
       mem_sym typ (emit_symbol s) ~ofs
   | Iindexed d ->
@@ -414,7 +419,8 @@ let emit_float_test cmp arg lbl =
 
 (* Emit a Ifloatspecial instruction *)
 
-let emit_floatspecial = function
+let emit_floatspecial sym =
+  match S.to_string ~without_prefix:() sym with
   | "atan"  -> I.fld1 (); I.fpatan ()
   | "atan2" -> I.fpatan ()
   | "cos"   -> I.fcos ()
@@ -448,7 +454,7 @@ let emit_float_constant cst lbl =
   _label (emit_label lbl);
   emit_float64_split_directive cst
 
-let emit_global_label s =
+let emit_global_symbol comp_unit kind s =
   let backend_sym = Backend_sym.create ~compilation_unit ~base_name kind in
   let sym = S.create backend_sym in
   add_def_symbol sym;
@@ -537,6 +543,7 @@ let emit_instr fallthrough i =
             I.jmp (immsym func)
           end
         end
+      end
   | Lop(Iextcall { func; alloc; label_after; }) ->
       let func = S.create func in
       add_used_symbol func;
@@ -937,34 +944,35 @@ let data l =
 
 (* Beginning / end of an assembly file *)
 
-let begin_assembly() =
+let begin_assembly comp_unit =
   X86_proc.reset_asm_code ();
   reset_debug_info();                   (* PR#5603 *)
   float_constants := [];
   if system = S_win32 then begin
     D.mode386 ();
     D.model "FLAT";
-    D.extrn "_caml_young_ptr" DWORD;
-    D.extrn "_caml_young_limit" DWORD;
-    D.extrn "_caml_exception_pointer" DWORD;
-    D.extrn "_caml_extra_params" DWORD;
-    D.extrn "_caml_call_gc" PROC;
-    D.extrn "_caml_c_call" PROC;
-    D.extrn "_caml_allocN" PROC;
-    D.extrn "_caml_alloc1" PROC;
-    D.extrn "_caml_alloc2" PROC;
-    D.extrn "_caml_alloc3" PROC;
-    D.extrn "_caml_ml_array_bound_error" PROC;
-    D.extrn "_caml_raise_exn" PROC;
+    let extrn sym kind = D.extrn (S.to_escaped_string sym) kind in
+    extrn caml_young_ptr DWORD;
+    extrn caml_young_limit DWORD;
+    extrn caml_exception_pointer DWORD;
+    extrn caml_extra_params DWORD;
+    extrn caml_call_gc PROC;
+    extrn caml_c_call PROC;
+    extrn caml_allocN PROC;
+    extrn caml_alloc1 PROC;
+    extrn caml_alloc2 PROC;
+    extrn caml_alloc3 PROC;
+    extrn caml_ml_array_bound_error PROC;
+    extrn caml_raise_exn PROC;
   end;
 
   D.data ();
-  emit_global_label "data_begin";
+  emit_global_symbol comp_unit Data "data_begin";
 
   D.text ();
-  emit_global_label "code_begin"
+  emit_global_symbol comp_unit Code "code_begin"
 
-let end_assembly() =
+let end_assembly comp_unit =
   if !float_constants <> [] then begin
     D.data ();
     List.iter (fun (cst,lbl) -> emit_float_constant cst lbl) !float_constants
@@ -972,14 +980,14 @@ let end_assembly() =
 
   D.text ();
 
-  emit_global_label "code_end";
+  emit_global_symbol comp_unit Text "code_end";
 
   D.data ();
   D.long (const 0);  (* PR#6329 *)
-  emit_global_label "data_end";
+  emit_global_symbol comp_unit Data "data_end";
   D.long (const 0);
 
-  emit_global_label "frametable";
+  emit_global_symbol comp_unit Data "frametable";
 
   emit_frames
     { efa_code_label = (fun l -> D.long (ConstLabel (emit_label l)));

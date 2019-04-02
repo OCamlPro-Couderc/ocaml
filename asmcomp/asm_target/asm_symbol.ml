@@ -183,15 +183,6 @@ end)
 module Names = struct
   let runtime = Object_file.runtime_and_external_libs
 
-  let mcount =
-    of_external_name Text runtime "mcount"
-
-  let _mcount =
-    of_external_name Text runtime "_mcount"
-
-  let __gnu_mcount_nc =
-    of_external_name Text runtime "__gnu_mcount_nc"
-
   let caml_young_ptr =
     of_external_name Data runtime "caml_young_ptr"
 

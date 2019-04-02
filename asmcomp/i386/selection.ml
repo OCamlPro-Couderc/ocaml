@@ -21,10 +21,12 @@ open Proc
 open Cmm
 open Mach
 
+module S = Asm_symbol
+
 (* Auxiliary for recognizing addressing modes *)
 
 type addressing_expr =
-    Asymbol of string
+    Asymbol of Backend_sym.t
   | Alinear of expression
   | Aadd of expression * expression
   | Ascale of expression * int
@@ -77,7 +79,20 @@ let rec select_addr exp =
    If you update this list, you may need to update [is_simple_expr] and/or
    [effects_of], below. *)
 let inline_float_ops =
-  ["atan"; "atan2"; "cos"; "log"; "log10"; "sin"; "sqrt"; "tan"]
+  let sym name =
+    S.of_external_name Asm_section.Text Object_file.runtime_and_external_libs
+      name
+  in
+  S.Set.of_list [
+    sym "atan";
+    sym "atan2";
+    sym "cos";
+    sym "log";
+    sym "log10";
+    sym "sin";
+    sym "sqrt";
+    sym "tan";
+  ]
 
 (* Estimate number of float temporaries needed to evaluate expression
    (Ershov's algorithm) *)
@@ -90,7 +105,7 @@ let rec float_needs = function
       let n2 = float_needs arg2 in
       if n1 = n2 then 1 + n1 else if n1 > n2 then n1 else n2
   | Cop(Cextcall(fn, _ty_res, _alloc, _label), args, _dbg)
-    when !fast_math && List.mem fn inline_float_ops ->
+    when !fast_math && S.Set.mem (S.create fn) inline_float_ops ->
       begin match args with
         [arg] -> float_needs arg
       | [arg1; arg2] -> max (float_needs arg2 + 1) (float_needs arg1)
@@ -163,7 +178,7 @@ method is_immediate (_n : int) = true
 method! is_simple_expr e =
   match e with
   | Cop(Cextcall(fn, _, _alloc, _), args, _)
-    when !fast_math && List.mem fn inline_float_ops ->
+    when !fast_math && S.Set.mem (S.create fn) inline_float_ops ->
       (* inlined float ops are simple if their arguments are *)
       List.for_all self#is_simple_expr args
   | _ ->
@@ -172,7 +187,7 @@ method! is_simple_expr e =
 method! effects_of e =
   match e with
   | Cop(Cextcall(fn, _, _, _), args, _)
-    when !fast_math && List.mem fn inline_float_ops ->
+    when !fast_math && S.Set.mem (S.create fn) inline_float_ops ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
   | _ ->
       super#effects_of e
@@ -238,7 +253,7 @@ method! select_operation op args dbg =
       end
   (* Recognize inlined floating point operations *)
   | Cextcall(fn, _ty_res, false, _label)
-    when !fast_math && List.mem fn inline_float_ops ->
+    when !fast_math && S.Set.mem (S.create fn) inline_float_ops ->
       (Ispecific(Ifloatspecial fn), args)
   (* i386 does not support immediate operands for multiply high signed *)
   | Cmulhi ->
