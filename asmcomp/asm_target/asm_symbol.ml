@@ -67,7 +67,7 @@ let section t = t.section
 
 let object_file t = t.object_file
 
-let symbol_prefix t = (* CR mshinwell: needs checking *)
+let symbol_prefix t =
   if t.never_add_prefix then ""
   else
     match Target_system.architecture () with
@@ -106,9 +106,9 @@ let symbol_prefix t = (* CR mshinwell: needs checking *)
       | MacOS_like -> "_"
       end
     | ARM
-    | AArch64
+    | AArch64 -> "$"
     | POWER
-    | Z -> ""
+    | Z -> "."
 
 let escape name =
   let spec = ref false in
@@ -131,6 +131,7 @@ let escape name =
   end
 
 let to_escaped_string ?(reloc = "") t =
+  (* The prefix and relocation must not be escaped! *)
   (symbol_prefix t) ^ (escape t.name) ^ reloc
 
 let to_string ?without_prefix t =
@@ -174,9 +175,9 @@ include Identifiable.Make (struct
       name,
       never_add_prefix)
 
-  let output _ _ = Misc.fatal_error "Not yet implemented"
-
   let print ppf t = Format.pp_print_string ppf (to_string t)
+
+  let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
 module Names = struct

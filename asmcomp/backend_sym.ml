@@ -32,6 +32,8 @@ let to_string { name; _ } = name
 include Identifiable.Make (struct
   type nonrec t = t
 
+  (* CR mshinwell: check every field *)
+
   let compare t1 t2 = String.compare (to_string t1) (to_string t2)
 
   let equal t1 t2 = (compare t1 t2 = 0)
@@ -40,7 +42,7 @@ include Identifiable.Make (struct
 
   let print ppf { name; _ } = Format.pp_print_string ppf name
 
-  let output chn t = output_string chn (to_string t)
+  let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
 let compute_object_file (compilation_unit : BCU.t) =

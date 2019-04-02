@@ -16,6 +16,8 @@
 
 (* Emission of Intel 386 assembly code *)
 
+[@@@ocaml.warning "-40"]
+
 open Misc
 open Cmm
 open Arch
@@ -132,7 +134,7 @@ let sym32 ?ofs s = mem_sym ?ofs DWORD (emit_symbol s)
 let reg = function
   | { loc = Reg r } -> register_name r
   | { loc = Stack(Incoming n | Outgoing n) } when n < 0 ->
-      sym32 "caml_extra_params" ~ofs:(n + 64)
+      sym32 caml_extra_params ~ofs:(n + 64)
   | { loc = Stack s; typ = Float } as r ->
       let ofs = slot_offset s (register_class r) in
       mem32 REAL8 ofs RSP
@@ -219,7 +221,7 @@ let call_gc_sites = ref ([] : gc_call list)
 
 let emit_call_gc gc =
   def_label gc.gc_lbl;
-  emit_call "caml_call_gc";
+  emit_call caml_call_gc;
   def_label gc.gc_frame;
   I.jmp (label gc.gc_return_lbl)
 
@@ -248,14 +250,14 @@ let bound_error_label ?label dbg =
 
 let emit_call_bound_error bd =
   def_label bd.bd_lbl;
-  emit_call "caml_ml_array_bound_error";
+  emit_call caml_ml_array_bound_error;
   def_label bd.bd_frame
 
 let emit_call_bound_errors () =
   List.iter emit_call_bound_error !bound_error_sites;
   if !bound_error_call > 0 then begin
     def_label !bound_error_call;
-    emit_call "caml_ml_array_bound_error"
+    emit_call caml_ml_array_bound_error
   end
 
 (* Names for instructions *)
@@ -447,16 +449,17 @@ let emit_float_constant cst lbl =
   emit_float64_split_directive cst
 
 let emit_global_label s =
-  let lbl = Compilenv.make_symbol (Some s) in
-  add_def_symbol lbl;
-  let lbl = emit_symbol lbl in
+  let backend_sym = Backend_sym.create ~compilation_unit ~base_name kind in
+  let sym = S.create backend_sym in
+  add_def_symbol sym;
+  let escaped_sym = S.to_escaped_symbol sym in
   D.global lbl;
   _label lbl
 
 (* Output the assembly code for an instruction *)
 
 (* Name of current function *)
-let function_name = ref ""
+let function_name = ref None
 (* Entry point for tail recursive calls *)
 let tailrec_entry_point = ref 0
 
@@ -539,7 +542,7 @@ let emit_instr fallthrough i =
       add_used_symbol func;
       if alloc then begin
         I.mov (immsym func) eax;
-        emit_call "caml_c_call";
+        emit_call caml_c_call;
         record_frame i.live false i.dbg ~label:label_after
       end else begin
         emit_call func
@@ -595,10 +598,10 @@ let emit_instr fallthrough i =
       if !fastcode_flag then begin
         let lbl_redo = new_label() in
         def_label lbl_redo;
-        I.mov (sym32 "caml_young_ptr") eax;
+        I.mov (sym32 caml_young_ptr) eax;
         I.sub (int n) eax;
-        I.mov eax (sym32 "caml_young_ptr");
-        I.cmp (sym32 "caml_young_limit") eax;
+        I.mov eax (sym32 caml_young_ptr);
+        I.cmp (sym32 caml_young_limit) eax;
         let lbl_call_gc = new_label() in
         let lbl_frame = record_frame_label i.live false Debuginfo.none in
         I.jb (label lbl_call_gc);
@@ -609,12 +612,12 @@ let emit_instr fallthrough i =
             gc_frame = lbl_frame } :: !call_gc_sites
       end else begin
         begin match n with
-          8  -> emit_call "caml_alloc1"
-        | 12 -> emit_call "caml_alloc2"
-        | 16 -> emit_call "caml_alloc3"
+          8  -> emit_call caml_alloc1
+        | 12 -> emit_call caml_alloc2
+        | 16 -> emit_call caml_alloc3
         | _  ->
             I.mov (int n) eax;
-            emit_call "caml_allocN"
+            emit_call caml_allocN
         end;
         let label =
           record_frame_label ?label:label_after_call_gc i.live false
@@ -847,23 +850,23 @@ let emit_instr fallthrough i =
       I.push (label lbl_handler);
       if trap_frame_size > 8 then
         I.sub (int (trap_frame_size - 8)) esp;
-      I.push (sym32 "caml_exception_pointer");
+      I.push (sym32 caml_exception_pointer);
       cfi_adjust_cfa_offset trap_frame_size;
-      I.mov esp (sym32 "caml_exception_pointer");
+      I.mov esp (sym32 caml_exception_pointer);
       stack_offset := !stack_offset + trap_frame_size
   | Lpoptrap ->
-      I.pop (sym32 "caml_exception_pointer");
+      I.pop (sym32 caml_exception_pointer);
       I.add (int (trap_frame_size - 4)) esp;
       cfi_adjust_cfa_offset (-trap_frame_size);
       stack_offset := !stack_offset - trap_frame_size
   | Lraise k  ->
       begin match k with
       | Cmm.Raise_withtrace ->
-          emit_call "caml_raise_exn";
+          emit_call caml_raise_exn;
           record_frame Reg.Set.empty true i.dbg
       | Cmm.Raise_notrace ->
-          I.mov (sym32 "caml_exception_pointer") esp;
-          I.pop (sym32 "caml_exception_pointer");
+          I.mov (sym32 caml_exception_pointer) esp;
+          I.pop (sym32 caml_exception_pointer);
           if trap_frame_size > 8 then
             I.add (int (trap_frame_size - 8)) esp;
           I.pop ebx;
@@ -882,7 +885,8 @@ let rec emit_all fallthrough i =
 (* Emission of a function declaration *)
 
 let fundecl fundecl =
-  function_name := fundecl.fun_name;
+  let fun_name = S.create fundecl.fun_name in
+  function_name := Some fun_name;
   fastcode_flag := fundecl.fun_fast;
   tailrec_entry_point := fundecl.fun_tailrec_entry_point_label;
   stack_offset := 0;
@@ -890,10 +894,10 @@ let fundecl fundecl =
   bound_error_sites := [];
   bound_error_call := 0;
   D.text ();
-  add_def_symbol fundecl.fun_name;
+  add_def_symbol fun_name;
   D.align (if system = S_win32 then 4 else 16);
-  D.global (emit_symbol fundecl.fun_name);
-  D.label (emit_symbol fundecl.fun_name);
+  D.global (emit_symbol fun_name);
+  D.label (emit_symbol fun_name);
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc ();
   emit_all true fundecl.fun_body;
@@ -902,11 +906,11 @@ let fundecl fundecl =
   cfi_endproc ();
   begin match system with
   | S_linux_elf | S_bsd_elf | S_gnu ->
-      D.type_ (emit_symbol fundecl.fun_name) "@function";
-      D.size (emit_symbol fundecl.fun_name)
+      D.type_ (emit_symbol fun_name) "@function";
+      D.size (emit_symbol fun_name)
         (ConstSub (
             ConstThis,
-            ConstLabel (emit_symbol fundecl.fun_name)))
+            ConstLabel (emit_symbol fun_name)))
   | _ -> ()
   end
 
