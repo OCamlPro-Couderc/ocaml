@@ -532,7 +532,6 @@ installoptopt:
            middle_end/closure/*.cmx \
            middle_end/flambda/*.cmx \
            middle_end/flambda/base_types/*.cmx \
-	   asmcomp/debug/*.cmx \
           "$(INSTALL_COMPLIBDIR)"
 	$(INSTALL_DATA) \
 	   compilerlibs/*.cmxa compilerlibs/*.$(A) \
