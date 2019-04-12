@@ -396,6 +396,7 @@ and module_declaration_lazy =
 and module_components =
   {
     alerts: alerts;
+    pack: modname option;
     loc: Location.t;
     comps: (components_maker, module_components_repr option) EnvLazy.t;
   }
@@ -524,8 +525,8 @@ let diff env1 env2 =
 (* Forward declarations *)
 
 let components_of_module' =
-  ref ((fun ~alerts:_ ~loc:_ _env _fsub _psub _path _addr _mty -> assert false):
-         alerts:alerts -> loc:Location.t -> t ->
+  ref ((fun ~alerts:_ ~loc:_ ~pack:_ _env _fsub _psub _path _addr _mty -> assert false):
+         alerts:alerts -> loc:Location.t -> pack:string option -> t ->
        Subst.t option -> Subst.t -> Path.t -> address_lazy -> module_type ->
        module_components)
 let components_of_module_maker' =
@@ -605,7 +606,13 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent name in
   let path = Pident id in
-  let addr = EnvLazy.create_forced (Aident id) in
+  let pack, pers_id =
+    List.find_opt (function Pack _ -> true | _ -> false) flags
+    |> function
+      Some (Pack p) -> Some p, Ident.create_persistent (p ^ "." ^ name)
+    | _ -> None, id
+  in
+  let addr = EnvLazy.create_forced (Aident pers_id) in
   let alerts =
     List.fold_left (fun acc -> function Alerts s -> s | _ -> acc)
       Misc.Stdlib.String.Map.empty
@@ -616,7 +623,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   let pm_components =
     let freshening_subst =
       if freshen then (Some Subst.identity) else None in
-    !components_of_module' ~alerts ~loc
+    !components_of_module' ~alerts ~loc ~pack
       empty freshening_subst Subst.identity path addr (Mty_signature sign) in
   {
     pm_signature;
@@ -831,13 +838,18 @@ let find_module ~alias path env =
           raise Not_found
       end
 
+let get_pers_address id =
+  match (find_pers_mod (Ident.name id)).pm_components.pack with
+    None | exception _ -> Aident id
+  | Some p -> Aident (Ident.create_persistent (p ^ "." ^ Ident.name id))
+
 let rec find_module_address path env =
   match path with
   | Pident id ->
       begin
         match find_same_module id env.modules with
         | Value (_, addr) -> get_address addr
-        | Persistent -> Aident id
+        | Persistent -> get_pers_address id
       end
   | Pdot(p, s) -> begin
       match get_components (find_module_descr p env) with
@@ -1630,10 +1642,11 @@ let module_declaration_address env id presence md =
   | Mp_present ->
       EnvLazy.create_forced (Aident id)
 
-let rec components_of_module ~alerts ~loc env fs ps path addr mty =
+let rec components_of_module ~alerts ~loc ~pack env fs ps path addr mty =
   {
     alerts;
     loc;
+    pack;
     comps = EnvLazy.create {
       cm_env = env;
       cm_freshening_subst = fs;
@@ -1730,7 +1743,8 @@ and components_of_module_maker {cm_env; cm_freshening_subst; cm_prefixing_subst;
               Builtin_attributes.alerts_of_attrs md.md_attributes
             in
             let comps =
-              components_of_module ~alerts ~loc:md.md_loc !env freshening_sub
+              components_of_module ~alerts ~loc:md.md_loc ~pack:None
+                !env freshening_sub
                 prefixing_sub path addr md.md_type
             in
             c.comp_components <-
@@ -1904,7 +1918,7 @@ and store_module ~check ~freshening_sub id addr presence md env =
     components =
       IdTbl.add id
         (Value
-           (components_of_module ~alerts ~loc:md.md_loc
+           (components_of_module ~alerts ~loc:md.md_loc ~pack:None
               env freshening_sub Subst.identity (Pident id) addr md.md_type,
             addr))
         env.components;
@@ -1944,6 +1958,7 @@ let components_of_functor_appl f env p1 p2 =
     let comps =
       components_of_module ~alerts:Misc.Stdlib.String.Map.empty
         ~loc:Location.none
+        ~pack:None
         (*???*)
         env None Subst.identity p addr mty
     in
