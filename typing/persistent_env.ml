@@ -188,7 +188,9 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
             if Config.safe_string then
               error (Depend_on_unsafe_string_unit(ps.ps_name));
         | Alerts _ -> ()
-        | Pack _p -> ()
+        | Pack p ->
+            if !Clflags.for_package <> Some p && not !Clflags.make_package then
+              error (Inconsistent_package_declaration(modname, filename))
         | Opaque -> add_imported_opaque penv modname)
     ps.ps_flags;
   if check then check_consistency penv ps;
@@ -366,8 +368,8 @@ let report_error ppf =
                                   safe-string mode (-force-safe-string)"
   | Inconsistent_package_declaration(intf_package, intf_filename) ->
       fprintf ppf
-        "@[<hov>The interface %s@ is compiled for package %s.@ %s]"
-        intf_package intf_filename
+        "@[<hov>The interface %s@ is compiled for package %s.@ %s@]"
+        intf_filename intf_package
          "The compilation flag -for-pack with the same package is required"
 
 let () =

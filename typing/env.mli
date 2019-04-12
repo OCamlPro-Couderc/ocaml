@@ -107,6 +107,10 @@ val reset_required_globals: unit -> unit
 val get_required_globals: unit -> Ident.t list
 val add_required_global: Ident.t -> unit
 
+val get_global_ident: Ident.t -> Ident.t
+(* Prefix the identifier by its pack name, if there exists such a global and it
+   has been compiled for a pack *)
+
 val has_local_constraints: t -> bool
 
 (* Lookup by long identifiers *)
