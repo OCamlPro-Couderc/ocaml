@@ -146,14 +146,41 @@ type find_cmx_result =
    below will just turn into [CU.equal]. *)
 let global_infos_table : find_cmx_result CU.Name.Tbl.t = CU.Name.Tbl.create 17
 
+let check_prefix_compatibility curr linked =
+  match linked, curr with
+  | [], _ -> true
+  | _, _ -> curr = linked
+
 (* This is the equivalent of the old [Compilenv.get_global_info]. *)
 let find_or_load_unit_info_from_cmx ?comp_unit desired_unit_name
-      : find_cmx_result =
-  let current_unit_name = CU.name (CU.get_current_exn ()) in
+  : find_cmx_result =
+  let curr = CU.get_current_exn () in
+  let current_unit_name = CU.name curr in
+  let desired_unit_pack_prefix, desired_unit_name =
+    match List.rev @@ String.split_on_char '.' @@
+      CU.Name.to_string desired_unit_name with
+    | [] -> [], desired_unit_name
+    | unit :: rev_prefix ->
+        List.fold_left (fun l p -> CU.Name.of_string p :: l) [] rev_prefix,
+        CU.Name.of_string unit
+  in
   if CU.Name.equal desired_unit_name current_unit_name then
     Current_unit
   else
-    try CU.Name.Tbl.find global_infos_table desired_unit_name
+    let print_prefix p =
+      List.map CU.Name.to_string p
+      |> String.concat "."
+    in
+    try
+      if not (check_prefix_compatibility (CU.for_pack_prefix curr) desired_unit_pack_prefix) then
+        begin
+          Format.eprintf "Desired unit: %s; Desired unit prefix: [%s]; Curr prefix: [%s]\n%!"
+            (CU.Name.to_string desired_unit_name)
+            (print_prefix desired_unit_pack_prefix)
+            (print_prefix (CU.for_pack_prefix curr));
+          assert false
+        end;
+      CU.Name.Tbl.find global_infos_table desired_unit_name
     with Not_found ->
       let desired_unit_name_as_string = CU.Name.to_string desired_unit_name in
       let info_and_crc =

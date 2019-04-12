@@ -42,38 +42,38 @@ let force_link = ref false
    SETGLOBAL relocations that correspond to one of the units being
    consolidated. *)
 
-let rename_relocation packagename objfile mapping defined base (rel, ofs) =
+let rename_relocation packagename objfile identifiers defined base (rel, ofs) =
   let rel' =
     match rel with
       Reloc_getglobal id ->
-        begin try
-          let id' = List.assoc id mapping in
-          if List.mem id defined
-          then Reloc_getglobal id'
-          else raise(Error(Forward_reference(objfile, id)))
-        with Not_found ->
-          (* PR#5276: unique-ize dotted global names, which appear
-             if one of the units being consolidated is itself a packed
-             module. *)
-          let name = Ident.name id in
-          if String.contains name '.' then
-            Reloc_getglobal (Ident.create_persistent (packagename ^ "." ^ name))
+        begin
+          if List.mem id identifiers then
+            if List.mem id defined
+            then rel
+            else raise(Error(Forward_reference(objfile, id)))
           else
-            rel
+            (* PR#5276: unique-ize dotted global names, which appear
+               if one of the units being consolidated is itself a packed
+               module. *)
+            let name = Ident.name id in
+            if String.contains name '.' then
+              Reloc_getglobal (Ident.create_persistent (packagename ^ "." ^ name))
+            else
+              rel
         end
     | Reloc_setglobal id ->
-        begin try
-          let id' = List.assoc id mapping in
-          if List.mem id defined
-          then raise(Error(Multiple_definition(objfile, id)))
-          else Reloc_setglobal id'
-        with Not_found ->
-          (* PR#5276, as above *)
-          let name = Ident.name id in
-          if String.contains name '.' then
-            Reloc_setglobal (Ident.create_persistent (packagename ^ "." ^ name))
+        begin
+          if List.mem id identifiers then
+            if List.mem id defined
+            then raise(Error(Multiple_definition(objfile, id)))
+            else rel
           else
-            rel
+            (* PR#5276, as above *)
+            let name = Ident.name id in
+            if String.contains name '.' then
+              Reloc_setglobal (Ident.create_persistent (packagename ^ "." ^ name))
+            else
+              rel
         end
     | _ ->
         rel in
@@ -94,7 +94,8 @@ type pack_member_kind = PM_intf | PM_impl of compilation_unit
 type pack_member =
   { pm_file: string;
     pm_name: string;
-    pm_kind: pack_member_kind }
+    pm_kind: pack_member_kind;
+  }
 
 let read_member_info file = (
   let name =
@@ -160,7 +161,7 @@ let rename_append_bytecode packagename oc mapping defined ofs prefix subst
 (* Same, for a list of .cmo and .cmi files.
    Return total size of bytecode. *)
 
-let rec rename_append_bytecode_list packagename oc mapping defined ofs
+let rec rename_append_bytecode_list packagename oc identifiers defined ofs
                                     prefix subst =
   function
     [] ->
@@ -168,15 +169,15 @@ let rec rename_append_bytecode_list packagename oc mapping defined ofs
   | m :: rem ->
       match m.pm_kind with
       | PM_intf ->
-          rename_append_bytecode_list packagename oc mapping defined ofs
+          rename_append_bytecode_list packagename oc identifiers defined ofs
                                       prefix subst rem
       | PM_impl compunit ->
           let size =
-            rename_append_bytecode packagename oc mapping defined ofs
+            rename_append_bytecode packagename oc identifiers defined ofs
                                    prefix subst m.pm_file compunit in
-          let id = Ident.create_persistent m.pm_name in
+          let id = Ident.create_persistent (packagename ^ "." ^ m.pm_name) in
           let root = Path.Pident (Ident.create_persistent prefix) in
-          rename_append_bytecode_list packagename oc mapping (id :: defined)
+          rename_append_bytecode_list packagename oc identifiers (id :: defined)
             (ofs + size) prefix
             (Subst.add_module id (Path.Pdot (root, Ident.name id))
                               subst)
@@ -184,14 +185,14 @@ let rec rename_append_bytecode_list packagename oc mapping defined ofs
 
 (* Generate the code that builds the tuple representing the package module *)
 
-let build_global_target ~ppf_dump oc target_name members mapping pos coercion =
+let build_global_target ~ppf_dump oc target_name members identifiers pos coercion =
   let components =
     List.map2
-      (fun m (_id1, id2) ->
+      (fun m id ->
         match m.pm_kind with
         | PM_intf -> None
-        | PM_impl _ -> Some id2)
-      members mapping in
+        | PM_impl _ -> Some id)
+      members identifiers in
   let lam =
     Translmod.transl_package
       components (Ident.create_persistent target_name) coercion in
@@ -229,11 +230,9 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
   in
   let unit_names =
     List.map (fun m -> m.pm_name) members in
-  let mapping =
+  let identifiers =
     List.map
-      (fun name ->
-          (Ident.create_persistent name,
-           Ident.create_persistent(targetname ^ "." ^ name)))
+      (fun name -> Ident.create_persistent (targetname ^ "." ^ name))
       unit_names in
   let oc = open_out_bin targetfile in
   try
@@ -241,9 +240,9 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let pos_depl = pos_out oc in
     output_binary_int oc 0;
     let pos_code = pos_out oc in
-    let ofs = rename_append_bytecode_list targetname oc mapping [] 0
+    let ofs = rename_append_bytecode_list targetname oc identifiers [] 0
                                           targetname Subst.identity members in
-    build_global_target ~ppf_dump oc targetname members mapping ofs coercion;
+    build_global_target ~ppf_dump oc targetname members identifiers ofs coercion;
     let pos_debug = pos_out oc in
     if !Clflags.debug && !events <> [] then begin
       output_value oc (List.rev !events);
