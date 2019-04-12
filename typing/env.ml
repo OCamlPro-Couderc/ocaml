@@ -586,6 +586,7 @@ let find_same_module id tbl =
 type persistent_module = {
   pm_signature: signature Lazy.t;
   pm_components: module_components;
+  pm_addr: address;
 }
 
 let add_persistent_structure id env =
@@ -605,7 +606,14 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent name in
   let path = Pident id in
-  let addr = EnvLazy.create_forced (Aident id) in
+  let pm_pack, pers_id =
+    List.find_opt (function Pack _ -> true | _ -> false) flags
+    |> function
+      Some (Pack prefix) ->
+        Some p, Aident (Ident.create_persistent ~prefix name)
+    | _ -> Aident id
+  in
+  let addr = EnvLazy.create_forced pm_addr in
   let alerts =
     List.fold_left (fun acc -> function Alerts s -> s | _ -> acc)
       Misc.Stdlib.String.Map.empty
@@ -621,6 +629,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   {
     pm_signature;
     pm_components;
+    pm_pack;
   }
 
 let read_sign_of_cmi = sign_of_cmi ~freshen:true
@@ -831,13 +840,23 @@ let find_module ~alias path env =
           raise Not_found
       end
 
+let find_pers_address id =
+  if not (Ident.persistent id) then raise Not_found;
+  (find_pers_mod (Ident.name id)).pm_addr
+
+let find_pers_address_ident id =
+  match find_pers_address id with
+    Aident id -> id
+  | _ -> id
+
 let rec find_module_address path env =
+  (* Format.eprintf "Find module address for %a\n%!" Path.print path; *)
   match path with
   | Pident id ->
       begin
         match find_same_module id env.modules with
         | Value (_, addr) -> get_address addr
-        | Persistent -> Aident id
+        | Persistent -> find_pers_address id
       end
   | Pdot(p, s) -> begin
       match get_components (find_module_descr p env) with
@@ -850,13 +869,25 @@ let rec find_module_address path env =
   | Papply _ -> raise Not_found
 
 and force_address = function
-  | Projection { parent; pos } -> Adot(get_address parent, pos)
-  | ModAlias { env; path } -> find_module_address path env
+  | Projection { parent; pos } ->
+      (* Format.eprintf "In Projection case\n%!";
+       * (\* Format.eprintf "Parent: %a\n%!" print_address parent; *\) *)
+      Adot(get_address parent, pos)
+  | ModAlias { env; path } ->
+      (* Format.eprintf "In ModAlias case\n%!"; *)
+      find_module_address path env
 
 and get_address a =
+  (* Format.printf "In get_adress, before EnvLazy.force\n%!"; *)
   EnvLazy.force force_address a
 
+(* let get_address a =
+ *   (\* print_endline "Calling get_address print_endline"; *\)
+ *   Format.eprintf "Calling get_address\n%!";
+ *   get_address a *)
+
 let find_value_address p env =
+  (* Format.eprintf "find_value_address %a\n%!" Path.print p; *)
   get_address (snd (find_value_full p env))
 
 let find_class_address p env =
@@ -888,6 +919,7 @@ let required_globals = ref []
 let reset_required_globals () = required_globals := []
 let get_required_globals () = !required_globals
 let add_required_global id =
+  let id = find_pers_address_ident id in
   if Ident.global id && not !Clflags.transparent_modules
   && not (List.exists (Ident.same id) !required_globals)
   then required_globals := id :: !required_globals
@@ -914,7 +946,7 @@ and expand_module_path lax env path =
       if lax || !Clflags.transparent_modules then path' else
       let id = Path.head path in
       if Ident.global id && not (Ident.same id (Path.head path'))
-      then add_required_global id;
+      then add_required_global (find_pers_adress_ident id);
       path'
   | _ -> path
   with Not_found when lax
@@ -1730,7 +1762,8 @@ and components_of_module_maker {cm_env; cm_freshening_subst; cm_prefixing_subst;
               Builtin_attributes.alerts_of_attrs md.md_attributes
             in
             let comps =
-              components_of_module ~alerts ~loc:md.md_loc !env freshening_sub
+              components_of_module ~alerts ~loc:md.md_loc
+                !env freshening_sub
                 prefixing_sub path addr md.md_type
             in
             c.comp_components <-
