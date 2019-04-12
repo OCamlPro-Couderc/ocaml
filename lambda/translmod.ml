@@ -744,6 +744,8 @@ let scan_used_globals lam =
     Lambda.iter_head_constructor scan lam;
     match lam with
       Lprim ((Pgetglobal id | Psetglobal id), _, _) ->
+        (* if Env.get_unit_name () = "Lambda" then
+         *   Format.eprintf "[debug] add global: %a\n%!" Ident.print_with_scope id; *)
         globals := Ident.Set.add id !globals
     | _ -> ()
   in
@@ -759,12 +761,22 @@ let required_globals ~flambda body =
   in
   let required =
     List.fold_left
-      (fun acc path -> add_global (Path.head path) acc)
+      (fun acc path ->
+         if Env.get_unit_name () = "Symtable" then
+           Format.eprintf "[debug] add global primitive: %a\n%!" Path.print
+             path;
+         (* /!\ TEMPORARY *)
+         let unit = Env.get_global_ident (Path.head path) in
+         add_global unit acc)
       (if flambda then globals else Ident.Set.empty)
       (Translprim.get_used_primitives ())
   in
   let required =
-    List.fold_right add_global (Env.get_required_globals ()) required
+    List.fold_right (fun id req ->
+        if Env.get_unit_name () = "Symtable" then
+           Format.eprintf "[debug] Env.required_global: %a\n%!" Ident.print_with_scope id;
+        add_global id req)
+      (Env.get_required_globals ()) required
   in
   Env.reset_required_globals ();
   Translprim.clear_used_primitives ();
@@ -772,11 +784,16 @@ let required_globals ~flambda body =
 
 (* Compile an implementation *)
 
+let transl_module_ident module_name =
+  match !Clflags.for_package with
+    Some p -> Ident.create_persistent (p ^ "." ^ module_name)
+  | None -> Ident.create_persistent module_name
+
 let transl_implementation_flambda module_name (str, cc) =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
-  let module_id = Ident.create_persistent module_name in
+  let module_id = transl_module_ident module_name in
   let body, size =
     Translobj.transl_label_init
       (fun () -> transl_struct Location.none [] cc
@@ -1509,10 +1526,11 @@ let transl_package_flambda component_names coercion =
            Location.none))
 
 let transl_package component_names target_name coercion =
+  let module_name = transl_module_ident (Ident.name target_name) in
   let components =
     Lprim(Pmakeblock(0, Immutable, None),
           List.map get_component component_names, Location.none) in
-  Lprim(Psetglobal target_name,
+  Lprim(Psetglobal module_name,
         [apply_coercion Location.none Strict coercion components],
         Location.none)
   (*

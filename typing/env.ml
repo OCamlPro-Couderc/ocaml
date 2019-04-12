@@ -477,7 +477,8 @@ and type_data =
 and module_data =
   { mda_declaration : module_declaration_lazy;
     mda_components : module_components;
-    mda_address : address_lazy; }
+    mda_address : address_lazy;
+    mda_pack : Misc.modname list option; }
 
 and module_entry =
   | Mod_local of module_data
@@ -723,6 +724,13 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent name in
   let path = Pident id in
+  let mda_pack, pers_address =
+    List.find_opt (function Pack _ -> true | _ -> false) flags
+    |> function
+      Some (Pack prefix) ->
+        Some [prefix], Aident (Ident.create_persistent ~prefix:[prefix] name)
+    | _ -> None, Aident id
+  in
   let alerts =
     List.fold_left (fun acc -> function Alerts s -> s | _ -> acc)
       Misc.Stdlib.String.Map.empty
@@ -730,7 +738,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   in
   let loc = Location.none in
   let md = md (Mty_signature sign) in
-  let mda_address = EnvLazy.create_forced (Aident id) in
+  let mda_address = EnvLazy.create_forced pers_address in
   let mda_declaration =
     EnvLazy.create (Subst.identity, Subst.Make_local, md)
   in
@@ -746,6 +754,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     mda_declaration;
     mda_components;
     mda_address;
+    mda_pack;
   }
 
 let read_sign_of_cmi = sign_of_cmi ~freshen:true
@@ -984,7 +993,15 @@ let find_type p env =
 let find_type_descrs p env =
   (find_type_full p env).tda_descriptions
 
+let get_global_ident id =
+  if not (Ident.persistent id) then id
+  else
+    match (find_pers_mod (Ident.name id)).mda_pack with
+      None | exception _ -> id
+    | Some p -> Ident.create_persistent ~prefix:p (Ident.name id)
+
 let rec find_module_address path env =
+  (* Format.eprintf "Find module address for %a\n%!" Path.print path; *)
   match path with
   | Pident id -> get_address (find_ident_module id env).mda_address
   | Pdot(p, s) ->
@@ -993,11 +1010,26 @@ let rec find_module_address path env =
   | Papply _ -> raise Not_found
 
 and force_address = function
-  | Projection { parent; pos } -> Adot(get_address parent, pos)
-  | ModAlias { env; path } -> find_module_address path env
+  | Projection { parent; pos } ->
+      (* Format.eprintf "In Projection case\n%!";
+       * (\* Format.eprintf "Parent: %a\n%!" print_address parent; *\) *)
+      Adot(get_address parent, pos)
+  | ModAlias { env; path } ->
+      (* Format.eprintf "In ModAlias case\n%!"; *)
+      find_module_address path env
 
 and get_address a =
+  (* Format.printf "In get_adress, before EnvLazy.force\n%!"; *)
   EnvLazy.force force_address a
+
+let find_pers_address id =
+  if not (Ident.persistent id) then raise Not_found;
+  (find_pers_mod (Ident.name id)).mda_address
+
+let find_pers_address_ident id =
+  match get_address (find_pers_address id) with
+    Aident id -> id
+  | _ -> id
 
 let find_value_address path env =
   get_address (find_value_full path env).vda_address
@@ -1046,9 +1078,10 @@ let required_globals = ref []
 let reset_required_globals () = required_globals := []
 let get_required_globals () = !required_globals
 let add_required_global id =
-  if Ident.global id && not !Clflags.transparent_modules
-  && not (List.exists (Ident.same id) !required_globals)
-  then required_globals := id :: !required_globals
+  if Ident.global id && not !Clflags.transparent_modules then
+    let id = find_pers_address_ident id in
+    if not (List.exists (Ident.same id) !required_globals) then
+      required_globals := id :: !required_globals
 
 let rec normalize_module_path lax env = function
   | Pident id as path when lax && Ident.persistent id ->
@@ -1072,7 +1105,7 @@ and expand_module_path lax env path =
       if lax || !Clflags.transparent_modules then path' else
       let id = Path.head path in
       if Ident.global id && not (Ident.same id (Path.head path'))
-      then add_required_global id;
+      then add_required_global (find_pers_address_ident id);
       path'
   | _ -> path
   with Not_found when lax
@@ -1537,13 +1570,15 @@ let rec components_of_module_maker
               Builtin_attributes.alerts_of_attrs md.md_attributes
             in
             let comps =
-              components_of_module ~alerts ~loc:md.md_loc !env freshening_sub
+              components_of_module ~alerts ~loc:md.md_loc
+                !env freshening_sub
                 prefixing_sub path addr md.md_type
             in
             let mda =
               { mda_declaration = md';
                 mda_components = comps;
-                mda_address = addr }
+                mda_address = addr;
+                mda_pack = None; }
             in
             c.comp_modules <-
               NameMap.add (Ident.name id) mda c.comp_modules;
@@ -1731,7 +1766,8 @@ and store_module ~check ~freshening_sub id addr presence md env =
   let mda =
     { mda_declaration = module_decl_lazy;
       mda_components = comps;
-      mda_address = addr }
+      mda_address = addr;
+      mda_pack = None; } (* pcouderc: get it from the id *)
   in
   { env with
     modules = IdTbl.add id (Mod_local mda) env.modules;
