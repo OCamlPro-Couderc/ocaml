@@ -229,6 +229,7 @@ let main () =
     end;
     if !Parameters.version
     then printf "\tOCaml Debugger version %s@.@." Config.version;
+    Env.set_unit_name !program_name;
     Loadprinter.init();
     Load_path.init !default_load_path;
     Clflags.recursive_types := true;    (* Allow recursive types. *)

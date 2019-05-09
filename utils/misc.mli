@@ -460,6 +460,9 @@ val print_if :
   Format.formatter -> bool ref -> (Format.formatter -> 'a -> unit) -> 'a -> 'a
 (** [print_if ppf flag fmt x] prints [x] with [fmt] on [ppf] if [b] is true. *)
 
+val prefix_of_for_pack : string -> string list
+(** [prefix_of_for_pack p] returns the list of nested packed modules from a
+    `-for-pack` argument.*)
 
 type filepath = string
 type modname = string

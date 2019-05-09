@@ -38,52 +38,25 @@ let debug_dirs = ref String.Set.empty
 let primitives = ref ([] : string list)
 let force_link = ref false
 
-(* Record a relocation.  Update its offset, and rename GETGLOBAL and
-   SETGLOBAL relocations that correspond to one of the units being
-   consolidated. *)
+(* Update a relocation offset and check for the link order. *)
 
-let rename_relocation packagename objfile identifiers defined base (rel, ofs) =
-  let rel' =
+let update_offset objfile identifiers defined base (rel, ofs) =
+  begin
     match rel with
       Reloc_getglobal id ->
-        begin
-          if List.mem id identifiers then
-            if List.mem id defined
-            then rel
-            else raise(Error(Forward_reference(objfile, id)))
-          else
-            (* PR#5276: unique-ize dotted global names, which appear
-               if one of the units being consolidated is itself a packed
-               module. *)
-            let name = Ident.name id in
-            if String.contains name '.' then
-              Reloc_getglobal (Ident.create_persistent (packagename ^ "." ^ name))
-            else
-              rel
-        end
+        if List.mem id identifiers && not (List.mem id defined)
+        then raise(Error(Forward_reference(objfile, id)))
     | Reloc_setglobal id ->
-        begin
-          if List.mem id identifiers then
-            if List.mem id defined
-            then raise(Error(Multiple_definition(objfile, id)))
-            else rel
-          else
-            (* PR#5276, as above *)
-            let name = Ident.name id in
-            if String.contains name '.' then
-              Reloc_setglobal (Ident.create_persistent (packagename ^ "." ^ name))
-            else
-              rel
-        end
-    | _ ->
-        rel in
-  relocs := (rel', base + ofs) :: !relocs
+        if List.mem id identifiers && List.mem id defined
+        then raise(Error(Multiple_definition(objfile, id)))
+    | _ -> ()
+  end;
+  relocs := (rel, base + ofs) :: !relocs
 
 (* Record and relocate a debugging event *)
 
-let relocate_debug base prefix subst ev =
+let relocate_debug base subst ev =
   let ev' = { ev with ev_pos = base + ev.ev_pos;
-                      ev_module = prefix ^ "." ^ ev.ev_module;
                       ev_typsubst = Subst.compose ev.ev_typsubst subst } in
   events := ev' :: !events
 
@@ -132,13 +105,12 @@ let read_member_info file = (
    Accumulate relocs, debug info, etc.
    Return size of bytecode. *)
 
-let rename_append_bytecode packagename oc mapping defined ofs prefix subst
-                           objfile compunit =
+let append_bytecode oc mapping defined ofs subst objfile compunit =
   let ic = open_in_bin objfile in
   try
     Bytelink.check_consistency objfile compunit;
     List.iter
-      (rename_relocation packagename objfile mapping defined ofs)
+      (update_offset objfile mapping defined ofs)
       compunit.cu_reloc;
     primitives := compunit.cu_primitives @ !primitives;
     if compunit.cu_force_link then force_link := true;
@@ -146,7 +118,7 @@ let rename_append_bytecode packagename oc mapping defined ofs prefix subst
     Misc.copy_file_chunk ic oc compunit.cu_codesize;
     if !Clflags.debug && compunit.cu_debug > 0 then begin
       seek_in ic compunit.cu_debug;
-      List.iter (relocate_debug ofs prefix subst) (input_value ic);
+      List.iter (relocate_debug ofs subst) (input_value ic);
       debug_dirs := List.fold_left
         (fun s e -> String.Set.add e s)
         !debug_dirs
@@ -161,24 +133,25 @@ let rename_append_bytecode packagename oc mapping defined ofs prefix subst
 (* Same, for a list of .cmo and .cmi files.
    Return total size of bytecode. *)
 
-let rec rename_append_bytecode_list packagename oc identifiers defined ofs
-                                    prefix subst =
+let rec append_bytecode_list packagename oc identifiers defined ofs subst =
   function
     [] ->
       ofs
   | m :: rem ->
       match m.pm_kind with
       | PM_intf ->
-          rename_append_bytecode_list packagename oc identifiers defined ofs
-                                      prefix subst rem
+          append_bytecode_list packagename oc identifiers defined ofs
+                                      subst rem
       | PM_impl compunit ->
           let size =
-            rename_append_bytecode packagename oc identifiers defined ofs
-                                   prefix subst m.pm_file compunit in
-          let id = Ident.create_persistent (packagename ^ "." ^ m.pm_name) in
-          let root = Path.Pident (Ident.create_persistent prefix) in
-          rename_append_bytecode_list packagename oc identifiers (id :: defined)
-            (ofs + size) prefix
+            append_bytecode oc identifiers defined ofs
+              subst m.pm_file compunit in
+          (* /!\ TEMP *)
+          let prefix = String.split_on_char '.' packagename in
+          let id = Ident.create_persistent ~prefix m.pm_name in
+          let root = Path.Pident id in
+          append_bytecode_list packagename oc identifiers (id :: defined)
+            (ofs + size)
             (Subst.add_module id (Path.Pdot (root, Ident.name id))
                               subst)
             rem
@@ -228,11 +201,15 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
             List.fold_right Ident.Set.add cu_required_globals required_globals)
       members Ident.Set.empty
   in
+  let packagename = match !Clflags.for_package with
+      None -> targetname
+    | Some p -> p ^ "." ^ targetname in
+  let prefix = Misc.prefix_of_for_pack packagename in
   let unit_names =
     List.map (fun m -> m.pm_name) members in
   let identifiers =
     List.map
-      (fun name -> Ident.create_persistent (targetname ^ "." ^ name))
+      (fun name -> Ident.create_persistent ~prefix name)
       unit_names in
   let oc = open_out_bin targetfile in
   try
@@ -240,8 +217,8 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let pos_depl = pos_out oc in
     output_binary_int oc 0;
     let pos_code = pos_out oc in
-    let ofs = rename_append_bytecode_list targetname oc identifiers [] 0
-                                          targetname Subst.identity members in
+    let ofs = append_bytecode_list packagename oc identifiers [] 0
+                                   Subst.identity members in
     build_global_target ~ppf_dump oc targetname members identifiers ofs coercion;
     let pos_debug = pos_out oc in
     if !Clflags.debug && !events <> [] then begin
