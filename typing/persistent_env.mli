@@ -26,6 +26,7 @@ type error =
   | Need_recursive_types of modname
   | Depend_on_unsafe_string_unit of modname
   | Inconsistent_package_declaration of modname * filepath
+  | Inconsistent_package_import of filepath * modname
 
 exception Error of error
 

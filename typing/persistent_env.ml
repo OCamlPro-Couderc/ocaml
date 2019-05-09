@@ -29,6 +29,7 @@ type error =
   | Need_recursive_types of modname
   | Depend_on_unsafe_string_unit of modname
   | Inconsistent_package_declaration of modname * filepath
+  | Inconsistent_package_import of filepath * modname
 
 exception Error of error
 let error err = raise (Error err)
@@ -173,6 +174,12 @@ let check_pack_compatibility current_prefix imported_prefix =
     imported_prefix
     ~of_:current_prefix
 
+let check_pack_import current_prefix imported_prefix imported_unit =
+  not (Misc.Stdlib.List.is_prefix
+         ~equal:(=)
+         (imported_prefix @ [imported_unit])
+         ~of_:current_prefix)
+
 let acknowledge_pers_struct penv check modname pers_sig pm =
   let { Persistent_signature.filename; cmi } = pers_sig in
   let name = cmi.cmi_name in
@@ -185,6 +192,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
            } in
   if ps.ps_name <> modname then
     error (Illegal_renaming(modname, ps.ps_name, filename));
+  if Some ps.ps_name = !Clflags.for_package then
   List.iter
     (function
         | Rectypes ->
@@ -202,7 +210,10 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
               | Some p -> String.split_on_char '.' p in
             if not (check_pack_compatibility curr_prefix p)
             && not !Clflags.make_package then
-              error (Inconsistent_package_declaration(modname, filename))
+              error (Inconsistent_package_declaration(modname, filename));
+            if not (check_pack_import curr_prefix p ps.ps_name) then
+              error (Inconsistent_package_import
+                       (filename,  String.concat "." p ^ "." ^ modname))
         | Opaque -> add_imported_opaque penv modname)
     ps.ps_flags;
   if check then check_consistency penv ps;
@@ -269,6 +280,7 @@ let check_pers_struct penv f ~loc name =
             Printf.sprintf "%s uses -unsafe-string"
               name
         | Inconsistent_package_declaration _ -> assert false
+        | Inconsistent_package_import _ -> assert false
       in
       let warn = Warnings.No_cmi_file(name, Some msg) in
         Location.prerr_warning loc warn
@@ -383,7 +395,12 @@ let report_error ppf =
       fprintf ppf
         "@[<hov>The interface %s@ is compiled for package %s.@ %s@]"
         intf_filename intf_package
-         "The compilation flag -for-pack with the same package is required"
+        "The compilation flag -for-pack with the same package is required"
+  | Inconsistent_package_import(intf_filename, intf_fullname) ->
+      fprintf ppf
+        "@[<hov>The interface %s@ corresponds to the current unit's package %s.@]"
+        intf_filename intf_fullname
+
 
 let () =
   Location.register_error_of_exn
