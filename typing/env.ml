@@ -396,7 +396,6 @@ and module_declaration_lazy =
 and module_components =
   {
     alerts: alerts;
-    pack: modname option;
     loc: Location.t;
     comps: (components_maker, module_components_repr option) EnvLazy.t;
   }
@@ -525,8 +524,8 @@ let diff env1 env2 =
 (* Forward declarations *)
 
 let components_of_module' =
-  ref ((fun ~alerts:_ ~loc:_ ~pack:_ _env _fsub _psub _path _addr _mty -> assert false):
-         alerts:alerts -> loc:Location.t -> pack:string option -> t ->
+  ref ((fun ~alerts:_ ~loc:_ _env _fsub _psub _path _addr _mty -> assert false):
+         alerts:alerts -> loc:Location.t -> t ->
        Subst.t option -> Subst.t -> Path.t -> address_lazy -> module_type ->
        module_components)
 let components_of_module_maker' =
@@ -587,6 +586,7 @@ let find_same_module id tbl =
 type persistent_module = {
   pm_signature: signature Lazy.t;
   pm_components: module_components;
+  pm_pack: modname list;
 }
 
 let add_persistent_structure id env =
@@ -606,11 +606,13 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent name in
   let path = Pident id in
-  let pack, pers_id =
+  let pm_pack, pers_id =
     List.find_opt (function Pack _ -> true | _ -> false) flags
     |> function
-      Some (Pack p) -> Some p, Ident.create_persistent (p ^ "." ^ name)
-    | _ -> None, id
+      Some (Pack p) ->
+        let prefix = String.split_on_char '.' p in
+        prefix, Ident.create_persistent ~prefix name
+    | _ -> [], id
   in
   let addr = EnvLazy.create_forced (Aident pers_id) in
   let alerts =
@@ -623,11 +625,12 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   let pm_components =
     let freshening_subst =
       if freshen then (Some Subst.identity) else None in
-    !components_of_module' ~alerts ~loc ~pack
+    !components_of_module' ~alerts ~loc
       empty freshening_subst Subst.identity path addr (Mty_signature sign) in
   {
     pm_signature;
     pm_components;
+    pm_pack;
   }
 
 let read_sign_of_cmi = sign_of_cmi ~freshen:true
@@ -841,9 +844,10 @@ let find_module ~alias path env =
 let get_global_ident id =
   if not (Ident.persistent id) then id
   else
-    match (find_pers_mod (Ident.name id)).pm_components.pack with
-      None | exception _ -> id
-    | Some p -> Ident.create_persistent (p ^ "." ^ Ident.name id)
+    try Ident.create_persistent
+          ~prefix:(find_pers_mod (Ident.name id)).pm_pack
+          (Ident.name id)
+    with Not_found -> id
 
 let get_pers_address id =
   Aident (get_global_ident id)
@@ -1661,11 +1665,10 @@ let module_declaration_address env id presence md =
   | Mp_present ->
       EnvLazy.create_forced (Aident id)
 
-let rec components_of_module ~alerts ~loc ~pack env fs ps path addr mty =
+let rec components_of_module ~alerts ~loc env fs ps path addr mty =
   {
     alerts;
     loc;
-    pack;
     comps = EnvLazy.create {
       cm_env = env;
       cm_freshening_subst = fs;
@@ -1762,7 +1765,7 @@ and components_of_module_maker {cm_env; cm_freshening_subst; cm_prefixing_subst;
               Builtin_attributes.alerts_of_attrs md.md_attributes
             in
             let comps =
-              components_of_module ~alerts ~loc:md.md_loc ~pack:None
+              components_of_module ~alerts ~loc:md.md_loc
                 !env freshening_sub
                 prefixing_sub path addr md.md_type
             in
@@ -1937,7 +1940,7 @@ and store_module ~check ~freshening_sub id addr presence md env =
     components =
       IdTbl.add id
         (Value
-           (components_of_module ~alerts ~loc:md.md_loc ~pack:None
+           (components_of_module ~alerts ~loc:md.md_loc
               env freshening_sub Subst.identity (Pident id) addr md.md_type,
             addr))
         env.components;
@@ -1977,7 +1980,6 @@ let components_of_functor_appl f env p1 p2 =
     let comps =
       components_of_module ~alerts:Misc.Stdlib.String.Map.empty
         ~loc:Location.none
-        ~pack:None
         (*???*)
         env None Subst.identity p addr mty
     in
