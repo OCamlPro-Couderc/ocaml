@@ -167,6 +167,12 @@ let save_pers_struct penv crc ps pm =
   Consistbl.set crc_units modname crc ps.ps_filename;
   add_import penv modname
 
+let check_pack_compatibility current_prefix imported_prefix =
+  Misc.Stdlib.List.is_prefix
+    ~equal:(=)
+    imported_prefix
+    ~of_:current_prefix
+
 let acknowledge_pers_struct penv check modname pers_sig pm =
   let { Persistent_signature.filename; cmi } = pers_sig in
   let name = cmi.cmi_name in
@@ -189,7 +195,13 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
               error (Depend_on_unsafe_string_unit(ps.ps_name));
         | Alerts _ -> ()
         | Pack p ->
-            if !Clflags.for_package <> Some p && not !Clflags.make_package then
+            (* Current for-pack prefix should be stored somewhere to avoid
+               computing it using `split_on_char` each time *)
+            let curr_prefix = match !Clflags.for_package with
+                None -> []
+              | Some p -> String.split_on_char '.' p in
+            if not (check_pack_compatibility curr_prefix p)
+            && not !Clflags.make_package then
               error (Inconsistent_package_declaration(modname, filename))
         | Opaque -> add_imported_opaque penv modname)
     ps.ps_flags;
@@ -309,7 +321,8 @@ let make_cmi penv modname sign alerts =
       if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
       if !Clflags.opaque then [Cmi_format.Opaque] else [];
       (if !Clflags.unsafe_string then [Cmi_format.Unsafe_string] else []);
-      (match !Clflags.for_package with Some p -> [Cmi_format.Pack p] | None -> []);
+      (match !Clflags.for_package with Some p ->
+         [Cmi_format.Pack (String.split_on_char '.' p)] | None -> []);
       [Alerts alerts];
     ]
   in

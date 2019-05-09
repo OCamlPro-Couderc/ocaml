@@ -609,8 +609,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   let pm_pack, pers_id =
     List.find_opt (function Pack _ -> true | _ -> false) flags
     |> function
-      Some (Pack p) ->
-        let prefix = String.split_on_char '.' p in
+      Some (Pack prefix) ->
         prefix, Ident.create_persistent ~prefix name
     | _ -> [], id
   in
