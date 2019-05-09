@@ -610,8 +610,8 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     List.find_opt (function Pack _ -> true | _ -> false) flags
     |> function
       Some (Pack prefix) ->
-        Some p, Aident (Ident.create_persistent ~prefix name)
-    | _ -> Aident id
+        prefix, Aident (Ident.create_persistent ~prefix name)
+    | _ -> [], id
   in
   let addr = EnvLazy.create_forced pm_addr in
   let alerts =
@@ -850,7 +850,6 @@ let find_pers_address_ident id =
   | _ -> id
 
 let rec find_module_address path env =
-  (* Format.eprintf "Find module address for %a\n%!" Path.print path; *)
   match path with
   | Pident id ->
       begin
@@ -870,24 +869,14 @@ let rec find_module_address path env =
 
 and force_address = function
   | Projection { parent; pos } ->
-      (* Format.eprintf "In Projection case\n%!";
-       * (\* Format.eprintf "Parent: %a\n%!" print_address parent; *\) *)
       Adot(get_address parent, pos)
   | ModAlias { env; path } ->
-      (* Format.eprintf "In ModAlias case\n%!"; *)
       find_module_address path env
 
 and get_address a =
-  (* Format.printf "In get_adress, before EnvLazy.force\n%!"; *)
   EnvLazy.force force_address a
 
-(* let get_address a =
- *   (\* print_endline "Calling get_address print_endline"; *\)
- *   Format.eprintf "Calling get_address\n%!";
- *   get_address a *)
-
 let find_value_address p env =
-  (* Format.eprintf "find_value_address %a\n%!" Path.print p; *)
   get_address (snd (find_value_full p env))
 
 let find_class_address p env =
@@ -919,7 +908,8 @@ let required_globals = ref []
 let reset_required_globals () = required_globals := []
 let get_required_globals () = !required_globals
 let add_required_global id =
-  let id = find_pers_address_ident id in
+let id =
+  if !Clflags.transparent_modules then id else find_pers_address_ident id in
   if Ident.global id && not !Clflags.transparent_modules
   && not (List.exists (Ident.same id) !required_globals)
   then required_globals := id :: !required_globals

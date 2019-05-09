@@ -1,13 +1,13 @@
 File aliases.cmo
-Unit name: Aliases
+Compunit name: Aliases
 Interfaces imported:
 	00000000000000000000000000000000	Stdlib
 	00000000000000000000000000000000	D
+	00000000000000000000000000000000	Aliases
 	00000000000000000000000000000000	CamlinternalFormatBasics
 	--------------------------------	C
-	--------------------------------	B
-	00000000000000000000000000000000	Aliases
 	--------------------------------	A
+	--------------------------------	B
 Required globals:
 	D
 	Stdlib
