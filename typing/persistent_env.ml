@@ -28,7 +28,10 @@ type error =
   | Inconsistent_import of modname * filepath * filepath
   | Need_recursive_types of modname
   | Depend_on_unsafe_string_unit of modname
-  | Inconsistent_package_declaration of modname * filepath
+  | Inconsistent_package_declaration of
+      { imported_unit: modname; filename: filepath;
+        prefix: modname list; current_pack: modname list }
+  | Inconsistent_package_import of filepath * modname
 
 exception Error of error
 let error err = raise (Error err)
@@ -166,10 +169,24 @@ let save_pers_struct penv crc ps pm =
         | Alerts _ -> ()
         | Unsafe_string -> ()
         | Pack _p -> ()
-        | Opaque -> add_imported_opaque penv modname)
+        | Opaque ->
+            Printf.eprintf "add_imported_opaque: %s\n%!" modname;
+            add_imported_opaque penv modname)
     ps.ps_flags;
   Consistbl.set crc_units modname crc ps.ps_filename;
   add_import penv modname
+
+let check_pack_compatibility current_prefix imported_prefix =
+  Misc.Stdlib.List.is_prefix
+    ~equal:(=)
+    imported_prefix
+    ~of_:current_prefix
+
+let check_pack_import current_prefix imported_prefix imported_unit =
+  not (Misc.Stdlib.List.is_prefix
+         ~equal:(=)
+         (imported_prefix @ [imported_unit])
+         ~of_:current_prefix)
 
 let acknowledge_pers_struct penv check modname pers_sig pm =
   let { Persistent_signature.filename; cmi } = pers_sig in
@@ -185,17 +202,29 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
     error (Illegal_renaming(modname, ps.ps_name, filename));
   List.iter
     (function
-        | Rectypes ->
-            if not !Clflags.recursive_types then
-              error (Need_recursive_types(ps.ps_name))
-        | Unsafe_string ->
-            if Config.safe_string then
-              error (Depend_on_unsafe_string_unit(ps.ps_name));
-        | Alerts _ -> ()
-        | Pack p ->
-            if !Clflags.for_package <> Some p && not !Clflags.make_package then
-              error (Inconsistent_package_declaration(modname, filename))
-        | Opaque -> add_imported_opaque penv modname)
+      | Rectypes ->
+          if not !Clflags.recursive_types then
+            error (Need_recursive_types(ps.ps_name))
+      | Unsafe_string ->
+          if Config.safe_string then
+            error (Depend_on_unsafe_string_unit(ps.ps_name));
+      | Alerts _ -> ()
+      | Pack p ->
+          (* Current for-pack prefix should be stored somewhere to avoid
+             computing it using `split_on_char` each time *)
+          let curr_prefix = match !Clflags.for_package with
+              None -> []
+            | Some p -> String.split_on_char '.' p in
+          if not (check_pack_compatibility curr_prefix p)
+          && not !Clflags.make_package then
+            error (Inconsistent_package_declaration
+                     {filename; imported_unit = name; prefix = p;
+                      current_pack = curr_prefix});
+          if not (check_pack_import curr_prefix p ps.ps_name) then
+            error (Inconsistent_package_import
+                     (filename,  String.concat "." p ^ "." ^ modname))
+      | Opaque ->
+          add_imported_opaque penv modname)
     ps.ps_flags;
   if check then check_consistency penv ps;
   let {persistent_structures; _} = penv in
@@ -260,7 +289,14 @@ let check_pers_struct penv f ~loc name =
         | Depend_on_unsafe_string_unit name ->
             Printf.sprintf "%s uses -unsafe-string"
               name
-        | Inconsistent_package_declaration _ -> assert false
+        | Inconsistent_package_declaration {filename; prefix; _} ->
+            Printf.sprintf
+              "%s is compiled for package %s"
+              filename (String.concat "." prefix)
+        | Inconsistent_package_import(intf_filename, _) ->
+            Printf.sprintf
+              "%s corresponds to the current unit's package"
+              intf_filename
       in
       let warn = Warnings.No_cmi_file(name, Some msg) in
         Location.prerr_warning loc warn
@@ -313,7 +349,8 @@ let make_cmi penv modname sign alerts =
       if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
       if !Clflags.opaque then [Cmi_format.Opaque] else [];
       (if !Clflags.unsafe_string then [Cmi_format.Unsafe_string] else []);
-      (match !Clflags.for_package with Some p -> [Cmi_format.Pack p] | None -> []);
+      (match !Clflags.for_package with Some p ->
+         [Cmi_format.Pack (Misc.prefix_of_for_pack p)] | None -> []);
       [Alerts alerts];
     ]
   in
@@ -352,6 +389,16 @@ let save_cmi penv psig pm =
 
 let report_error ppf =
   let open Format in
+  let print_prefix ppf prefix =
+    match prefix with
+    | [] -> pp_print_string ppf "no `-for-pack' prefix"
+    | _ ->
+        fprintf ppf "a `-for-pack' prefix of [%a]"
+          (pp_print_list
+             ~pp_sep:(fun ppf () -> Format.pp_print_string ppf ".")
+             pp_print_string)
+          prefix
+  in
   function
   | Illegal_renaming(modname, ps_name, filename) -> fprintf ppf
       "Wrong file naming: %a@ contains the compiled interface for@ \
@@ -370,11 +417,25 @@ let report_error ppf =
         "@[<hov>Invalid import of %s, compiled with -unsafe-string.@ %s@]"
         import "This compiler has been configured in strict \
                                   safe-string mode (-force-safe-string)"
-  | Inconsistent_package_declaration(intf_package, intf_filename) ->
+  | Inconsistent_package_declaration
+      { imported_unit; filename; prefix; current_pack } ->
+      fprintf ppf "%s contains the description for a unit [%s] with@ \
+                   %a; this cannot be used because@ "
+        filename imported_unit
+        print_prefix prefix;
+      begin match current_pack with
+      | [] ->
+          fprintf ppf "the current unit is being compiled \
+                              without a `-for-pack' prefix"
+      | _ ->
+          fprintf ppf "the current unit has %a"
+            print_prefix current_pack
+      end
+  | Inconsistent_package_import(intf_filename, intf_fullname) ->
       fprintf ppf
-        "@[<hov>The interface %s@ is compiled for package %s.@ %s@]"
-        intf_filename intf_package
-         "The compilation flag -for-pack with the same package is required"
+        "@[<hov>The interface %s@ corresponds to the current unit's package %s.@]"
+        intf_filename intf_fullname
+
 
 let () =
   Location.register_error_of_exn

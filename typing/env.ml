@@ -728,7 +728,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     List.find_opt (function Pack _ -> true | _ -> false) flags
     |> function
       Some (Pack prefix) ->
-        Some [prefix], Aident (Ident.create_persistent ~prefix:[prefix] name)
+        Some prefix, Aident (Ident.create_persistent ~prefix:prefix name)
     | _ -> None, Aident id
   in
   let alerts =
@@ -1001,7 +1001,6 @@ let get_global_ident id =
     | Some p -> Ident.create_persistent ~prefix:p (Ident.name id)
 
 let rec find_module_address path env =
-  (* Format.eprintf "Find module address for %a\n%!" Path.print path; *)
   match path with
   | Pident id -> get_address (find_ident_module id env).mda_address
   | Pdot(p, s) ->
@@ -1011,15 +1010,11 @@ let rec find_module_address path env =
 
 and force_address = function
   | Projection { parent; pos } ->
-      (* Format.eprintf "In Projection case\n%!";
-       * (\* Format.eprintf "Parent: %a\n%!" print_address parent; *\) *)
       Adot(get_address parent, pos)
   | ModAlias { env; path } ->
-      (* Format.eprintf "In ModAlias case\n%!"; *)
       find_module_address path env
 
 and get_address a =
-  (* Format.printf "In get_adress, before EnvLazy.force\n%!"; *)
   EnvLazy.force force_address a
 
 let find_pers_address id =

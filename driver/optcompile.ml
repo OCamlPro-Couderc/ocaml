@@ -129,7 +129,8 @@ let implementation ~backend ~source_file ~output_prefix =
         match !Clflags.for_package with
         | None | Some "" -> []
         | Some for_pack_prefix ->
-          List.map CU.Name.of_string (String.split_on_char '.' for_pack_prefix)
+            Misc.prefix_of_for_pack for_pack_prefix |>
+            List.map CU.Name.of_string
       in
       CU.create ~for_pack_prefix (CU.Name.of_string info.module_name)
     in

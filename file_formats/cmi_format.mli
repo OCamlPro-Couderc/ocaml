@@ -20,7 +20,7 @@ type pers_flags =
   | Alerts of alerts
   | Opaque
   | Unsafe_string
-  | Pack of modname
+  | Pack of modname list
 
 type cmi_infos = {
     cmi_name : modname;
