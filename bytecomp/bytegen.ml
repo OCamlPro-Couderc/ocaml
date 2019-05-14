@@ -989,7 +989,10 @@ let compile_implementation modulename expr =
   Stack.clear functions_to_compile;
   label_counter := 0;
   sz_static_raises := [] ;
-  compunit_name := modulename;
+  compunit_name :=
+    (match !Clflags.for_package with
+      None -> modulename
+    | Some p -> p ^ "." ^ modulename);
   let init_code = comp_block empty_env expr 0 [] in
   if Stack.length functions_to_compile > 0 then begin
     let lbl_init = new_label() in
