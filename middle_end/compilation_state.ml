@@ -151,11 +151,18 @@ let find_or_load_unit_info_from_cmx ?comp_unit desired_unit_name
   : find_cmx_result =
   let curr = CU.get_current_exn () in
   let current_unit_name = CU.name curr in
+  let _desired_unit_pack_prefix, desired_unit_name =
+    match List.rev @@ String.split_on_char '.' @@
+      CU.Name.to_string desired_unit_name with
+    | [] -> [], desired_unit_name
+    | unit :: rev_prefix ->
+        List.fold_left (fun l p -> CU.Name.of_string p :: l) [] rev_prefix,
+        CU.Name.of_string unit
+  in
   if CU.Name.equal desired_unit_name current_unit_name then
     Current_unit
   else
-    try
-      CU.Name.Tbl.find global_infos_table desired_unit_name
+    try CU.Name.Tbl.find global_infos_table desired_unit_name
     with Not_found ->
       let desired_unit_name_as_string = CU.Name.to_string desired_unit_name in
       let info_and_crc =

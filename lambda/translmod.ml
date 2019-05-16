@@ -737,7 +737,9 @@ let required_globals ~flambda body =
 
 let transl_module_ident module_name =
   match !Clflags.for_package with
-    Some p -> Ident.create_persistent (p ^ "." ^ module_name)
+    Some p ->
+      let prefix = Misc.prefix_of_for_pack p in
+      Ident.create_persistent ~prefix module_name
   | None -> Ident.create_persistent module_name
 
 let transl_implementation_flambda module_name (str, cc) =

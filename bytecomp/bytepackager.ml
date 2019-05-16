@@ -203,7 +203,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
   let packagename = match !Clflags.for_package with
       None -> targetname
     | Some p -> p ^ "." ^ targetname in
-  let prefix = String.split_on_char '.' packagename in
+  let prefix = Misc.prefix_of_for_pack packagename in
   let unit_names =
     List.map (fun m -> m.pm_name) members in
   let identifiers =

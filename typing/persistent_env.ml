@@ -334,7 +334,7 @@ let make_cmi penv modname sign alerts =
       if !Clflags.opaque then [Cmi_format.Opaque] else [];
       (if !Clflags.unsafe_string then [Cmi_format.Unsafe_string] else []);
       (match !Clflags.for_package with Some p ->
-         [Cmi_format.Pack (String.split_on_char '.' p)] | None -> []);
+         [Cmi_format.Pack (Misc.prefix_of_for_pack p)] | None -> []);
       [Alerts alerts];
     ]
   in

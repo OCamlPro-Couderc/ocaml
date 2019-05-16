@@ -278,7 +278,7 @@ let package_files ~ppf_dump initial_env files targetcmx ~backend =
     match !Clflags.for_package with
     | None | Some "" -> []
     | Some for_pack_prefix ->
-      List.map CU.Name.of_string (String.split_on_char '.' for_pack_prefix)
+      List.map CU.Name.of_string (Misc.prefix_of_for_pack for_pack_prefix)
   in
   let comp_unit = CU.create ~for_pack_prefix (CU.Name.of_string targetname) in
   Compilation_unit.set_current comp_unit;

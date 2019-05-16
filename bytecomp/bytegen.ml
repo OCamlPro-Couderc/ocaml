@@ -992,7 +992,9 @@ let compile_implementation modulename expr =
   compunit_name :=
     (match !Clflags.for_package with
       None -> modulename
-    | Some p -> p ^ "." ^ modulename);
+     | Some p ->
+         (* TO FIX *)
+         (Misc.prefix_of_for_pack p |> String.concat ".") ^ "." ^ modulename);
   let init_code = comp_block empty_env expr 0 [] in
   if Stack.length functions_to_compile > 0 then begin
     let lbl_init = new_label() in
