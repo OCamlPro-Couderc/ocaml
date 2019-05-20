@@ -190,7 +190,7 @@ let find_or_load_unit_info_from_cmx ?comp_unit desired_unit_name
       in
       begin match info_and_crc with
       | None ->
-        (* If the caller could not specify the [Compilation_unit.t], perhaps
+          (* If the caller could not specify the [Compilation_unit.t], perhaps
            because they only had an [Ident.t], then we have to assume that the
            .cmx file is not packed. *)
         let comp_unit =

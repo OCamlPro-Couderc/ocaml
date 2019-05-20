@@ -163,7 +163,9 @@ let save_pers_struct penv crc ps pm =
         | Alerts _ -> ()
         | Unsafe_string -> ()
         | Pack _p -> ()
-        | Opaque -> add_imported_opaque penv modname)
+        | Opaque ->
+            Printf.eprintf "add_imported_opaque: %s\n%!" modname;
+            add_imported_opaque penv modname)
     ps.ps_flags;
   Consistbl.set crc_units modname crc ps.ps_filename;
   add_import penv modname
@@ -279,8 +281,14 @@ let check_pers_struct penv f ~loc name =
         | Depend_on_unsafe_string_unit name ->
             Printf.sprintf "%s uses -unsafe-string"
               name
-        | Inconsistent_package_declaration _ -> assert false
-        | Inconsistent_package_import _ -> assert false
+        | Inconsistent_package_declaration(intf_package, intf_filename) ->
+            Printf.sprintf
+              "%s is compiled for package %s"
+              intf_filename intf_package
+        | Inconsistent_package_import(intf_filename, _) ->
+            Printf.sprintf
+              "%s corresponds to the current unit's package"
+              intf_filename
       in
       let warn = Warnings.No_cmi_file(name, Some msg) in
         Location.prerr_warning loc warn

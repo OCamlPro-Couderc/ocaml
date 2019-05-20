@@ -846,13 +846,16 @@ let get_global_ident id =
     try Ident.create_persistent
           ~prefix:(find_pers_mod (Ident.name id)).pm_pack
           (Ident.name id)
-    with Not_found -> id
+    with Not_found | Cmi_format.Error _ | Persistent_env.Error _ ->
+      (* This can happen with -no-alias-deps and a missing/broken cmi. Since
+         `get_global_ident` is called for the address, thus after typing, this
+         should be safe *)
+      id
 
 let get_pers_address id =
   Aident (get_global_ident id)
 
 let rec find_module_address path env =
-  (* Format.eprintf "Find module address for %a\n%!" Path.print path; *)
   match path with
   | Pident id ->
       begin
@@ -872,24 +875,14 @@ let rec find_module_address path env =
 
 and force_address = function
   | Projection { parent; pos } ->
-      (* Format.eprintf "In Projection case\n%!";
-       * (\* Format.eprintf "Parent: %a\n%!" print_address parent; *\) *)
       Adot(get_address parent, pos)
   | ModAlias { env; path } ->
-      (* Format.eprintf "In ModAlias case\n%!"; *)
       find_module_address path env
 
 and get_address a =
-  (* Format.printf "In get_adress, before EnvLazy.force\n%!"; *)
   EnvLazy.force force_address a
 
-(* let get_address a =
- *   (\* print_endline "Calling get_address print_endline"; *\)
- *   Format.eprintf "Calling get_address\n%!";
- *   get_address a *)
-
 let find_value_address p env =
-  (* Format.eprintf "find_value_address %a\n%!" Path.print p; *)
   get_address (snd (find_value_full p env))
 
 let find_class_address p env =

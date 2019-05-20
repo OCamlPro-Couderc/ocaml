@@ -695,8 +695,6 @@ let scan_used_globals lam =
     Lambda.iter_head_constructor scan lam;
     match lam with
       Lprim ((Pgetglobal id | Psetglobal id), _, _) ->
-        (* if Env.get_unit_name () = "Lambda" then
-         *   Format.eprintf "[debug] add global: %a\n%!" Ident.print_with_scope id; *)
         globals := Ident.Set.add id !globals
     | _ -> ()
   in
@@ -713,9 +711,6 @@ let required_globals ~flambda body =
   let required =
     List.fold_left
       (fun acc path ->
-         if Env.get_unit_name () = "Symtable" then
-           Format.eprintf "[debug] add global primitive: %a\n%!" Path.print
-             path;
          (* /!\ TEMPORARY *)
          let unit = Env.get_global_ident (Path.head path) in
          add_global unit acc)
@@ -724,8 +719,6 @@ let required_globals ~flambda body =
   in
   let required =
     List.fold_right (fun id req ->
-        if Env.get_unit_name () = "Symtable" then
-           Format.eprintf "[debug] Env.required_global: %a\n%!" Ident.print_with_scope id;
         add_global id req)
       (Env.get_required_globals ()) required
   in
