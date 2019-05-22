@@ -60,6 +60,7 @@ module type Common_options = sig
   val _dlambda : unit -> unit
 
   val anonymous : string -> unit
+  val _debug_compiler : unit -> unit
 end;;
 
 module type Compiler_options = sig

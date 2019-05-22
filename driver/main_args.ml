@@ -850,6 +850,10 @@ let mk__ f =
   "<file>  Treat <file> as a file name (even if it starts with `-')"
 ;;
 
+let mk_debug_compiler f =
+  "-debug-mode", Arg.Unit f, "(undocumented)"
+;;
+
 module type Common_options = sig
   val _absname : unit -> unit
   val _alert : string -> unit
@@ -894,6 +898,8 @@ module type Common_options = sig
   val _dlambda : unit -> unit
 
   val anonymous : string -> unit
+
+  val _debug_compiler : unit -> unit
 end
 
 module type Compiler_options = sig
@@ -1186,6 +1192,8 @@ struct
 
     mk_args F._args;
     mk_args0 F._args0;
+
+    mk_debug_compiler F._debug_compiler;
   ]
 end;;
 
@@ -1399,6 +1407,8 @@ struct
 
     mk_args F._args;
     mk_args0 F._args0;
+
+    mk_debug_compiler F._debug_compiler;
   ]
 end;;
 

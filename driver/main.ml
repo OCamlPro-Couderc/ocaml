@@ -144,6 +144,8 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _args0 = Arg.read_arg0
 
   let anonymous = anonymous
+
+  let _debug_compiler = set debug_compiler
 end)
 
 let main () =
