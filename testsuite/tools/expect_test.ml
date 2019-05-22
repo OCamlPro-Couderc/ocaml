@@ -402,6 +402,8 @@ module Options = Main_args.Make_bytetop_options (struct
   let _args0 = Arg.read_arg0
 
   let anonymous s = main s
+
+  let _debug_compiler = set debug_compiler
 end);;
 
 let args =

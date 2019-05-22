@@ -158,6 +158,8 @@ module Options = Main_args.Make_bytetop_options (struct
   let _args0 = wrap_expand Arg.read_arg0
 
   let anonymous s = file_argument s
+
+  let _debug_compiler = set debug_compiler
 end);;
 
 let () =
