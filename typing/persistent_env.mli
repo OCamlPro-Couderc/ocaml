@@ -25,7 +25,9 @@ type error =
   | Inconsistent_import of modname * filepath * filepath
   | Need_recursive_types of modname
   | Depend_on_unsafe_string_unit of modname
-  | Inconsistent_package_declaration of modname * filepath
+  | Inconsistent_package_declaration of
+      { imported_unit: modname; filename: filepath;
+        prefix: modname list; current_pack: modname list }
   | Inconsistent_package_import of filepath * modname
 
 exception Error of error

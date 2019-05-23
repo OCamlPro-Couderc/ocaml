@@ -28,7 +28,9 @@ type error =
   | Inconsistent_import of modname * filepath * filepath
   | Need_recursive_types of modname
   | Depend_on_unsafe_string_unit of modname
-  | Inconsistent_package_declaration of modname * filepath
+  | Inconsistent_package_declaration of
+      { imported_unit: modname; filename: filepath;
+        prefix: modname list; current_pack: modname list }
   | Inconsistent_package_import of filepath * modname
 
 exception Error of error
@@ -211,7 +213,9 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
             | Some p -> String.split_on_char '.' p in
           if not (check_pack_compatibility curr_prefix p)
           && not !Clflags.make_package then
-            error (Inconsistent_package_declaration(modname, filename));
+            error (Inconsistent_package_declaration
+                     {filename; imported_unit = name; prefix = p;
+                      current_pack = curr_prefix});
           if not (check_pack_import curr_prefix p ps.ps_name) then
             error (Inconsistent_package_import
                      (filename,  String.concat "." p ^ "." ^ modname))
@@ -281,10 +285,10 @@ let check_pers_struct penv f ~loc name =
         | Depend_on_unsafe_string_unit name ->
             Printf.sprintf "%s uses -unsafe-string"
               name
-        | Inconsistent_package_declaration(intf_package, intf_filename) ->
+        | Inconsistent_package_declaration {filename; prefix; _} ->
             Printf.sprintf
               "%s is compiled for package %s"
-              intf_filename intf_package
+              filename (String.concat "." prefix)
         | Inconsistent_package_import(intf_filename, _) ->
             Printf.sprintf
               "%s corresponds to the current unit's package"
@@ -381,6 +385,16 @@ let save_cmi penv psig pm =
 
 let report_error ppf =
   let open Format in
+  let print_prefix ppf prefix =
+    match prefix with
+    | [] -> pp_print_string ppf "no `-for-pack' prefix"
+    | _ ->
+        fprintf ppf "a `-for-pack' prefix of [%a]"
+          (pp_print_list
+             ~pp_sep:(fun ppf () -> Format.pp_print_string ppf ".")
+             pp_print_string)
+          prefix
+  in
   function
   | Illegal_renaming(modname, ps_name, filename) -> fprintf ppf
       "Wrong file naming: %a@ contains the compiled interface for @ \
@@ -399,11 +413,20 @@ let report_error ppf =
         "@[<hov>Invalid import of %s, compiled with -unsafe-string.@ %s@]"
         import "This compiler has been configured in strict \
                                   safe-string mode (-force-safe-string)"
-  | Inconsistent_package_declaration(intf_package, intf_filename) ->
-      fprintf ppf
-        "@[<hov>The interface %s@ is compiled for package %s.@ %s@]"
-        intf_filename intf_package
-        "The compilation flag -for-pack with the same package is required"
+  | Inconsistent_package_declaration
+      { imported_unit; filename; prefix; current_pack } ->
+      fprintf ppf "%s contains the description for a unit [%s] with@ \
+                   %a; this cannot be used because@ "
+        filename imported_unit
+        print_prefix prefix;
+      begin match current_pack with
+      | [] ->
+          fprintf ppf "the current unit is being compiled \
+                              without a `-for-pack' prefix"
+      | _ ->
+          fprintf ppf "the current unit has %a"
+            print_prefix current_pack
+      end
   | Inconsistent_package_import(intf_filename, intf_fullname) ->
       fprintf ppf
         "@[<hov>The interface %s@ corresponds to the current unit's package %s.@]"
