@@ -194,29 +194,29 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
            } in
   if ps.ps_name <> modname then
     error (Illegal_renaming(modname, ps.ps_name, filename));
-  if Some ps.ps_name = !Clflags.for_package then
   List.iter
     (function
-        | Rectypes ->
-            if not !Clflags.recursive_types then
-              error (Need_recursive_types(ps.ps_name))
-        | Unsafe_string ->
-            if Config.safe_string then
-              error (Depend_on_unsafe_string_unit(ps.ps_name));
-        | Alerts _ -> ()
-        | Pack p ->
-            (* Current for-pack prefix should be stored somewhere to avoid
-               computing it using `split_on_char` each time *)
-            let curr_prefix = match !Clflags.for_package with
-                None -> []
-              | Some p -> String.split_on_char '.' p in
-            if not (check_pack_compatibility curr_prefix p)
-            && not !Clflags.make_package then
-              error (Inconsistent_package_declaration(modname, filename));
-            if not (check_pack_import curr_prefix p ps.ps_name) then
-              error (Inconsistent_package_import
-                       (filename,  String.concat "." p ^ "." ^ modname))
-        | Opaque -> add_imported_opaque penv modname)
+      | Rectypes ->
+          if not !Clflags.recursive_types then
+            error (Need_recursive_types(ps.ps_name))
+      | Unsafe_string ->
+          if Config.safe_string then
+            error (Depend_on_unsafe_string_unit(ps.ps_name));
+      | Alerts _ -> ()
+      | Pack p ->
+          (* Current for-pack prefix should be stored somewhere to avoid
+             computing it using `split_on_char` each time *)
+          let curr_prefix = match !Clflags.for_package with
+              None -> []
+            | Some p -> String.split_on_char '.' p in
+          if not (check_pack_compatibility curr_prefix p)
+          && not !Clflags.make_package then
+            error (Inconsistent_package_declaration(modname, filename));
+          if not (check_pack_import curr_prefix p ps.ps_name) then
+            error (Inconsistent_package_import
+                     (filename,  String.concat "." p ^ "." ^ modname))
+      | Opaque ->
+          add_imported_opaque penv modname)
     ps.ps_flags;
   if check then check_consistency penv ps;
   let {persistent_structures; _} = penv in
