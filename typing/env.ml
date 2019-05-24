@@ -914,7 +914,7 @@ let required_globals = ref []
 let reset_required_globals () = required_globals := []
 let get_required_globals () = !required_globals
 let add_required_global id =
-  let id = get_global_ident id in
+  let id = if !Clflags.transparent_modules then id else get_global_ident id in
   if Ident.global id && not !Clflags.transparent_modules
   && not (List.exists (Ident.same id) !required_globals)
   then required_globals := id :: !required_globals
