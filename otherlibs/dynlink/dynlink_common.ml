@@ -112,16 +112,17 @@ module Make (P : Dynlink_platform_intf.S) = struct
         ~f:(fun (ifaces, implems, defined_symbols)
                 ~comp_unit ~interface ~implementation
                 ~defined_symbols:defined_symbols_this_unit ->
+          let comp_unit_name = Compilation_unit.name comp_unit in
           let ifaces =
             match interface with
-            | None -> String.Map.add comp_unit (Name, exe) ifaces
-            | Some crc -> String.Map.add comp_unit (Contents crc, exe) ifaces
+            | None -> String.Map.add comp_unit_name (Name, exe) ifaces
+            | Some crc -> String.Map.add comp_unit_name (Contents crc, exe) ifaces
           in
           let implems =
             match implementation with
             | None -> implems
             | Some (crc, state) ->
-              String.Map.add comp_unit (crc, exe, state) implems
+              String.Map.add comp_unit_name (crc, exe, state) implems
           in
           let defined_symbols_this_unit =
             String.Set.of_list defined_symbols_this_unit
@@ -159,7 +160,8 @@ module Make (P : Dynlink_platform_intf.S) = struct
     { state with implems = set_loaded_implem filename ui state.implems }
 
   let check_interface_imports filename ui ifaces =
-    List.fold_left (fun ifaces (name, crc) ->
+    List.fold_left (fun ifaces (unit, crc) ->
+        let name = Compilation_unit.name unit in
         match String.Map.find name ifaces with
         | exception Not_found -> begin
             match crc with

@@ -40,9 +40,9 @@ exception Error of error
 
 (* Consistency check between interfaces and implementations *)
 
-module Cmi_consistbl = Consistbl.Make (CU.Name)
+module Cmi_consistbl = Consistbl.Make (CU)
 let crc_interfaces = Cmi_consistbl.create ()
-let interfaces = ref CU.Name.Set.empty
+let interfaces = ref CU.Set.empty
 
 module Cmx_consistbl = Consistbl.Make (CU)
 let crc_implementations = Cmx_consistbl.create ()
@@ -53,22 +53,23 @@ let cmx_required = ref CU.Set.empty
 
 let check_consistency file_name unit_info crc =
   begin try
-    CU.Name.Map.iter
-      (fun name crco ->
-        interfaces := CU.Name.Set.add name !interfaces;
+    CU.Map.iter
+      (fun imported_unit crco ->
+        let name = CU.name imported_unit in
+        interfaces := CU.Set.add imported_unit !interfaces;
         match crco with
         | None -> ()
         | Some crc ->
             if CU.Name.equal name (CU.name (UI.unit unit_info))
-            then Cmi_consistbl.set crc_interfaces name crc file_name
-            else Cmi_consistbl.check crc_interfaces name crc file_name)
+            then Cmi_consistbl.set crc_interfaces imported_unit crc file_name
+            else Cmi_consistbl.check crc_interfaces imported_unit crc file_name)
       (UI.imports_cmi unit_info)
   with Cmi_consistbl.Inconsistency {
-      unit_name = name;
+      unit_name = unit;
       inconsistent_source = user;
       original_source = auth;
     } ->
-    raise(Error(Inconsistent_interface(name, user, auth)))
+    raise(Error(Inconsistent_interface(CU.name unit, user, auth)))
   end;
   begin try
     CU.Map.iter
@@ -240,17 +241,18 @@ let force_linking_of_startup ~ppf_dump =
     (Cmm.Cdata ([Cmm.Csymbol_address Backend_sym.Names.caml_startup]))
 
 let make_globals_map units_list ~crc_interfaces =
-  let crc_interfaces = CU.Name.Tbl.of_map crc_interfaces in
+  let crc_interfaces = CU.Tbl.of_map crc_interfaces in
   let defined =
     List.map (fun (unit, _, _, impl_crc) ->
-        let name = CU.name (UI.unit unit) in
-        let intf_crc = CU.Name.Tbl.find crc_interfaces name in
-        CU.Name.Tbl.remove crc_interfaces name;
+        let compunit = UI.unit unit in
+        let name = CU.name compunit in
+        let intf_crc = CU.Tbl.find crc_interfaces compunit in
+        CU.Tbl.remove crc_interfaces compunit;
         (name, intf_crc, Some impl_crc, UI.defines unit))
       units_list
   in
-  CU.Name.Tbl.fold (fun name intf acc ->
-      (name, intf, None, []) :: acc)
+  CU.Tbl.fold (fun unit intf acc ->
+      (CU.name unit, intf, None, []) :: acc)
     crc_interfaces defined
 
 let make_startup_file ~ppf_dump units_list ~crc_interfaces =
@@ -479,7 +481,7 @@ let reset () =
   Cmx_consistbl.clear crc_implementations;
   implementations_defined := CU.Map.empty;
   cmx_required := CU.Set.empty;
-  interfaces := CU.Name.Set.empty;
+  interfaces := CU.Set.empty;
   implementations := CU.Set.empty;
   lib_ccobjs := [];
   lib_ccopts := []

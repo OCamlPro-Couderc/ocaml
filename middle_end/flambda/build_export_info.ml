@@ -57,7 +57,7 @@ module Env : sig
       export descriptions with the given global environment. *)
   val empty_of_global : symbols_being_defined:Symbol.Set.t -> Global.t -> t
 end = struct
-  let fresh_id () = Export_id.create (Compilation_unit.get_current_exn ())
+  let fresh_id () = Export_id.create (Persistent_env.Current_unit.get_exn ())
 
   module Global = struct
     type t =
@@ -531,7 +531,7 @@ let describe_program (env : Env.Global.t) (program : Flambda.program) =
 
 let build_transient (program : Flambda.program) : Export_info.transient =
   if !Clflags.opaque then
-    let compilation_unit = Compilation_unit.get_current_exn () in
+    let compilation_unit = Persistent_env.Current_unit.get_exn () in
     let root_symbol = Symbol.for_module_block compilation_unit in
     Export_info.opaque_transient ~root_symbol ~compilation_unit
   else
@@ -674,10 +674,10 @@ let build_transient (program : Flambda.program) : Export_info.transient =
           Closure_id.Map.empty
       in
       let root_symbol =
-        Symbol.for_module_block (Compilation_unit.get_current_exn ())
+        Symbol.for_module_block (Persistent_env.Current_unit.get_exn ())
       in
       let values =
-        Compilation_unit.Map.find (Compilation_unit.get_current_exn ()) values
+        Compilation_unit.Map.find (Persistent_env.Current_unit.get_exn()) values
       in
       Traverse_for_exported_symbols.traverse
         ~sets_of_closures_map

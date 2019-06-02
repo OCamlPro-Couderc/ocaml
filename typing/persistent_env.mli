@@ -17,22 +17,65 @@
 open Misc
 
 module Consistbl : module type of struct
-  include Consistbl.Make (Misc.Stdlib.String)
+  include Consistbl.Make (Compilation_unit)
 end
 
 type error =
-  | Illegal_renaming of modname * modname * filepath
-  | Inconsistent_import of modname * filepath * filepath
-  | Need_recursive_types of modname
-  | Depend_on_unsafe_string_unit of modname
+  | Illegal_renaming of
+      Compilation_unit.Name.t * Compilation_unit.Name.t * filepath
+  | Inconsistent_import of Compilation_unit.Name.t * filepath * filepath
+  | Need_recursive_types of Compilation_unit.Name.t
+  | Depend_on_unsafe_string_unit of Compilation_unit.Name.t
   | Inconsistent_package_declaration of
-      { imported_unit: modname; filename: filepath;
-        prefix: modname list; current_pack: modname list }
-  | Inconsistent_package_import of filepath * modname
+      { imported_unit: Compilation_unit.Name.t;
+        filename: filepath;
+        prefix: Compilation_unit.Prefix.t;
+        current_pack: Compilation_unit.Prefix.t }
+  | Inconsistent_package_import of filepath * Compilation_unit.Name.t
 
 exception Error of error
 
 val report_error: Format.formatter -> error -> unit
+
+(* Remember the current compilation unit. If no prefix is given, it is infered
+   from the `-for-pack` CLI argument. Returns "" if outside a compilation unit.
+*)
+module Current_unit : sig
+  (** Get the value of type [Compilation_unit.t] corresponding to the current
+      unit being compiled.  An exception will be raised if [set] has not
+      previously been called. *)
+  val get : unit -> Compilation_unit.t option
+
+  (** Get the value of type [Compilation_unit.t] corresponding to the current
+     unit being compiled.  An exception will be raised if [set] has not
+     previously been called. *)
+  val get_exn : unit -> Compilation_unit.t
+
+  (** Get the value of type [Ident.t] corresponding to the current unit being
+     compiled.  An exception will be raised if [set] has not previously been
+     called. *)
+  val get_id_exn : unit -> Ident.t
+
+  (** [set ~prefix name] Record that the compilation unit being currently
+     compiled has name [name] and prefix [prefix]. If no prefix is given, it is
+     infered from the `-for-pack` command line. *)
+  val set : ?prefix:Compilation_unit.Prefix.t -> Compilation_unit.Name.t -> unit
+
+  (** Record that the given value of type [Compilation_unit.t] is that of the
+      current unit being compiled. *)
+  val set_unit : Compilation_unit.t -> unit
+
+  (** Check that name given corresponds to the compilation unit being currently
+     compiled. *)
+  val is : Compilation_unit.Name.t -> bool
+
+  (** Check that the unit given is the one being currently compiled. *)
+  val is_unit_exn : Compilation_unit.t -> bool
+
+  (** Check that the identifier given corresponds to the compilaiton unit being
+      compiled. *)
+  val is_name_of : Ident.t -> bool
+end
 
 module Persistent_signature : sig
   type t =
@@ -56,32 +99,32 @@ val empty : unit -> 'a t
 val clear : 'a t -> unit
 val clear_missing : 'a t -> unit
 
-val fold : 'a t -> (modname -> 'a -> 'b -> 'b) -> 'b -> 'b
+val fold : 'a t -> (Compilation_unit.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 
 val read : 'a t -> (Persistent_signature.t -> 'a)
-  -> modname -> filepath -> 'a
+  -> Compilation_unit.Name.t -> filepath -> 'a
 val find : 'a t -> (Persistent_signature.t -> 'a)
-  -> modname -> 'a
+  -> Compilation_unit.Name.t -> 'a
 
-val find_in_cache : 'a t -> modname -> 'a option
+val find_in_cache : 'a t -> Compilation_unit.Name.t -> 'a option
 
 val check : 'a t -> (Persistent_signature.t -> 'a)
-  -> loc:Location.t -> modname -> unit
+  -> loc:Location.t -> Compilation_unit.Name.t -> unit
 
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
    [penv] (it may have failed) *)
-val looked_up : 'a t -> modname -> bool
+val looked_up : 'a t -> Compilation_unit.Name.t -> bool
 
-(* [is_imported penv md] checks if [md] has been successfully
+(* [is_imported penv unit] checks if [unit] has been succesfully
    imported in the environment [penv] *)
-val is_imported : 'a t -> modname -> bool
+val is_imported : 'a t -> Compilation_unit.t -> bool
 
 (* [is_imported_opaque penv md] checks if [md] has been imported
    in [penv] as an opaque module *)
-val is_imported_opaque : 'a t -> modname -> bool
+val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
 
-val make_cmi : 'a t -> modname -> Types.signature -> alerts
+val make_cmi : 'a t -> Compilation_unit.Name.t -> Types.signature -> alerts
   -> Cmi_format.cmi_infos
 
 val save_cmi : 'a t -> Persistent_signature.t -> 'a -> unit
@@ -93,13 +136,14 @@ val without_cmis : 'a t -> ('b -> 'c) -> 'b -> 'c
     allow [penv] to openi cmis during its execution *)
 
 (* may raise Consistbl.Inconsistency *)
-val import_crcs : 'a t -> source:filepath -> crcs -> unit
+val import_crcs : 'a t -> source:filepath -> Compilation_unit.crcs -> unit
 
 (* Return the set of compilation units imported, with their CRC *)
-val imports : 'a t -> crcs
+val imports : 'a t -> Compilation_unit.crcs
 
 (* Return the CRC of the interface of the given compilation unit *)
-val crc_of_unit: 'a t -> (Persistent_signature.t -> 'a) -> modname -> Digest.t
+val crc_of_unit:
+  'a t -> (Persistent_signature.t -> 'a) -> Compilation_unit.Name.t -> Digest.t
 
 (* Forward declaration to break mutual recursion with Typecore. *)
 val add_delayed_check_forward: ((unit -> unit) -> unit) ref

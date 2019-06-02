@@ -204,7 +204,7 @@ let traverse
         | Predef -> ()
         | Compilation_unit compilation_unit ->
           if Compilation_unit.equal compilation_unit
-               (Compilation_unit.get_current_exn ())
+               (Persistent_env.Current_unit.get_exn ())
           then begin
             match Symbol.Map.find symbol symbol_id with
             | exception Not_found ->

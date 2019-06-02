@@ -451,7 +451,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
         (Lambda.Llet(Strict, Pgenval, Ident.create_local "dummy",
                      arg, Lconst const))
   | Lprim (Pfield _, [Lprim (Pgetglobal id, [],_)], _)
-      when Ident.same id (Compilation_unit.get_current_id_exn ()) ->
+      when Ident.same id (Persistent_env.Current_unit.get_id_exn ()) ->
     Misc.fatal_errorf "[Pfield (Pgetglobal ...)] for the current compilation \
         unit is forbidden upon entry to the middle end"
   | Lprim (Psetfield (_, _, _), [Lprim (Pgetglobal _, [], _); _], _) ->
@@ -462,7 +462,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     t.imported_symbols <- Symbol.Set.add symbol t.imported_symbols;
     name_expr (Symbol symbol) ~name:Names.predef_exn
   | Lprim (Pgetglobal id, [], _) ->
-    assert (not (Ident.same id (Compilation_unit.get_current_id_exn ())));
+    assert (not (Ident.same id (Persistent_env.Current_unit.get_id_exn ())));
     begin match Compilation_state.compilation_unit_for_global id with
     | Predef -> assert false  (* should have hit the case above *)
     | Compilation_unit comp_unit ->
@@ -691,7 +691,7 @@ let lambda_to_flambda ~backend ~module_ident:_ ~size ~filename lam
   (* CR mshinwell: Check that the current [Compilation_unit] matches
      [module_ident].  Maybe we can remove [module_ident]? *)
   let module_symbol =
-    Symbol.for_module_block (Compilation_unit.get_current_exn ())
+    Symbol.for_module_block (Persistent_env.Current_unit.get_exn ())
   in
   let block_symbol =
     let var = Variable.create Internal_variable_names.module_as_block in

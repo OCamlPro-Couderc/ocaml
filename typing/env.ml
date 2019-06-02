@@ -95,6 +95,10 @@ type address =
   | Aident of Ident.t
   | Adot of address * int
 
+let rec address_head = function
+    Aident id -> id
+  | Adot (addr, _) -> address_head addr
+
 module TycompTbl =
   struct
     (** This module is used to store components of types (i.e. labels
@@ -477,8 +481,7 @@ and type_data =
 and module_data =
   { mda_declaration : module_declaration_lazy;
     mda_components : module_components;
-    mda_address : address_lazy;
-    mda_pack : Misc.modname list option; }
+    mda_address : address_lazy; }
 
 and module_entry =
   | Mod_local of module_data
@@ -657,46 +660,25 @@ let rec print_address ppf = function
   | Aident id -> Format.fprintf ppf "%s" (Ident.name id)
   | Adot(a, pos) -> Format.fprintf ppf "%a.[%i]" print_address a pos
 
-(* The name of the compilation unit currently compiled.
-   "" if outside a compilation unit. *)
-module Current_unit_name : sig
-  val get : unit -> modname
-  val set : modname -> unit
-  val is : modname -> bool
-  val is_name_of : Ident.t -> bool
-end = struct
-  let current_unit =
-    ref ""
-  let get () =
-    !current_unit
-  let set name =
-    current_unit := name
-  let is name =
-    !current_unit = name
-  let is_name_of id =
-    is (Ident.name id)
-end
-
-let set_unit_name = Current_unit_name.set
-let get_unit_name = Current_unit_name.get
 
 let find_same_module id tbl =
   match IdTbl.find_same id tbl with
   | x -> x
   | exception Not_found
-    when Ident.persistent id && not (Current_unit_name.is_name_of id) ->
+    when Ident.persistent id
+      && not (Persistent_env.Current_unit.is_name_of id) ->
       Mod_persistent
 
 let find_name_module ~mark name tbl =
   match IdTbl.find_name wrap_module ~mark name tbl with
   | x -> x
-  | exception Not_found when not (Current_unit_name.is name) ->
+  | exception Not_found when not (Persistent_env.Current_unit.is name) ->
       let path = Pident(Ident.create_persistent name) in
       path, Mod_persistent
 
 let add_persistent_structure id env =
   if not (Ident.persistent id) then invalid_arg "Env.add_persistent_structure";
-  if not (Current_unit_name.is_name_of id) then
+  if not (Persistent_env.Current_unit.is_name_of id) then
     { env with
       modules = IdTbl.add id Mod_persistent env.modules;
       summary = Env_persistent (env.summary, id);
@@ -724,12 +706,12 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent name in
   let path = Pident id in
-  let mda_pack, pers_address =
+  let pers_address =
     List.find_opt (function Pack _ -> true | _ -> false) flags
     |> function
       Some (Pack prefix) ->
-        Some prefix, Aident (Ident.create_persistent ~prefix:prefix name)
-    | _ -> None, Aident id
+        Aident (Ident.create_persistent ~prefix name)
+    | _ -> Aident id
   in
   let alerts =
     List.fold_left (fun acc -> function Alerts s -> s | _ -> acc)
@@ -754,7 +736,6 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     mda_declaration;
     mda_components;
     mda_address;
-    mda_pack;
   }
 
 let read_sign_of_cmi = sign_of_cmi ~freshen:true
@@ -795,7 +776,7 @@ let reset_declaration_caches () =
   ()
 
 let reset_cache () =
-  Current_unit_name.set "";
+  Persistent_env.Current_unit.set ~prefix:[] "";
   Persistent_env.clear persistent_env;
   reset_declaration_caches ();
   ()
@@ -993,13 +974,6 @@ let find_type p env =
 let find_type_descrs p env =
   (find_type_full p env).tda_descriptions
 
-let get_global_ident id =
-  if not (Ident.persistent id) then id
-  else
-    match (find_pers_mod (Ident.name id)).mda_pack with
-      None | exception _ -> id
-    | Some p -> Ident.create_persistent ~prefix:p (Ident.name id)
-
 let rec find_module_address path env =
   match path with
   | Pident id -> get_address (find_ident_module id env).mda_address
@@ -1073,10 +1047,10 @@ let required_globals = ref []
 let reset_required_globals () = required_globals := []
 let get_required_globals () = !required_globals
 let add_required_global id =
-  if Ident.global id && not !Clflags.transparent_modules then
+  if Ident.persistent id && not !Clflags.transparent_modules then
     let id = find_pers_address_ident id in
-    if not (List.exists (Ident.same id) !required_globals) then
-      required_globals := id :: !required_globals
+    if not (List.exists (Ident.same id) !required_globals)
+    then required_globals := id :: !required_globals
 
 let rec normalize_module_path lax env = function
   | Pident id as path when lax && Ident.persistent id ->
@@ -1572,8 +1546,7 @@ let rec components_of_module_maker
             let mda =
               { mda_declaration = md';
                 mda_components = comps;
-                mda_address = addr;
-                mda_pack = None; }
+                mda_address = addr; }
             in
             c.comp_modules <-
               NameMap.add (Ident.name id) mda c.comp_modules;
@@ -1761,8 +1734,7 @@ and store_module ~check ~freshening_sub id addr presence md env =
   let mda =
     { mda_declaration = module_decl_lazy;
       mda_components = comps;
-      mda_address = addr;
-      mda_pack = None; } (* pcouderc: get it from the id *)
+      mda_address = addr; }
   in
   { env with
     modules = IdTbl.add id (Mod_local mda) env.modules;
@@ -2779,7 +2751,7 @@ let bound_module name env =
   match IdTbl.find_name wrap_module ~mark:false name env.modules with
   | _ -> true
   | exception Not_found ->
-      if Current_unit_name.is name then false
+      if Persistent_env.Current_unit.is name then false
       else begin
         match find_pers_mod name with
         | _ -> true

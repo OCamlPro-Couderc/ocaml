@@ -307,7 +307,7 @@ module Inconstants (P:Param) = struct
     | Const _ | Allocated_const _ -> ()
     | Read_mutable _ -> mark_curr curr
     | Symbol symbol -> begin
-        let current_unit = Compilation_unit.get_current_exn () in
+        let current_unit = Persistent_env.Current_unit.get_exn () in
         if Symbol.in_compilation_unit symbol current_unit
         then
           ()

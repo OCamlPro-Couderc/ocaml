@@ -191,7 +191,7 @@ let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
     ~ppf_dump (program : Lambda.program) =
   let comp_unit =
     Backend_compilation_unit.compilation_unit (
-      Compilation_unit.get_current_exn ())
+      Persistent_env.Current_unit.get_exn ())
   in
   let asmfile =
     if !keep_asm_file || !Emitaux.binary_backend_available

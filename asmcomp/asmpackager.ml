@@ -68,8 +68,9 @@ let read_member_info pack_path file =
         }))
       end;
       let cmx_file_for_pack_prefix = CU.for_pack_prefix (UI.unit info) in
-      let full_path_current_unit = CU.full_path (CU.get_current_exn ()) in
-      if not (Misc.Stdlib.List.equal CU.Name.equal
+      let full_path_current_unit =
+        CU.full_path (Persistent_env.Current_unit.get_exn ()) in
+      if not (CU.Prefix.equal
         cmx_file_for_pack_prefix full_path_current_unit)
       then begin
         raise (Error (Wrong_for_pack (file, pack_path)))
@@ -116,7 +117,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         (* Put the full name of the module in the temporary file name
            to avoid collisions with MSVC's link /lib in case of successive
            packs *)
-        let comp_unit = CU.get_current_exn () in
+        let comp_unit = Persistent_env.Current_unit.get_exn () in
         let symbol = Symbol.for_module_block comp_unit in
         let backend_sym = Backend_sym.of_symbol symbol in
         Filename.temp_file (Backend_sym.to_string backend_sym) Config.ext_obj
@@ -198,18 +199,18 @@ let build_package_cmx members cmxfile =
         members [])
   in
   let compilation_state = Compilation_state.Snapshot.create () in
-  let current_unit = CU.get_current_exn () in
+  let current_unit = Persistent_env.Current_unit.get_exn () in
   let current_unit_name = CU.name current_unit in
   let current_unit_crc =
     Env.crc_of_unit (CU.Name.to_string current_unit_name)
   in
   let imports_cmi =
     let imports_cmi =
-      CU.Name.Map.filter (fun name _crc ->
-          not (CU.Name.Set.mem name unit_names_in_pack))
+      CU.Map.filter (fun cu _crc ->
+          not (CU.Name.Set.mem (CU.name cu) unit_names_in_pack))
         (Asmlink.extract_crc_interfaces ())
     in
-    CU.Name.Map.add current_unit_name (Some current_unit_crc) imports_cmi
+    CU.Map.add current_unit (Some current_unit_crc) imports_cmi
   in
   let imports_cmx =
     CU.Map.filter (fun imported_unit _crc ->
@@ -274,13 +275,9 @@ let package_files ~ppf_dump initial_env files targetcmx ~backend =
   Location.input_name := targetcmx;
   (* Set the name of the current compunit *)
   let for_pack_prefix =
-    match !Clflags.for_package with
-    | None | Some "" -> []
-    | Some for_pack_prefix ->
-      List.map CU.Name.of_string (Misc.prefix_of_for_pack for_pack_prefix)
-  in
+      CU.Prefix.parse_for_pack !Clflags.for_package in
   let comp_unit = CU.create ~for_pack_prefix (CU.Name.of_string targetname) in
-  Compilation_unit.set_current comp_unit;
+  Persistent_env.Current_unit.set_unit comp_unit;
   Compilation_state.reset comp_unit;
   Misc.try_finally (fun () ->
       let coercion =

@@ -145,7 +145,8 @@ module Env = struct
   let find_or_load_symbol t symbol =
     match find_symbol_exn t symbol with
     | exception Not_found ->
-      if Symbol.in_compilation_unit symbol (Compilation_unit.get_current_exn ())
+      if Symbol.in_compilation_unit symbol
+          (Persistent_env.Current_unit.get_exn ())
       then
         Misc.fatal_errorf "Symbol %a from the current compilation unit is \
             unbound.  Maybe there is a missing [Let_symbol] or similar?"

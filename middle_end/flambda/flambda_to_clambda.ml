@@ -38,7 +38,7 @@ type t = {
 
 let get_fun_offset t closure_id =
   let fun_offset_table =
-    if Closure_id.in_compilation_unit closure_id (Compilation_unit.get_current_exn ())
+    if Closure_id.in_compilation_unit closure_id (Persistent_env.Current_unit.get_exn ())
     then
       t.current_unit.fun_offset_table
     else
@@ -52,7 +52,7 @@ let get_fun_offset t closure_id =
 let get_fv_offset t var_within_closure =
   let fv_offset_table =
     if Var_within_closure.in_compilation_unit var_within_closure
-        (Compilation_unit.get_current_exn ())
+        (Persistent_env.Current_unit.get_exn ())
     then t.current_unit.fv_offset_table
     else t.imported_units.fv_offset_table
   in

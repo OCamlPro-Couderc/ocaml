@@ -22,7 +22,7 @@ let () = Clflags.all_passes := pass_name :: !Clflags.all_passes
 
 let rename_var var =
   Variable.rename var
-    ~current_compilation_unit:(Compilation_unit.get_current_exn ())
+    ~current_compilation_unit:(Persistent_env.Current_unit.get_exn ())
 
 let remove_params unused (fun_decl: Flambda.function_declaration)
       ~new_fun_var =

@@ -230,7 +230,8 @@ let lambda_to_clambda ~backend ~filename ~prefixname ~ppf_dump
                 structured_constants; exported; } ->
            Compilation_state.Flambda_only.set_export_info exported;
            let what =
-             Symbol.for_module_block (Compilation_unit.get_current_exn ())
+             Symbol.for_module_block
+               (Persistent_env.Current_unit.get_exn ())
            in
            let clambda = Un_anf.apply ~what ~ppf_dump expr in
            clambda, preallocated_blocks, structured_constants))
