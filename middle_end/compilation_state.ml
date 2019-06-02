@@ -147,18 +147,11 @@ type find_cmx_result =
 let global_infos_table : find_cmx_result CU.Name.Tbl.t = CU.Name.Tbl.create 17
 
 (* This is the equivalent of the old [Compilenv.get_global_info]. *)
-let find_or_load_unit_info_from_cmx ?comp_unit desired_unit_name
+let find_or_load_unit_info_from_cmx ?comp_unit desired_unit
   : find_cmx_result =
   let curr = CU.get_current_exn () in
   let current_unit_name = CU.name curr in
-  let _desired_unit_pack_prefix, desired_unit_name =
-    match List.rev @@ String.split_on_char '.' @@
-      CU.Name.to_string desired_unit_name with
-    | [] -> [], desired_unit_name
-    | unit :: rev_prefix ->
-        List.fold_left (fun l p -> CU.Name.of_string p :: l) [] rev_prefix,
-        CU.Name.of_string unit
-  in
+  let desired_unit_name = CU.name desired_unit in
   if CU.Name.equal desired_unit_name current_unit_name then
     Current_unit
   else
@@ -181,7 +174,7 @@ let find_or_load_unit_info_from_cmx ?comp_unit desired_unit_name
               raise (Error (
                 Illegal_renaming {
                   contains_unit;
-                  desired_unit_name = desired_unit_name;
+                  desired_unit_name;
                   filename;
                 }))
             end;
@@ -195,7 +188,7 @@ let find_or_load_unit_info_from_cmx ?comp_unit desired_unit_name
            .cmx file is not packed. *)
         let comp_unit =
           match comp_unit with
-          | None -> Compilation_unit.create desired_unit_name
+          | None -> desired_unit
           | Some comp_unit -> comp_unit
         in
         current_unit.imports_cmx <-
@@ -233,14 +226,14 @@ let compilation_unit_for_global id : compilation_unit_or_predef =
   if Ident.is_predef id then begin
     Predef
   end else begin
-    let desired_unit_name = CU.Name.of_string (Ident.name id) in
-    match find_or_load_unit_info_from_cmx desired_unit_name with
+    let desired_unit = CU.create (CU.Name.of_string (Ident.name id)) in
+    match find_or_load_unit_info_from_cmx desired_unit with
     | Current_unit ->
       Compilation_unit (Compilation_unit.get_current_exn ())
     | No_cmx_file_or_opaque ->
       (* Assume that the compilation unit (called [id]), whose .cmx file
          is missing, is not packed. *)
-      Compilation_unit (CU.create (CU.Name.of_string (Ident.name id)))
+      Compilation_unit desired_unit
     | Already_loaded info -> Compilation_unit (UI.unit info)
     | Just_loaded { info; filename; } ->
       let for_pack_prefix_in_cmx = CU.for_pack_prefix (UI.unit info) in
@@ -379,9 +372,10 @@ module Closure_only = struct
     if Ident.is_predef id then Clambda.Value_unknown
     else
       let name = CU.Name.of_string (Ident.name id) in
+      let unit = CU.create name in
       try CU.Name.Tbl.find toplevel_approx name
       with Not_found ->
-        match find_or_load_unit_info_from_cmx name with
+        match find_or_load_unit_info_from_cmx unit with
         | No_cmx_file_or_opaque -> Clambda.Value_unknown
         | Current_unit ->
           begin match current_unit.export_info with
@@ -442,7 +436,8 @@ module Flambda_only = struct
       | Flambda export_info -> Some export_info
     in
     match
-      find_or_load_unit_info_from_cmx ~comp_unit name_of_unit_containing_symbol
+      find_or_load_unit_info_from_cmx ~comp_unit
+        (CU.create name_of_unit_containing_symbol)
     with
     | No_cmx_file_or_opaque -> None
     | Current_unit ->

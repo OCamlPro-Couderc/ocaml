@@ -49,8 +49,9 @@ include Identifiable.S with type t := t
 val print_name : Format.formatter -> t -> unit
 
 (** Create a compilation unit with the given [name] (which is not encoded or
-    mangled in any way) and an optional "-for-pack" prefix. *)
-val create : ?for_pack_prefix:Name.t list -> Name.t -> t
+    mangled in any way). The `-for-pack` of prefix is extracted if there is
+    any. *)
+val create : Name.t -> t
 
 (** A distinguished compilation unit for initialisation of mutable state. *)
 val none : t
@@ -76,6 +77,9 @@ val get_current_id_exn : unit -> Ident.t
 (** Like [get_current_exn], but returns an option instead of raising an
     exception. *)
 val get_current : unit -> t option
+
+(** The name of the compilation unit, including any [for_pack_prefix]. *)
+val fullname : t -> Name.t
 
 (** The name of the compilation unit, excluding any [for_pack_prefix]. *)
 val name : t -> Name.t

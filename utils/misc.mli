@@ -460,6 +460,10 @@ val prefix_of_for_pack : string -> string list
 (** [prefix_of_for_pack p] returns the list of nested packed modules from a
     `-for-pack` argument.*)
 
+val extract_prefix : string -> string list
+(** [extract_prefix id] returns the prefix of an identifier, as if it was
+    generated with `-for-pack` *)
+
 type filepath = string
 type modname = string
 type crcs = (modname * Digest.t option) list

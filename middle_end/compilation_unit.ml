@@ -48,6 +48,7 @@ end
 
 type t = {
   for_pack_prefix : Name.t list;
+  basename : Name.t;
   id : Ident.t;
   hash : int;
 }
@@ -56,8 +57,8 @@ include Identifiable.Make (struct
   type nonrec t = t
 
   let compare
-        ({ id = id1; for_pack_prefix = for_pack_prefix1; hash = hash1; } as t1)
-        ({ id = id2; for_pack_prefix = for_pack_prefix2; hash = hash2; } as t2)
+        ({ id = id1; for_pack_prefix = for_pack_prefix1; hash = hash1; _} as t1)
+        ({ id = id2; for_pack_prefix = for_pack_prefix2; hash = hash2; _} as t2)
         =
     if t1 == t2 then 0
     else
@@ -67,6 +68,8 @@ include Identifiable.Make (struct
         let c = Ident.compare id1 id2 in
         if c <> 0 then c
         else
+          (* With identifiers now prefixed by their pack, this case should
+             always return 0 *)
           Misc.Stdlib.List.compare Name.compare
             for_pack_prefix1 for_pack_prefix2
 
@@ -74,7 +77,7 @@ include Identifiable.Make (struct
     if x == y then true
     else compare x y = 0
 
-  let print ppf { for_pack_prefix; id; hash = _; } =
+  let print ppf { for_pack_prefix; id; hash = _; basename } =
     match for_pack_prefix with
     | [] ->
       Format.fprintf ppf "@[<hov 1>(\
@@ -83,11 +86,13 @@ include Identifiable.Make (struct
     | for_pack_prefix ->
       Format.fprintf ppf "@[<hov 1>(\
           @[<hov 1>(for_pack_prefix@ %a)@]@;\
+          @[<hov 1>(basename@ %s)@]@;\
           @[<hov 1>(id@ %a)@])@]"
         (Format.pp_print_list
           ~pp_sep:(fun ppf () -> Format.pp_print_string ppf ".")
           Name.print)
         for_pack_prefix
+        basename
         Ident.print id
 
   let output oc t =
@@ -99,19 +104,29 @@ end)
 let print_name ppf t =
   Format.pp_print_string ppf (Ident.name t.id)
 
-let create ?(for_pack_prefix = []) name =
-  let id = Ident.create_persistent name in
+let create name =
+  let prefix, basename =
+    match List.rev @@ String.split_on_char '.' name with
+    | [] -> [], name
+    | unit_name :: rev_prefix ->
+        List.fold_left (fun l p -> p :: l) [] rev_prefix,
+        unit_name
+  in
+  let id = Ident.create_persistent ~prefix basename in
   if not (Ident.persistent id) then begin
     Misc.fatal_error "Compilation_unit.create with non-persistent Ident.t"
   end;
   { id;
-    for_pack_prefix;
-    hash = Hashtbl.hash (Ident.name id, for_pack_prefix);
+    for_pack_prefix = prefix;
+    basename;
+    hash = Hashtbl.hash (Ident.name id, prefix);
   }
 
 let none = create (Name.of_string "*none*")
 
-let name t = Name.of_string (Ident.name t.id)
+let fullname t = Name.of_string (Ident.name t.id)
+
+let name t = Name.of_string t.basename
 
 let is_packed t =
   match t.for_pack_prefix with

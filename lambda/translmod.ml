@@ -711,7 +711,6 @@ let required_globals ~flambda body =
   let required =
     List.fold_left
       (fun acc path ->
-         (* /!\ TEMPORARY *)
          let unit = Env.get_global_ident (Path.head path) in
          add_global unit acc)
       (if flambda then globals else Ident.Set.empty)

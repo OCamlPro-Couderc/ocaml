@@ -125,14 +125,14 @@ let closure i backend typed =
 let implementation ~backend ~source_file ~output_prefix =
   let backend info typed =
     let compilation_unit =
-      let for_pack_prefix =
+      (* To do: add some prefix check *)
+      let unit_name =
         match !Clflags.for_package with
-        | None | Some "" -> []
+        | None | Some "" -> info.module_name
         | Some for_pack_prefix ->
-            Misc.prefix_of_for_pack for_pack_prefix |>
-            List.map CU.Name.of_string
+            for_pack_prefix ^ "." ^ info.module_name
       in
-      CU.create ~for_pack_prefix (CU.Name.of_string info.module_name)
+      CU.create (CU.Name.of_string unit_name)
     in
     CU.set_current compilation_unit;
     Compilation_state.reset compilation_unit;

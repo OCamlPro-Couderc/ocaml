@@ -865,6 +865,11 @@ let prefix_of_for_pack pack =
   String.split_on_char '.' pack
   |> List.map String.capitalize_ascii
 
+let extract_prefix name =
+  match String.rindex_opt name '.' with
+  | None -> []
+  | Some pos -> prefix_of_for_pack (String.sub name 0 (pos+1))
+
 type filepath = string
 type modname = string
 type crcs = (modname * Digest.t option) list
