@@ -1431,7 +1431,7 @@ let compunit (ulam, preallocated_blocks, constants) =
       transl empty_env ulam in
   let fun_name =
     Symbol.make_backend_symbol
-      (Compilation_unit.get_current_exn ()) (Some "entry") in
+      (Persistent_env.Current_unit.get_exn ()) (Some "entry") in
   let c1 = [Cfunction {fun_name;
                        fun_args = [];
                        fun_body = init_code;

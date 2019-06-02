@@ -204,7 +204,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
   let packagename = match !Clflags.for_package with
       None -> targetname
     | Some p -> p ^ "." ^ targetname in
-  let prefix = Misc.prefix_of_for_pack packagename in
+  let prefix = Compilation_unit.Prefix.parse_for_pack (Some packagename) in
   let unit_names =
     List.map (fun m -> m.pm_name) members in
   let identifiers =
@@ -228,15 +228,17 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let pos_final = pos_out oc in
     let imports =
       List.filter
-        (fun (name, _crc) -> not (List.mem name unit_names))
+        (fun (unit, _crc) ->
+           not (List.mem (Compilation_unit.name unit) unit_names))
         (Bytelink.extract_crc_interfaces()) in
+    let unit = Compilation_unit.of_raw_string packagename in
     let compunit =
       { cu_name = targetname;
         cu_pos = pos_code;
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev !relocs;
         cu_imports =
-          (targetname, Some (Env.crc_of_unit targetname)) :: imports;
+          (unit, Some (Env.crc_of_unit targetname)) :: imports;
         cu_primitives = !primitives;
         cu_required_globals = Ident.Set.elements required_globals;
         cu_force_link = !force_link;
@@ -264,6 +266,7 @@ let package_files ~ppf_dump initial_env files targetfile =
     let prefix = chop_extensions targetfile in
     let targetcmi = prefix ^ ".cmi" in
     let targetname = String.capitalize_ascii(Filename.basename prefix) in
+    Persistent_env.Current_unit.set targetname;
     Misc.try_finally (fun () ->
         let coercion =
           Typemod.package_units initial_env files targetcmi targetname in

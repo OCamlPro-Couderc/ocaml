@@ -185,7 +185,7 @@ type middle_end =
 
 let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
       ~ppf_dump (program : Lambda.program) =
-  let comp_unit = Compilation_unit.get_current_exn () in
+  let comp_unit = Persistent_env.Current_unit.get_exn () in
   let asmfile =
     if !keep_asm_file || !Emitaux.binary_backend_available
     then prefixname ^ ext_asm

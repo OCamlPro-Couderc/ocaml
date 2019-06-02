@@ -61,9 +61,7 @@ module Native = struct
       String.concat "__" (List.map CU.Name.to_string (CU.full_path unit))
 
     let interface_imports t =
-      List.map (fun (name, crc_opt) ->
-          CU.Name.to_string name, crc_opt)
-        (CU.Name.Map.bindings (DU.imports_cmi t))
+      CU.Map.bindings (DU.imports_cmi t)
 
     let implementation_imports t =
       List.map (fun (unit, crc_opt) ->
@@ -92,7 +90,8 @@ module Native = struct
           | None -> None
           | Some _ as crco -> Some (crco, DT.Check_inited !rank)
         in
-        f acc ~comp_unit:name ~interface:crc_intf
+        let unit = Compilation_unit.create name in
+        f acc ~comp_unit:unit ~interface:crc_intf
             ~implementation ~defined_symbols:syms)
       init
       (ndl_getmap ())

@@ -2714,7 +2714,7 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
 (* Build the NULL terminated array of gc roots *)
 
 let emit_gc_roots_table ~symbols cont =
-  let cu = Compilation_unit.get_current_exn () in
+  let cu = Persistent_env.Current_unit.get_exn () in
   let table_symbol = Symbol.make_backend_symbol cu (Some "gc_roots") in
   Cdata(Cglobal_symbol table_symbol ::
         Cdefine_symbol table_symbol ::

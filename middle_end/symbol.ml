@@ -250,7 +250,7 @@ let for_lifted_anonymous_constant ?compilation_unit () =
   incr next_anonymous_constant_stamp;
   let compilation_unit =
     match compilation_unit with
-    | None -> Compilation_unit.get_current_exn ()
+    | None -> Persistent_env.Current_unit.get_exn ()
     | Some compilation_unit -> compilation_unit
   in
   Lifted_anonymous_constant {

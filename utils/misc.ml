@@ -863,13 +863,7 @@ let print_if ppf flag printer arg =
   arg
 
 
-let prefix_of_for_pack pack =
-  String.split_on_char '.' pack
-  |> List.map String.capitalize_ascii
-
 type filepath = string
-type modname = string
-type crcs = (modname * Digest.t option) list
 
 type alerts = string Stdlib.String.Map.t
 

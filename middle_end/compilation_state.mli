@@ -145,13 +145,13 @@ module Error : sig
       }
     | Illegal_import_for_pack_prefix of {
         found_unit_name : Compilation_unit.Name.t;
-        for_pack_prefix_in_cmx : Compilation_unit.Name.t list;
-        current_for_pack_prefix : Compilation_unit.Name.t list;
+        for_pack_prefix_in_cmx : Compilation_unit.Prefix.t;
+        current_for_pack_prefix : Compilation_unit.Prefix.t;
         filename : string;
       }
     | Wrong_for_pack_prefix of {
-        expected_prefix : Compilation_unit.Name.t list;
-        found_prefix : Compilation_unit.Name.t list;
+        expected_prefix : Compilation_unit.Prefix.t;
+        found_prefix : Compilation_unit.Prefix.t;
         filename : string;
       }
 

@@ -32,13 +32,13 @@ type error =
     }
   | Illegal_import_for_pack_prefix of {
       found_unit_name : CU.Name.t;
-      for_pack_prefix_in_cmx : CU.Name.t list;
-      current_for_pack_prefix : CU.Name.t list;
+      for_pack_prefix_in_cmx : CU.Prefix.t;
+      current_for_pack_prefix : CU.Prefix.t;
       filename : string;
     }
   | Wrong_for_pack_prefix of {
-      expected_prefix : CU.Name.t list;
-      found_prefix : CU.Name.t list;
+      expected_prefix : CU.Prefix.t;
+      found_prefix : CU.Prefix.t;
       filename : string;
     }
 
@@ -54,13 +54,13 @@ module Error = struct
       }
     | Illegal_import_for_pack_prefix of {
         found_unit_name : CU.Name.t;
-        for_pack_prefix_in_cmx : CU.Name.t list;
-        current_for_pack_prefix : CU.Name.t list;
+        for_pack_prefix_in_cmx : CU.Prefix.t;
+        current_for_pack_prefix : CU.Prefix.t;
         filename : string;
       }
     | Wrong_for_pack_prefix of {
-        expected_prefix : CU.Name.t list;
-        found_prefix : CU.Name.t list;
+        expected_prefix : CU.Prefix.t;
+        found_prefix : CU.Prefix.t;
         filename : string;
       }
 
@@ -70,10 +70,7 @@ module Error = struct
       | [] -> Format.pp_print_string ppf "no `-for-pack' prefix"
       | _ ->
         Format.fprintf ppf "a `-for-pack' prefix of [%a]"
-          (Format.pp_print_list
-            ~pp_sep:(fun ppf () -> Format.pp_print_string ppf ".")
-            CU.Name.print)
-          prefix
+          CU.Prefix.print prefix
     in
     match error with
     | Illegal_renaming { contains_unit; desired_unit_name; filename; } ->
@@ -147,18 +144,11 @@ type find_cmx_result =
 let global_infos_table : find_cmx_result CU.Name.Tbl.t = CU.Name.Tbl.create 17
 
 (* This is the equivalent of the old [Compilenv.get_global_info]. *)
-let find_or_load_unit_info_from_cmx ?comp_unit desired_unit_name
+let find_or_load_unit_info_from_cmx ?comp_unit desired_unit
   : find_cmx_result =
-  let curr = CU.get_current_exn () in
+  let curr = Persistent_env.Current_unit.get_exn () in
   let current_unit_name = CU.name curr in
-  let _desired_unit_pack_prefix, desired_unit_name =
-    match List.rev @@ String.split_on_char '.' @@
-      CU.Name.to_string desired_unit_name with
-    | [] -> [], desired_unit_name
-    | unit :: rev_prefix ->
-        List.fold_left (fun l p -> CU.Name.of_string p :: l) [] rev_prefix,
-        CU.Name.of_string unit
-  in
+  let desired_unit_name = CU.name desired_unit in
   if CU.Name.equal desired_unit_name current_unit_name then
     Current_unit
   else
@@ -181,7 +171,7 @@ let find_or_load_unit_info_from_cmx ?comp_unit desired_unit_name
               raise (Error (
                 Illegal_renaming {
                   contains_unit;
-                  desired_unit_name = desired_unit_name;
+                  desired_unit_name;
                   filename;
                 }))
             end;
@@ -195,7 +185,7 @@ let find_or_load_unit_info_from_cmx ?comp_unit desired_unit_name
            .cmx file is not packed. *)
         let comp_unit =
           match comp_unit with
-          | None -> Compilation_unit.create desired_unit_name
+          | None -> desired_unit
           | Some comp_unit -> comp_unit
         in
         current_unit.imports_cmx <-
@@ -233,22 +223,22 @@ let compilation_unit_for_global id : compilation_unit_or_predef =
   if Ident.is_predef id then begin
     Predef
   end else begin
-    let desired_unit_name = CU.Name.of_string (Ident.name id) in
-    match find_or_load_unit_info_from_cmx desired_unit_name with
+    let desired_unit = CU.of_raw_string (Ident.name id) in
+    match find_or_load_unit_info_from_cmx desired_unit with
     | Current_unit ->
-      Compilation_unit (Compilation_unit.get_current_exn ())
+      Compilation_unit (Persistent_env.Current_unit.get_exn ())
     | No_cmx_file_or_opaque ->
       (* Assume that the compilation unit (called [id]), whose .cmx file
          is missing, is not packed. *)
-      Compilation_unit (CU.create (CU.Name.of_string (Ident.name id)))
+      Compilation_unit desired_unit
     | Already_loaded info -> Compilation_unit (UI.unit info)
     | Just_loaded { info; filename; } ->
       let for_pack_prefix_in_cmx = CU.for_pack_prefix (UI.unit info) in
       let current_for_pack_prefix =
-        CU.for_pack_prefix (Compilation_unit.get_current_exn ())
+        CU.for_pack_prefix (Persistent_env.Current_unit.get_exn ())
       in
       let is_valid_prefix =
-        Misc.Stdlib.List.is_prefix ~equal:CU.Name.equal
+        Misc.Stdlib.List.is_prefix ~equal:CU.Prefix.equal_component
           for_pack_prefix_in_cmx ~of_:current_for_pack_prefix
       in
       if not is_valid_prefix then begin
@@ -346,7 +336,8 @@ module Closure_only = struct
       { original_idents = [];
         module_path =
           Path.Pident (Ident.create_persistent (
-            CU.Name.to_string (CU.name (CU.get_current_exn ()))));
+              CU.Name.to_string
+                (CU.name (Persistent_env.Current_unit.get_exn ()))));
       }
     in
     List.map
@@ -371,7 +362,8 @@ module Closure_only = struct
         Misc.fatal_error "Expected Closure approximations but found \
           Flambda export info"
     in
-    CU.Name.Tbl.add toplevel_approx (CU.name (CU.get_current_exn ())) approx
+    CU.Name.Tbl.add toplevel_approx
+      (CU.name (Persistent_env.Current_unit.get_exn ())) approx
 
   let global_approx id =
     if not (Ident.persistent id || Ident.is_predef id) then begin
@@ -382,9 +374,10 @@ module Closure_only = struct
     if Ident.is_predef id then Clambda.Value_unknown
     else
       let name = CU.Name.of_string (Ident.name id) in
+      let unit = CU.of_raw_string (Ident.name id) in
       try CU.Name.Tbl.find toplevel_approx name
       with Not_found ->
-        match find_or_load_unit_info_from_cmx name with
+        match find_or_load_unit_info_from_cmx unit with
         | No_cmx_file_or_opaque -> Clambda.Value_unknown
         | Current_unit ->
           begin match current_unit.export_info with
@@ -420,16 +413,16 @@ module Flambda_only = struct
     current_unit.export_info <- Flambda export_info
 
   let export_info_for_unit comp_unit =
-    let current_comp_unit = CU.get_current_exn () in
+    let current_comp_unit = Persistent_env.Current_unit.get_exn () in
     let desired_path = CU.full_path comp_unit in
     let current_path = CU.full_path current_comp_unit in
     let prefix_result =
-      Misc.Stdlib.List.find_and_chop_longest_common_prefix ~equal:CU.Name.equal
+      Misc.Stdlib.List.find_and_chop_longest_common_prefix
+        ~equal:CU.Prefix.equal_component
         ~first:desired_path ~second:current_path
     in
     let for_pack_prefix = prefix_result.longest_common_prefix in
-    let desired_path_without_for_pack_prefix =
-      prefix_result.first_without_longest_common_prefix
+    let desired_path_without_for_pack_prefix = prefix_result.first_without_longest_common_prefix
     in
     let name_of_unit_containing_symbol =
       match desired_path_without_for_pack_prefix with
@@ -445,7 +438,8 @@ module Flambda_only = struct
       | Flambda export_info -> Some export_info
     in
     match
-      find_or_load_unit_info_from_cmx ~comp_unit name_of_unit_containing_symbol
+      find_or_load_unit_info_from_cmx ~comp_unit
+        (CU.create name_of_unit_containing_symbol)
     with
     | No_cmx_file_or_opaque -> None
     | Current_unit ->
@@ -453,14 +447,14 @@ module Flambda_only = struct
       | Closure _ ->
         Misc.fatal_errorf "%a (current unit): expected Flambda export info \
             but found Closure approximations"
-          CU.print (CU.get_current_exn ())
+          CU.print (Persistent_env.Current_unit.get_exn ())
       | Flambda export_info -> Some export_info
       end
     | Already_loaded info -> extract_flambda_export_info info
     | Just_loaded { info; filename; } ->
       let for_pack_prefix_in_cmx = CU.for_pack_prefix (UI.unit info) in
-      if not (Misc.Stdlib.List.equal CU.Name.equal for_pack_prefix
-        for_pack_prefix_in_cmx)
+      if not (CU.Prefix.equal for_pack_prefix
+                for_pack_prefix_in_cmx)
       then begin
         raise (Error (
           Wrong_for_pack_prefix {
@@ -503,7 +497,7 @@ module Snapshot = struct
   }
 
   let create () =
-    { unit = CU.get_current_exn ();
+    { unit = Persistent_env.Current_unit.get_exn ();
       defines = current_unit.defines;
       imports_cmx = current_unit.imports_cmx;
       export_info = current_unit.export_info;

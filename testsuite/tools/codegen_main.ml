@@ -24,7 +24,7 @@ let compile_file filename =
   let comp_unit =
     Compilation_unit.create (Compilation_unit.Name.of_string "Test")
   in
-  Compilation_unit.set_current comp_unit;
+  Persistent_env.Current_unit.set_unit comp_unit;
   Compilation_state.reset comp_unit;
   Linking_state.reset ();
   Emit.begin_assembly comp_unit;
