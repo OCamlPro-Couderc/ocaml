@@ -82,14 +82,15 @@ let print_info cmt =
     | Some digest ->
       Printf.fprintf oc "interface digest: %s\n" (Digest.to_hex digest);
   end;
-  List.iter (fun (name, crco) ->
+  List.iter (fun (unit, crco) ->
     let crc =
       match crco with
         None -> dummy_crc
       | Some crc -> Digest.to_hex crc
     in
-    Printf.fprintf oc "import: %s %s\n" name crc;
-  ) (List.sort compare cmt.cmt_imports);
+    Printf.fprintf oc "import: %s %s\n" (Compilation_unit.name unit) crc;
+    ) (List.sort (fun (unit1, _) (unit2, _) -> Compilation_unit.compare unit1 unit2)
+         cmt.cmt_imports);
   Printf.fprintf oc "%!";
   begin match !target_filename with
   | None -> ()

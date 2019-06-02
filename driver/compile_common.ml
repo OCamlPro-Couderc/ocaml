@@ -18,8 +18,9 @@ open Compenv
 
 type info = {
   source_file : string;
-  module_name : string;
+  module_name : Compilation_unit.Name.t;
   output_prefix : string;
+  for_pack_prefix : Compilation_unit.Prefix.t;
   env : Env.t;
   ppf_dump : Format.formatter;
   tool_name : string;
@@ -34,13 +35,16 @@ let annot i = i.output_prefix ^ ".annot"
 let with_info ~native ~tool_name ~source_file ~output_prefix ~dump_ext k =
   Compmisc.init_path ();
   let module_name = module_of_filename source_file output_prefix in
-  Env.set_unit_name module_name;
+  let for_pack_prefix =
+    Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
+  Persistent_env.Current_unit.set ~prefix:for_pack_prefix module_name;
   let env = Compmisc.initial_env() in
   let dump_file = String.concat "." [output_prefix; dump_ext] in
   Compmisc.with_ppf_dump ~file_prefix:dump_file @@ fun ppf_dump ->
   k {
     module_name;
     output_prefix;
+    for_pack_prefix;
     env;
     source_file;
     ppf_dump;

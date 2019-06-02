@@ -40,6 +40,7 @@ module Int = Numbers.Int
 let no_approx = ref false
 let no_code = ref false
 let no_crc = ref false
+let full_path = ref false
 
 let input_stringlist ic len =
   let get_string_list sect len =
@@ -59,13 +60,17 @@ let null_crc = String.make 32 '0'
 
 let string_of_crc crc = if !no_crc then null_crc else Digest.to_hex crc
 
-let print_name_crc (name, crco) =
+let print_name_crc (unit, crco) =
   let crc =
     match crco with
       None -> dummy_crc
     | Some crc -> string_of_crc crc
   in
-    printf "\t%s\t%s\n" crc name
+  if not !full_path then
+    printf "\t%s\t%s\n" crc (Compilation_unit.name unit)
+  else
+    printf "\t%s\t%s\n" crc
+      (Format.asprintf "%a" Compilation_unit.print_full_path unit)
 
 let print_line name =
   printf "\t%s\n" name
@@ -117,7 +122,7 @@ let print_cmi_infos name crcs flags =
   printf "Unit name: %s\n" name;
   printf "Interfaces imported:\n";
   List.iter print_name_crc crcs;
-  printf "Compilation flags:";
+  printf "Compilation flags:\n";
   List.iter print_pers_flags flags
 
 
@@ -157,8 +162,8 @@ let print_general_infos name crc defines cmi cmx =
   in
   List.iter print_line defines;
   printf "Interfaces imported:\n";
-  let cmi = CU.Name.Map.bindings cmi in
-  List.iter (print_name_crc_native CU.Name.print) cmi;
+  let cmi = CU.Map.bindings cmi in
+  List.iter (print_name_crc_native CU.print) cmi;
   printf "Implementations imported:\n";
   let cmx = CU.Map.bindings cmx in
   List.iter (print_name_crc_native CU.print) cmx
@@ -186,7 +191,7 @@ let print_cmx_infos (ui, ui_link, crc) =
       printf "Flambda unit\n";
     if not !no_approx then begin
       let cu = UI.unit ui in
-      CU.set_current cu;
+      Persistent_env.Current_unit.set_unit cu;
       let root_symbols =
         List.map (fun comp_unit -> Symbol.for_module_block comp_unit)
           (UI.defines ui)
@@ -253,7 +258,7 @@ let dump_byte ic =
            | "CRCS" ->
                p_section
                  "Imported units"
-                 (input_value ic : (string * Digest.t option) list)
+                 (input_value ic : Compilation_unit.crcs)
            | "DLLS" ->
                p_list
                  "Used DLLs"
@@ -361,6 +366,7 @@ let dump_obj filename =
   end
 
 let arg_list = [
+  "-full-path", Arg.Set full_path, "";
   "-no-approx", Arg.Set no_approx,
     " Do not print module approximation information";
   "-no-code", Arg.Set no_code,

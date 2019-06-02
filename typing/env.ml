@@ -86,6 +86,10 @@ type address =
   | Aident of Ident.t
   | Adot of address * int
 
+let rec address_head = function
+    Aident id -> id
+  | Adot (addr, _) -> address_head addr
+
 module TycompTbl =
   struct
     (** This module is used to store components of types (i.e. labels
@@ -552,34 +556,13 @@ let rec print_address ppf = function
   | Aident id -> Format.fprintf ppf "%s" (Ident.name id)
   | Adot(a, pos) -> Format.fprintf ppf "%a.[%i]" print_address a pos
 
-(* The name of the compilation unit currently compiled.
-   "" if outside a compilation unit. *)
-module Current_unit_name : sig
-  val get : unit -> modname
-  val set : modname -> unit
-  val is : modname -> bool
-  val is_name_of : Ident.t -> bool
-end = struct
-  let current_unit =
-    ref ""
-  let get () =
-    !current_unit
-  let set name =
-    current_unit := name
-  let is name =
-    !current_unit = name
-  let is_name_of id =
-    is (Ident.name id)
-end
-
-let set_unit_name = Current_unit_name.set
-let get_unit_name = Current_unit_name.get
 
 let find_same_module id tbl =
   match IdTbl.find_same id tbl with
   | x -> x
   | exception Not_found
-    when Ident.persistent id && not (Current_unit_name.is_name_of id) ->
+    when Ident.persistent id
+      && not (Persistent_env.Current_unit.is_name_of id) ->
       Persistent
 
 (* signature of persistent compilation units *)
@@ -591,7 +574,7 @@ type persistent_module = {
 
 let add_persistent_structure id env =
   if not (Ident.persistent id) then invalid_arg "Env.add_persistent_structure";
-  if not (Current_unit_name.is_name_of id) then
+  if not (Persistent_env.Current_unit.is_name_of id) then
     { env with
       modules = IdTbl.add id Persistent env.modules;
       components = IdTbl.add id Persistent env.components;
@@ -606,12 +589,12 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent name in
   let path = Pident id in
-  let pm_pack, pers_id =
+  let pm_addr =
     List.find_opt (function Pack _ -> true | _ -> false) flags
     |> function
       Some (Pack prefix) ->
-        prefix, Aident (Ident.create_persistent ~prefix name)
-    | _ -> [], id
+        Aident (Ident.create_persistent ~prefix name)
+    | _ -> Aident id
   in
   let addr = EnvLazy.create_forced pm_addr in
   let alerts =
@@ -629,7 +612,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   {
     pm_signature;
     pm_components;
-    pm_pack;
+    pm_addr;
   }
 
 let read_sign_of_cmi = sign_of_cmi ~freshen:true
@@ -670,7 +653,7 @@ let reset_declaration_caches () =
   ()
 
 let reset_cache () =
-  Current_unit_name.set "";
+  Persistent_env.Current_unit.set ~prefix:[] "";
   Persistent_env.clear persistent_env;
   reset_declaration_caches ();
   ()
@@ -847,7 +830,7 @@ let find_pers_address id =
 let find_pers_address_ident id =
   match find_pers_address id with
     Aident id -> id
-  | _ -> id
+  | _ -> raise Not_found
 
 let rec find_module_address path env =
   match path with
@@ -908,11 +891,10 @@ let required_globals = ref []
 let reset_required_globals () = required_globals := []
 let get_required_globals () = !required_globals
 let add_required_global id =
-let id =
-  if !Clflags.transparent_modules then id else find_pers_address_ident id in
-  if Ident.global id && not !Clflags.transparent_modules
-  && not (List.exists (Ident.same id) !required_globals)
-  then required_globals := id :: !required_globals
+  if Ident.persistent id && not !Clflags.transparent_modules then
+    let id = find_pers_address_ident id in
+    if not (List.exists (Ident.same id) !required_globals)
+    then required_globals := id :: !required_globals
 
 let rec normalize_module_path lax env = function
   | Pident id as path when lax && Ident.persistent id ->
@@ -936,7 +918,7 @@ and expand_module_path lax env path =
       if lax || !Clflags.transparent_modules then path' else
       let id = Path.head path in
       if Ident.global id && not (Ident.same id (Path.head path'))
-      then add_required_global (find_pers_adress_ident id);
+      then add_required_global (find_pers_address_ident id);
       path'
   | _ -> path
   with Not_found when lax
@@ -1058,7 +1040,7 @@ let rec lookup_module_descr_aux ?loc ~mark lid env =
     Lident s ->
       let find_components s = (find_pers_mod s).pm_components in
       begin match IdTbl.find_name ~mark s env.components with
-      | exception Not_found when not (Current_unit_name.is s) ->
+      | exception Not_found when not (Persistent_env.Current_unit.is s) ->
         let p = Path.Pident (Ident.create_persistent s) in
         (p, find_components s)
       | (p, data) ->

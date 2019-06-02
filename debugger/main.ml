@@ -139,6 +139,7 @@ let toplevel_loop () =
   execute_file_if_any ();
   interactif := true;
   current_prompt := debugger_prompt;
+  Persistent_env.Current_unit.set "";
   protect Format.std_formatter loop loop
 
 (* Parsing of command-line arguments *)

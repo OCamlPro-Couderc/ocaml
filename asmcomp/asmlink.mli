@@ -26,7 +26,7 @@ val call_linker_shared: string list -> string -> unit
 
 val reset : unit -> unit
 val check_consistency: filepath -> Cmx_format.Unit_info.t -> Digest.t -> unit
-val extract_crc_interfaces: unit -> Digest.t option Compilation_unit.Name.Map.t
+val extract_crc_interfaces: unit -> Digest.t option Compilation_unit.Map.t
 val extract_crc_implementations: unit -> Digest.t option Compilation_unit.Map.t
 
 type error = private

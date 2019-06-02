@@ -710,9 +710,8 @@ let required_globals ~flambda body =
   in
   let required =
     List.fold_left
-      (fun acc path ->
-         (* /!\ TEMPORARY *)
-         let unit = Env.get_global_ident (Path.head path) in
+      (fun acc addr ->
+         let unit = Env.address_head addr in
          add_global unit acc)
       (if flambda then globals else Ident.Set.empty)
       (Translprim.get_used_primitives ())
@@ -728,18 +727,15 @@ let required_globals ~flambda body =
 
 (* Compile an implementation *)
 
-let transl_module_ident module_name =
-  match !Clflags.for_package with
-    Some p ->
-      let prefix = Misc.prefix_of_for_pack p in
-      Ident.create_persistent ~prefix module_name
-  | None -> Ident.create_persistent module_name
+let transl_current_module_ident module_name =
+  let prefix = Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
+  Ident.create_persistent ~prefix module_name
 
 let transl_implementation_flambda module_name (str, cc) =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
-  let module_id = transl_module_ident module_name in
+  let module_id = transl_current_module_ident module_name in
   let body, size =
     Translobj.transl_label_init
       (fun () -> transl_struct Location.none [] cc
@@ -1450,7 +1446,7 @@ let transl_package_flambda component_names coercion =
            Location.none))
 
 let transl_package component_names target_name coercion =
-  let module_name = transl_module_ident (Ident.name target_name) in
+  let module_name = transl_current_module_ident (Ident.name target_name) in
   let components =
     Lprim(Pmakeblock(0, Immutable, None),
           List.map get_component component_names, Location.none) in

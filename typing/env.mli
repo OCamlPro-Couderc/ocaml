@@ -39,6 +39,8 @@ type address =
   | Aident of Ident.t
   | Adot of address * int
 
+val address_head: address -> Ident.t
+
 type t
 
 val empty: t
@@ -106,10 +108,6 @@ val normalize_path_prefix: Location.t option -> t -> Path.t -> Path.t
 val reset_required_globals: unit -> unit
 val get_required_globals: unit -> Ident.t list
 val add_required_global: Ident.t -> unit
-
-val get_global_ident: Ident.t -> Ident.t
-(* Prefix the identifier by its pack name, if there exists such a global and it
-   has been compiled for a pack *)
 
 val has_local_constraints: t -> bool
 
@@ -238,34 +236,30 @@ val reset_cache: unit -> unit
 (* To be called before each toplevel phrase. *)
 val reset_cache_toplevel: unit -> unit
 
-(* Remember the name of the current compilation unit. *)
-val set_unit_name: string -> unit
-val get_unit_name: unit -> string
-
 (* Read, save a signature to/from a file *)
-val read_signature: modname -> filepath -> signature
+val read_signature: Compilation_unit.Name.t -> filepath -> signature
         (* Arguments: module name, file name. Results: signature. *)
 val save_signature:
-  alerts:alerts -> signature -> modname -> filepath
+  alerts:alerts -> signature -> Compilation_unit.Name.t -> filepath
   -> Cmi_format.cmi_infos
         (* Arguments: signature, module name, file name. *)
 val save_signature_with_imports:
-  alerts:alerts -> signature -> modname -> filepath -> crcs
+  alerts:alerts -> signature -> Compilation_unit.Name.t -> filepath -> Compilation_unit.crcs
   -> Cmi_format.cmi_infos
         (* Arguments: signature, module name, file name,
            imported units with their CRCs. *)
 
 (* Return the CRC of the interface of the given compilation unit *)
-val crc_of_unit: modname -> Digest.t
+val crc_of_unit: Compilation_unit.Name.t -> Digest.t
 
 (* Return the set of compilation units imported, with their CRC *)
-val imports: unit -> crcs
+val imports: unit -> Compilation_unit.crcs
 
 (* may raise Persistent_env.Consistbl.Inconsistency *)
-val import_crcs: source:string -> crcs -> unit
+val import_crcs: source:string -> Compilation_unit.crcs -> unit
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module  *)
-val is_imported_opaque: modname -> bool
+val is_imported_opaque: Compilation_unit.Name.t -> bool
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)
