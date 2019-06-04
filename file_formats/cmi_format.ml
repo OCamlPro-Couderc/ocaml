@@ -21,6 +21,8 @@ type pers_flags =
   | Opaque
   | Unsafe_string
   | Pack of Compilation_unit.Prefix.t
+  | Parameter_of of Compilation_unit.Name.t
+  | Parameters of Compilation_unit.Name.t list
 
 type error =
   | Not_an_interface of filepath

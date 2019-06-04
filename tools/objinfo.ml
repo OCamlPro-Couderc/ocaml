@@ -118,6 +118,9 @@ let print_pers_flags =
   | Opaque -> printf " -opaque"
   | Unsafe_string -> printf " -unsafe-string"
   | Pack modnames -> printf " -for-pack %s" (CU.Prefix.to_string modnames)
+  | Parameter_of m -> printf " -parameter-of %s" (CU.Name.to_string m)
+  | Parameters p ->
+      List.iter (fun p -> printf " -parameter %s" (CU.Name.to_string p)) p
 
 let print_cmi_infos name crcs flags =
   printf "Unit name: %s\n" (CU.Name.to_string name);

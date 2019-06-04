@@ -33,6 +33,7 @@ type error =
       { imported_unit: CU.Name.t; filename: filepath;
         prefix: CU.Prefix.t; current_pack: CU.Prefix.t }
   | Inconsistent_package_import of filepath * CU.Name.t
+  | Illegal_import_of_parameter of CU.Name.t * filepath
 
 exception Error of error
 let error err = raise (Error err)
@@ -133,6 +134,7 @@ type 'a t = {
   persistent_structures : 'a pers_struct_info NameTbl.t;
   imported_units: CU.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
+  imported_units_as_parameter: CU.Name.Set.t ref;
   crc_units: Consistbl.t;
   can_load_cmis: can_load_cmis ref;
 }
@@ -141,6 +143,7 @@ let empty () = {
   persistent_structures = NameTbl.create 17;
   imported_units = ref CU.Set.empty;
   imported_opaque_units = ref CU.Name.Set.empty;
+  imported_units_as_parameter = ref CU.Name.Set.empty;
   crc_units = Consistbl.create ();
   can_load_cmis = ref Can_load_cmis;
 }
@@ -150,12 +153,14 @@ let clear penv =
     persistent_structures;
     imported_units;
     imported_opaque_units;
+    imported_units_as_parameter;
     crc_units;
     can_load_cmis;
   } = penv in
   NameTbl.clear persistent_structures;
   imported_units := CU.Set.empty;
   imported_opaque_units := CU.Name.Set.empty;
+  imported_units_as_parameter := CU.Name.Set.empty;
   Consistbl.clear crc_units;
   can_load_cmis := Can_load_cmis;
   ()
@@ -174,6 +179,9 @@ let add_import {imported_units; _} unit =
 
 let add_imported_opaque {imported_opaque_units; _} s =
   imported_opaque_units := CU.Name.Set.add s !imported_opaque_units
+
+let add_imported_parameter {imported_units_as_parameter; _} s =
+  imported_units_as_parameter := CU.Name.Set.add s !imported_units_as_parameter
 
 let find_in_cache {persistent_structures; _} s =
   match NameTbl.find persistent_structures s with
@@ -199,6 +207,9 @@ let check_consistency penv ps =
       original_source = auth;
     } ->
     error (Inconsistent_import(CU.name unit, auth, source))
+
+let check_parameter modname =
+  List.mem modname !Clflags.functor_parameters
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
@@ -237,8 +248,13 @@ let save_pers_struct penv crc ps pm =
         | Rectypes -> ()
         | Alerts _ -> ()
         | Unsafe_string -> ()
-        | Pack _p -> ()
-        | Opaque -> add_imported_opaque penv modname)
+        | Pack _prefix -> ()
+        | Opaque -> add_imported_opaque penv modname
+        | Parameters _ -> ()
+        | Parameter_of _ ->
+            if not (check_parameter (CU.Name.to_string ps.ps_name)) then
+              error (Illegal_import_of_parameter(ps.ps_name, ps.ps_filename))
+            else add_imported_parameter penv ps.ps_name)
     ps.ps_flags;
   let for_pack_prefix = prefix_of_pers_struct ps in
   let unit = CU.create ~for_pack_prefix modname in
@@ -294,7 +310,12 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
                         (CU.Prefix.to_string p ^ "." ^
                          CU.Name.to_string modname)))
       | Opaque ->
-          add_imported_opaque penv modname)
+          add_imported_opaque penv modname
+      | Parameters _ -> ()
+      | Parameter_of _ ->
+          if not (check_parameter (CU.Name.to_string ps.ps_name)) then
+            error (Illegal_import_of_parameter(ps.ps_name, filename))
+          else add_imported_parameter penv ps.ps_name)
     ps.ps_flags;
   if check then check_consistency penv ps;
   let {persistent_structures; _} = penv in
@@ -373,6 +394,9 @@ let check_pers_struct penv f ~loc name =
             Printf.sprintf
               "%s corresponds to the current unit's package"
               intf_filename
+        (* The cmi is necessary, otherwise the functor cannot be
+           generated. Moreover, aliases of functor arguments are forbidden. *)
+        | Illegal_import_of_parameter _ -> assert false
       in
       let warn = Warnings.No_cmi_file(CU.Name.to_string name, Some msg) in
         Location.prerr_warning loc warn
@@ -421,6 +445,9 @@ let is_imported {imported_units; _} u =
 let is_imported_opaque {imported_opaque_units; _} s =
   CU.Name.Set.mem s !imported_opaque_units
 
+let is_imported_as_parameter {imported_units_as_parameter; _} s =
+  CU.Name.Set.mem s !imported_units_as_parameter
+
 let make_cmi penv modname sign alerts =
   let flags =
     List.concat [
@@ -430,6 +457,13 @@ let make_cmi penv modname sign alerts =
       (match CU.for_pack_prefix (Current_unit.get_exn ()) with
          [] -> []
        | prefix -> [Cmi_format.Pack prefix] );
+      (match !Clflags.functor_parameters with
+         _ :: _ as ps ->
+           [Cmi_format.Parameters (List.map Compilation_unit.Name.of_string ps)]
+       | [] -> []);
+      (match !Clflags.functor_parameter_of with
+         Some p -> [Cmi_format.Parameter_of (Compilation_unit.Name.of_string p)]
+       | None -> []);
       [Alerts alerts];
     ]
   in
@@ -524,6 +558,12 @@ let report_error ppf =
         "@[<hov>The interface %s@ corresponds to the current unit's package %a.@]"
         intf_filename
         CU.Name.print intf_fullname
+  | Illegal_import_of_parameter(modname, filename) -> fprintf ppf
+      "The file %a@ contains the an interface of a parameter.@ \
+       %a is not declared as a parameter for the current unit (-parameter %a).@"
+      Location.print_filename filename
+      CU.Name.print modname
+      CU.Name.print modname
 
 let () =
   Location.register_error_of_exn
