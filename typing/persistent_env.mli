@@ -32,6 +32,7 @@ type error =
         prefix: Compilation_unit.Prefix.t;
         current_pack: Compilation_unit.Prefix.t }
   | Inconsistent_package_import of filepath * Compilation_unit.Name.t
+  | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath
 
 exception Error of error
 
@@ -123,6 +124,10 @@ val is_imported : 'a t -> Compilation_unit.t -> bool
 (* [is_imported_opaque penv md] checks if [md] has been imported
    in [penv] as an opaque module *)
 val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
+
+(* [is_imported_parameter penv md] checks if [md] has been imported
+   in [penv] as a functor parameter *)
+val is_imported_as_parameter : 'a t -> Compilation_unit.Name.t -> bool
 
 val make_cmi : 'a t -> Compilation_unit.Name.t -> Types.signature -> alerts
   -> Cmi_format.cmi_infos
