@@ -20,6 +20,8 @@ type pers_flags =
   | Alerts of alerts
   | Opaque
   | Unsafe_string
+  | Parameter_of of modname
+  | Parameters of modname list
 
 type error =
   | Not_an_interface of filepath

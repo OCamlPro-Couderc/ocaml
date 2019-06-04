@@ -25,6 +25,7 @@ type error =
   | Inconsistent_import of modname * filepath * filepath
   | Need_recursive_types of modname
   | Depend_on_unsafe_string_unit of modname
+  | Illegal_import_of_parameter of modname * filepath
 
 exception Error of error
 
@@ -76,6 +77,10 @@ val is_imported : 'a t -> modname -> bool
 (* [is_imported_opaque penv md] checks if [md] has been imported
    in [penv] as an opaque module *)
 val is_imported_opaque : 'a t -> modname -> bool
+
+(* [is_imported_parameter penv md] checks if [md] has been imported
+   in [penv] as a functor parameter *)
+val is_imported_as_parameter : 'a t -> modname -> bool
 
 val make_cmi : 'a t -> modname -> Types.signature -> alerts
   -> Cmi_format.cmi_infos

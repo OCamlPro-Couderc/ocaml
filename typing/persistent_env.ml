@@ -28,6 +28,7 @@ type error =
   | Inconsistent_import of modname * filepath * filepath
   | Need_recursive_types of modname
   | Depend_on_unsafe_string_unit of modname
+  | Illegal_import_of_parameter of modname * filepath
 
 exception Error of error
 let error err = raise (Error err)
@@ -66,6 +67,7 @@ type 'a t = {
   persistent_structures : (string, 'a pers_struct_info) Hashtbl.t;
   imported_units: String.Set.t ref;
   imported_opaque_units: String.Set.t ref;
+  imported_units_as_parameter: String.Set.t ref;
   crc_units: Consistbl.t;
   can_load_cmis: can_load_cmis ref;
 }
@@ -74,6 +76,7 @@ let empty () = {
   persistent_structures = Hashtbl.create 17;
   imported_units = ref String.Set.empty;
   imported_opaque_units = ref String.Set.empty;
+  imported_units_as_parameter = ref String.Set.empty;
   crc_units = Consistbl.create ();
   can_load_cmis = ref Can_load_cmis;
 }
@@ -83,12 +86,14 @@ let clear penv =
     persistent_structures;
     imported_units;
     imported_opaque_units;
+    imported_units_as_parameter;
     crc_units;
     can_load_cmis;
   } = penv in
   Hashtbl.clear persistent_structures;
   imported_units := String.Set.empty;
   imported_opaque_units := String.Set.empty;
+  imported_units_as_parameter := String.Set.empty;
   Consistbl.clear crc_units;
   can_load_cmis := Can_load_cmis;
   ()
@@ -106,6 +111,9 @@ let add_import {imported_units; _} s =
 
 let add_imported_opaque {imported_opaque_units; _} s =
   imported_opaque_units := String.Set.add s !imported_opaque_units
+
+let add_imported_parameter {imported_units_as_parameter; _} s =
+  imported_units_as_parameter := String.Set.add s !imported_units_as_parameter
 
 let find_in_cache {persistent_structures; _} s =
   match Hashtbl.find persistent_structures s with
@@ -127,6 +135,9 @@ let check_consistency penv ps =
   try import_crcs penv ~source:ps.ps_filename ps.ps_crcs
   with Consistbl.Inconsistency(name, source, auth) ->
     error (Inconsistent_import(name, auth, source))
+
+let check_parameter modname =
+  List.mem modname !Clflags.functor_parameters
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
@@ -160,7 +171,12 @@ let save_pers_struct penv crc ps pm =
         | Rectypes -> ()
         | Alerts _ -> ()
         | Unsafe_string -> ()
-        | Opaque -> add_imported_opaque penv modname)
+        | Opaque -> add_imported_opaque penv modname
+        | Parameters _ -> ()
+        | Parameter_of _ ->
+            if not (check_parameter ps.ps_name) then
+              error (Illegal_import_of_parameter(ps.ps_name, ps.ps_filename))
+            else add_imported_parameter penv ps.ps_name)
     ps.ps_flags;
   Consistbl.set crc_units modname crc ps.ps_filename;
   add_import penv modname
@@ -186,7 +202,12 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
             if Config.safe_string then
               error (Depend_on_unsafe_string_unit(ps.ps_name));
         | Alerts _ -> ()
-        | Opaque -> add_imported_opaque penv modname)
+        | Opaque -> add_imported_opaque penv modname
+        | Parameters _ -> ()
+        | Parameter_of _ ->
+            if not (check_parameter ps.ps_name) then
+              error (Illegal_import_of_parameter(ps.ps_name, filename))
+            else add_imported_parameter penv ps.ps_name)
     ps.ps_flags;
   if check then check_consistency penv ps;
   let {persistent_structures; _} = penv in
@@ -251,6 +272,9 @@ let check_pers_struct penv f ~loc name =
         | Depend_on_unsafe_string_unit name ->
             Printf.sprintf "%s uses -unsafe-string"
               name
+        (* The cmi is necessary, otherwise the functor cannot be
+           generated. Moreover, aliases of functor arguments are forbidden. *)
+        | Illegal_import_of_parameter _ -> assert false
       in
       let warn = Warnings.No_cmi_file(name, Some msg) in
         Location.prerr_warning loc warn
@@ -297,12 +321,21 @@ let is_imported {imported_units; _} s =
 let is_imported_opaque {imported_opaque_units; _} s =
   String.Set.mem s !imported_opaque_units
 
+let is_imported_as_parameter {imported_units_as_parameter; _} s =
+  String.Set.mem s !imported_units_as_parameter
+
 let make_cmi penv modname sign alerts =
   let flags =
     List.concat [
       if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
       if !Clflags.opaque then [Cmi_format.Opaque] else [];
       (if !Clflags.unsafe_string then [Cmi_format.Unsafe_string] else []);
+      (match !Clflags.functor_parameters with
+         _ :: _ as ps -> [Cmi_format.Parameters ps]
+       | [] -> []);
+      (match !Clflags.functor_parameter_of with
+         Some p -> [Cmi_format.Parameter_of p]
+       | None -> []);
       [Alerts alerts];
     ]
   in
@@ -359,6 +392,10 @@ let report_error ppf =
         "@[<hov>Invalid import of %s, compiled with -unsafe-string.@ %s@]"
         import "This compiler has been configured in strict \
                                   safe-string mode (-force-safe-string)"
+  | Illegal_import_of_parameter(modname, filename) -> fprintf ppf
+      "The file %a@ contains the an interface of a parameter.@ \
+       %s is not declared as a parameter for the current unit (-parameter %s).@"
+      Location.print_filename filename modname modname
 
 let () =
   Location.register_error_of_exn
