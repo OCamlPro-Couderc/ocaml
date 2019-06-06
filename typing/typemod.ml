@@ -2417,7 +2417,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         Warnings.parse_options false "-32-34-37-38-60";
       let (str, sg, names, finalenv) =
         type_structure initial_env ast (Location.in_file sourcefile) in
+      (* TODO: generate a functor if there are any parameter *)
+      let mty = Mty_signature sg in
       let simple_sg = Signature_names.simplify finalenv names sg in
+      let simple_mty = Mty_signature simple_sg in
       if !Clflags.print_types then begin
         Typecore.force_delayed_checks ();
         Printtyp.wrap_printing_env ~error:false initial_env
@@ -2425,7 +2428,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
               (Printtyp.printed_signature sourcefile) simple_sg
           );
           { timpl_desc = Timpl_structure str;
-            timpl_type = Mty_signature str.str_type;
+            timpl_type = mty;
             timpl_env = initial_env;
           },
           Tcoerce_none   (* result is ignored by Compile.implementation *)
@@ -2439,10 +2442,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             with Not_found ->
               raise(Error(Location.in_file sourcefile, Env.empty,
                           Interface_not_compiled sourceintf)) in
-          let dclsig = Env.read_signature modulename intf_file in
+          let dclmty = Env.read_interface modulename intf_file in
           let coercion =
             Includemod.compunit initial_env ~mark:Includemod.Mark_positive
-              sourcefile sg intf_file dclsig
+              sourcefile mty intf_file dclmty
           in
           Typecore.force_delayed_checks ();
           (* It is important to run these checks after the inclusion test above,
@@ -2452,14 +2455,14 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             (Cmt_format.Implementation str) (Some sourcefile) initial_env None;
 
           { timpl_desc = Timpl_structure str;
-            timpl_type = Mty_signature str.str_type;
+            timpl_type = mty;
             timpl_env = initial_env;
           },
           coercion
         end else begin
           let coercion =
             Includemod.compunit initial_env ~mark:Includemod.Mark_positive
-              sourcefile sg "(inferred signature)" simple_sg
+              sourcefile mty "(inferred signature)" simple_mty
           in
           check_nongen_schemes finalenv simple_sg;
           normalize_signature finalenv simple_sg;
@@ -2471,15 +2474,15 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           if not !Clflags.dont_write_files then begin
             let alerts = Builtin_attributes.alerts_of_str ast in
             let cmi =
-              Env.save_signature ~alerts
-                simple_sg modulename (outputprefix ^ ".cmi")
+              Env.save_interface ~alerts
+                simple_mty modulename (outputprefix ^ ".cmi")
             in
             Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
               (Cmt_format.Implementation str)
               (Some sourcefile) initial_env (Some cmi);
           end;
           { timpl_desc = Timpl_structure str;
-            timpl_type = Mty_signature str.str_type;
+            timpl_type = mty;
             timpl_env = initial_env;
           },
           coercion
@@ -2492,7 +2495,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
              (Array.of_list (Cmt_format.get_saved_types ())))
           (Some sourcefile) initial_env None)
 
-let save_signature modname tsg outputprefix source_file initial_env cmi =
+let save_interface modname tintf outputprefix source_file initial_env cmi =
+  let tsg = match tintf.tintf_desc with
+      Tintf_signature sg -> sg
+    | _ -> assert false in
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi)
 
@@ -2506,12 +2512,16 @@ let type_interface env ast =
    having them as sub-modules.  *)
 
 let package_signatures units =
+  let extract_sig = function
+      Mty_signature sg -> sg
+    | _ -> assert false
+  in
   let units_with_ids =
     List.map
-      (fun (name, sg) ->
+      (fun (name, mty) ->
         let oldid = Ident.create_persistent name in
         let newid = Ident.create_local name in
-        (oldid, newid, sg))
+        (oldid, newid, extract_sig mty))
       units
   in
   let subst =
@@ -2538,16 +2548,22 @@ let package_units initial_env objfiles cmifile modulename =
       (fun f ->
          let pref = chop_extensions f in
          let modname = String.capitalize_ascii(Filename.basename pref) in
-         let sg = Env.read_signature modname (pref ^ ".cmi") in
+         let mty = Env.read_interface modname (pref ^ ".cmi") in
+         let sg = match mty with
+             Mty_signature sg -> sg
+           | Mty_functor (_, _, _) -> assert false (* TODO: transform to error *)
+           | _ -> assert false
+         in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
-         (modname, Env.read_signature modname (pref ^ ".cmi")))
+         (modname, Env.read_interface modname (pref ^ ".cmi")))
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
   let sg = package_signatures units in
+  let mty = Mty_signature sg in
   (* See if explicit interface is provided *)
   let prefix = Filename.remove_extension cmifile in
   let mlifile = prefix ^ !Config.interface_suffix in
@@ -2556,10 +2572,10 @@ let package_units initial_env objfiles cmifile modulename =
       raise(Error(Location.in_file mlifile, Env.empty,
                   Interface_not_compiled mlifile))
     end;
-    let dclsig = Env.read_signature modulename cmifile in
+    let dclmty = Env.read_interface modulename cmifile in
     Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
       (Cmt_format.Packed (sg, objfiles)) None initial_env  None ;
-    Includemod.compunit initial_env "(obtained by packing)" sg mlifile dclsig
+    Includemod.compunit initial_env "(obtained by packing)" mty mlifile dclmty
   end else begin
     (* Determine imports *)
     let unit_names = List.map fst units in
@@ -2570,12 +2586,17 @@ let package_units initial_env objfiles cmifile modulename =
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin
       let cmi =
-        Env.save_signature_with_imports ~alerts:Misc.Stdlib.String.Map.empty
-          sg modulename
+        Env.save_interface_with_imports ~alerts:Misc.Stdlib.String.Map.empty
+          mty modulename
           (prefix ^ ".cmi") imports
       in
+      let cmi_sg =
+        match cmi.Cmi_format.cmi_type with
+          Mty_signature sg -> sg
+        | _ -> assert false
+      in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
-        (Cmt_format.Packed (cmi.Cmi_format.cmi_sign, objfiles)) None initial_env
+        (Cmt_format.Packed (cmi_sg, objfiles)) None initial_env
         (Some cmi)
     end;
     Tcoerce_none

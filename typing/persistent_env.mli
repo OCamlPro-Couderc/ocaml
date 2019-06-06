@@ -82,7 +82,7 @@ val is_imported_opaque : 'a t -> modname -> bool
    in [penv] as a functor parameter *)
 val is_imported_as_parameter : 'a t -> modname -> bool
 
-val make_cmi : 'a t -> modname -> Types.signature -> alerts
+val make_cmi : 'a t -> modname -> Types.module_type -> alerts
   -> Cmi_format.cmi_infos
 
 val save_cmi : 'a t -> Persistent_signature.t -> 'a -> unit

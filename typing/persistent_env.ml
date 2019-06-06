@@ -324,7 +324,7 @@ let is_imported_opaque {imported_opaque_units; _} s =
 let is_imported_as_parameter {imported_units_as_parameter; _} s =
   String.Set.mem s !imported_units_as_parameter
 
-let make_cmi penv modname sign alerts =
+let make_cmi penv modname mty alerts =
   let flags =
     List.concat [
       if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
@@ -342,7 +342,7 @@ let make_cmi penv modname sign alerts =
   let crcs = imports penv in
   {
     cmi_name = modname;
-    cmi_sign = sign;
+    cmi_type = mty;
     cmi_crcs = crcs;
     cmi_flags = flags
   }
@@ -352,7 +352,7 @@ let save_cmi penv psig pm =
   Misc.try_finally (fun () ->
       let {
         cmi_name = modname;
-        cmi_sign = _;
+        cmi_type = _;
         cmi_crcs = imports;
         cmi_flags = flags;
       } = cmi in

@@ -97,7 +97,7 @@ let eval_value_path env path =
 let init () =
   let topdirs =
     Filename.concat !Parameters.topdirs_path "topdirs.cmi" in
-  ignore (Env.read_signature "Topdirs" topdirs)
+  ignore (Env.read_interface "Topdirs" topdirs)
 
 let match_printer_type desc typename =
   let printer_type =

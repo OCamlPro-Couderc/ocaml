@@ -548,10 +548,10 @@ let () =
 (* Check that an implementation of a compilation unit meets its
    interface. *)
 
-let compunit env ?(mark=Mark_both) impl_name impl_sig intf_name intf_sig =
+let compunit env ?(mark=Mark_both) impl_name impl_mty intf_name intf_mty =
   try
-    signatures ~loc:(Location.in_file impl_name) env ~mark []
-      Subst.identity impl_sig intf_sig
+    modtypes ~loc:(Location.in_file impl_name) env ~mark []
+      Subst.identity impl_mty intf_mty
   with Error reasons ->
     raise(Error(([], Env.empty,Interface_mismatch(impl_name, intf_name))
                 :: reasons))
