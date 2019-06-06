@@ -58,8 +58,8 @@ val modtype_of_package:
 
 val path_of_module : Typedtree.module_expr -> Path.t option
 
-val save_signature:
-  string -> Typedtree.signature -> string -> string ->
+val save_interface:
+  string -> Typedtree.interface -> string -> string ->
   Env.t -> Cmi_format.cmi_infos -> unit
 
 val package_units:

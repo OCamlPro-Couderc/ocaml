@@ -33,18 +33,18 @@ exception Error of error
 
 type cmi_infos = {
     cmi_name : Compilation_unit.Name.t;
-    cmi_sign : Types.signature_item list;
+    cmi_type : Types.module_type;
     cmi_crcs : Compilation_unit.crcs;
     cmi_flags : pers_flags list;
 }
 
 let input_cmi ic =
-  let (name, sign) = input_value ic in
+  let (name, mty) = input_value ic in
   let crcs = input_value ic in
   let flags = input_value ic in
   {
       cmi_name = name;
-      cmi_sign = sign;
+      cmi_type = mty;
       cmi_crcs = crcs;
       cmi_flags = flags;
     }
@@ -81,7 +81,7 @@ let read_cmi filename =
 let output_cmi filename oc cmi =
 (* beware: the provided signature must have been substituted for saving *)
   output_string oc Config.cmi_magic_number;
-  output_value oc (cmi.cmi_name, cmi.cmi_sign);
+  output_value oc (cmi.cmi_name, cmi.cmi_type);
   flush oc;
   let crc = Digest.file filename in
   let for_pack_prefix =
