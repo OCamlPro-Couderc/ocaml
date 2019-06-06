@@ -1774,6 +1774,19 @@ let printed_signature sourcefile ppf sg =
   end;
   fprintf ppf "%a" print_signature t
 
+
+(* Print a signature body (used by -i when compiling a .ml).
+   Since functorized units are implicits, abstractions are removed.
+ *)
+let printed_interface sourcefile ppf tintf =
+  let rec extract_sig mty =
+    match mty with
+      Mty_signature sg -> sg
+    | Mty_functor (_, mty') -> extract_sig mty'
+    | _ -> assert false (* illformed module type for a compilation unit *)
+  in
+  printed_signature sourcefile ppf (extract_sig tintf.Typedtree.tintf_type)
+
 (* Print an unification error *)
 
 let same_path t t' =

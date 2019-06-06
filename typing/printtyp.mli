@@ -181,3 +181,7 @@ val rewrite_double_underscore_paths: Env.t -> Path.t -> Path.t
 (** [printed_signature sourcefile ppf sg] print the signature [sg] of
     [sourcefile] with potential warnings for name collisions *)
 val printed_signature: string -> formatter -> signature -> unit
+
+(** [printed_interface sourcefile ppf tintf] print the interface [tintf] of
+    [sourcefile] with potential warnings for name collisions *)
+val printed_interface: string -> formatter -> Typedtree.interface -> unit

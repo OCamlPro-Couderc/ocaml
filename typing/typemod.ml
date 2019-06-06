@@ -2616,7 +2616,11 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           (fun () -> fprintf std_formatter "%a@."
               (Printtyp.printed_signature sourcefile) simple_sg
           );
-        (str, Tcoerce_none)   (* result is ignored by Compile.implementation *)
+          { timpl_desc = Timpl_structure str;
+            timpl_type = Mty_signature str.str_type;
+            timpl_env = initial_env;
+          },
+          Tcoerce_none   (* result is ignored by Compile.implementation *)
       end else begin
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
@@ -2639,7 +2643,12 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
              exported are not reported as being unused. *)
           Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
             (Cmt_format.Implementation str) (Some sourcefile) initial_env None;
-          (str, coercion)
+
+          { timpl_desc = Timpl_structure str;
+            timpl_type = Mty_signature str.str_type;
+            timpl_env = initial_env;
+          },
+          coercion
         end else begin
           let coercion =
             Includemod.compunit initial_env ~mark:Includemod.Mark_positive
@@ -2662,7 +2671,11 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
               (Cmt_format.Implementation str)
               (Some sourcefile) initial_env (Some cmi);
           end;
-          (str, coercion)
+          { timpl_desc = Timpl_structure str;
+            timpl_type = Mty_signature str.str_type;
+            timpl_env = initial_env;
+          },
+          coercion
         end
       end
     )
@@ -2677,7 +2690,10 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi)
 
 let type_interface env ast =
-  transl_signature env ast
+  let intf = transl_signature env ast in
+  { tintf_desc = Tintf_signature intf;
+    tintf_type = Mty_signature intf.sig_type;
+    tintf_env = env }
 
 (* "Packaging" of several compilation units into one unit
    having them as sub-modules.  *)

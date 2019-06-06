@@ -26,7 +26,7 @@ val implementation:
 val closure :
   Compile_common.info ->
   (module Backend_intf.S) ->
-  Typedtree.structure * Typedtree.module_coercion -> unit
+  Typedtree.implementation * Typedtree.module_coercion -> unit
 (** [closure info typed] applies the Closure compilation pipeline to the
     given typechecked implementation and outputs the resulting files.
 *)
@@ -34,7 +34,7 @@ val closure :
 val flambda :
   Compile_common.info ->
   (module Backend_intf.S) ->
-  Typedtree.structure * Typedtree.module_coercion -> unit
+  Typedtree.implementation * Typedtree.module_coercion -> unit
 (** [flambda info backend typed] applies the Flambda compilation pipeline to the
     given typechecked implementation and outputs the resulting files.
 *)
