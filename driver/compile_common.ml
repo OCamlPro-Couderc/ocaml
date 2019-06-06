@@ -80,19 +80,14 @@ let typecheck_intf info ast =
   Warnings.check_fatal ();
   tintf
 
-let emit_signature info ast tintf =
-  let tsg =
-    match tintf.Typedtree.tintf_desc with
-      Typedtree.Tintf_signature tsg -> tsg
-    | Typedtree.Tintf_functor _ -> assert false
-  in
-  let sg =
+let emit_interface info ast tintf =
+  let cmi =
     let alerts = Builtin_attributes.alerts_of_sig ast in
-    Env.save_signature ~alerts tsg.Typedtree.sig_type
+    Env.save_interface ~alerts tintf.Typedtree.tintf_type
       info.module_name (info.output_prefix ^ ".cmi")
   in
-  Typemod.save_signature info.module_name tsg
-    info.output_prefix info.source_file info.env sg
+  Typemod.save_interface info.module_name tintf
+    info.output_prefix info.source_file info.env cmi
 
 let interface info =
   Profile.record_call info.source_file @@ fun () ->
@@ -100,7 +95,7 @@ let interface info =
   if Clflags.(should_stop_after Compiler_pass.Parsing) then () else begin
     let tintf = typecheck_intf info ast in
     if not !Clflags.print_types then begin
-      emit_signature info ast tintf
+      emit_interface info ast tintf
     end
   end
 

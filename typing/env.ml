@@ -702,9 +702,9 @@ let components_of_module ~alerts ~loc env fs ps path addr mty =
     }
   }
 
-let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
+let type_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   let name = CU.Name.to_string cmi.cmi_name in
-  let sign = cmi.cmi_sign in
+  let mty = cmi.cmi_type in
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent name in
   let path = Pident id in
@@ -721,10 +721,9 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
       flags
   in
   let loc = Location.none in
-  let md = md (Mty_signature sign) in
   let mda_address = EnvLazy.create_forced pers_address in
   let mda_declaration =
-    EnvLazy.create (Subst.identity, Subst.Make_local, md)
+    EnvLazy.create (Subst.identity, Subst.Make_local, md mty)
   in
   let mda_components =
     let freshening_subst =
@@ -732,7 +731,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     in
     components_of_module ~alerts ~loc
       empty freshening_subst Subst.identity
-      path mda_address (Mty_signature sign)
+      path mda_address mty
   in
   {
     mda_declaration;
@@ -740,9 +739,9 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     mda_address;
   }
 
-let read_sign_of_cmi = sign_of_cmi ~freshen:true
+let read_type_of_cmi = type_of_cmi ~freshen:true
 
-let save_sign_of_cmi = sign_of_cmi ~freshen:false
+let save_type_of_cmi = type_of_cmi ~freshen:false
 
 let persistent_env : module_data Persistent_env.t =
   Persistent_env.empty ()
@@ -756,16 +755,16 @@ let import_crcs ~source crcs =
   Persistent_env.import_crcs persistent_env ~source crcs
 
 let read_pers_mod modname filename =
-  Persistent_env.read persistent_env read_sign_of_cmi modname filename
+  Persistent_env.read persistent_env read_type_of_cmi modname filename
 
 let find_pers_mod name =
-  Persistent_env.find persistent_env read_sign_of_cmi name
+  Persistent_env.find persistent_env read_type_of_cmi name
 
 let check_pers_mod ~loc name =
-  Persistent_env.check persistent_env read_sign_of_cmi ~loc name
+  Persistent_env.check persistent_env read_type_of_cmi ~loc name
 
 let crc_of_unit name =
-  Persistent_env.crc_of_unit persistent_env read_sign_of_cmi name
+  Persistent_env.crc_of_unit persistent_env read_type_of_cmi name
 
 let is_imported_opaque modname =
   Persistent_env.is_imported_opaque persistent_env modname
@@ -2029,13 +2028,11 @@ let open_signature
   end
   else open_signature None root env
 
-(* Read a signature from a file *)
-let read_signature modname filename =
+(* Read a module type from a file *)
+let read_interface modname filename =
   let mda = read_pers_mod modname filename in
   let md = EnvLazy.force subst_modtype_maker mda.mda_declaration in
-  match md.md_type with
-  | Mty_signature sg -> sg
-  | Mty_ident _ | Mty_functor _ | Mty_alias _ -> assert false
+  md.md_type
 
 let is_identchar_latin1 = function
   | 'A'..'Z' | 'a'..'z' | '_' | '\192'..'\214' | '\216'..'\246'
@@ -2062,27 +2059,27 @@ let persistent_structures_of_dir dir =
   |> String.Set.of_seq
 
 (* Save a signature to a file *)
-let save_signature_with_transform cmi_transform ~alerts sg modname filename =
+let save_interface_with_transform cmi_transform ~alerts mty modname filename =
   Btype.cleanup_abbrev ();
   Subst.reset_for_saving ();
-  let sg = Subst.signature Make_local (Subst.for_saving Subst.identity) sg in
+  let mty = Subst.modtype Make_local (Subst.for_saving Subst.identity) mty in
   let cmi =
-    Persistent_env.make_cmi persistent_env modname sg alerts
+    Persistent_env.make_cmi persistent_env modname mty alerts
     |> cmi_transform in
-  let pm = save_sign_of_cmi
+  let pm = save_type_of_cmi
       { Persistent_env.Persistent_signature.cmi; filename } in
   Persistent_env.save_cmi persistent_env
     { Persistent_env.Persistent_signature.filename; cmi } pm;
   cmi
 
-let save_signature ~alerts sg modname filename =
-  save_signature_with_transform (fun cmi -> cmi)
-    ~alerts sg modname filename
+let save_interface ~alerts mty modname filename =
+  save_interface_with_transform (fun cmi -> cmi)
+    ~alerts mty modname filename
 
-let save_signature_with_imports ~alerts sg modname filename imports =
+let save_interface_with_imports ~alerts mty modname filename imports =
   let with_imports cmi = { cmi with cmi_crcs = imports } in
-  save_signature_with_transform with_imports
-    ~alerts sg modname filename
+  save_interface_with_transform with_imports
+    ~alerts mty modname filename
 
 (* Make the initial environment *)
 let (initial_safe_string, initial_unsafe_string) =

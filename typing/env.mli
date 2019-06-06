@@ -345,15 +345,15 @@ val reset_cache: unit -> unit
 val reset_cache_toplevel: unit -> unit
 
 (* Read, save a signature to/from a file *)
-val read_signature: Compilation_unit.Name.t -> filepath -> signature
+val read_interface: Compilation_unit.Name.t -> filepath -> module_type
         (* Arguments: module name, file name. Results: signature. *)
-val save_signature:
-  alerts:alerts -> signature -> Compilation_unit.Name.t -> filepath
+val save_interface:
+  alerts:alerts -> module_type -> Compilation_unit.Name.t -> filepath
   -> Cmi_format.cmi_infos
         (* Arguments: signature, module name, file name. *)
-val save_signature_with_imports:
-  alerts:alerts -> signature -> Compilation_unit.Name.t -> filepath -> Compilation_unit.crcs
-  -> Cmi_format.cmi_infos
+val save_interface_with_imports:
+  alerts:alerts -> module_type -> Compilation_unit.Name.t -> filepath
+  -> Compilation_unit.crcs -> Cmi_format.cmi_infos
         (* Arguments: signature, module name, file name,
            imported units with their CRCs. *)
 

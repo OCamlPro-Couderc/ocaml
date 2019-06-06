@@ -46,8 +46,8 @@ val signatures: Env.t -> ?mark:mark ->
   signature -> signature -> module_coercion
 
 val compunit:
-      Env.t -> ?mark:mark -> string -> signature ->
-      string -> signature -> module_coercion
+      Env.t -> ?mark:mark -> string -> module_type ->
+      string -> module_type -> module_coercion
 
 val type_declarations:
   loc:Location.t -> Env.t -> ?mark:mark ->
