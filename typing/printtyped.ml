@@ -917,8 +917,16 @@ and label_x_bool_x_core_type_list i ppf x =
       core_type (i+1) ppf ct
 ;;
 
-let interface ppf x = list 0 signature_item ppf x.sig_items;;
+let interface ppf x =
+  match x.tintf_desc with
+  | Tintf_signature x ->
+      list 0 signature_item ppf x.sig_items
+  | _ -> assert false;;
 
-let implementation ppf x = list 0 structure_item ppf x.str_items;;
+let implementation ppf x =
+  match x.timpl_desc with
+  | Timpl_structure x ->
+      list 0 structure_item ppf x.str_items
+  | _ -> assert false;;
 
 let implementation_with_coercion ppf (x, _) = implementation ppf x
