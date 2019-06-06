@@ -50,12 +50,12 @@ val with_info :
 val parse_intf : info -> Parsetree.signature
 (** [parse_intf info] parses an interface (usually an [.mli] file). *)
 
-val typecheck_intf : info -> Parsetree.signature -> Typedtree.signature
+val typecheck_intf : info -> Parsetree.signature -> Typedtree.interface
 (** [typecheck_intf info parsetree] typechecks an interface and returns
     the typedtree of the associated signature.
 *)
 
-val emit_signature : info -> Parsetree.signature -> Typedtree.signature -> unit
+val emit_signature : info -> Parsetree.signature -> Typedtree.interface -> unit
 (** [emit_signature info parsetree typedtree] emits the [.cmi] file
     containing the given signature.
 *)
@@ -69,7 +69,7 @@ val parse_impl : info -> Parsetree.structure
 (** [parse_impl info] parses an implementation (usually an [.ml] file). *)
 
 val typecheck_impl :
-  info -> Parsetree.structure -> Typedtree.structure * Typedtree.module_coercion
+  info -> Parsetree.structure -> Typedtree.implementation * Typedtree.module_coercion
 (** [typecheck_impl info parsetree] typechecks an implementation and returns
     the typedtree of the associated module, along with a coercion against
     its public interface.
@@ -77,7 +77,7 @@ val typecheck_impl :
 
 val implementation :
   info ->
-  backend:(info -> Typedtree.structure * Typedtree.module_coercion -> unit) ->
+  backend:(info -> Typedtree.implementation * Typedtree.module_coercion -> unit) ->
   unit
 (** The complete compilation pipeline for implementations. *)
 

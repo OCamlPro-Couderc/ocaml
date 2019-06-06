@@ -57,23 +57,29 @@ let parse_intf i =
 
 let typecheck_intf info ast =
   Profile.(record_call typing) @@ fun () ->
-  let tsg =
+  let tintf =
     ast
     |> Typemod.type_interface info.env
     |> print_if info.ppf_dump Clflags.dump_typedtree Printtyped.interface
   in
-  let sg = tsg.Typedtree.sig_type in
+  let mty = tintf.Typedtree.tintf_type in
   if !Clflags.print_types then
     Printtyp.wrap_printing_env ~error:false info.env (fun () ->
         Format.(fprintf std_formatter) "%a@."
-          (Printtyp.printed_signature info.source_file)
-          sg);
-  ignore (Includemod.signatures info.env sg sg);
+          (Printtyp.printed_interface info.source_file)
+          tintf);
+  ignore (Includemod.modtypes ~loc:(Location.in_file (info.source_file))
+            info.env mty mty);
   Typecore.force_delayed_checks ();
   Warnings.check_fatal ();
-  tsg
+  tintf
 
-let emit_signature info ast tsg =
+let emit_signature info ast tintf =
+  let tsg =
+    match tintf.Typedtree.tintf_desc with
+      Typedtree.Tintf_signature tsg -> tsg
+    | Typedtree.Tintf_functor _ -> assert false
+  in
   let sg =
     let alerts = Builtin_attributes.alerts_of_sig ast in
     Env.save_signature ~alerts tsg.Typedtree.sig_type
@@ -86,9 +92,9 @@ let interface info =
   Profile.record_call info.source_file @@ fun () ->
   let ast = parse_intf info in
   if Clflags.(should_stop_after Compiler_pass.Parsing) then () else begin
-    let tsg = typecheck_intf info ast in
+    let tintf = typecheck_intf info ast in
     if not !Clflags.print_types then begin
-      emit_signature info ast tsg
+      emit_signature info ast tintf
     end
   end
 

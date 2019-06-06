@@ -626,6 +626,30 @@ let map_pattern_desc f d =
   | Tpat_any
   | Tpat_variant (_,None,_) -> d
 
+(* Type of implementation and interfaces *)
+
+type implementation =
+  {
+    timpl_desc: implementation_desc;
+    timpl_type: Types.module_type;
+    timpl_env: Env.t;
+  }
+
+and implementation_desc =
+  | Timpl_structure of structure
+  | Timpl_functor of Ident.t * Types.module_type * implementation
+
+type interface =
+  {
+    tintf_desc: interface_desc;
+    tintf_type: Types.module_type;
+    tintf_env: Env.t;
+  }
+
+and interface_desc =
+  | Tintf_signature of signature
+  | Tintf_functor of Ident.t * Types.module_type * interface
+
 (* List the identifiers bound by a pattern or a let *)
 
 let idents = ref([]: (Ident.t * string loc * Types.type_expr) list)

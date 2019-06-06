@@ -181,9 +181,14 @@ let process_file sourcefile =
       (
        Location.input_name := file;
        try
-         let (ast, signat, input_file) = process_interface_file file in
+         let (ast, intf, input_file) = process_interface_file file in
+         let sg = match intf.tintf_type with
+             Types.Mty_signature sg -> sg
+           | Types.Mty_functor (_, _, _) -> assert false
+           | _ -> assert false
+         in
          let file_module = Sig_analyser.analyse_signature file
-             input_file ast signat.sig_type
+             input_file ast sg
          in
 
          file_module.Odoc_module.m_top_deps <- Odoc_dep.intf_dependencies ast ;
