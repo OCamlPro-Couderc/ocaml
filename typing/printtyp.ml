@@ -1785,7 +1785,7 @@ let printed_interface sourcefile ppf tintf =
     | Mty_functor (_, mty') -> extract_sig mty'
     | _ -> assert false (* illformed module type for a compilation unit *)
   in
-  printed_signature sourcefile ppf (extract_sig tintf.Typedtree.tintf_type)
+  printed_signature sourcefile ppf (extract_sig tintf)
 
 (* Print an unification error *)
 
