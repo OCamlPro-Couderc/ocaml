@@ -67,7 +67,7 @@ let typecheck_intf info ast =
     Printtyp.wrap_printing_env ~error:false info.env (fun () ->
         Format.(fprintf std_formatter) "%a@."
           (Printtyp.printed_interface info.source_file)
-          tintf);
+          mty);
   ignore (Includemod.modtypes ~loc:(Location.in_file (info.source_file))
             info.env mty mty);
   Typecore.force_delayed_checks ();
