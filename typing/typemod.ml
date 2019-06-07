@@ -848,6 +848,8 @@ module Signature_names : sig
     ?info:info -> t -> Location.t -> Types.signature_item -> unit
 
   val simplify: Env.t -> t -> Types.signature -> Types.signature
+
+  val simplify_implementation: Env.t -> t -> Types.module_type -> Types.module_type
 end = struct
 
   type bound_info = [
@@ -1050,6 +1052,14 @@ end = struct
       end
     in
     List.fold_right aux sg []
+
+  let rec simplify_implementation env t mty =
+    match mty with
+      Mty_signature sg -> Mty_signature (simplify env t sg)
+    | Mty_functor (id, mty, body) ->
+        let simple_body = simplify_implementation env t body in
+        Mty_functor (id, mty, simple_body)
+    | _ -> failwith "illformed implementation type"
 end
 
 let has_remove_aliases_attribute attr =
@@ -2303,6 +2313,7 @@ let type_toplevel_phrase env s =
 
 let type_module_alias = type_module ~alias:true true false None
 let type_module = type_module true false None
+let type_implementation_structure functor_unit = type_structure functor_unit None
 let type_structure = type_structure false None
 
 (* Normalize types in a signature *)
@@ -2408,6 +2419,37 @@ let () =
 
 (* Typecheck an implementation file *)
 
+let rec type_implementation_aux functor_unit env ast loc = function
+    [] ->
+      let str, sg, names, finalenv =
+        type_implementation_structure functor_unit env ast loc in
+      { timpl_desc = Timpl_structure str;
+        timpl_type = Mty_signature sg;
+        timpl_env = env },
+      names,
+      finalenv
+  | param :: rem ->
+      let id_arg = Ident.create_persistent param in
+      let mty_arg = (Env.find_module (Path.Pident id_arg) env).md_type in
+      let newenv = Env.add_module ~arg:true id_arg Mp_present mty_arg env in
+      let body, names, finalenv = type_implementation_aux true newenv ast loc rem in
+      { timpl_desc = Timpl_functor (id_arg, mty_arg, body);
+        timpl_type = Mty_functor (id_arg, Some mty_arg, body.timpl_type);
+        timpl_env = env;
+      },
+      names,
+      finalenv
+
+let rec extract_implementation_sig = function
+    Mty_signature sg -> sg
+  | Mty_functor (_, _, body) -> extract_implementation_sig body
+  | _ -> failwith "illformed implementation type"
+
+let rec extract_implementation_structure = function
+    { timpl_desc = Timpl_structure sg ; _ } -> sg
+  | { timpl_desc = Timpl_functor (_, _, body); _ } ->
+      extract_implementation_structure body
+
 let type_implementation sourcefile outputprefix modulename initial_env ast =
   Cmt_format.clear ();
   Misc.try_finally (fun () ->
@@ -2415,23 +2457,22 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       Env.reset_required_globals ();
       if !Clflags.print_types then (* #7656 *)
         Warnings.parse_options false "-32-34-37-38-60";
-      let (str, sg, names, finalenv) =
-        type_structure initial_env ast (Location.in_file sourcefile) in
+      let (timpl, names, finalenv) =
+        type_implementation_aux false initial_env ast
+          (Location.in_file sourcefile) !Clflags.functor_parameters in
       (* TODO: generate a functor if there are any parameter *)
-      let mty = Mty_signature sg in
-      let simple_sg = Signature_names.simplify finalenv names sg in
-      let simple_mty = Mty_signature simple_sg in
+      let mty = timpl.timpl_type in
+      let simple_mty =
+        Signature_names.simplify_implementation finalenv names mty in
+      let str = extract_implementation_structure timpl in
       if !Clflags.print_types then begin
         Typecore.force_delayed_checks ();
         Printtyp.wrap_printing_env ~error:false initial_env
           (fun () -> fprintf std_formatter "%a@."
-              (Printtyp.printed_signature sourcefile) simple_sg
+              (Printtyp.printed_interface sourcefile) simple_mty
           );
-          { timpl_desc = Timpl_structure str;
-            timpl_type = mty;
-            timpl_env = initial_env;
-          },
-          Tcoerce_none   (* result is ignored by Compile.implementation *)
+        timpl,
+        Tcoerce_none   (* result is ignored by Compile.implementation *)
       end else begin
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
@@ -2454,16 +2495,14 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
             (Cmt_format.Implementation str) (Some sourcefile) initial_env None;
 
-          { timpl_desc = Timpl_structure str;
-            timpl_type = mty;
-            timpl_env = initial_env;
-          },
+          timpl,
           coercion
         end else begin
           let coercion =
             Includemod.compunit initial_env ~mark:Includemod.Mark_positive
               sourcefile mty "(inferred signature)" simple_mty
           in
+          let simple_sg = extract_implementation_sig simple_mty in
           check_nongen_schemes finalenv simple_sg;
           normalize_signature finalenv simple_sg;
           Typecore.force_delayed_checks ();
@@ -2481,10 +2520,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
               (Cmt_format.Implementation str)
               (Some sourcefile) initial_env (Some cmi);
           end;
-          { timpl_desc = Timpl_structure str;
-            timpl_type = mty;
-            timpl_env = initial_env;
-          },
+          timpl,
           coercion
         end
       end
@@ -2496,17 +2532,33 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           (Some sourcefile) initial_env None)
 
 let save_interface modname tintf outputprefix source_file initial_env cmi =
-  let tsg = match tintf.tintf_desc with
-      Tintf_signature sg -> sg
-    | _ -> assert false in
+  let rec extract_sig = function
+      { tintf_desc = Tintf_signature sg ; _ } -> sg
+    | { tintf_desc = Tintf_functor (_, _, body); _ } -> extract_sig body in
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
-    (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi)
+    (Cmt_format.Interface (extract_sig tintf))
+    (Some source_file) initial_env (Some cmi)
+
+let rec transl_interface env ast params =
+  match params with
+    [] ->
+      let sg = transl_signature env ast in
+      { tintf_desc = Tintf_signature sg;
+        tintf_type = Mty_signature sg.sig_type;
+        tintf_env = env;
+      }
+  | param :: rem ->
+      let id_arg = Ident.create_persistent param in
+      let mty_arg = (Env.find_module (Path.Pident id_arg) env).md_type in
+      let newenv = Env.add_module ~arg:true id_arg Mp_present mty_arg env in
+      let body = transl_interface newenv ast rem in
+      { tintf_desc = Tintf_functor (id_arg, mty_arg, body);
+        tintf_type = Mty_functor (id_arg, Some mty_arg, body.tintf_type);
+        tintf_env = env;
+      }
 
 let type_interface env ast =
-  let intf = transl_signature env ast in
-  { tintf_desc = Tintf_signature intf;
-    tintf_type = Mty_signature intf.sig_type;
-    tintf_env = env }
+  transl_interface env ast !Clflags.functor_parameters
 
 (* "Packaging" of several compilation units into one unit
    having them as sub-modules.  *)
