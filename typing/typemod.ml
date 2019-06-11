@@ -1087,9 +1087,9 @@ end = struct
   let rec simplify_implementation env t mty =
     match mty with
       Mty_signature sg -> Mty_signature (simplify env t sg)
-    | Mty_functor (id, mty, body) ->
+    | Mty_functor (param, body) ->
         let simple_body = simplify_implementation env t body in
-        Mty_functor (id, mty, simple_body)
+        Mty_functor (param, simple_body)
     | _ -> failwith "illformed implementation type"
 end
 
@@ -2621,12 +2621,16 @@ let rec type_implementation_aux functor_unit env ast loc = function
       names,
       finalenv
   | param :: rem ->
-      let id_arg = Ident.create_persistent param in
-      let mty_arg = (Env.find_module (Path.Pident id_arg) env).md_type in
-      let newenv = Env.add_module ~arg:true id_arg Mp_present mty_arg env in
-      let body, names, finalenv = type_implementation_aux true newenv ast loc rem in
+      let id_arg_pers = Ident.create_persistent param in
+      let mty_arg = (Env.find_module (Path.Pident id_arg_pers) env).md_type in
+      let scope = Ctype.create_scope () in
+      let id_arg, newenv =
+        Env.enter_module ~scope ~arg:true param Mp_present mty_arg env in
+      let body, names, finalenv =
+        type_implementation_aux true newenv ast loc rem in
       { timpl_desc = Timpl_functor (id_arg, mty_arg, body);
-        timpl_type = Mty_functor (id_arg, Some mty_arg, body.timpl_type);
+        timpl_type =
+          Mty_functor (Named (Some id_arg, mty_arg), body.timpl_type);
         timpl_env = env;
       },
       names,
@@ -2634,7 +2638,7 @@ let rec type_implementation_aux functor_unit env ast loc = function
 
 let rec extract_implementation_sig = function
     Mty_signature sg -> sg
-  | Mty_functor (_, _, body) -> extract_implementation_sig body
+  | Mty_functor (_, body) -> extract_implementation_sig body
   | _ -> failwith "illformed implementation type"
 
 let rec extract_implementation_structure = function
@@ -2741,12 +2745,15 @@ let rec transl_interface env ast params =
         tintf_env = env;
       }
   | param :: rem ->
-      let id_arg = Ident.create_persistent param in
-      let mty_arg = (Env.find_module (Path.Pident id_arg) env).md_type in
-      let newenv = Env.add_module ~arg:true id_arg Mp_present mty_arg env in
+      let id_arg_pers = Ident.create_persistent param in
+      let mty_arg = (Env.find_module (Path.Pident id_arg_pers) env).md_type in
+      let scope = Ctype.create_scope () in
+      let id_arg, newenv =
+        Env.enter_module ~scope ~arg:true param Mp_present mty_arg env in
       let body = transl_interface newenv ast rem in
       { tintf_desc = Tintf_functor (id_arg, mty_arg, body);
-        tintf_type = Mty_functor (id_arg, Some mty_arg, body.tintf_type);
+        tintf_type =
+          Mty_functor (Named (Some id_arg, mty_arg), body.tintf_type);
         tintf_env = env;
       }
 
