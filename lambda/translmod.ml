@@ -385,19 +385,29 @@ let transl_class_bindings cl_list =
    functor(s) being merged with.  Such an attribute will be placed on the
    resulting merged functor. *)
 
+let extract_functor_components mexp =
+  match mexp.mod_desc with
+    Tmod_functor (arg, _, _, body) ->
+      Some (arg, body, mexp.mod_loc,
+            Translattribute.get_inline_attribute mexp.mod_attributes)
+  | _ -> None
+
+let extract_impl_functor_components exp =
+  match exp.timpl_desc with
+    Timpl_functor (arg, _, body) ->
+      Some (arg, body, Location.none, Default_inline)
+  | Timpl_structure _ -> None
+
 let merge_inline_attributes attr1 attr2 loc =
   match Lambda.merge_inline_attributes attr1 attr2 with
   | Some attr -> attr
   | None -> raise (Error (loc, Conflicting_inline_attributes))
 
-let merge_functors mexp coercion root_path =
+let merge_functors extract mexp coercion root_path =
   let rec merge mexp coercion path acc inline_attribute =
     let finished = acc, mexp, path, coercion, inline_attribute in
-    match mexp.mod_desc with
-    | Tmod_functor (param, _, _, body) ->
-      let inline_attribute' =
-        Translattribute.get_inline_attribute mexp.mod_attributes
-      in
+    match extract mexp with
+    | Some (param, body, loc, inline_attribute') ->
       let arg_coercion, res_coercion =
         match coercion with
         | Tcoerce_none -> Tcoerce_none, Tcoerce_none
@@ -405,20 +415,23 @@ let merge_functors mexp coercion root_path =
           arg_coercion, res_coercion
         | _ -> fatal_error "Translmod.merge_functors: bad coercion"
       in
-      let loc = mexp.mod_loc in
       let path = functor_path path param in
       let inline_attribute =
         merge_inline_attributes inline_attribute inline_attribute' loc
       in
       merge body res_coercion path ((param, loc, arg_coercion) :: acc)
         inline_attribute
-    | _ -> finished
+    | None -> finished
   in
   merge mexp coercion root_path [] Default_inline
 
-let rec compile_functor mexp coercion root_path loc =
+let rec compile_functor :
+  type exp. (exp -> (Ident.t * exp * Location.t *  'attr) option) ->
+  (module_coercion -> 'path -> exp -> lambda) -> exp -> module_coercion -> 'path ->
+  Location.t -> lambda =
+  fun extract_components transl_body mexp coercion root_path loc ->
   let functor_params_rev, body, body_path, res_coercion, inline_attribute =
-    merge_functors mexp coercion root_path
+    merge_functors extract_components mexp coercion root_path
   in
   assert (List.length functor_params_rev >= 1);  (* cf. [transl_module] *)
   let params, body =
@@ -428,7 +441,7 @@ let rec compile_functor mexp coercion root_path loc =
         let params = (param', Pgenval) :: params in
         let body = Llet (Alias, Pgenval, param, arg, body) in
         params, body)
-      ([], transl_module res_coercion body_path body)
+      ([], transl_body res_coercion body_path body)
       functor_params_rev
   in
   Lfunction {
@@ -460,7 +473,8 @@ and transl_module cc rootpath mexp =
       fst (transl_struct loc [] cc rootpath str)
   | Tmod_functor _ ->
       oo_wrap mexp.mod_env true (fun () ->
-        compile_functor mexp cc rootpath loc) ()
+          compile_functor extract_functor_components transl_module
+            mexp cc rootpath loc) ()
   | Tmod_apply(funct, arg, ccarg) ->
       let inlined_attribute, funct =
         Translattribute.get_and_remove_inlined_attribute_on_module funct
@@ -721,6 +735,22 @@ let required_globals ~flambda body =
   Translprim.clear_used_primitives ();
   required
 
+let transl_functorized_implementation module_id (impl, cc) =
+  let rec transl_impl cc path impl =
+    match impl.timpl_desc with
+      Timpl_structure str ->
+        transl_struct Location.none [] cc
+          (global_path module_id) str
+    | Timpl_functor (_, _, _) ->
+        Lprim(Pmakeblock(0, Immutable, None),
+              [compile_functor extract_impl_functor_components
+                 (fun cc p i -> fst (transl_impl cc p i))
+                 impl cc path Location.none],
+             Location.none),
+        1
+  in
+  transl_impl cc (global_path module_id) impl
+
 (* Compile an implementation *)
 
 let transl_implementation_flambda module_name (impl, cc) =
@@ -729,13 +759,8 @@ let transl_implementation_flambda module_name (impl, cc) =
   Translprim.clear_used_primitives ();
   let module_id = Ident.create_persistent module_name in
   let body, size =
-    match impl.timpl_desc with
-      Timpl_structure str ->
-        Translobj.transl_label_init
-          (fun () -> transl_struct Location.none [] cc
-              (global_path module_id) str)
-    | Timpl_functor (_, _, _) -> failwith "functor not managed yet"
-  in
+    Translobj.transl_label_init
+      (fun () -> transl_functorized_implementation module_id (impl, cc)) in
   { module_ident = module_id;
     main_module_block_size = size;
     required_globals = required_globals ~flambda:true body;
