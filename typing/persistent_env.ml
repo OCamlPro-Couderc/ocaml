@@ -251,10 +251,7 @@ let save_pers_struct penv crc ps pm =
         | Pack _prefix -> ()
         | Opaque -> add_imported_opaque penv modname
         | Parameters _ -> ()
-        | Parameter_of _ ->
-            if not (check_parameter (CU.Name.to_string ps.ps_name)) then
-              error (Illegal_import_of_parameter(ps.ps_name, ps.ps_filename))
-            else add_imported_parameter penv ps.ps_name)
+        | Parameter_of _ -> add_imported_parameter penv ps.ps_name)
     ps.ps_flags;
   let for_pack_prefix = prefix_of_pers_struct ps in
   let unit = CU.create ~for_pack_prefix modname in
