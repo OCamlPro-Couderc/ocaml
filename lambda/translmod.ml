@@ -742,11 +742,9 @@ let transl_functorized_implementation module_id (impl, cc) =
         transl_struct Location.none [] cc
           (global_path module_id) str
     | Timpl_functor (_, _, _) ->
-        Lprim(Pmakeblock(0, Immutable, None),
-              [compile_functor extract_impl_functor_components
-                 (fun cc p i -> fst (transl_impl cc p i))
-                 impl cc path Location.none],
-             Location.none),
+        compile_functor extract_impl_functor_components
+          (fun cc p i -> fst (transl_impl cc p i))
+          impl cc path Location.none,
         1
   in
   transl_impl cc (global_path module_id) impl
