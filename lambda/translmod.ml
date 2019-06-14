@@ -1268,11 +1268,13 @@ let build_ident_map restr idlist more_ids =
 (* Compile an implementation using transl_store_structure
    (for the native-code compiler). *)
 
-let transl_store_gen module_name ({str_items = str}, restr) topl =
+let transl_store_gen_init module_name =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
-  let module_id = Ident.create_persistent module_name in
+  Ident.create_persistent module_name
+
+let transl_store_structure_gen module_id ({str_items = str}, restr) topl =
   let (map, prims, aliases, size) =
     build_ident_map restr (defined_idents str) (more_idents str) in
   let f = function
@@ -1285,17 +1287,22 @@ let transl_store_gen module_name ({str_items = str}, restr) topl =
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
 let transl_store_phrases module_name str =
-  transl_store_gen module_name (str,Tcoerce_none) true
+  let module_id = transl_store_gen_init module_name in
+  transl_store_structure_gen module_id (str,Tcoerce_none) true
+
+let transl_store_gen module_name (impl, restr) topl =
+  let module_id = transl_store_gen_init module_name in
+  match impl.timpl_desc with
+    Timpl_structure str -> transl_store_structure_gen module_id (str, restr) topl
+  | Timpl_functor _ ->
+      let code, i = transl_functorized_implementation module_id (impl, restr) in
+      i, code
 
 let transl_store_implementation module_name (impl, restr) =
   let s = !transl_store_subst in
   transl_store_subst := Ident.Map.empty;
-  let str = match impl.timpl_desc with
-      Timpl_structure str -> str
-    | Timpl_functor (_, _, _) ->
-        failwith "functor not managed yet"
-  in
-  let (i, code) = transl_store_gen module_name (str, restr) false in
+  let (i, code) =
+    transl_store_gen module_name (impl, restr) false in
   transl_store_subst := s;
   { Lambda.main_module_block_size = i;
     code;
