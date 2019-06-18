@@ -226,10 +226,10 @@ let compilation_unit_for_global id : compilation_unit_or_predef =
   if Ident.is_predef id then begin
     Predef
   end else begin
-    let desired_unit = CU.create (CU.Name.of_string (Ident.name id)) in
+    let desired_unit = CU.of_persistent_ident id in
     match find_or_load_unit_info_from_cmx desired_unit with
     | Current_unit ->
-      Compilation_unit (Compilation_unit.get_current_exn ())
+      Compilation_unit (CU.get_current_exn ())
     | No_cmx_file_or_opaque ->
       (* Assume that the compilation unit (called [id]), whose .cmx file
          is missing, is not packed. *)
@@ -238,7 +238,7 @@ let compilation_unit_for_global id : compilation_unit_or_predef =
     | Just_loaded { info; filename; } ->
       let for_pack_prefix_in_cmx = CU.for_pack_prefix (UI.unit info) in
       let current_for_pack_prefix =
-        CU.for_pack_prefix (Compilation_unit.get_current_exn ())
+        CU.for_pack_prefix (CU.get_current_exn ())
       in
       let is_valid_prefix =
         Misc.Stdlib.List.is_prefix ~equal:CU.Name.equal
@@ -372,7 +372,7 @@ module Closure_only = struct
     if Ident.is_predef id then Clambda.Value_unknown
     else
       let name = CU.Name.of_string (Ident.name id) in
-      let unit = CU.create name in
+      let unit = CU.of_persistent_ident id in
       try CU.Name.Tbl.find toplevel_approx name
       with Not_found ->
         match find_or_load_unit_info_from_cmx unit with

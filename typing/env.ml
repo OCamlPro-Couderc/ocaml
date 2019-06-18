@@ -86,6 +86,10 @@ type address =
   | Aident of Ident.t
   | Adot of address * int
 
+let rec address_head = function
+    Aident id -> id
+  | Adot (addr, _) -> address_head addr
+
 module TycompTbl =
   struct
     (** This module is used to store components of types (i.e. labels
@@ -586,7 +590,7 @@ let find_same_module id tbl =
 type persistent_module = {
   pm_signature: signature Lazy.t;
   pm_components: module_components;
-  pm_pack: modname list;
+  pm_addr: Ident.t;
 }
 
 let add_persistent_structure id env =
@@ -606,14 +610,14 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent name in
   let path = Pident id in
-  let pm_pack, pers_id =
+  let pm_addr =
     List.find_opt (function Pack _ -> true | _ -> false) flags
     |> function
       Some (Pack prefix) ->
-        prefix, Ident.create_persistent ~prefix name
-    | _ -> [], id
+        Ident.create_persistent ~prefix name
+    | _ -> id
   in
-  let addr = EnvLazy.create_forced (Aident pers_id) in
+  let addr = EnvLazy.create_forced (Aident pm_addr) in
   let alerts =
     List.fold_left (fun acc -> function Alerts s -> s | _ -> acc)
       Misc.Stdlib.String.Map.empty
@@ -629,7 +633,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   {
     pm_signature;
     pm_components;
-    pm_pack;
+    pm_addr;
   }
 
 let read_sign_of_cmi = sign_of_cmi ~freshen:true
@@ -840,20 +844,9 @@ let find_module ~alias path env =
           raise Not_found
       end
 
-let get_global_ident id =
-  if not (Ident.persistent id) then id
-  else
-    try Ident.create_persistent
-          ~prefix:(find_pers_mod (Ident.name id)).pm_pack
-          (Ident.name id)
-    with Not_found | Cmi_format.Error _ | Persistent_env.Error _ ->
-      (* This can happen with -no-alias-deps and a missing/broken cmi. Since
-         `get_global_ident` is called for the address, thus after typing, this
-         should be safe *)
-      id
-
-let get_pers_address id =
-  Aident (get_global_ident id)
+let find_pers_address_ident id =
+  if not (Ident.persistent id) then raise Not_found;
+  (find_pers_mod (Ident.name id)).pm_addr
 
 let rec find_module_address path env =
   match path with
@@ -861,7 +854,7 @@ let rec find_module_address path env =
       begin
         match find_same_module id env.modules with
         | Value (_, addr) -> get_address addr
-        | Persistent -> get_pers_address id
+        | Persistent -> Aident (find_pers_address_ident id)
       end
   | Pdot(p, s) -> begin
       match get_components (find_module_descr p env) with
@@ -914,10 +907,10 @@ let required_globals = ref []
 let reset_required_globals () = required_globals := []
 let get_required_globals () = !required_globals
 let add_required_global id =
-  let id = if !Clflags.transparent_modules then id else get_global_ident id in
-  if Ident.global id && not !Clflags.transparent_modules
-  && not (List.exists (Ident.same id) !required_globals)
-  then required_globals := id :: !required_globals
+  if Ident.persistent id && not !Clflags.transparent_modules then
+    let id = find_pers_address_ident id in
+    if not (List.exists (Ident.same id) !required_globals)
+    then required_globals := id :: !required_globals
 
 let rec normalize_module_path lax env = function
   | Pident id as path when lax && Ident.persistent id ->
@@ -941,7 +934,7 @@ and expand_module_path lax env path =
       if lax || !Clflags.transparent_modules then path' else
       let id = Path.head path in
       if Ident.global id && not (Ident.same id (Path.head path'))
-      then add_required_global (get_global_ident id);
+      then add_required_global id;
       path'
   | _ -> path
   with Not_found when lax

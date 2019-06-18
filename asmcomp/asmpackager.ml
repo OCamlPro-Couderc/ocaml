@@ -274,14 +274,17 @@ let package_files ~ppf_dump initial_env files targetcmx ~backend =
   (* Set the name of the current "input" *)
   Location.input_name := targetcmx;
   (* Set the name of the current compunit *)
-  let prefixed_name =
-    (* We need a way to check that a package name is weelformed *)
+  let for_pack_prefix, name =
+    (* We need a way to check that a package name is wellformed *)
     match !Clflags.for_package with
-    | None | Some "" -> targetname
-    | Some for_pack_prefix -> for_pack_prefix ^ "." ^ targetname
+    | None | Some "" -> [], targetname
+    | Some for_pack_prefix ->
+        List.map CU.Name.of_string @@
+        String.split_on_char '.' for_pack_prefix,
+        targetname
   in
   let comp_unit =
-    CU.create (CU.Name.of_string prefixed_name) in
+    CU.create ~for_pack_prefix (CU.Name.of_string name) in
   Compilation_unit.set_current comp_unit;
   Compilation_state.reset comp_unit;
   Misc.try_finally (fun () ->

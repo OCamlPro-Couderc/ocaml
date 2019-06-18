@@ -49,7 +49,6 @@ end
 type t = {
   for_pack_prefix : Name.t list;
   basename : Name.t;
-  id : Ident.t;
   hash : int;
 }
 
@@ -57,15 +56,15 @@ include Identifiable.Make (struct
   type nonrec t = t
 
   let compare
-        ({ id = id1; for_pack_prefix = for_pack_prefix1; hash = hash1; _} as t1)
-        ({ id = id2; for_pack_prefix = for_pack_prefix2; hash = hash2; _} as t2)
+        ({ basename = basename1; for_pack_prefix = for_pack_prefix1; hash = hash1; _} as t1)
+        ({ basename = basename2; for_pack_prefix = for_pack_prefix2; hash = hash2; _} as t2)
         =
     if t1 == t2 then 0
     else
       let c = Stdlib.compare hash1 hash2 in
       if c <> 0 then c
       else
-        let c = Ident.compare id1 id2 in
+        let c = String.compare basename1 basename2 in
         if c <> 0 then c
         else
           (* With identifiers now prefixed by their pack, this case should
@@ -77,23 +76,21 @@ include Identifiable.Make (struct
     if x == y then true
     else compare x y = 0
 
-  let print ppf { for_pack_prefix; id; hash = _; basename } =
+  let print ppf { for_pack_prefix; hash = _; basename } =
     match for_pack_prefix with
     | [] ->
       Format.fprintf ppf "@[<hov 1>(\
-          @[<hov 1>(id@ %a)@])@]"
-        Ident.print id
+          @[<hov 1>(id@ %s)@])@]"
+        basename
     | for_pack_prefix ->
       Format.fprintf ppf "@[<hov 1>(\
           @[<hov 1>(for_pack_prefix@ %a)@]@;\
-          @[<hov 1>(basename@ %s)@]@;\
-          @[<hov 1>(id@ %a)@])@]"
+          @[<hov 1>(basename@ %s)@]@"
         (Format.pp_print_list
           ~pp_sep:(fun ppf () -> Format.pp_print_string ppf ".")
           Name.print)
         for_pack_prefix
         basename
-        Ident.print id
 
   let output oc t =
     print (Format.formatter_of_out_channel oc) t
@@ -102,29 +99,26 @@ include Identifiable.Make (struct
 end)
 
 let print_name ppf t =
-  Format.pp_print_string ppf (Ident.name t.id)
+  Format.pp_print_string ppf t.basename
 
-let create name =
-  let prefix, basename =
-    match List.rev @@ String.split_on_char '.' name with
-    | [] -> [], name
+let create ?(for_pack_prefix = []) basename =
+  { for_pack_prefix;
+    basename;
+    hash = Hashtbl.hash (basename, for_pack_prefix);
+  }
+
+let of_persistent_ident id =
+  let for_pack_prefix, basename =
+    match List.rev @@ String.split_on_char '.' (Ident.name id) with
+    | [] -> [], Ident.name id
     | unit_name :: rev_prefix ->
         List.fold_left (fun l p -> p :: l) [] rev_prefix,
         unit_name
   in
-  let id = Ident.create_persistent ~prefix basename in
-  if not (Ident.persistent id) then begin
-    Misc.fatal_error "Compilation_unit.create with non-persistent Ident.t"
-  end;
-  { id;
-    for_pack_prefix = prefix;
-    basename;
-    hash = Hashtbl.hash (Ident.name id, prefix);
-  }
+  create ~for_pack_prefix basename
+
 
 let none = create (Name.of_string "*none*")
-
-let fullname t = Name.of_string (Ident.name t.id)
 
 let name t = Name.of_string t.basename
 
@@ -162,9 +156,8 @@ let get_current_exn () =
   | None -> Misc.fatal_error "Current compilation unit is not set"
 
 let get_current_id_exn () =
-  let id = (get_current_exn ()).id in
-  assert (Ident.persistent id);  (* see [create], above *)
-  id
+  let curr = get_current_exn () in
+  Ident.create_persistent ~prefix:curr.for_pack_prefix curr.basename
 
 let path t =
   Path.Pident (Ident.create_persistent (Name.to_string (name t)))
