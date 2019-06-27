@@ -31,7 +31,7 @@ exception Error of error
 
 val report_error: Format.formatter -> error -> unit
 
-module Persistent_signature : sig
+module Persistent_interface : sig
   type t =
     { filename : string; (** Name of the file containing the signature. *)
       cmi : Cmi_format.cmi_infos }
@@ -55,14 +55,14 @@ val clear_missing : 'a t -> unit
 
 val fold : 'a t -> (modname -> 'a -> 'b -> 'b) -> 'b -> 'b
 
-val read : 'a t -> (Persistent_signature.t -> 'a)
+val read : 'a t -> (Persistent_interface.t -> 'a)
   -> modname -> filepath -> 'a
-val find : 'a t -> (Persistent_signature.t -> 'a)
+val find : 'a t -> (Persistent_interface.t -> 'a)
   -> modname -> 'a
 
 val find_in_cache : 'a t -> modname -> 'a option
 
-val check : 'a t -> (Persistent_signature.t -> 'a)
+val check : 'a t -> (Persistent_interface.t -> 'a)
   -> loc:Location.t -> modname -> unit
 
 (* [looked_up penv md] checks if one has already tried
@@ -82,10 +82,10 @@ val is_imported_opaque : 'a t -> modname -> bool
    in [penv] as a functor parameter *)
 val is_imported_as_parameter : 'a t -> modname -> bool
 
-val make_cmi : 'a t -> modname -> Types.module_type -> alerts
+val make_cmi : 'a t -> modname -> Types.compilation_unit -> alerts
   -> Cmi_format.cmi_infos
 
-val save_cmi : 'a t -> Persistent_signature.t -> 'a -> unit
+val save_cmi : 'a t -> Persistent_interface.t -> 'a -> unit
 
 val can_load_cmis : 'a t -> can_load_cmis
 val set_can_load_cmis : 'a t -> can_load_cmis -> unit
@@ -100,7 +100,7 @@ val import_crcs : 'a t -> source:filepath -> crcs -> unit
 val imports : 'a t -> crcs
 
 (* Return the CRC of the interface of the given compilation unit *)
-val crc_of_unit: 'a t -> (Persistent_signature.t -> 'a) -> modname -> Digest.t
+val crc_of_unit: 'a t -> (Persistent_interface.t -> 'a) -> modname -> Digest.t
 
 (* Forward declaration to break mutual recursion with Typecore. *)
 val add_delayed_check_forward: ((unit -> unit) -> unit) ref

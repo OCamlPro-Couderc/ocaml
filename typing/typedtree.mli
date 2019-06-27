@@ -716,24 +716,26 @@ and 'a class_infos =
 type implementation =
   {
     timpl_desc: implementation_desc;
-    timpl_type: Types.module_type;
+    timpl_type: Types.compilation_unit;
     timpl_env: Env.t;
   }
 
 and implementation_desc =
   | Timpl_structure of structure
-  | Timpl_functor of Ident.t * Types.module_type * implementation
+  | Timpl_functor of (Ident.t * Types.module_type) list * structure
+  (* The functor is indeed currified at compilation, but there is no need to
+     represent it as is in the typedtree *)
 
 type interface =
   {
     tintf_desc: interface_desc;
-    tintf_type: Types.module_type;
+    tintf_type: Types.compilation_unit;
     tintf_env: Env.t;
   }
 
 and interface_desc =
   | Tintf_signature of signature
-  | Tintf_functor of Ident.t * Types.module_type * interface
+  | Tintf_functor of (Ident.t * Types.module_type) list * signature
 
 
 (* Auxiliary functions over the a.s.t. *)

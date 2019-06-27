@@ -26,8 +26,7 @@ type pers_flags =
 
 type cmi_infos = {
     cmi_name : modname;
-    cmi_type : Types.module_type; (* in the future, it might be better to have an
-                                     "implementation" type *)
+    cmi_type : Types.compilation_unit;
     cmi_crcs : crcs;
     cmi_flags : pers_flags list;
 }

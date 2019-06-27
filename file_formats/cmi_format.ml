@@ -32,7 +32,7 @@ exception Error of error
 
 type cmi_infos = {
     cmi_name : Misc.modname;
-    cmi_type : Types.module_type;
+    cmi_type : Types.compilation_unit;
     cmi_crcs : crcs;
     cmi_flags : pers_flags list;
 }

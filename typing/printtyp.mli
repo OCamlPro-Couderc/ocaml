@@ -150,4 +150,4 @@ val printed_signature: string -> formatter -> signature -> unit
 
 (** [printed_interface sourcefile ppf tintf] print the interface [tintf] of
     [sourcefile] with potential warnings for name collisions *)
-val printed_interface: string -> formatter -> module_type -> unit
+val printed_interface: string -> formatter -> compilation_unit -> unit

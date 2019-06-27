@@ -599,13 +599,43 @@ let add_persistent_structure id env =
   else
     env
 
-let type_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
+
+let module_type_of_compilation_unit_type = function
+    Unit_signature sg -> Mty_signature sg
+  | Unit_functor (args, sg) ->
+      List.fold_right (fun (id, mty) acc ->
+          Mty_functor (id, Some mty, acc))
+        args
+        (Mty_signature sg)
+
+let compilation_unit_type_of_module_type = function
+    Mty_signature sg -> Unit_signature sg
+  | Mty_functor _ as mty ->
+      let rec translate acc = function
+          Mty_signature sg ->
+            Unit_functor (List.rev acc, sg)
+        | Mty_functor (id, Some mty, mty') ->
+            translate ((id, mty) :: acc) mty'
+        | _ -> failwith "[compilation_unit_type_of_module_type] \
+                         illformed compilation unit type"
+      in
+      translate [] mty
+  | _ -> failwith "[compilation_unit_type_of_module_type] \
+                   illformed compilation unit type"
+
+let type_of_cmi ~freshen { Persistent_env.Persistent_interface.cmi; _ } =
   let name = cmi.cmi_name in
-  let mty = cmi.cmi_type in
+  let uty = cmi.cmi_type in
+  let mty = module_type_of_compilation_unit_type uty in
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent name in
   let path = Pident id in
-  let addr = EnvLazy.create_forced (Aident id) in
+  let addr = match uty with
+      Unit_functor _ ->
+        EnvLazy.create_forced (Adot (Aident id, 0))
+    | Unit_signature _ ->
+        EnvLazy.create_forced (Aident id)
+  in
   let alerts =
     List.fold_left (fun acc -> function Alerts s -> s | _ -> acc)
       Misc.Stdlib.String.Map.empty
@@ -831,13 +861,19 @@ let find_module ~alias path env =
           raise Not_found
       end
 
+let find_pers_address_ident id =
+  if not (Ident.persistent id) then raise Not_found;
+  match (find_pers_mod (Ident.name id)).pm_module_type with
+    lazy (Mty_functor _) -> Adot (Aident id, 0)
+  | _ -> Aident id
+
 let rec find_module_address path env =
   match path with
   | Pident id ->
       begin
         match find_same_module id env.modules with
         | Value (_, addr) -> get_address addr
-        | Persistent -> Aident id
+        | Persistent -> find_pers_address_ident id
       end
   | Pdot(p, s) -> begin
       match get_components (find_module_descr p env) with
@@ -2235,6 +2271,7 @@ let open_signature
 let read_interface modname filename =
   let pm = read_pers_mod modname filename in
   Lazy.force pm.pm_module_type
+  |> compilation_unit_type_of_module_type
 
 let is_identchar_latin1 = function
   | 'A'..'Z' | 'a'..'z' | '_' | '\192'..'\214' | '\216'..'\246'
@@ -2260,28 +2297,28 @@ let persistent_structures_of_dir dir =
   |> Seq.filter_map unit_name_of_filename
   |> String.Set.of_seq
 
-(* Save a signature to a file *)
-let save_interface_with_transform cmi_transform ~alerts mty modname filename =
+(* Save a module type to a file *)
+let save_interface_with_transform cmi_transform ~alerts uty modname filename =
   Btype.cleanup_abbrev ();
   Subst.reset_for_saving ();
-  let mty = Subst.modtype (Subst.for_saving Subst.identity) mty in
+  let uty = Subst.compunit (Subst.for_saving Subst.identity) uty in
   let cmi =
-    Persistent_env.make_cmi persistent_env modname mty alerts
+    Persistent_env.make_cmi persistent_env modname uty alerts
     |> cmi_transform in
   let pm = save_type_of_cmi
-      { Persistent_env.Persistent_signature.cmi; filename } in
+      { Persistent_env.Persistent_interface.cmi; filename } in
   Persistent_env.save_cmi persistent_env
-    { Persistent_env.Persistent_signature.filename; cmi } pm;
+    { Persistent_env.Persistent_interface.filename; cmi } pm;
   cmi
 
-let save_interface ~alerts mty modname filename =
+let save_interface ~alerts uty modname filename =
   save_interface_with_transform (fun cmi -> cmi)
-    ~alerts mty modname filename
+    ~alerts uty modname filename
 
-let save_interface_with_imports ~alerts mty modname filename imports =
+let save_interface_with_imports ~alerts uty modname filename imports =
   let with_imports cmi = { cmi with cmi_crcs = imports } in
   save_interface_with_transform with_imports
-    ~alerts mty modname filename
+    ~alerts uty modname filename
 
 (* Folding on environments *)
 

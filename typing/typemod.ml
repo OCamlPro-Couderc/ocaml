@@ -849,7 +849,8 @@ module Signature_names : sig
 
   val simplify: Env.t -> t -> Types.signature -> Types.signature
 
-  val simplify_implementation: Env.t -> t -> Types.module_type -> Types.module_type
+  val simplify_implementation:
+    Env.t -> t -> Types.compilation_unit -> Types.compilation_unit
 end = struct
 
   type bound_info = [
@@ -1053,13 +1054,12 @@ end = struct
     in
     List.fold_right aux sg []
 
-  let rec simplify_implementation env t mty =
-    match mty with
-      Mty_signature sg -> Mty_signature (simplify env t sg)
-    | Mty_functor (id, mty, body) ->
-        let simple_body = simplify_implementation env t body in
-        Mty_functor (id, mty, simple_body)
-    | _ -> failwith "illformed implementation type"
+  let simplify_implementation env t uty =
+    match uty with
+      Unit_signature sg -> Unit_signature (simplify env t sg)
+    | Unit_functor (args, body) ->
+        let simple_body = simplify env t body in
+        Unit_functor (args, simple_body)
 end
 
 let has_remove_aliases_attribute attr =
@@ -1582,6 +1582,12 @@ let check_nongen_scheme env sig_item =
 
 let check_nongen_schemes env sg =
   List.iter (check_nongen_scheme env) sg
+
+let check_nongen_schemes_compunit env uty =
+  match uty with
+    Unit_signature sg | Unit_functor (_, sg) ->
+      (* arguments are compilation units too, they have already been checked *)
+      check_nongen_schemes env sg
 
 (* Helpers for typing recursive modules *)
 
@@ -2331,6 +2337,10 @@ and normalize_signature_item env = function
   | Sig_module(_id, _, md, _, _) -> normalize_modtype env md.md_type
   | _ -> ()
 
+let normalize_compunit env = function
+    Unit_signature sg -> normalize_signature env sg
+  | Unit_functor (_, body) -> normalize_signature env body
+
 (* Extract the module type of a module expression *)
 
 let type_module_type_of env smod =
@@ -2419,38 +2429,39 @@ let () =
 
 (* Typecheck an implementation file *)
 
-let rec type_implementation_aux functor_unit env ast loc = function
+let type_implementation_aux env ast loc = function
     [] ->
       let str, sg, names, finalenv =
-        type_implementation_structure functor_unit env ast loc in
+        type_implementation_structure false env ast loc in
       { timpl_desc = Timpl_structure str;
-        timpl_type = Mty_signature sg;
+        timpl_type = Unit_signature sg;
         timpl_env = env },
       names,
       finalenv
-  | param :: rem ->
-      let id_arg_pers = Ident.create_persistent param in
-      let mty_arg = (Env.find_module (Path.Pident id_arg_pers) env).md_type in
-      let scope = Ctype.create_scope () in
-      let id_arg, newenv =
-        Env.enter_module ~scope ~arg:true param Mp_present mty_arg env in
-      let body, names, finalenv = type_implementation_aux true newenv ast loc rem in
-      { timpl_desc = Timpl_functor (id_arg, mty_arg, body);
-        timpl_type = Mty_functor (id_arg, Some mty_arg, body.timpl_type);
+  | params ->
+      let args, newenv =
+        List.fold_left (fun (args, env) param ->
+          let id_arg_pers = Ident.create_persistent param in
+          let mty_arg = (Env.find_module (Path.Pident id_arg_pers) env).md_type in
+          let scope = Ctype.create_scope () in
+          let id_arg, newenv =
+            Env.enter_module ~scope ~arg:true param Mp_present mty_arg env in
+          (id_arg, mty_arg) :: args, newenv)
+          ([], env) params
+      in
+      let args = List.rev args in
+      let body, sg, names, finalenv =
+        type_implementation_structure true newenv ast loc in
+      { timpl_desc = Timpl_functor (args, body);
+        timpl_type = Unit_functor (args, sg);
         timpl_env = env;
       },
       names,
       finalenv
 
-let rec extract_implementation_sig = function
-    Mty_signature sg -> sg
-  | Mty_functor (_, _, body) -> extract_implementation_sig body
-  | _ -> failwith "illformed implementation type"
-
-let rec extract_implementation_structure = function
+let extract_implementation_structure = function
     { timpl_desc = Timpl_structure sg ; _ } -> sg
-  | { timpl_desc = Timpl_functor (_, _, body); _ } ->
-      extract_implementation_structure body
+  | { timpl_desc = Timpl_functor (_, body); _ } -> body
 
 let type_implementation sourcefile outputprefix modulename initial_env ast =
   Cmt_format.clear ();
@@ -2460,18 +2471,18 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       if !Clflags.print_types then (* #7656 *)
         Warnings.parse_options false "-32-34-37-38-60";
       let (timpl, names, finalenv) =
-        type_implementation_aux false initial_env ast
+        type_implementation_aux initial_env ast
           (Location.in_file sourcefile) !Clflags.functor_parameters in
       (* TODO: generate a functor if there are any parameter *)
-      let mty = timpl.timpl_type in
-      let simple_mty =
-        Signature_names.simplify_implementation finalenv names mty in
+      let uty = timpl.timpl_type in
+      let simple_uty =
+        Signature_names.simplify_implementation finalenv names uty in
       let str = extract_implementation_structure timpl in
       if !Clflags.print_types then begin
         Typecore.force_delayed_checks ();
         Printtyp.wrap_printing_env ~error:false initial_env
           (fun () -> fprintf std_formatter "%a@."
-              (Printtyp.printed_interface sourcefile) simple_mty
+              (Printtyp.printed_interface sourcefile) simple_uty
           );
         timpl,
         Tcoerce_none   (* result is ignored by Compile.implementation *)
@@ -2485,10 +2496,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             with Not_found ->
               raise(Error(Location.in_file sourcefile, Env.empty,
                           Interface_not_compiled sourceintf)) in
-          let dclmty = Env.read_interface modulename intf_file in
+          let dcluty = Env.read_interface modulename intf_file in
           let coercion =
             Includemod.compunit initial_env ~mark:Includemod.Mark_positive
-              sourcefile mty intf_file dclmty
+              sourcefile uty intf_file dcluty
           in
           Typecore.force_delayed_checks ();
           (* It is important to run these checks after the inclusion test above,
@@ -2502,11 +2513,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         end else begin
           let coercion =
             Includemod.compunit initial_env ~mark:Includemod.Mark_positive
-              sourcefile mty "(inferred signature)" simple_mty
+              sourcefile uty "(inferred signature)" simple_uty
           in
-          let simple_sg = extract_implementation_sig simple_mty in
-          check_nongen_schemes finalenv simple_sg;
-          normalize_signature finalenv simple_sg;
+          check_nongen_schemes_compunit finalenv simple_uty;
+          normalize_compunit finalenv simple_uty;
           Typecore.force_delayed_checks ();
           (* See comment above. Here the target signature contains all
              the value being exported. We can still capture unused
@@ -2516,7 +2526,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
             let alerts = Builtin_attributes.alerts_of_str ast in
             let cmi =
               Env.save_interface ~alerts
-                simple_mty modulename (outputprefix ^ ".cmi")
+                simple_uty modulename (outputprefix ^ ".cmi")
             in
             Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
               (Cmt_format.Implementation str)
@@ -2534,30 +2544,37 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           (Some sourcefile) initial_env None)
 
 let save_interface modname tintf outputprefix source_file initial_env cmi =
-  let rec extract_sig = function
+  let extract_sig = function
       { tintf_desc = Tintf_signature sg ; _ } -> sg
-    | { tintf_desc = Tintf_functor (_, _, body); _ } -> extract_sig body in
+    | { tintf_desc = Tintf_functor (_, body); _ } -> body in
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
     (Cmt_format.Interface (extract_sig tintf))
     (Some source_file) initial_env (Some cmi)
 
-let rec transl_interface env ast params =
+let transl_interface env ast params =
   match params with
     [] ->
       let sg = transl_signature env ast in
       { tintf_desc = Tintf_signature sg;
-        tintf_type = Mty_signature sg.sig_type;
+        tintf_type = Unit_signature sg.sig_type;
         tintf_env = env;
       }
-  | param :: rem ->
-      let id_arg_pers = Ident.create_persistent param in
-      let mty_arg = (Env.find_module (Path.Pident id_arg_pers) env).md_type in
-      let scope = Ctype.create_scope () in
-      let id_arg, newenv =
-        Env.enter_module ~scope ~arg:true param Mp_present mty_arg env in
-      let body = transl_interface newenv ast rem in
-      { tintf_desc = Tintf_functor (id_arg, mty_arg, body);
-        tintf_type = Mty_functor (id_arg, Some mty_arg, body.tintf_type);
+  | _ ->
+      let args, env =
+        List.fold_left (fun (args, env) param ->
+            let id_arg_pers = Ident.create_persistent param in
+            let mty_arg = (Env.find_module (Path.Pident id_arg_pers) env).md_type in
+            let scope = Ctype.create_scope () in
+            let id_arg, newenv =
+              Env.enter_module ~scope ~arg:true param Mp_present mty_arg env in
+            (id_arg, mty_arg) :: args, newenv)
+          ([], env)
+          params
+      in
+      let body = transl_signature env ast in
+      let args = List.rev args in
+      { tintf_desc = Tintf_functor (args, body);
+        tintf_type = Unit_functor (args, body.sig_type);
         tintf_env = env;
       }
 
@@ -2569,7 +2586,7 @@ let type_interface env ast =
 
 let package_signatures units =
   let extract_sig = function
-      Mty_signature sg -> sg
+      Unit_signature sg -> sg
     | _ -> assert false
   in
   let units_with_ids =
@@ -2604,11 +2621,10 @@ let package_units initial_env objfiles cmifile modulename =
       (fun f ->
          let pref = chop_extensions f in
          let modname = String.capitalize_ascii(Filename.basename pref) in
-         let mty = Env.read_interface modname (pref ^ ".cmi") in
-         let sg = match mty with
-             Mty_signature sg -> sg
-           | Mty_functor (_, _, _) -> assert false (* TODO: transform to error *)
-           | _ -> assert false
+         let uty = Env.read_interface modname (pref ^ ".cmi") in
+         let sg = match uty with
+             Unit_signature sg -> sg
+           | Unit_functor (_, _) -> assert false (* TODO: transform to error *)
          in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
@@ -2619,7 +2635,7 @@ let package_units initial_env objfiles cmifile modulename =
   (* Compute signature of packaged unit *)
   Ident.reinit();
   let sg = package_signatures units in
-  let mty = Mty_signature sg in
+  let uty = Unit_signature sg in
   (* See if explicit interface is provided *)
   let prefix = Filename.remove_extension cmifile in
   let mlifile = prefix ^ !Config.interface_suffix in
@@ -2628,10 +2644,10 @@ let package_units initial_env objfiles cmifile modulename =
       raise(Error(Location.in_file mlifile, Env.empty,
                   Interface_not_compiled mlifile))
     end;
-    let dclmty = Env.read_interface modulename cmifile in
+    let dcluty = Env.read_interface modulename cmifile in
     Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
       (Cmt_format.Packed (sg, objfiles)) None initial_env  None ;
-    Includemod.compunit initial_env "(obtained by packing)" mty mlifile dclmty
+    Includemod.compunit initial_env "(obtained by packing)" uty mlifile dcluty
   end else begin
     (* Determine imports *)
     let unit_names = List.map fst units in
@@ -2643,13 +2659,13 @@ let package_units initial_env objfiles cmifile modulename =
     if not !Clflags.dont_write_files then begin
       let cmi =
         Env.save_interface_with_imports ~alerts:Misc.Stdlib.String.Map.empty
-          mty modulename
+          uty modulename
           (prefix ^ ".cmi") imports
       in
       let cmi_sg =
         match cmi.Cmi_format.cmi_type with
-          Mty_signature sg -> sg
-        | _ -> assert false
+          Unit_signature sg -> sg
+        | Unit_functor (_, sg) -> sg
       in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
         (Cmt_format.Packed (cmi_sg, objfiles)) None initial_env

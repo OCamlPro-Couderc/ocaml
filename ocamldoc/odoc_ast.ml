@@ -1866,10 +1866,10 @@ module Analyser =
 
      let analyse_typed_tree source_file input_file
          (parsetree : Parsetree.structure) (typedtree : typedtree) =
-       let rec extract_tree_structure impl =
+       let extract_tree_structure impl =
          match impl.timpl_desc with
            Timpl_structure str -> str
-         | Timpl_functor (_, _, impl) -> extract_tree_structure impl
+         | Timpl_functor (_, str) -> str
        in
        let tree_structure = extract_tree_structure (fst typedtree) in
        prepare_file source_file input_file;
