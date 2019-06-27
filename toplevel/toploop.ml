@@ -271,7 +271,7 @@ let execute_phrase print_outcome ppf phr =
       let (str, sg, sn, newenv) = Typemod.type_toplevel_phrase oldenv sstr in
       let impl =
         Typedtree.{ timpl_desc = Typedtree.Timpl_structure str;
-                    timpl_type = Types.Mty_signature sg;
+                    timpl_type = Types.Unit_signature sg;
                     timpl_env = oldenv }
       in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf impl;

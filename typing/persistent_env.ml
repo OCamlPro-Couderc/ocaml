@@ -96,7 +96,7 @@ end = struct
 
 end
 
-module Persistent_signature = struct
+module Persistent_interface = struct
   type t =
     { filename : string;
       cmi : Cmi_format.cmi_infos }
@@ -264,7 +264,7 @@ let check_pack_import current_prefix imported_prefix imported_unit =
          ~of_:current_prefix)
 
 let acknowledge_pers_struct penv check modname pers_sig pm =
-  let { Persistent_signature.filename; cmi } = pers_sig in
+  let { Persistent_interface.filename; cmi } = pers_sig in
   let name = cmi.cmi_name in
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
@@ -314,7 +314,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
 
 let read_pers_struct penv val_of_pers_sig check modname filename =
   let cmi = read_cmi filename in
-  let pers_sig = { Persistent_signature.filename; cmi } in
+  let pers_sig = { Persistent_interface.filename; cmi } in
   let pm = val_of_pers_sig pers_sig in
   let ps = acknowledge_pers_struct penv check modname pers_sig pm in
   let for_pack_prefix = prefix_of_pers_struct ps in
@@ -333,7 +333,7 @@ let find_pers_struct penv val_of_pers_sig check name =
     | Cannot_load_cmis _ -> raise Not_found
     | Can_load_cmis ->
         let psig =
-          match !Persistent_signature.load ~unit_name:name with
+          match !Persistent_interface.load ~unit_name:name with
           | Some psig -> psig
           | None ->
             NameTbl.add persistent_structures name Missing;
@@ -463,7 +463,7 @@ let make_cmi penv modname mty alerts =
   }
 
 let save_cmi penv psig pm =
-  let { Persistent_signature.filename; cmi } = psig in
+  let { Persistent_interface.filename; cmi } = psig in
   Misc.try_finally (fun () ->
       let {
         cmi_name = modname;

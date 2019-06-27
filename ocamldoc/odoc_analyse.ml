@@ -184,9 +184,8 @@ let process_file sourcefile =
        try
          let (ast, intf, input_file) = process_interface_file file in
          let sg = match intf.tintf_type with
-             Types.Mty_signature sg -> sg
-           | Types.Mty_functor (_, _, _) -> assert false
-           | _ -> assert false
+             Types.Unit_signature sg -> sg
+           | Types.Unit_functor (_, _) -> assert false
          in
          let file_module = Sig_analyser.analyse_signature file
              input_file ast sg

@@ -456,6 +456,10 @@ and ext_status =
   | Text_next                      (* not first constructor in an extension *)
   | Text_exception
 
+(* Representation of the module type of a compilation unit. *)
+type compilation_unit =
+    Unit_signature of signature
+  | Unit_functor of (Ident.t * module_type) list * signature
 
 (* Constructor and record label descriptions inserted held in typing
    environments *)

@@ -33,7 +33,7 @@ exception Error of error
 
 type cmi_infos = {
     cmi_name : Compilation_unit.Name.t;
-    cmi_type : Types.module_type;
+    cmi_type : Types.compilation_unit;
     cmi_crcs : Compilation_unit.crcs;
     cmi_flags : pers_flags list;
 }

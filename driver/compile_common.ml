@@ -66,14 +66,14 @@ let typecheck_intf info ast =
     |> Typemod.type_interface info.env
     |> print_if info.ppf_dump Clflags.dump_typedtree Printtyped.interface
   in
-  let mty = tintf.Typedtree.tintf_type in
+  let uty = tintf.Typedtree.tintf_type in
   if !Clflags.print_types then
     Printtyp.wrap_printing_env ~error:false info.env (fun () ->
         Format.(fprintf std_formatter) "%a@."
           (Printtyp.printed_interface info.source_file)
-          mty);
-  ignore (Includemod.modtypes ~loc:(Location.in_file (info.source_file))
-            info.env mty mty);
+          uty);
+  ignore (Includemod.compunits ~loc:(Location.in_file (info.source_file))
+            info.env uty uty);
   Typecore.force_delayed_checks ();
   Warnings.check_fatal ();
   tintf

@@ -28,7 +28,7 @@ module Signature_names : sig
 
   val simplify: Env.t -> t -> signature -> signature
 
-  val simplify_implementation: Env.t -> t -> module_type -> module_type
+  val simplify_implementation: Env.t -> t -> compilation_unit -> compilation_unit
 end
 
 val type_module:
