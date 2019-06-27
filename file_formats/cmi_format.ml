@@ -34,7 +34,7 @@ exception Error of error
 (* these type abbreviations are not exported;
    they are used to provide consistency across
    input_value and output_value usage. *)
-type interface = Types.module_type
+type interface = Types.compilation_unit
 type flags = pers_flags list
 type header = Compilation_unit.Name.t * interface
 

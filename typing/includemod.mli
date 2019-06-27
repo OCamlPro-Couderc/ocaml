@@ -35,6 +35,10 @@ val modtypes:
   loc:Location.t -> Env.t -> ?mark:mark ->
   module_type -> module_type -> module_coercion
 
+val compunits:
+  loc:Location.t -> Env.t -> ?mark:mark ->
+  compilation_unit -> compilation_unit -> module_coercion
+
 val check_modtype_inclusion :
   loc:Location.t -> Env.t -> Types.module_type -> Path.t -> Types.module_type ->
   unit
@@ -46,8 +50,8 @@ val signatures: Env.t -> ?mark:mark ->
   signature -> signature -> module_coercion
 
 val compunit:
-      Env.t -> ?mark:mark -> string -> module_type ->
-      string -> module_type -> module_coercion
+      Env.t -> ?mark:mark -> string -> compilation_unit ->
+      string -> compilation_unit -> module_coercion
 
 val type_declarations:
   loc:Location.t -> Env.t -> ?mark:mark ->

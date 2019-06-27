@@ -433,12 +433,12 @@ let extract_functor_components mexp =
 
 let extract_impl_functor_components exp =
   match exp.timpl_desc with
-    Timpl_functor (arg, mty, body) ->
-      Some (Types.Named (Some arg, mty),
-            body,
-            Location.none,
-            Default_inline)
-  | Timpl_structure _ -> None
+    Timpl_functor ((id, mty) :: rem, body) ->
+      (* type should be adapted in case we want to propagate it into the backend
+         in the future *)
+      let body' = { exp with timpl_desc = Timpl_functor (rem, body) } in
+      Some (Types.Named (Some id, mty), body', Location.none, Default_inline)
+  |  _ -> None
 
 let merge_inline_attributes attr1 attr2 loc =
   match Lambda.merge_inline_attributes attr1 attr2 with
@@ -803,13 +803,22 @@ let transl_functorized_implementation module_id (impl, cc) =
       Timpl_structure str ->
         transl_struct Location.none [] cc
           (global_path module_id) str
-    | Timpl_functor (_, _, _) ->
+    | Timpl_functor (_, _) ->
         compile_functor extract_impl_functor_components
           (fun cc p i -> fst (transl_impl cc p i))
           impl cc path Location.none,
         1
   in
   transl_impl cc (global_path module_id) impl
+
+let wrap_functorized_implementation impl (code, size) =
+  match impl.timpl_desc with
+    Timpl_structure _ -> code, size
+  | Timpl_functor (_, _) ->
+      Lprim(Pmakeblock(0, Immutable, None),
+            [ code ],
+            Location.none),
+      1
 
 (* Compile an implementation *)
 
@@ -824,7 +833,9 @@ let transl_implementation_flambda module_name (impl, cc) =
   let module_id = transl_current_module_ident module_name in
   let body, size =
     Translobj.transl_label_init
-      (fun () -> transl_functorized_implementation module_id (impl, cc)) in
+      (fun () ->
+         transl_functorized_implementation module_id (impl, cc)
+         |> wrap_functorized_implementation impl) in
   { module_ident = module_id;
     main_module_block_size = size;
     required_globals = required_globals ~flambda:true body;
@@ -1369,6 +1380,18 @@ let transl_store_structure_gen module_id ({str_items = str}, restr) topl =
   transl_store_label_init module_id size f str
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
+let transl_store_functorized_implementation module_id (impl, restr) =
+  let code, i =
+    transl_functorized_implementation module_id (impl, restr) in
+  let body_id = Ident.create_local "*unit-body*" in
+  i,
+  Llet (Strict, Pgenval, body_id, code,
+        Lsequence (Lprim(Psetfield(0, Pointer, Root_initialization),
+                         [Lprim(Pgetglobal module_id, [], Location.none);
+                          Lvar body_id],
+                         Location.none),
+                   lambda_unit))
+
 let transl_store_phrases module_name str =
   let module_id = transl_store_gen_init module_name in
   transl_store_structure_gen module_id (str,Tcoerce_none) true
@@ -1378,8 +1401,7 @@ let transl_store_gen module_name (impl, restr) topl =
   match impl.timpl_desc with
     Timpl_structure str -> transl_store_structure_gen module_id (str, restr) topl
   | Timpl_functor _ ->
-      let code, i = transl_functorized_implementation module_id (impl, restr) in
-      i, code
+      transl_store_functorized_implementation module_id (impl, restr)
 
 let transl_store_implementation module_name (impl, restr) =
   let s = !transl_store_subst in

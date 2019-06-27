@@ -1779,11 +1779,10 @@ let printed_signature sourcefile ppf sg =
    Since functorized units are implicits, abstractions are removed.
  *)
 let printed_interface sourcefile ppf tintf =
-  let rec extract_sig mty =
-    match mty with
-      Mty_signature sg -> sg
-    | Mty_functor (_, mty') -> extract_sig mty'
-    | _ -> assert false (* illformed module type for a compilation unit *)
+  let extract_sig uty =
+    match uty with
+      Unit_signature sg -> sg
+    | Unit_functor (_, sg) -> sg
   in
   printed_signature sourcefile ppf (extract_sig tintf)
 
