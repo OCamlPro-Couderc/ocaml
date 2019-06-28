@@ -117,7 +117,7 @@ let print_pers_flags =
   | Opaque -> printf " -opaque"
   | Unsafe_string -> printf " -unsafe-string"
   | Pack modnames -> printf " -for-pack %s" (String.concat "." modnames)
-  | Parameter_of m -> printf " -parameter-of %s" m
+  | As_parameter -> printf " -as-parameter"
   | Parameters p -> List.iter (printf " -parameter %s") p
 
 let print_cmi_infos name crcs flags =

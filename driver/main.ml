@@ -48,7 +48,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _dllpath s = dllpaths := !dllpaths @ [s]
   let _for_pack s = for_package := Some s
   let _functor_parameter s = functor_parameters := s :: !functor_parameters
-  let _functor_parameter_of s = functor_parameter_of := Some s
+  let _as_functor_parameter = set as_functor_parameter
   let _g = set debug
   let _i () =
     print_types := true;

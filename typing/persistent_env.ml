@@ -202,7 +202,9 @@ let check_consistency penv ps =
     error (Inconsistent_import(CU.name unit, auth, source))
 
 let check_parameter modname =
-  List.mem modname !Clflags.functor_parameters
+  List.mem modname !Clflags.functor_parameters &&
+  not !Clflags.as_functor_parameter &&
+  !Clflags.for_package = None
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
@@ -244,7 +246,7 @@ let save_pers_struct penv crc ps pm =
         | Pack _prefix -> ()
         | Opaque -> add_imported_opaque penv modname
         | Parameters _ -> ()
-        | Parameter_of _ -> add_imported_parameter penv ps.ps_name)
+        | As_parameter -> add_imported_parameter penv ps.ps_name)
     ps.ps_flags;
   let for_pack_prefix = prefix_of_pers_struct ps in
   let unit = CU.create ~for_pack_prefix modname in
@@ -302,7 +304,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
       | Opaque ->
           add_imported_opaque penv modname
       | Parameters _ -> ()
-      | Parameter_of _ ->
+      | As_parameter ->
           if not (check_parameter ps.ps_name) then
             error (Illegal_import_of_parameter(ps.ps_name, filename))
           else add_imported_parameter penv ps.ps_name)
@@ -448,9 +450,7 @@ let make_cmi penv modname mty alerts =
       (match !Clflags.functor_parameters with
          _ :: _ as ps -> [Cmi_format.Parameters ps]
        | [] -> []);
-      (match !Clflags.functor_parameter_of with
-         Some p -> [Cmi_format.Parameter_of p]
-       | None -> []);
+      (if !Clflags.as_functor_parameter then [Cmi_format.As_parameter] else []);
       [Alerts alerts];
     ]
   in
