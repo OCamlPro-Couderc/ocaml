@@ -118,7 +118,7 @@ let print_pers_flags =
   | Opaque -> printf " -opaque"
   | Unsafe_string -> printf " -unsafe-string"
   | Pack modnames -> printf " -for-pack %s" (CU.Prefix.to_string modnames)
-  | Parameter_of m -> printf " -parameter-of %s" (CU.Name.to_string m)
+  | As_parameter -> printf " -as-parameter"
   | Parameters p ->
       List.iter (fun p -> printf " -parameter %s" (CU.Name.to_string p)) p
 
