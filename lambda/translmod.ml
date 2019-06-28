@@ -434,8 +434,8 @@ let extract_functor_components mexp =
 let extract_impl_functor_components exp =
   match exp.timpl_desc with
     Timpl_functor ((id, mty) :: rem, body) ->
-      (* type should be adapted in case we want to propagate it into the backend
-         in the future *)
+      let timpl_desc =
+        if rem = [] then Timpl_structure body else Timpl_functor (rem, body) in
       let body' = { exp with timpl_desc = Timpl_functor (rem, body) } in
       Some (Types.Named (Some id, mty), body', Location.none, Default_inline)
   |  _ -> None
