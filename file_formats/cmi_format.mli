@@ -20,7 +20,7 @@ type pers_flags =
   | Alerts of alerts
   | Opaque
   | Unsafe_string
-  | Parameter_of of modname
+  | As_parameter
   | Parameters of modname list
 
 
