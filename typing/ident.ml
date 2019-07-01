@@ -20,6 +20,10 @@ type t =
   | Local of { name: string; stamp: int }
   | Scoped of { name: string; stamp: int; scope: int }
   | Global of string
+  | Parameter of string
+  (* only used by functorized units and functorized packs. Does not have a stamp
+     since it can be shared between different units meant to be packed. It is
+     not exactly a persistent. *)
   | Predef of { name: string; stamp: int }
       (* the stamp is here only for fast comparison, but the name of
          predefined identifiers is always unique. *)
@@ -44,10 +48,14 @@ let create_predef s =
 let create_persistent s =
   Global s
 
+let create_parameter s =
+  Parameter s
+
 let name = function
   | Local { name; _ }
   | Scoped { name; _ }
   | Global name
+  | Parameter name
   | Predef { name; _ } -> name
 
 let rename = function
@@ -55,6 +63,8 @@ let rename = function
   | Scoped { name; stamp = _; scope = _ } ->
       incr currentstamp;
       Local { name; stamp = !currentstamp }
+  | Parameter name -> Parameter name (* it is indeed a bound ident, without a stamp. It
+                              shoud not be an error. *)
   | id ->
       Misc.fatal_errorf "Ident.rename %s" (name id)
 
@@ -66,6 +76,8 @@ let unique_name = function
          [Foo_123] and since we're using unique_name to produce symbol names,
          we might clash with an ident [Local { "Foo"; 123 }]. *)
       name ^ "_0"
+  | Parameter name ->
+      name ^ "-param"
   | Predef { name; _ } ->
       (* we know that none of the predef names (currently) finishes in
          "_<some number>", and that their name is unique. *)
@@ -75,6 +87,7 @@ let unique_toplevel_name = function
   | Local { name; stamp }
   | Scoped { name; stamp } -> name ^ "/" ^ Int.to_string stamp
   | Global name
+  | Parameter name
   | Predef { name; _ } -> name
 
 let persistent = function
@@ -86,6 +99,8 @@ let equal i1 i2 =
   | Local { name = name1; _ }, Local { name = name2; _ }
   | Scoped { name = name1; _ }, Scoped { name = name2; _ }
   | Global name1, Global name2 ->
+      name1 = name2
+  | Parameter name1, Parameter name2 ->
       name1 = name2
   | Predef { stamp = s1; _ }, Predef { stamp = s2 } ->
       (* if they don't have the same stamp, they don't have the same name *)
@@ -109,7 +124,7 @@ let stamp = function
 let scope = function
   | Scoped { scope; _ } -> scope
   | Local _ -> highest_scope
-  | Global _ | Predef _ -> lowest_scope
+  | Global _ | Parameter _ | Predef _ -> lowest_scope
 
 let reinit_level = ref (-1)
 
@@ -120,7 +135,8 @@ let reinit () =
 
 let global = function
   | Local _
-  | Scoped _ -> false
+  | Scoped _
+  | Parameter _ -> false
   | Global _
   | Predef _ -> true
 
@@ -128,10 +144,15 @@ let is_predef = function
   | Predef _ -> true
   | _ -> false
 
+let parameter = function
+  | Parameter _ -> true
+  | _ -> false
+
 let print ~with_scope ppf =
   let open Format in
   function
   | Global name -> fprintf ppf "%s!" name
+  | Parameter name -> fprintf ppf "%s" name
   | Predef { name; stamp = n } ->
       fprintf ppf "%s%s!" name
         (if !Clflags.unique_ids then sprintf "/%i" n else "")
@@ -338,6 +359,9 @@ let compare x y =
   | Global x, Global y -> compare x y
   | Global _, _ -> 1
   | _, Global _ -> (-1)
+  | Parameter x, Parameter y -> compare x y
+  | Parameter _, _ -> 1
+  | _, Parameter _ -> (-1)
   | Predef { stamp = s1; _ }, Predef { stamp = s2; _ } -> compare s1 s2
 
 let output oc id = output_string oc (unique_name id)
