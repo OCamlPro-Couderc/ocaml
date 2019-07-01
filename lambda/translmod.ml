@@ -436,7 +436,7 @@ let extract_impl_functor_components exp =
     Timpl_functor ((id, mty) :: rem, body) ->
       let timpl_desc =
         if rem = [] then Timpl_structure body else Timpl_functor (rem, body) in
-      let body' = { exp with timpl_desc = Timpl_functor (rem, body) } in
+      let body' = { exp with timpl_desc } in
       Some (Types.Named (Some id, mty), body', Location.none, Default_inline)
   |  _ -> None
 

@@ -209,8 +209,8 @@ let check_consistency penv ps =
     error (Inconsistent_import(CU.name unit, auth, source))
 
 let check_parameter modname =
-  List.mem modname !Clflags.functor_parameters &&
-  not !Clflags.as_functor_parameter &&
+  (List.mem modname !Clflags.functor_parameters ||
+  !Clflags.as_functor_parameter) &&
   !Clflags.for_package = None
 
 let can_load_cmis penv =
@@ -557,7 +557,8 @@ let report_error ppf =
         CU.Name.print intf_fullname
   | Illegal_import_of_parameter(modname, filename) -> fprintf ppf
       "The file %a@ contains the an interface of a parameter.@ \
-       %a is not declared as a parameter for the current unit (-parameter %a).@"
+       %a is not declared as a parameter for the current unit (-parameter %a)nor \
+       the current unit is itself a parameter.@"
       Location.print_filename filename
       CU.Name.print modname
       CU.Name.print modname
