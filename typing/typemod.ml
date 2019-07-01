@@ -2439,15 +2439,21 @@ let type_implementation_aux env ast loc = function
       names,
       finalenv
   | params ->
-      let args, newenv =
-        List.fold_left (fun (args, env) param ->
+      let args, newenv, _ =
+        List.fold_left (fun (args, env, subst) param ->
           let id_arg_pers = Ident.create_persistent param in
           let mty_arg = (Env.find_module (Path.Pident id_arg_pers) env).md_type in
           let scope = Ctype.create_scope () in
+          let mty_arg = Subst.modtype subst mty_arg in
           let id_arg, newenv =
             Env.enter_module ~scope ~arg:true param Mp_present mty_arg env in
-          (id_arg, mty_arg) :: args, newenv)
-          ([], env) params
+          (id_arg, mty_arg) :: args,
+          newenv,
+          Subst.add_module_path
+            (Path.Pident id_arg_pers)
+            (Path.Pident id_arg)
+            subst)
+          ([], env, Subst.identity) params
       in
       let args = List.rev args in
       let body, sg, names, finalenv =
@@ -2472,7 +2478,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         Warnings.parse_options false "-32-34-37-38-60";
       let (timpl, names, finalenv) =
         type_implementation_aux initial_env ast
-          (Location.in_file sourcefile) !Clflags.functor_parameters in
+          (Location.in_file sourcefile)
+          (List.rev !Clflags.functor_parameters) in
       (* TODO: generate a functor if there are any parameter *)
       let uty = timpl.timpl_type in
       let simple_uty =
