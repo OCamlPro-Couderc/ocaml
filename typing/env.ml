@@ -628,7 +628,9 @@ let type_of_cmi ~freshen { Persistent_env.Persistent_interface.cmi; _ } =
   let uty = cmi.cmi_type in
   let mty = module_type_of_compilation_unit_type uty in
   let flags = cmi.cmi_flags in
-  let id = Ident.create_persistent name in
+  let id = if List.mem Cmi_format.As_parameter flags
+    then Ident.create_parameter name
+    else Ident.create_persistent name in
   let path = Pident id in
   let addr = match uty with
       Unit_functor _ ->
