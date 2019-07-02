@@ -2570,9 +2570,9 @@ let transl_interface env ast params =
         List.fold_left (fun (args, env) param ->
             let id_arg_pers = Ident.create_persistent param in
             let mty_arg = (Env.find_module (Path.Pident id_arg_pers) env).md_type in
-            let scope = Ctype.create_scope () in
-            let id_arg, newenv =
-              Env.enter_module ~scope ~arg:true param Mp_present mty_arg env in
+            let id_arg = Ident.create_parameter param in
+            let newenv =
+              Env.add_module ~arg:true id_arg Mp_present mty_arg env in
             (id_arg, mty_arg) :: args, newenv)
           ([], env)
           params
