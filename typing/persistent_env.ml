@@ -137,9 +137,8 @@ let check_consistency penv ps =
     error (Inconsistent_import(name, auth, source))
 
 let check_parameter modname =
-  (List.mem modname !Clflags.functor_parameters ||
-  !Clflags.as_functor_parameter) &&
-  !Clflags.for_package = None
+  List.mem modname !Clflags.functor_parameters ||
+  !Clflags.as_functor_parameter
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
