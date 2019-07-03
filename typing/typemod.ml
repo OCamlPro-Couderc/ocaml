@@ -2590,17 +2590,13 @@ let type_interface env ast =
 (* "Packaging" of several compilation units into one unit
    having them as sub-modules.  *)
 
-let package_signatures units =
-  let extract_sig = function
-      Unit_signature sg -> sg
-    | _ -> assert false
-  in
+let package_module_types units =
   let units_with_ids =
     List.map
-      (fun (name, mty) ->
+      (fun (name, uty) ->
         let oldid = Ident.create_persistent name in
         let newid = Ident.create_local name in
-        (oldid, newid, extract_sig mty))
+        (oldid, newid, Env.module_type_of_compilation_unit_type uty))
       units
   in
   let subst =
@@ -2609,16 +2605,19 @@ let package_signatures units =
         Subst.add_module oldid (Pident newid) acc)
       Subst.identity units_with_ids
   in
-  List.map
-    (fun (_, newid, sg) ->
-      let sg = Subst.signature subst sg in
-      let md =
-        { md_type=Mty_signature sg;
-          md_attributes=[];
-          md_loc=Location.none; }
-      in
-      Sig_module(newid, Mp_present, md, Trec_not, Exported))
-    units_with_ids
+  let sg =
+    List.map
+      (fun (_, newid, mty) ->
+         let mty = Subst.modtype subst mty in
+         let md =
+           { md_type=mty;
+             md_attributes=[];
+             md_loc=Location.none; }
+         in
+         Sig_module(newid, Mp_present, md, Trec_not, Exported))
+      units_with_ids
+  in
+  Unit_signature sg
 
 let package_units initial_env objfiles cmifile modulename =
   (* Read the signatures of the units *)
@@ -2628,23 +2627,23 @@ let package_units initial_env objfiles cmifile modulename =
          let pref = chop_extensions f in
          let modname = String.capitalize_ascii(Filename.basename pref) in
          let uty = Env.read_interface modname (pref ^ ".cmi") in
-         let sg = match uty with
-             Unit_signature sg -> sg
-           | Unit_functor (_, _) -> assert false (* TODO: transform to error *)
-         in
          if Filename.check_suffix f ".cmi" &&
-            not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
+            not(Mtype.no_code_needed_unit Env.initial_safe_string uty)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
          (modname, Env.read_interface modname (pref ^ ".cmi")))
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
-  let sg = package_signatures units in
-  let uty = Unit_signature sg in
+  let uty = package_module_types units in
   (* See if explicit interface is provided *)
   let prefix = Filename.remove_extension cmifile in
   let mlifile = prefix ^ !Config.interface_suffix in
+  (* temporary, until cmts are updated to reflect the functor *)
+  let sg = match uty with
+      Unit_signature sg -> sg
+    | Unit_functor (_, sg) -> sg
+  in
   if Sys.file_exists mlifile then begin
     if not (Sys.file_exists cmifile) then begin
       raise(Error(Location.in_file mlifile, Env.empty,
