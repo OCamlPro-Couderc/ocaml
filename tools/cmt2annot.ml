@@ -208,7 +208,7 @@ let gen_annot ?(save_cmt_info=false) target_filename filename cmt =
   let iterator = iterator ~scope:Location.none cmt.cmt_use_summaries in
   match cmt.cmt_annots with
   | Implementation typedtree ->
-      ignore (iterator.structure iterator typedtree);
+      ignore (iterator.implementation iterator typedtree);
       Stypes.dump target_filename
   | Interface _ ->
       Printf.eprintf "Cannot generate annotations for interface file\n%!";
@@ -227,12 +227,12 @@ let gen_ml target_filename filename cmt =
   let (printer, ext) =
     match cmt.Cmt_format.cmt_annots with
       | Cmt_format.Implementation typedtree ->
-          (fun ppf -> Pprintast.structure ppf
-                                        (Untypeast.untype_structure typedtree)),
+          (fun ppf -> Pprintast.implementation ppf
+              (Untypeast.untype_implementation typedtree)),
           ".ml"
       | Cmt_format.Interface typedtree ->
-          (fun ppf -> Pprintast.signature ppf
-                                        (Untypeast.untype_signature typedtree)),
+          (fun ppf -> Pprintast.interface ppf
+              (Untypeast.untype_interface typedtree)),
           ".mli"
       | _ ->
         Printf.fprintf stderr "File was generated with an error\n%!";

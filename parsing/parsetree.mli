@@ -928,6 +928,10 @@ and module_binding =
     }
 (* X = ME *)
 
+type implementation = structure
+
+type interface = signature
+
 (** {1 Toplevel} *)
 
 (* Toplevel phrases *)
