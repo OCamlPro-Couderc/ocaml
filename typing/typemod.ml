@@ -2656,11 +2656,6 @@ let type_implementation_aux env ast loc = function
       names,
       finalenv
 
-
-let extract_implementation_structure = function
-    { timpl_desc = Timpl_structure sg ; _ } -> sg
-  | { timpl_desc = Timpl_functor (_, body); _ } -> body
-
 let type_implementation sourcefile outputprefix modulename initial_env ast =
   Cmt_format.clear ();
   Misc.try_finally (fun () ->
@@ -2676,7 +2671,6 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       let uty = timpl.timpl_type in
       let simple_uty =
         Signature_names.simplify_implementation finalenv names uty in
-      let str = extract_implementation_structure timpl in
       if !Clflags.print_types then begin
         Typecore.force_delayed_checks ();
         Printtyp.wrap_printing_env ~error:false initial_env
@@ -2706,7 +2700,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
              so that value declarations which are not used internally but
              exported are not reported as being unused. *)
           Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
-            (Cmt_format.Implementation str) (Some sourcefile) initial_env None;
+            (Cmt_format.Implementation timpl) (Some sourcefile) initial_env None;
 
           timpl,
           coercion
@@ -2729,7 +2723,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
                 simple_uty modulename (outputprefix ^ ".cmi")
             in
             Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
-              (Cmt_format.Implementation str)
+              (Cmt_format.Implementation timpl)
               (Some sourcefile) initial_env (Some cmi);
           end;
           timpl,
@@ -2744,11 +2738,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           (Some sourcefile) initial_env None)
 
 let save_interface modname tintf outputprefix source_file initial_env cmi =
-  let extract_sig = function
-      { tintf_desc = Tintf_signature sg ; _ } -> sg
-    | { tintf_desc = Tintf_functor (_, body); _ } -> body in
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
-    (Cmt_format.Interface (extract_sig tintf))
+    (Cmt_format.Interface tintf)
     (Some source_file) initial_env (Some cmi)
 
 let transl_interface env ast params =
