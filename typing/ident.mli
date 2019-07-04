@@ -33,7 +33,6 @@ val create_scoped: scope:int -> string -> t
 val create_local: string -> t
 val create_persistent: string -> t
 val create_predef: string -> t
-val create_parameter: string -> t
 
 val rename: t -> t
         (** Creates an identifier with the same name as the input, a fresh
@@ -55,8 +54,6 @@ val compare: t -> t -> int
 
 val global: t -> bool
 val is_predef: t -> bool
-
-val parameter: t -> bool
 
 val scope: t -> int
 
