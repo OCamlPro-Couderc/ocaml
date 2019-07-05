@@ -2752,23 +2752,28 @@ let transl_interface env ast params =
         tintf_env = env;
       }
   | _ ->
-      let args, env =
-        List.fold_left (fun (args, env) param ->
-            let id_arg_pers = Ident.create_persistent param in
-            let mty_arg =
-              (Env.find_module (Path.Pident id_arg_pers) env).md_type in
-            let scope = Ctype.create_scope () in
-            let id_arg, newenv =
-              Env.enter_module ~scope ~arg:true param Mp_present mty_arg env in
-            (id_arg, mty_arg) :: args, newenv)
-          ([], env)
-          params
+      let args, newenv, _ =
+        List.fold_left (fun (args, env, subst) param ->
+          let id_arg_pers = Ident.create_persistent param in
+          let mty_arg =
+            (Env.find_module (Path.Pident id_arg_pers) env).md_type in
+          let scope = Ctype.create_scope () in
+          let mty_arg = Subst.modtype Make_local subst mty_arg in
+          let id_arg, newenv =
+            Env.enter_module ~scope ~arg:true param Mp_present mty_arg env in
+          (id_arg, mty_arg) :: args,
+          newenv,
+          Subst.add_module_path
+            (Path.Pident id_arg_pers)
+            (Path.Pident id_arg)
+            subst)
+          ([], env, Subst.identity) params
       in
-      let body = transl_signature env ast in
+      let body = transl_signature newenv ast in
       let args = List.rev args in
       { tintf_desc = Tintf_functor (args, body);
         tintf_type = Unit_functor (args, body.sig_type);
-        tintf_env = env;
+        tintf_env = newenv;
       }
 
 let type_interface env ast =
