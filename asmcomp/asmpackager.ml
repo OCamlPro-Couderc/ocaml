@@ -121,17 +121,37 @@ let make_package_object
         let backend_sym = Backend_sym.of_symbol symbol in
         Filename.temp_file (Backend_sym.to_string backend_sym) Config.ext_obj
     in
+    let identifiers =
+      List.map (fun m ->
+          Ident.create_persistent (* ~prefix *) (CU.Name.to_string m.pm_name))
+        members in
     let components =
       List.map
         (fun m ->
+           let id = Ident.create_persistent (CU.Name.to_string m.pm_name) in
           match m.pm_kind with
-          | PM_intf -> None
-          | PM_impl (_, _, ty) ->
+            | PM_intf ->
+                Lambda.PM_intf id
+            | PM_impl (ui, _, ty) ->
               let is_functor = match ty with
                   Types.Unit_functor (_, _) -> true
                 | _ -> false in
-              Some (Ident.create_persistent (CU.Name.to_string m.pm_name),
-                    is_functor))
+              let required =
+                CU.Name.Map.fold (fun name _ req ->
+                    let pers_id =
+                      Ident.create_persistent (* ~prefix *) (CU.Name.to_string
+                                                               name) in
+                    if not (Ident.equal pers_id id) &&
+                       List.exists (Ident.equal pers_id) identifiers then
+                      pers_id :: req
+                    else req)
+                  (UI.imports_cmi ui) []
+                |> List.sort Ident.compare
+              in
+              Lambda.PM_impl
+                (Ident.create_persistent (CU.Name.to_string m.pm_name),
+                 required,
+                 is_functor))
         members
     in
     let module_ident = Ident.create_persistent targetname in
