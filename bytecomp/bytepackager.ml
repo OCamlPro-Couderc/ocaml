@@ -168,17 +168,27 @@ let rec append_bytecode_list packagename oc identifiers defined ofs subst =
 (* Generate the code that builds the tuple representing the package module *)
 
 let build_global_target
-    ~ppf_dump oc target_name members identifiers pos coercion =
+    ~ppf_dump oc target_name prefix members identifiers pos coercion =
   let components =
     List.map2
       (fun m id ->
         match m.pm_kind with
-        | PM_intf -> None
-        | PM_impl (_, ty) ->
+        | PM_intf -> Lambda.PM_intf id
+        | PM_impl (cu, ty) ->
             let is_functor = match ty with
                 Types.Unit_functor (_, _) -> true
               | _ -> false in
-            Some (id, is_functor))
+            let required =
+              List.filter_map (fun (name, _) ->
+                  let pers_id = Ident.create_persistent ~prefix name in
+                  if not (Ident.equal pers_id id) &&
+                     List.exists (Ident.equal pers_id) identifiers then
+                    Some pers_id
+                  else None)
+                cu.cu_imports
+              |> List.sort Ident.compare
+            in
+            Lambda.PM_impl (id, required, is_functor))
       members identifiers in
   let lam =
     Translmod.transl_package
@@ -234,7 +244,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let pos_code = pos_out oc in
     let ofs = append_bytecode_list packagename oc identifiers [] 0
                                    Subst.identity members in
-    build_global_target ~ppf_dump oc targetname members identifiers ofs coercion;
+    build_global_target ~ppf_dump oc targetname prefix members identifiers ofs coercion;
     let pos_debug = pos_out oc in
     if !Clflags.debug && !events <> [] then begin
       output_value oc (List.rev !events);
