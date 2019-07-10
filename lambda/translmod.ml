@@ -771,19 +771,57 @@ let transl_current_module_ident module_name =
   let prefix = Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
   Ident.create_persistent ~prefix module_name
 
+let for_functorized_package _ = false
+
+let transl_functorized_package_component lam =
+  let package_parameters = [] in
+  let subst, rev_package_parameters =
+    List.fold_left (fun (s, ids) id ->
+        let id' = Ident.create_local (Ident.name id) in
+        Ident.Map.add id s, id' :: ids)
+    Ident.Map.empty package_parameters in
+  let subst, packed_dependencies =
+    List.sort Ident.compare []
+    |> List.fold_left (fun (s, ids) id ->
+        let id' = Ident.create_local (Ident.name id) in
+        Ident.Map.add id s, id' :: ids)
+      subst
+    |> fun (s, rev_deps) -> s, List.rev rev_deps in
+  let params = List.rev_append rev_package_parameters packed_dependencies in
+  let body = Lambda.rename subst lam in
+  Lfunction {
+      kind = Curried;
+      params = List.map (fun id -> id, Pgenval) params;
+      return = Pgenval;
+      attr = {
+        inline = Default_inline;
+        specialise = Default_specialise;
+        local = Default_local;
+        is_a_functor = true;
+        stub = false;
+      };
+      loc = Location.none;
+      body;
+    }
+
 let transl_implementation_flambda module_name (impl, cc) =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
   let module_id = transl_current_module_ident module_name in
-  let body, size =
+  let body, size, required_globals =
     Translobj.transl_label_init
       (fun () ->
-         transl_functorized_implementation module_id (impl, cc)
-         |> wrap_functorized_implementation impl) in
+         let body = transl_functorized_implementation module_id (impl, cc) in
+         let required_globals = required_globals ~flambda:true body in
+         let body =
+           if for_functorized_package !Clflags.for_package then
+             transl_functorized_package_component body required_globals
+           else body in
+         wrap_functorized_implementation impl body) in
   { module_ident = module_id;
     main_module_block_size = size;
-    required_globals = required_globals ~flambda:true body;
+    required_globals;
     code = body }
 
 let transl_implementation module_name (impl, cc) =
