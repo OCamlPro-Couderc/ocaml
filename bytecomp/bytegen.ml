@@ -993,8 +993,8 @@ let compile_implementation modulename expr =
     (match !Clflags.for_package with
       None -> modulename
      | Some p ->
-         (* TO FIX *)
-         (Misc.prefix_of_for_pack p |> String.concat ".") ^ "." ^ modulename);
+         (* TO FIX: register globally the current pack prefix already parsed *)
+         (Ident.Prefix.parse_for_pack p |> Ident.Prefix.to_string) ^ "." ^ modulename);
   let init_code = comp_block empty_env expr 0 [] in
   if Stack.length functions_to_compile > 0 then begin
     let lbl_init = new_label() in
