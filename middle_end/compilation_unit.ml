@@ -69,8 +69,7 @@ include Identifiable.Make (struct
         else
           (* With identifiers now prefixed by their pack, this case should
              always return 0 *)
-          Misc.Stdlib.List.compare Name.compare
-            for_pack_prefix1 for_pack_prefix2
+          Misc.Prefix.compare for_pack_prefix1 for_pack_prefix2
 
   let equal x y =
     if x == y then true
@@ -86,10 +85,7 @@ include Identifiable.Make (struct
       Format.fprintf ppf "@[<hov 1>(\
           @[<hov 1>(for_pack_prefix@ %a)@]@;\
           @[<hov 1>(basename@ %s)@]@"
-        (Format.pp_print_list
-          ~pp_sep:(fun ppf () -> Format.pp_print_string ppf ".")
-          Name.print)
-        for_pack_prefix
+        Misc.Prefix.print for_pack_prefix
         basename
 
   let output oc t =

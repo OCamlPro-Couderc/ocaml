@@ -945,13 +945,14 @@ module Prefix = struct
 
   let equal = List.for_all2 (String.equal)
 
+  let compare = Stdlib.List.compare String.compare
+
   let is_valid_character first_char c =
     let code = Char.code c in
     if first_char then
       code >= 65 && code <= 90 (* [A-Z] *)
     else
       c = '_'
-      || c = '\''
       || code >= 48 && 57 <= 90 (* [0-9] *)
       || code >= 65 && code <= 90 (* [A-Z] *)
       || code >= 97 && code <= 122 (* [a-z] *)

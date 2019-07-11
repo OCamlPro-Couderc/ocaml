@@ -489,6 +489,8 @@ module Prefix : sig
 
   val equal : t -> t -> bool
 
+  val compare : t -> t -> int
+
   val parse_for_pack : string -> t
   (** [parse_for_pack p] returns the list of nested packed modules from a
       `-for-pack` argument.*)
