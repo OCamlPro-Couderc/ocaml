@@ -497,6 +497,8 @@ module Prefix : sig
   (** [extract_prefix id] returns the prefix of an identifier, as if it was
       generated with `-for-pack` *)
 
+  val print: Format.formatter -> t -> unit
+
   val to_string: t -> string
 
 end

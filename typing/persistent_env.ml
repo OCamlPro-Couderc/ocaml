@@ -390,10 +390,7 @@ let report_error ppf =
     | [] -> pp_print_string ppf "no `-for-pack' prefix"
     | _ ->
         fprintf ppf "a `-for-pack' prefix of [%a]"
-          (pp_print_list
-             ~pp_sep:(fun ppf () -> Format.pp_print_string ppf ".")
-             pp_print_string)
-          prefix
+          Prefix.print prefix
   in
   function
   | Illegal_renaming(modname, ps_name, filename) -> fprintf ppf

@@ -970,7 +970,14 @@ module Prefix = struct
     | None -> []
     | Some pos -> parse_for_pack (String.sub name 0 (pos+1))
 
+  let print fmt p =
+    Format.pp_print_list
+      ~pp_sep:(fun ppf () -> Format.pp_print_string ppf ".")
+      Format.pp_print_string
+      fmt
+      p
+
   let to_string p =
-    String.concat "." p
+    Format.asprintf "%a" print p
 
 end
