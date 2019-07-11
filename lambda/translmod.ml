@@ -730,7 +730,7 @@ let required_globals ~flambda body =
 let transl_current_module_ident module_name =
   match !Clflags.for_package with
     Some p ->
-      let prefix = Ident.Prefix.parse_for_pack p in
+      let prefix = Misc.Prefix.parse_for_pack p in
       Ident.create_persistent ~prefix module_name
   | None -> Ident.create_persistent module_name
 

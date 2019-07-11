@@ -937,3 +937,40 @@ module EnvLazy = struct
     loop !log
 
 end
+
+
+module Prefix = struct
+
+  type t = string list
+
+  let equal = List.for_all2 (String.equal)
+
+  let is_valid_character first_char c =
+    let code = Char.code c in
+    if first_char then
+      code >= 65 && code <= 90 (* [A-Z] *)
+    else
+      c = '_'
+      || c = '\''
+      || code >= 48 && 57 <= 90 (* [0-9] *)
+      || code >= 65 && code <= 90 (* [A-Z] *)
+      || code >= 97 && code <= 122 (* [a-z] *)
+
+  let parse_for_pack pack =
+    let prefix = String.split_on_char '.' pack in
+    List.iter (fun module_name ->
+        String.iteri (fun i c ->
+            if not (is_valid_character (i=0) c) then
+              failwith module_name)
+          module_name) prefix;
+    prefix
+
+  let extract_prefix name =
+    match String.rindex_opt name '.' with
+    | None -> []
+    | Some pos -> parse_for_pack (String.sub name 0 (pos+1))
+
+  let to_string p =
+    String.concat "." p
+
+end

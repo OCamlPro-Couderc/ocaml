@@ -24,24 +24,6 @@ include Identifiable.S with type t := t
    - [compare] compares identifiers by binding location
 *)
 
-module Prefix : sig
-
-  type t = string list
-
-  val equal : t -> t -> bool
-
-  val parse_for_pack : string -> t
-  (** [parse_for_pack p] returns the list of nested packed modules from a
-      `-for-pack` argument.*)
-
-  val extract_prefix : string -> t
-  (** [extract_prefix id] returns the prefix of an identifier, as if it was
-      generated with `-for-pack` *)
-
-  val to_string: t -> string
-
-end
-
 val print_with_scope : Format.formatter -> t -> unit
         (** Same as {!print} except that it will also add a "[n]" suffix
             if the scope of the argument is [n]. *)

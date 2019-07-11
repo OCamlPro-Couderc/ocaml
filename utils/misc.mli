@@ -482,3 +482,21 @@ module EnvLazy: sig
   val backtrack : log -> unit
 
 end
+
+module Prefix : sig
+
+  type t = string list
+
+  val equal : t -> t -> bool
+
+  val parse_for_pack : string -> t
+  (** [parse_for_pack p] returns the list of nested packed modules from a
+      `-for-pack` argument.*)
+
+  val extract_prefix : string -> t
+  (** [extract_prefix id] returns the prefix of an identifier, as if it was
+      generated with `-for-pack` *)
+
+  val to_string: t -> string
+
+end

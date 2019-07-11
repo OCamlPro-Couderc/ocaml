@@ -30,7 +30,7 @@ type error =
   | Depend_on_unsafe_string_unit of modname
   | Inconsistent_package_declaration of
       { imported_unit: modname; filename: filepath;
-        prefix: modname list; current_pack: modname list }
+        prefix: Prefix.t; current_pack: Prefix.t }
   | Inconsistent_package_import of filepath * modname
 
 exception Error of error
@@ -210,7 +210,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
              computing it using `split_on_char` each time *)
           let curr_prefix = match !Clflags.for_package with
               None -> []
-            | Some p -> String.split_on_char '.' p in
+            | Some p -> Misc.Prefix.parse_for_pack p in
           if not (check_pack_compatibility curr_prefix p)
           && not !Clflags.make_package then
             error (Inconsistent_package_declaration
@@ -218,7 +218,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
                       current_pack = curr_prefix});
           if not (check_pack_import curr_prefix p ps.ps_name) then
             error (Inconsistent_package_import
-                     (filename,  String.concat "." p ^ "." ^ modname))
+                     (filename,  Prefix.to_string p ^ "." ^ modname))
       | Opaque ->
           add_imported_opaque penv modname)
     ps.ps_flags;
@@ -346,7 +346,7 @@ let make_cmi penv modname sign alerts =
       if !Clflags.opaque then [Cmi_format.Opaque] else [];
       (if !Clflags.unsafe_string then [Cmi_format.Unsafe_string] else []);
       (match !Clflags.for_package with Some p ->
-         [Cmi_format.Pack (Ident.Prefix.parse_for_pack p)] | None -> []);
+         [Cmi_format.Pack (Misc.Prefix.parse_for_pack p)] | None -> []);
       [Alerts alerts];
     ]
   in
