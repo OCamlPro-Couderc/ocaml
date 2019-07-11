@@ -968,8 +968,10 @@ module Prefix = struct
 
   let extract_prefix name =
     match String.rindex_opt name '.' with
-    | None -> []
-    | Some pos -> parse_for_pack (String.sub name 0 (pos+1))
+    | None -> [], name
+    | Some pos ->
+        parse_for_pack (String.sub name 0 (pos+1)),
+        String.sub name (pos+1) (String.length name - pos - 1)
 
   let print fmt p =
     Format.pp_print_list

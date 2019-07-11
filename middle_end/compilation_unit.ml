@@ -104,13 +104,7 @@ let create ?(for_pack_prefix = []) basename =
   }
 
 let of_persistent_ident id =
-  let for_pack_prefix, basename =
-    match List.rev @@ String.split_on_char '.' (Ident.name id) with
-    | [] -> [], Ident.name id
-    | unit_name :: rev_prefix ->
-        List.fold_left (fun l p -> p :: l) [] rev_prefix,
-        unit_name
-  in
+  let for_pack_prefix, basename = Misc.Prefix.extract_prefix (Ident.name id) in
   create ~for_pack_prefix basename
 
 

@@ -495,9 +495,9 @@ module Prefix : sig
   (** [parse_for_pack p] returns the list of nested packed modules from a
       `-for-pack` argument.*)
 
-  val extract_prefix : string -> t
-  (** [extract_prefix id] returns the prefix of an identifier, as if it was
-      generated with `-for-pack` *)
+  val extract_prefix : string -> t * modname
+  (** [extract_prefix id] returns the prefix of an identifier and its basename,
+      as if it was generated with `-for-pack` *)
 
   val print: Format.formatter -> t -> unit
 
