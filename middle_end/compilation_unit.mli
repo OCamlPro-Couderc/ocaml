@@ -29,6 +29,21 @@ module Name : sig
 
   (** Convert a compilation unit name to a string. *)
   val to_string : t -> string
+
+end
+
+module Prefix : sig
+
+  type t = Name.t list
+
+  val of_prefix : Misc.Prefix.t -> t
+
+  val to_prefix : t -> Misc.Prefix.t
+
+  val equal : t -> t -> bool
+
+  val compare : t -> t -> int
+
 end
 
 (** The name of a "compilation unit" along with any "-for-pack" prefix that
@@ -50,7 +65,7 @@ val print_name : Format.formatter -> t -> unit
 
 (** Create a compilation unit with the given [name] (which is not encoded or
     mangled in any way). *)
-val create : ?for_pack_prefix:Name.t list -> Name.t -> t
+val create : ?for_pack_prefix:Prefix.t -> Name.t -> t
 
 (** Create a compilation unit form the given [id] (which is not encoded or
     mangled in any way). The `-for-pack` of prefix is extracted if there is
@@ -87,7 +102,7 @@ val name : t -> Name.t
 
 (** The [for_pack_prefix] specified to [create] for the given compilation
     unit. *)
-val for_pack_prefix : t -> Name.t list
+val for_pack_prefix : t -> Prefix.t
 
 (** If an empty [for_pack_prefix] was specified to [create] for the given
     compilation unit, this function returns [None].  Otherwise it returns the
@@ -99,7 +114,7 @@ val for_pack_prefix_as_string : t -> string option
 
 (** Like [for_pack_prefix], except with the [name] of the compilation unit
     appended. *)
-val full_path : t -> Name.t list
+val full_path : t -> Prefix.t
 
 (** Like [full_path], except with the result returned as a string, with
     a dot between each pair of components. *)

@@ -46,8 +46,18 @@ module Name = struct
   let to_string t = t
 end
 
+module Prefix = struct
+
+  include Misc.Prefix
+
+  let of_prefix p = p
+
+  let to_prefix p = p
+
+end
+
 type t = {
-  for_pack_prefix : Name.t list;
+  for_pack_prefix : Prefix.t;
   basename : Name.t;
   hash : int;
 }
@@ -69,7 +79,7 @@ include Identifiable.Make (struct
         else
           (* With identifiers now prefixed by their pack, this case should
              always return 0 *)
-          Misc.Prefix.compare for_pack_prefix1 for_pack_prefix2
+          Prefix.compare for_pack_prefix1 for_pack_prefix2
 
   let equal x y =
     if x == y then true
@@ -85,7 +95,7 @@ include Identifiable.Make (struct
       Format.fprintf ppf "@[<hov 1>(\
           @[<hov 1>(for_pack_prefix@ %a)@]@;\
           @[<hov 1>(basename@ %s)@]@"
-        Misc.Prefix.print for_pack_prefix
+        Prefix.print for_pack_prefix
         basename
 
   let output oc t =
@@ -104,7 +114,7 @@ let create ?(for_pack_prefix = []) basename =
   }
 
 let of_persistent_ident id =
-  let for_pack_prefix, basename = Misc.Prefix.extract_prefix (Ident.name id) in
+  let for_pack_prefix, basename = Prefix.extract_prefix (Ident.name id) in
   create ~for_pack_prefix basename
 
 
@@ -122,12 +132,12 @@ let for_pack_prefix t = t.for_pack_prefix
 let for_pack_prefix_as_string t =
   match for_pack_prefix t with
   | [] -> None
-  | prefix -> Some (String.concat "." (List.map Name.to_string prefix))
+  | prefix -> Some (Prefix.to_string prefix)
 
 let full_path t = t.for_pack_prefix @ [name t]
 
 let full_path_as_string t =
-  String.concat "." (List.map Name.to_string (full_path t))
+  Prefix.to_string (full_path t)
 
 let current = ref None
 
