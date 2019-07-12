@@ -941,9 +941,13 @@ end
 
 module Prefix = struct
 
-  type t = string list
+  type component = string
 
-  let equal = List.for_all2 (String.equal)
+  type t = component list
+
+  let equal_component = String.equal
+
+  let equal = Stdlib.List.equal equal_component
 
   let compare = Stdlib.List.compare String.compare
 

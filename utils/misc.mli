@@ -485,7 +485,11 @@ end
 
 module Prefix : sig
 
-  type t = string list
+  type component = string
+
+  type t = component list
+
+  val equal_component : component -> component -> bool
 
   val equal : t -> t -> bool
 

@@ -34,15 +34,21 @@ end
 
 module Prefix : sig
 
-  type t = Name.t list
+  type component = Name.t
+
+  type t = component list
 
   val of_prefix : Misc.Prefix.t -> t
 
   val to_prefix : t -> Misc.Prefix.t
 
+  val equal_component : component -> component -> bool
+
   val equal : t -> t -> bool
 
   val compare : t -> t -> int
+
+  val print : Format.formatter -> t -> unit
 
 end
 

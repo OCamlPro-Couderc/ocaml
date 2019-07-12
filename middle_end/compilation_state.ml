@@ -32,13 +32,13 @@ type error =
     }
   | Illegal_import_for_pack_prefix of {
       found_unit_name : CU.Name.t;
-      for_pack_prefix_in_cmx : CU.Name.t list;
-      current_for_pack_prefix : CU.Name.t list;
+      for_pack_prefix_in_cmx : CU.Prefix.t;
+      current_for_pack_prefix : CU.Prefix.t;
       filename : string;
     }
   | Wrong_for_pack_prefix of {
-      expected_prefix : CU.Name.t list;
-      found_prefix : CU.Name.t list;
+      expected_prefix : CU.Prefix.t;
+      found_prefix : CU.Prefix.t;
       filename : string;
     }
 
@@ -54,13 +54,13 @@ module Error = struct
       }
     | Illegal_import_for_pack_prefix of {
         found_unit_name : CU.Name.t;
-        for_pack_prefix_in_cmx : CU.Name.t list;
-        current_for_pack_prefix : CU.Name.t list;
+        for_pack_prefix_in_cmx : CU.Prefix.t;
+        current_for_pack_prefix : CU.Prefix.t;
         filename : string;
       }
     | Wrong_for_pack_prefix of {
-        expected_prefix : CU.Name.t list;
-        found_prefix : CU.Name.t list;
+        expected_prefix : CU.Prefix.t;
+        found_prefix : CU.Prefix.t;
         filename : string;
       }
 
@@ -70,10 +70,7 @@ module Error = struct
       | [] -> Format.pp_print_string ppf "no `-for-pack' prefix"
       | _ ->
         Format.fprintf ppf "a `-for-pack' prefix of [%a]"
-          (Format.pp_print_list
-            ~pp_sep:(fun ppf () -> Format.pp_print_string ppf ".")
-            CU.Name.print)
-          prefix
+          CU.Prefix.print prefix
     in
     match error with
     | Illegal_renaming { contains_unit; desired_unit_name; filename; } ->
@@ -241,7 +238,7 @@ let compilation_unit_for_global id : compilation_unit_or_predef =
         CU.for_pack_prefix (CU.get_current_exn ())
       in
       let is_valid_prefix =
-        Misc.Stdlib.List.is_prefix ~equal:CU.Name.equal
+        Misc.Stdlib.List.is_prefix ~equal:CU.Prefix.equal_component
           for_pack_prefix_in_cmx ~of_:current_for_pack_prefix
       in
       if not is_valid_prefix then begin
@@ -415,12 +412,12 @@ module Flambda_only = struct
     let desired_path = CU.full_path comp_unit in
     let current_path = CU.full_path current_comp_unit in
     let prefix_result =
-      Misc.Stdlib.List.find_and_chop_longest_common_prefix ~equal:CU.Name.equal
+      Misc.Stdlib.List.find_and_chop_longest_common_prefix
+        ~equal:CU.Prefix.equal_component
         ~first:desired_path ~second:current_path
     in
     let for_pack_prefix = prefix_result.longest_common_prefix in
-    let desired_path_without_for_pack_prefix =
-      prefix_result.first_without_longest_common_prefix
+    let desired_path_without_for_pack_prefix = prefix_result.first_without_longest_common_prefix
     in
     let name_of_unit_containing_symbol =
       match desired_path_without_for_pack_prefix with
@@ -451,8 +448,8 @@ module Flambda_only = struct
     | Already_loaded info -> extract_flambda_export_info info
     | Just_loaded { info; filename; } ->
       let for_pack_prefix_in_cmx = CU.for_pack_prefix (UI.unit info) in
-      if not (Misc.Stdlib.List.equal CU.Name.equal for_pack_prefix
-        for_pack_prefix_in_cmx)
+      if not (CU.Prefix.equal for_pack_prefix
+                for_pack_prefix_in_cmx)
       then begin
         raise (Error (
           Wrong_for_pack_prefix {
