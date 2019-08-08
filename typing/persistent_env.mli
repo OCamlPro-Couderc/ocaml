@@ -103,3 +103,6 @@ val crc_of_unit: 'a t -> (Persistent_signature.t -> 'a) -> modname -> Digest.t
 
 (* Forward declaration to break mutual recursion with Typecore. *)
 val add_delayed_check_forward: ((unit -> unit) -> unit) ref
+
+(* Forward declaration to break mutual recursion with Env. *)
+val get_current_prefix_forward: (unit -> Prefix.t) ref

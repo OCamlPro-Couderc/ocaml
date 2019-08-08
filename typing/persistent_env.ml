@@ -23,6 +23,8 @@ module Consistbl = Consistbl.Make (Misc.Stdlib.String)
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
+let get_current_prefix_forward = ref (fun _ -> assert false)
+
 type error =
   | Illegal_renaming of modname * modname * filepath
   | Inconsistent_import of modname * filepath * filepath
@@ -165,9 +167,7 @@ let save_pers_struct penv crc ps pm =
         | Alerts _ -> ()
         | Unsafe_string -> ()
         | Pack _p -> ()
-        | Opaque ->
-            Printf.eprintf "add_imported_opaque: %s\n%!" modname;
-            add_imported_opaque penv modname)
+        | Opaque -> add_imported_opaque penv modname)
     ps.ps_flags;
   Consistbl.set crc_units modname crc ps.ps_filename;
   add_import penv modname
@@ -208,9 +208,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
       | Pack p ->
           (* Current for-pack prefix should be stored somewhere to avoid
              computing it using `split_on_char` each time *)
-          let curr_prefix = match !Clflags.for_package with
-              None -> []
-            | Some p -> Misc.Prefix.parse_for_pack p in
+          let curr_prefix = !get_current_prefix_forward () in
           if not (check_pack_compatibility curr_prefix p)
           && not !Clflags.make_package then
             error (Inconsistent_package_declaration
@@ -345,8 +343,9 @@ let make_cmi penv modname sign alerts =
       if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
       if !Clflags.opaque then [Cmi_format.Opaque] else [];
       (if !Clflags.unsafe_string then [Cmi_format.Unsafe_string] else []);
-      (match !Clflags.for_package with Some p ->
-         [Cmi_format.Pack (Misc.Prefix.parse_for_pack p)] | None -> []);
+      (match !get_current_prefix_forward () with
+         [] -> []
+       | prefix -> [Cmi_format.Pack prefix] );
       [Alerts alerts];
     ]
   in
@@ -428,7 +427,6 @@ let report_error ppf =
       fprintf ppf
         "@[<hov>The interface %s@ corresponds to the current unit's package %s.@]"
         intf_filename intf_fullname
-
 
 let () =
   Location.register_error_of_exn

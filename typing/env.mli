@@ -240,6 +240,9 @@ val reset_cache_toplevel: unit -> unit
 val set_unit_name: string -> unit
 val get_unit_name: unit -> string
 
+(* Parses and returns the prefix given with "-for-pack" *)
+val get_current_prefix: unit -> Prefix.t
+
 (* Read, save a signature to/from a file *)
 val read_signature: modname -> filepath -> signature
         (* Arguments: module name, file name. Results: signature. *)

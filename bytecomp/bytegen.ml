@@ -990,11 +990,10 @@ let compile_implementation modulename expr =
   label_counter := 0;
   sz_static_raises := [] ;
   compunit_name :=
-    (match !Clflags.for_package with
-      None -> modulename
-     | Some p ->
-         (* TO FIX: register globally the current pack prefix already parsed *)
-         (Misc.Prefix.parse_for_pack p |> Misc.Prefix.to_string) ^ "." ^ modulename);
+    (match Env.get_current_prefix () with
+       [] -> modulename
+     | prefix ->
+         Misc.Prefix.to_string prefix ^ "." ^ modulename);
   let init_code = comp_block empty_env expr 0 [] in
   if Stack.length functions_to_compile > 0 then begin
     let lbl_init = new_label() in

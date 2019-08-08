@@ -579,6 +579,30 @@ end
 let set_unit_name = Current_unit_name.set
 let get_unit_name = Current_unit_name.get
 
+(* The pack of the compilation unit currently compiled.
+   [] if outside a compilation unit. *)
+module Current_prefix : sig
+  val parse : unit -> Misc.Prefix.t
+  val reset : unit -> unit
+end = struct
+  let current_prefix =
+    ref None
+  let parse () =
+    match !current_prefix with
+      Some p -> p
+    | None ->
+        match !Clflags.for_package with
+          None -> current_prefix := Some []; []
+        | Some p ->
+            let prefix = Misc.Prefix.parse_for_pack p in
+            current_prefix := Some prefix;
+            prefix
+  let reset () =
+    current_prefix := None
+end
+
+let get_current_prefix = Current_prefix.parse
+
 let find_same_module id tbl =
   match IdTbl.find_same id tbl with
   | x -> x
@@ -675,6 +699,7 @@ let reset_declaration_caches () =
 
 let reset_cache () =
   Current_unit_name.set "";
+  Current_prefix.reset ();
   Persistent_env.clear persistent_env;
   reset_declaration_caches ();
   ()
@@ -2515,6 +2540,7 @@ let report_error ppf = function
         name
 
 let () =
+  Persistent_env.get_current_prefix_forward := get_current_prefix;
   Location.register_error_of_exn
     (function
       | Error err ->
