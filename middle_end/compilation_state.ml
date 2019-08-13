@@ -254,7 +254,12 @@ let compilation_unit_for_global id : compilation_unit_or_predef =
   end
 
 let cache_unit_info ui =
-  CU.Name.Tbl.add global_infos_table (CU.name (UI.unit ui)) (Already_loaded ui)
+  CU.Name.Tbl.add global_infos_table (CU.name (UI.unit ui)) (Already_loaded ui);
+  match UI.export_info ui with
+  | Closure _ -> ()
+  | Flambda export_info ->
+      merged_flambda_export_info :=
+        Export_info.merge !merged_flambda_export_info export_info
 
 let check_is_flambda flambda =
   if Config.flambda <> flambda then begin

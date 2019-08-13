@@ -795,22 +795,26 @@ let transl_functorized_package_component lam curr_prefix =
     |> fun (s, rev_deps) -> s, List.rev rev_deps in
   let params = List.rev_append rev_package_parameters packed_dependencies in
   let body = Lambda.rename subst lam in
-  Lprim (Pmakeblock(0, Immutable, None),
-         [ Lfunction {
-               kind = Curried;
-               params = List.map (fun id -> id, Pgenval) params;
-               return = Pgenval;
-               attr = {
-                 inline = Default_inline;
-                 specialise = Default_specialise;
-                 local = Default_local;
-                 is_a_functor = true;
-                 stub = false;
-               };
-               loc = Location.none;
-               body;
-             }],
-        Location.none), 1
+  let id = Ident.create_local "impl" in
+  let impl =
+    Lfunction {
+      kind = Curried;
+      params = List.map (fun id -> id, Pgenval) params;
+      return = Pgenval;
+      attr = {
+        inline = Default_inline;
+        specialise = Default_specialise;
+        local = Default_local;
+        is_a_functor = true;
+        stub = false;
+      };
+      loc = Location.none;
+      body } in
+  Llet (Strict, Pgenval, id,
+        impl,
+        Lprim (Pmakeblock(0, Immutable, None),
+               [ Lvar id ],
+               Location.none)), 1
 
 let transl_implementation_flambda module_name (impl, cc) =
   if !Clflags.debug_compiler then
@@ -1597,7 +1601,11 @@ let transl_functorized_package components params =
       loc = Location.none;
       body = instanciation;
     } in
-  Lprim(Pmakeblock(0, Immutable, None), [functor_pack], Location.none)
+  let id = Ident.create_local "functor_pack" in
+  Llet (Strict, Pgenval, id,
+        functor_pack,
+        Lprim(Pmakeblock(0, Immutable, None), [Lvar id], Location.none))
+
 
 let transl_package_body components params =
   if params <> [] then
@@ -1610,6 +1618,7 @@ let transl_package_body components params =
 let transl_package_flambda components coercion =
   let size =
     match coercion with
+    | _ when !Clflags.functor_parameters <> [] -> 1
     | Tcoerce_none -> List.length components
     | Tcoerce_structure (l, _) -> List.length l
     | Tcoerce_functor _ -> 1
