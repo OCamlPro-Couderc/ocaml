@@ -42,7 +42,7 @@ exception Error of error
 
 type pack_member_kind =
   | PM_intf
-  | PM_impl of UI.t * Cmx_format.Unit_info_link_time.t
+  | PM_impl of UI.t * Cmx_format.Unit_info_link_time.t * Types.compilation_unit
 
 type pack_member =
   { pm_file: filepath;
@@ -74,7 +74,8 @@ let read_member_info pack_path file =
       end;
       Asmlink.check_consistency file info crc;
       Compilation_state.cache_unit_info info;
-      PM_impl (info, link_info)
+      PM_impl (info, link_info,
+               Env.read_interface name (chop_extensions file ^ ".cmi"))
     end
   in
   { pm_file = file; pm_name = name; pm_kind = kind }
@@ -87,7 +88,7 @@ let check_units members =
   | mb :: tl ->
       begin match mb.pm_kind with
       | PM_intf -> ()
-      | PM_impl (info, _link_info) ->
+      | PM_impl (info, _link_info, _ty) ->
           CU.Map.iter
             (fun unit _crc ->
               let name = CU.name unit in
@@ -104,8 +105,8 @@ let check_units members =
 
 (* Make the .o file for the package *)
 
-let make_package_object ~ppf_dump members targetobj targetname coercion
-      ~backend =
+let make_package_object
+    ~ppf_dump members targetobj targetname coercion ~backend =
   Profile.record_call
     (Printf.sprintf "pack(%s)" (CU.Name.to_string targetname)) (fun () ->
     let objtemp =
@@ -125,8 +126,12 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         (fun m ->
           match m.pm_kind with
           | PM_intf -> None
-          | PM_impl _ ->
-            Some (Ident.create_persistent (CU.Name.to_string m.pm_name)))
+          | PM_impl (_, _, ty) ->
+              let is_functor = match ty with
+                  Types.Unit_functor (_, _) -> true
+                | _ -> false in
+              Some (Ident.create_persistent (CU.Name.to_string m.pm_name),
+                    is_functor))
         members
     in
     let module_ident = Ident.create_persistent (CU.Name.to_string targetname) in
@@ -193,7 +198,7 @@ let build_package_cmx members cmxfile =
       List.fold_right (fun m accu ->
           match m.pm_kind with
           | PM_intf -> accu
-          | PM_impl (info, link_info) -> (info, link_info) :: accu)
+          | PM_impl (info, link_info, _) -> (info, link_info) :: accu)
         members [])
   in
   let compilation_state = Compilation_state.Snapshot.create () in
