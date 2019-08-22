@@ -63,7 +63,9 @@ let relocate_debug base subst ev =
 
 (* Read the unit information from a .cmo file. *)
 
-type pack_member_kind = PM_intf | PM_impl of compilation_unit
+type pack_member_kind =
+    PM_intf
+  | PM_impl of compilation_unit * Types.compilation_unit
 
 type pack_member =
   { pm_file: string;
@@ -94,7 +96,8 @@ let read_member_info pack_path file = (
         if not (Compilation_unit.Prefix.equal compunit.cu_prefix pack_path) then
           raise (Error (Wrong_for_pack (file, pack_path)));
         close_in ic;
-        PM_impl compunit
+        PM_impl (compunit,
+                 Env.read_interface name (chop_extensions file ^ ".cmi"))
       with x ->
         close_in ic;
         raise x
@@ -145,7 +148,7 @@ let rec append_bytecode_list packagename oc identifiers defined ofs subst =
       | PM_intf ->
           append_bytecode_list packagename oc identifiers defined ofs
                                       subst rem
-      | PM_impl compunit ->
+      | PM_impl (compunit, _) ->
           let size =
             append_bytecode oc identifiers defined ofs
               subst m.pm_file compunit in
@@ -161,13 +164,18 @@ let rec append_bytecode_list packagename oc identifiers defined ofs subst =
 
 (* Generate the code that builds the tuple representing the package module *)
 
-let build_global_target ~ppf_dump oc target_name members identifiers pos coercion =
+let build_global_target
+    ~ppf_dump oc target_name members identifiers pos coercion =
   let components =
     List.map2
       (fun m id ->
         match m.pm_kind with
         | PM_intf -> None
-        | PM_impl _ -> Some id)
+        | PM_impl (_, ty) ->
+            let is_functor = match ty with
+                Types.Unit_functor (_, _) -> true
+              | _ -> false in
+            Some (id, is_functor))
       members identifiers in
   let lam =
     Translmod.transl_package
@@ -193,7 +201,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     List.fold_right (fun compunit required_globals -> match compunit with
         | { pm_kind = PM_intf } ->
             required_globals
-        | { pm_kind = PM_impl { cu_required_globals; cu_reloc } } ->
+        | { pm_kind = PM_impl ({ cu_required_globals; cu_reloc }, _) } ->
             let remove_required (rel, _pos) required_globals =
               match rel with
                 Reloc_setglobal id ->

@@ -1491,7 +1491,10 @@ let transl_toplevel_definition str =
 
 let get_component = function
     None -> Lconst const_unit
-  | Some id -> Lprim(Pgetglobal id, [], Location.none)
+  | Some (id, is_functor) ->
+      if not is_functor then Lprim(Pgetglobal id, [], Location.none)
+      else Lprim(Pfield 0, [Lprim(Pgetglobal id, [], Location.none)],
+                 Location.none)
 
 let transl_package_flambda component_names coercion =
   let size =
