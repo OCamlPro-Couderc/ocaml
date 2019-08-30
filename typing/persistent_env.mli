@@ -81,6 +81,10 @@ val is_imported : 'a t -> modname -> bool
    in [penv] as an opaque module *)
 val is_imported_opaque : 'a t -> modname -> bool
 
+val is_imported_packed : 'a t -> modname -> bool
+(* [is_imported_packed penv md] checks if [md] has been imported
+   in [penv] as a packed module *)
+
 val make_cmi : 'a t -> modname -> Types.signature -> alerts
   -> Cmi_format.cmi_infos
 
@@ -97,6 +101,9 @@ val import_crcs : 'a t -> source:filepath -> crcs -> unit
 
 (* Return the set of compilation units imported, with their CRC *)
 val imports : 'a t -> crcs
+
+(* Return the set of compilation units imported from the same pack *)
+val packed : 'a t -> (modname * Prefix.t) list
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: 'a t -> (Persistent_signature.t -> 'a) -> modname -> Digest.t

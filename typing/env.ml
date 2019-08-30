@@ -675,6 +675,10 @@ let imports () = Persistent_env.imports persistent_env
 let import_crcs ~source crcs =
   Persistent_env.import_crcs persistent_env ~source crcs
 
+let packed_imports () =
+  Persistent_env.packed persistent_env
+  |> List.map (fun (modname, prefix) -> Ident.create_persistent ~prefix modname)
+
 let read_pers_mod modname filename =
   Persistent_env.read persistent_env read_sign_of_cmi modname filename
 

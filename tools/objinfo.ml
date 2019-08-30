@@ -73,12 +73,17 @@ let print_line name =
 let print_required_global id =
   printf "\t%s\n" (Ident.name id)
 
+let print_pack_dependency id =
+  printf "\t%s\n" (Ident.name id)
+
 let print_cmo_infos cu =
   printf "Unit name: %s\n" cu.cu_name;
   print_string "Interfaces imported:\n";
   List.iter print_name_crc cu.cu_imports;
   print_string "Required globals:\n";
   List.iter print_required_global cu.cu_required_globals;
+  print_string "Pack dependencies:\n";
+  List.iter print_pack_dependency cu.cu_pack_dependencies;
   printf "Uses unsafe features: ";
   (match cu.cu_primitives with
     | [] -> printf "no\n"

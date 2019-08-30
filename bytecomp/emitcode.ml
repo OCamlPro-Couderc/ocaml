@@ -425,6 +425,7 @@ let to_file outchan unit_name objfile ~required_globals code =
       cu_primitives = List.map Primitive.byte_name
                                !Translmod.primitive_declarations;
       cu_required_globals = Ident.Set.elements required_globals;
+      cu_pack_dependencies = Env.packed_imports();
       cu_force_link = !Clflags.link_everything;
       cu_debug = pos_debug;
       cu_debugsize = size_debug } in

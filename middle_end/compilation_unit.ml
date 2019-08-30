@@ -94,7 +94,7 @@ include Identifiable.Make (struct
     | for_pack_prefix ->
       Format.fprintf ppf "@[<hov 1>(\
           @[<hov 1>(for_pack_prefix@ %a)@]@;\
-          @[<hov 1>(basename@ %s)@]@"
+          @[<hov 1>(basename@ %s)@])@]"
         Prefix.print for_pack_prefix
         basename
 
