@@ -162,8 +162,8 @@ let print_general_infos name crc defines cmi cmx =
   in
   List.iter print_line defines;
   printf "Interfaces imported:\n";
-  let cmi = CU.Name.Map.bindings cmi in
-  List.iter (print_name_crc_native CU.Name.print) cmi;
+  let cmi = CU.Map.bindings cmi in
+  List.iter (print_name_crc_native CU.print) cmi;
   printf "Implementations imported:\n";
   let cmx = CU.Map.bindings cmx in
   List.iter (print_name_crc_native CU.print) cmx

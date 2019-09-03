@@ -206,11 +206,11 @@ let build_package_cmx members cmxfile =
   in
   let imports_cmi =
     let imports_cmi =
-      CU.Name.Map.filter (fun name _crc ->
-          not (CU.Name.Set.mem name unit_names_in_pack))
+      CU.Map.filter (fun cu _crc ->
+          not (CU.Name.Set.mem (CU.name cu) unit_names_in_pack))
         (Asmlink.extract_crc_interfaces ())
     in
-    CU.Name.Map.add current_unit_name (Some current_unit_crc) imports_cmi
+    CU.Map.add current_unit (Some current_unit_crc) imports_cmi
   in
   let imports_cmx =
     CU.Map.filter (fun imported_unit _crc ->

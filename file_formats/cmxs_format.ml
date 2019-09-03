@@ -23,7 +23,7 @@ module Dynunit_info = struct
   type t = {
     unit : Compilation_unit.t;
     crc : Digest.t;
-    imports_cmi : Digest.t option Compilation_unit.Name.Map.t;
+    imports_cmi : Digest.t option Compilation_unit.Map.t;
     imports_cmx : Digest.t option Compilation_unit.Map.t;
     defines : Compilation_unit.t list;
   }

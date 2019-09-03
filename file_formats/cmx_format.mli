@@ -50,7 +50,7 @@ module Unit_info : sig
     (* CR-someday mshinwell: Change [imports_cmi] to use
        [Compilation_unit.Map.t] after insisting that .cmi files are produced
        with a "-for-pack" option (see CR in compilation_state.ml). *)
-    -> imports_cmi:Digest.t option Compilation_unit.Name.Map.t
+    -> imports_cmi:Digest.t option Compilation_unit.Map.t
     -> imports_cmx:Digest.t option Compilation_unit.Map.t
     -> export_info:export_info
     -> t
@@ -63,7 +63,7 @@ module Unit_info : sig
   val defines : t -> Compilation_unit.t list
 
   (** Interfaces imported. *)
-  val imports_cmi : t -> Digest.t option Compilation_unit.Name.Map.t
+  val imports_cmi : t -> Digest.t option Compilation_unit.Map.t
 
   (** Info imported. *)
   val imports_cmx : t -> Digest.t option Compilation_unit.Map.t

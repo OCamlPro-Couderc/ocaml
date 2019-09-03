@@ -56,7 +56,7 @@ module Unit_info = struct
   type t = {
     unit : Compilation_unit.t;
     defines : Compilation_unit.t list;
-    imports_cmi : Digest.t option Compilation_unit.Name.Map.t;
+    imports_cmi : Digest.t option Compilation_unit.Map.t;
     imports_cmx : Digest.t option Compilation_unit.Map.t;
     export_info : export_info;
   }

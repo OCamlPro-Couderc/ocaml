@@ -30,7 +30,7 @@ module Dynunit_info : sig
   val create
      : unit:Compilation_unit.t
     -> crc:Digest.t
-    -> imports_cmi:Digest.t option Compilation_unit.Name.Map.t
+    -> imports_cmi:Digest.t option Compilation_unit.Map.t
     -> imports_cmx:Digest.t option Compilation_unit.Map.t
     -> defines:Compilation_unit.t list
     -> t
@@ -42,7 +42,7 @@ module Dynunit_info : sig
   val crc : t -> Digest.t
 
   (** Interfaces imported. *)
-  val imports_cmi : t -> Digest.t option Compilation_unit.Name.Map.t
+  val imports_cmi : t -> Digest.t option Compilation_unit.Map.t
 
   (** Unit information imported. *)
   val imports_cmx : t -> Digest.t option Compilation_unit.Map.t
