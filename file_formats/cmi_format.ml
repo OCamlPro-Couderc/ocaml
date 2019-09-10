@@ -20,7 +20,7 @@ type pers_flags =
   | Alerts of alerts
   | Opaque
   | Unsafe_string
-  | Pack of Prefix.t
+  | Pack of Compunit.Prefix.t
 
 type error =
   | Not_an_interface of filepath
@@ -30,9 +30,9 @@ type error =
 exception Error of error
 
 type cmi_infos = {
-    cmi_name : Misc.modname;
+    cmi_name : Compunit.Name.t;
     cmi_sign : Types.signature_item list;
-    cmi_crcs : crcs;
+    cmi_crcs : Compunit.crcs;
     cmi_flags : pers_flags list;
 }
 
@@ -82,7 +82,13 @@ let output_cmi filename oc cmi =
   output_value oc (cmi.cmi_name, cmi.cmi_sign);
   flush oc;
   let crc = Digest.file filename in
-  let crcs = (cmi.cmi_name, Some crc) :: cmi.cmi_crcs in
+  let for_pack_prefix =
+    match List.find_opt (function Pack _ -> true | _ -> false) cmi.cmi_flags with
+      Some (Pack p) -> p
+    | _ -> []
+  in
+  let crcs =
+    (Compunit.create ~for_pack_prefix cmi.cmi_name, Some crc) :: cmi.cmi_crcs in
   output_value oc crcs;
   output_value oc cmi.cmi_flags;
   crc

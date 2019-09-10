@@ -38,9 +38,9 @@ module Prefix : sig
 
   type t = component list
 
-  val of_prefix : Misc.Prefix.t -> t
+  val of_prefix : Compunit.Prefix.t -> t
 
-  val to_prefix : t -> Misc.Prefix.t
+  val to_prefix : t -> Compunit.Prefix.t
 
   val equal_component : component -> component -> bool
 
@@ -77,6 +77,8 @@ val create : ?for_pack_prefix:Prefix.t -> Name.t -> t
     mangled in any way). The `-for-pack` of prefix is extracted if there is
     any. *)
 val of_persistent_ident : Ident.t -> t
+
+val of_unit : Compunit.t -> t
 
 (** A distinguished compilation unit for initialisation of mutable state. *)
 val none : t

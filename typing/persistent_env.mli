@@ -17,18 +17,18 @@
 open Misc
 
 module Consistbl : module type of struct
-  include Consistbl.Make (Misc.Stdlib.String)
+  include Consistbl.Make (Compunit)
 end
 
 type error =
-  | Illegal_renaming of modname * modname * filepath
-  | Inconsistent_import of modname * filepath * filepath
-  | Need_recursive_types of modname
-  | Depend_on_unsafe_string_unit of modname
+  | Illegal_renaming of Compunit.Name.t * Compunit.Name.t * filepath
+  | Inconsistent_import of Compunit.Name.t * filepath * filepath
+  | Need_recursive_types of Compunit.Name.t
+  | Depend_on_unsafe_string_unit of Compunit.Name.t
   | Inconsistent_package_declaration of
-      { imported_unit: modname; filename: filepath;
-        prefix: modname list; current_pack: modname list }
-  | Inconsistent_package_import of filepath * modname
+      { imported_unit: Compunit.Name.t; filename: filepath;
+        prefix: Compunit.Prefix.t; current_pack: Compunit.Prefix.t }
+  | Inconsistent_package_import of filepath * Compunit.Name.t
 
 exception Error of error
 
@@ -56,36 +56,36 @@ val empty : unit -> 'a t
 val clear : 'a t -> unit
 val clear_missing : 'a t -> unit
 
-val fold : 'a t -> (modname -> 'a -> 'b -> 'b) -> 'b -> 'b
+val fold : 'a t -> (Compunit.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 
 val read : 'a t -> (Persistent_signature.t -> 'a)
-  -> modname -> filepath -> 'a
+  -> Compunit.Name.t -> filepath -> 'a
 val find : 'a t -> (Persistent_signature.t -> 'a)
-  -> modname -> 'a
+  -> Compunit.Name.t -> 'a
 
-val find_in_cache : 'a t -> modname -> 'a option
+val find_in_cache : 'a t -> Compunit.Name.t -> 'a option
 
 val check : 'a t -> (Persistent_signature.t -> 'a)
-  -> loc:Location.t -> modname -> unit
+  -> loc:Location.t -> Compunit.Name.t -> unit
 
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
    [penv] (it may have failed) *)
-val looked_up : 'a t -> modname -> bool
+val looked_up : 'a t -> Compunit.Name.t -> bool
 
-(* [is_imported penv md] checks if [md] has been succesfully
+(* [is_imported penv unit] checks if [unit] has been succesfully
    imported in the environment [penv] *)
-val is_imported : 'a t -> modname -> bool
+val is_imported : 'a t -> Compunit.t -> bool
 
 (* [is_imported_opaque penv md] checks if [md] has been imported
    in [penv] as an opaque module *)
-val is_imported_opaque : 'a t -> modname -> bool
+val is_imported_opaque : 'a t -> Compunit.Name.t -> bool
 
-val is_imported_packed : 'a t -> modname -> bool
+val is_imported_packed : 'a t -> Compunit.Name.t -> bool
 (* [is_imported_packed penv md] checks if [md] has been imported
    in [penv] as a packed module *)
 
-val make_cmi : 'a t -> modname -> Types.signature -> alerts
+val make_cmi : 'a t -> Compunit.Name.t -> Types.signature -> alerts
   -> Cmi_format.cmi_infos
 
 val save_cmi : 'a t -> Persistent_signature.t -> 'a -> unit
@@ -97,19 +97,19 @@ val without_cmis : 'a t -> ('b -> 'c) -> 'b -> 'c
     allow [penv] to openi cmis during its execution *)
 
 (* may raise Consistbl.Inconsistency *)
-val import_crcs : 'a t -> source:filepath -> crcs -> unit
+val import_crcs : 'a t -> source:filepath -> Compunit.crcs -> unit
 
 (* Return the set of compilation units imported, with their CRC *)
-val imports : 'a t -> crcs
+val imports : 'a t -> Compunit.crcs
 
 (* Return the set of compilation units imported from the same pack *)
-val packed : 'a t -> (modname * Prefix.t) list
+val packed : 'a t -> (Compunit.Name.t * Compunit.Prefix.t) list
 
 (* Return the CRC of the interface of the given compilation unit *)
-val crc_of_unit: 'a t -> (Persistent_signature.t -> 'a) -> modname -> Digest.t
+val crc_of_unit: 'a t -> (Persistent_signature.t -> 'a) -> Compunit.Name.t -> Digest.t
 
 (* Forward declaration to break mutual recursion with Typecore. *)
 val add_delayed_check_forward: ((unit -> unit) -> unit) ref
 
 (* Forward declaration to break mutual recursion with Env. *)
-val get_current_prefix_forward: (unit -> Prefix.t) ref
+val get_current_unit_forward: (unit -> Compunit.t) ref

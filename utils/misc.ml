@@ -862,8 +862,6 @@ let print_if ppf flag printer arg =
 
 
 type filepath = string
-type modname = string
-type crcs = (modname * Digest.t option) list
 
 type alerts = string Stdlib.String.Map.t
 
@@ -935,56 +933,5 @@ module EnvLazy = struct
           loop rest
     in
     loop !log
-
-end
-
-
-module Prefix = struct
-
-  type component = string
-
-  type t = component list
-
-  let equal_component = String.equal
-
-  let equal = Stdlib.List.equal equal_component
-
-  let compare = Stdlib.List.compare String.compare
-
-  let is_valid_character first_char c =
-    let code = Char.code c in
-    if first_char then
-      code >= 65 && code <= 90 (* [A-Z] *)
-    else
-      c = '_'
-      || code >= 48 && 57 <= 90 (* [0-9] *)
-      || code >= 65 && code <= 90 (* [A-Z] *)
-      || code >= 97 && code <= 122 (* [a-z] *)
-
-  let parse_for_pack pack =
-    let prefix = String.split_on_char '.' pack in
-    List.iter (fun module_name ->
-        String.iteri (fun i c ->
-            if not (is_valid_character (i=0) c) then
-              failwith module_name)
-          module_name) prefix;
-    prefix
-
-  let extract_prefix name =
-    match String.rindex_opt name '.' with
-    | None -> [], name
-    | Some pos ->
-        parse_for_pack (String.sub name 0 (pos+1)),
-        String.sub name (pos+1) (String.length name - pos - 1)
-
-  let print fmt p =
-    Format.pp_print_list
-      ~pp_sep:(fun ppf () -> Format.pp_print_string ppf ".")
-      Format.pp_print_string
-      fmt
-      p
-
-  let to_string p =
-    Format.asprintf "%a" print p
 
 end

@@ -19,21 +19,21 @@
 open Misc
 open Cmi_format
 
-module Consistbl = Consistbl.Make (Misc.Stdlib.String)
+module Consistbl = Consistbl.Make (Compunit)
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
-let get_current_prefix_forward = ref (fun _ -> assert false)
+let get_current_unit_forward = ref (fun _ -> assert false)
 
 type error =
-  | Illegal_renaming of modname * modname * filepath
-  | Inconsistent_import of modname * filepath * filepath
-  | Need_recursive_types of modname
-  | Depend_on_unsafe_string_unit of modname
+  | Illegal_renaming of Compunit.Name.t * Compunit.Name.t * filepath
+  | Inconsistent_import of Compunit.Name.t * filepath * filepath
+  | Need_recursive_types of Compunit.Name.t
+  | Depend_on_unsafe_string_unit of Compunit.Name.t
   | Inconsistent_package_declaration of
-      { imported_unit: modname; filename: filepath;
-        prefix: Prefix.t; current_pack: Prefix.t }
-  | Inconsistent_package_import of filepath * modname
+      { imported_unit: Compunit.Name.t; filename: filepath;
+        prefix: Compunit.Prefix.t; current_pack: Compunit.Prefix.t }
+  | Inconsistent_package_import of filepath * Compunit.Name.t
 
 exception Error of error
 let error err = raise (Error err)
@@ -54,8 +54,8 @@ type can_load_cmis =
   | Cannot_load_cmis of EnvLazy.log
 
 type pers_struct = {
-  ps_name: string;
-  ps_crcs: (string * Digest.t option) list;
+  ps_name: Compunit.Name.t;
+  ps_crcs: Compunit.crcs;
   ps_filename: string;
   ps_flags: pers_flags list;
 }
@@ -70,16 +70,16 @@ type 'a pers_struct_info =
 
 type 'a t = {
   persistent_structures : (string, 'a pers_struct_info) Hashtbl.t;
-  imported_units: String.Set.t ref;
+  imported_units: Compunit.Set.t ref;
   imported_opaque_units: String.Set.t ref;
-  imported_packed_units: Prefix.t String.Map.t ref;
+  imported_packed_units: Compunit.Prefix.t String.Map.t ref;
   crc_units: Consistbl.t;
   can_load_cmis: can_load_cmis ref;
 }
 
 let empty () = {
   persistent_structures = Hashtbl.create 17;
-  imported_units = ref String.Set.empty;
+  imported_units = ref Compunit.Set.empty;
   imported_opaque_units = ref String.Set.empty;
   imported_packed_units = ref String.Map.empty;
   crc_units = Consistbl.create ();
@@ -96,7 +96,7 @@ let clear penv =
     can_load_cmis;
   } = penv in
   Hashtbl.clear persistent_structures;
-  imported_units := String.Set.empty;
+  imported_units := Compunit.Set.empty;
   imported_opaque_units := String.Set.empty;
   imported_packed_units := String.Map.empty;
   Consistbl.clear crc_units;
@@ -111,8 +111,9 @@ let clear_missing {persistent_structures; _} =
   in
   List.iter (Hashtbl.remove persistent_structures) missing_entries
 
-let add_import {imported_units; _} s =
-  imported_units := String.Set.add s !imported_units
+let add_import {imported_units; _} unit =
+  imported_units :=
+    Compunit.Set.add unit !imported_units
 
 let add_imported_opaque {imported_opaque_units; _} s =
   imported_opaque_units := String.Set.add s !imported_opaque_units
@@ -128,18 +129,18 @@ let find_in_cache {persistent_structures; _} s =
 
 let import_crcs penv ~source crcs =
   let {crc_units; _} = penv in
-  let import_crc (name, crco) =
+  let import_crc (unit, crco) =
     match crco with
     | None -> ()
     | Some crc ->
-        add_import penv name;
-        Consistbl.check crc_units name crc source
+        add_import penv unit;
+        Consistbl.check crc_units unit crc source
   in List.iter import_crc crcs
 
 let check_consistency penv ps =
   try import_crcs penv ~source:ps.ps_filename ps.ps_crcs
-  with Consistbl.Inconsistency(name, source, auth) ->
-    error (Inconsistent_import(name, auth, source))
+  with Consistbl.Inconsistency(unit, source, auth) ->
+    error (Inconsistent_import(Compunit.name unit, auth, source))
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
@@ -162,6 +163,11 @@ let fold {persistent_structures; _} f x =
       | Found (_, pm) -> f modname pm x)
     persistent_structures x
 
+let prefix_of_pers_struct ps =
+    match List.find_opt (function Pack _ -> true | _ -> false) ps.ps_flags with
+      Some (Pack p) -> p
+    | _ -> []
+
 (* Reading persistent structures from .cmi files *)
 
 let save_pers_struct penv crc ps pm =
@@ -176,8 +182,10 @@ let save_pers_struct penv crc ps pm =
         | Pack prefix -> add_imported_packed penv modname prefix
         | Opaque -> add_imported_opaque penv modname)
     ps.ps_flags;
-  Consistbl.set crc_units modname crc ps.ps_filename;
-  add_import penv modname
+  let for_pack_prefix = prefix_of_pers_struct ps in
+  let unit = Compunit.create ~for_pack_prefix modname in
+  Consistbl.set crc_units unit crc ps.ps_filename;
+  add_import penv unit
 
 let check_pack_compatibility current_prefix imported_prefix =
   Misc.Stdlib.List.is_prefix
@@ -215,7 +223,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
       | Pack p ->
           (* Current for-pack prefix should be stored somewhere to avoid
              computing it using `split_on_char` each time *)
-          let curr_prefix = !get_current_prefix_forward () in
+          let curr_prefix = Compunit.prefix (!get_current_unit_forward ()) in
           if not (check_pack_compatibility curr_prefix p)
           && not !Clflags.make_package then
             error (Inconsistent_package_declaration
@@ -223,7 +231,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
                       current_pack = curr_prefix});
           if not (check_pack_import curr_prefix p ps.ps_name) then
             error (Inconsistent_package_import
-                     (filename,  Prefix.to_string p ^ "." ^ modname));
+                     (filename,  Compunit.Prefix.to_string p ^ "." ^ modname));
           add_imported_packed penv modname p
       | Opaque ->
           add_imported_opaque penv modname)
@@ -234,11 +242,13 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
   ps
 
 let read_pers_struct penv val_of_pers_sig check modname filename =
-  add_import penv modname;
   let cmi = read_cmi filename in
   let pers_sig = { Persistent_signature.filename; cmi } in
   let pm = val_of_pers_sig pers_sig in
   let ps = acknowledge_pers_struct penv check modname pers_sig pm in
+  let for_pack_prefix = prefix_of_pers_struct ps in
+  let unit = Compunit.create ~for_pack_prefix modname in
+  add_import penv unit;
   (ps, pm)
 
 let find_pers_struct penv val_of_pers_sig check name =
@@ -258,9 +268,11 @@ let find_pers_struct penv val_of_pers_sig check name =
             Hashtbl.add persistent_structures name Missing;
             raise Not_found
         in
-        add_import penv name;
         let pm = val_of_pers_sig psig in
         let ps = acknowledge_pers_struct penv check name psig pm in
+        let for_pack_prefix = prefix_of_pers_struct ps in
+        let unit = Compunit.create ~for_pack_prefix name in
+        add_import penv unit;
         (ps, pm)
 
 (* Emits a warning if there is no valid cmi for name *)
@@ -315,7 +327,7 @@ let check penv f ~loc name =
     (* PR#6843: record the weak dependency ([add_import]) regardless of
        whether the check succeeds, to help make builds more
        deterministic. *)
-    add_import penv name;
+    add_import penv (Compunit.create name);
     if (Warnings.is_active (Warnings.No_cmi_file("", None))) then
       !add_delayed_check_forward
         (fun () -> check_pers_struct penv f ~loc name)
@@ -325,7 +337,9 @@ let crc_of_unit penv f name =
   let (ps, _pm) = find_pers_struct penv f true name in
   let crco =
     try
-      List.assoc name ps.ps_crcs
+      List.find (fun (unit, _) ->
+          Compunit.Name.equal (Compunit.name unit) name) ps.ps_crcs
+    |> snd
     with Not_found ->
       assert false
   in
@@ -334,7 +348,7 @@ let crc_of_unit penv f name =
     | Some crc -> crc
 
 let imports {imported_units; crc_units; _} =
-  Consistbl.extract (String.Set.elements !imported_units) crc_units
+  Consistbl.extract (Compunit.Set.elements !imported_units) crc_units
 
 let looked_up {persistent_structures; _} modname =
   Hashtbl.mem persistent_structures modname
@@ -342,8 +356,8 @@ let looked_up {persistent_structures; _} modname =
 let packed {imported_packed_units; _} =
   String.Map.bindings !imported_packed_units
 
-let is_imported {imported_units; _} s =
-  String.Set.mem s !imported_units
+let is_imported {imported_units; _} u =
+  Compunit.Set.mem u !imported_units
 
 let is_imported_opaque {imported_opaque_units; _} s =
   String.Set.mem s !imported_opaque_units
@@ -357,7 +371,7 @@ let make_cmi penv modname sign alerts =
       if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
       if !Clflags.opaque then [Cmi_format.Opaque] else [];
       (if !Clflags.unsafe_string then [Cmi_format.Unsafe_string] else []);
-      (match !get_current_prefix_forward () with
+      (match Compunit.prefix (!get_current_unit_forward ()) with
          [] -> []
        | prefix -> [Cmi_format.Pack prefix] );
       [Alerts alerts];
@@ -386,9 +400,15 @@ let save_cmi penv psig pm =
           (fun temp_filename oc -> output_cmi temp_filename oc cmi) in
       (* Enter signature in persistent table so that imports()
          will also return its crc *)
+      let prefix =
+        match List.find_opt (function Pack _ -> true | _ -> false) flags with
+          Some (Pack p) -> p
+        | _ -> []
+      in
+      let unit = Compunit.create ~for_pack_prefix:prefix modname in
       let ps =
         { ps_name = modname;
-          ps_crcs = (cmi.cmi_name, Some crc) :: imports;
+          ps_crcs = (unit, Some crc) :: imports;
           ps_filename = filename;
           ps_flags = flags;
         } in
@@ -403,7 +423,7 @@ let report_error ppf =
     | [] -> pp_print_string ppf "no `-for-pack' prefix"
     | _ ->
         fprintf ppf "a `-for-pack' prefix of [%a]"
-          Prefix.print prefix
+          Compunit.Prefix.print prefix
   in
   function
   | Illegal_renaming(modname, ps_name, filename) -> fprintf ppf

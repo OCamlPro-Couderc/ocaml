@@ -30,7 +30,7 @@ let init_path () = Compmisc.init_path ()
 
 (** Return the initial environment in which compilation proceeds. *)
 let initial_env () =
-  let current = Env.get_unit_name () in
+  let current = Compunit.name (Env.get_current_unit ()) in
   let initial = !Odoc_global.initially_opened_module in
   let initially_opened_module =
     if initial = current then
@@ -73,7 +73,7 @@ let process_implementation_file sourcefile =
   init_path ();
   let prefixname = Filename.chop_extension sourcefile in
   let modulename = String.capitalize_ascii(Filename.basename prefixname) in
-  Env.set_unit_name modulename;
+  Env.set_current_unit modulename;
   let inputfile = preprocess sourcefile in
   let env = initial_env () in
   try
@@ -107,7 +107,7 @@ let process_interface_file sourcefile =
   init_path ();
   let prefixname = Filename.chop_extension sourcefile in
   let modulename = String.capitalize_ascii(Filename.basename prefixname) in
-  Env.set_unit_name modulename;
+  Env.set_current_unit modulename;
   let inputfile = preprocess sourcefile in
   let ast =
     Pparse.file ~tool_name inputfile

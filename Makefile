@@ -79,7 +79,7 @@ UTILS=utils/config.cmo utils/build_path_prefix_map.cmo utils/misc.cmo \
   utils/consistbl.cmo \
   utils/strongly_connected_components.cmo \
   utils/targetint.cmo \
-  utils/int_replace_polymorphic_compare.cmo
+  utils/int_replace_polymorphic_compare.cmo utils/compunit.cmo
 
 PARSING=parsing/location.cmo parsing/longident.cmo \
   parsing/docstrings.cmo parsing/syntaxerr.cmo \

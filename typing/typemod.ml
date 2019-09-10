@@ -2549,7 +2549,8 @@ let package_units initial_env objfiles cmifile modulename =
     let unit_names = List.map fst units in
     let imports =
       List.filter
-        (fun (name, _crc) -> not (List.mem name unit_names))
+        (fun (unit, _crc) ->
+           not (List.mem (Compunit.name unit) unit_names))
         (Env.imports()) in
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin

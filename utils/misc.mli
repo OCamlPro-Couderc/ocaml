@@ -457,9 +457,6 @@ val print_if :
 (** [print_if ppf flag fmt x] prints [x] with [fmt] on [ppf] if [b] is true. *)
 
 type filepath = string
-type modname = string
-type crcs = (modname * Digest.t option) list
-
 type alerts = string Stdlib.String.Map.t
 
 
@@ -480,31 +477,5 @@ module EnvLazy: sig
   val log : unit -> log
   val force_logged : log -> ('a -> 'b option) -> ('a,'b option) t -> 'b option
   val backtrack : log -> unit
-
-end
-
-module Prefix : sig
-
-  type component = string
-
-  type t = component list
-
-  val equal_component : component -> component -> bool
-
-  val equal : t -> t -> bool
-
-  val compare : t -> t -> int
-
-  val parse_for_pack : string -> t
-  (** [parse_for_pack p] returns the list of nested packed modules from a
-      `-for-pack` argument.*)
-
-  val extract_prefix : string -> t * modname
-  (** [extract_prefix id] returns the prefix of an identifier and its basename,
-      as if it was generated with `-for-pack` *)
-
-  val print: Format.formatter -> t -> unit
-
-  val to_string: t -> string
 
 end

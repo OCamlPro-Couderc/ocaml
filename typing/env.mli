@@ -236,40 +236,38 @@ val reset_cache: unit -> unit
 (* To be called before each toplevel phrase. *)
 val reset_cache_toplevel: unit -> unit
 
-(* Remember the name of the current compilation unit. *)
-val set_unit_name: string -> unit
-val get_unit_name: unit -> string
-
-(* Parses and returns the prefix given with "-for-pack" *)
-val get_current_prefix: unit -> Prefix.t
+(* Remember the current compilation unit. If no prefix is given, it is infered
+   from the `-for-pack` CLI argument. *)
+val set_current_unit: ?prefix:Compunit.Prefix.t -> string -> unit
+val get_current_unit: unit -> Compunit.t
 
 (* Read, save a signature to/from a file *)
-val read_signature: modname -> filepath -> signature
+val read_signature: Compunit.Name.t -> filepath -> signature
         (* Arguments: module name, file name. Results: signature. *)
 val save_signature:
-  alerts:alerts -> signature -> modname -> filepath
+  alerts:alerts -> signature -> Compunit.Name.t -> filepath
   -> Cmi_format.cmi_infos
         (* Arguments: signature, module name, file name. *)
 val save_signature_with_imports:
-  alerts:alerts -> signature -> modname -> filepath -> crcs
+  alerts:alerts -> signature -> Compunit.Name.t -> filepath -> Compunit.crcs
   -> Cmi_format.cmi_infos
         (* Arguments: signature, module name, file name,
            imported units with their CRCs. *)
 
 (* Return the CRC of the interface of the given compilation unit *)
-val crc_of_unit: modname -> Digest.t
+val crc_of_unit: Compunit.Name.t -> Digest.t
 
 (* Return the set of compilation units imported, with their CRC *)
-val imports: unit -> crcs
+val imports: unit -> Compunit.crcs
 
 (* may raise Persistent_env.Consistbl.Inconsistency *)
-val import_crcs: source:string -> crcs -> unit
+val import_crcs: source:string -> Compunit.crcs -> unit
 
 (* Return the set of packed compilation units imported *)
 val packed_imports: unit -> Ident.t list
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module  *)
-val is_imported_opaque: modname -> bool
+val is_imported_opaque: Compunit.Name.t -> bool
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)

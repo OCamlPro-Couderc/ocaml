@@ -40,6 +40,7 @@ module Int = Numbers.Int
 let no_approx = ref false
 let no_code = ref false
 let no_crc = ref false
+let full_path = ref false
 
 let input_stringlist ic len =
   let get_string_list sect len =
@@ -59,13 +60,16 @@ let null_crc = String.make 32 '0'
 
 let string_of_crc crc = if !no_crc then null_crc else Digest.to_hex crc
 
-let print_name_crc (name, crco) =
+let print_name_crc (unit, crco) =
   let crc =
     match crco with
       None -> dummy_crc
     | Some crc -> string_of_crc crc
   in
-    printf "\t%s\t%s\n" crc name
+  if !full_path then
+    printf "\t%s\t%s\n" crc (Compunit.name unit)
+  else
+    printf "\t%s\t%s\n" crc (Format.asprintf "%a" Compunit.print unit)
 
 let print_line name =
   printf "\t%s\n" name
@@ -77,7 +81,7 @@ let print_pack_dependency id =
   printf "\t%s\n" (Ident.name id)
 
 let print_cmo_infos cu =
-  printf "Unit name: %s\n" cu.cu_name;
+  printf "Compunit name: %s\n" cu.cu_name;
   print_string "Interfaces imported:\n";
   List.iter print_name_crc cu.cu_imports;
   print_string "Required globals:\n";
@@ -119,7 +123,7 @@ let print_pers_flags =
   | Pack modnames -> printf " -for-pack %s" (String.concat "." modnames)
 
 let print_cmi_infos name crcs flags =
-  printf "Unit name: %s\n" name;
+  printf "Compunit name: %s\n" name;
   printf "Interfaces imported:\n";
   List.iter print_name_crc crcs;
   printf "Compilation flags:";
@@ -258,7 +262,7 @@ let dump_byte ic =
            | "CRCS" ->
                p_section
                  "Imported units"
-                 (input_value ic : (string * Digest.t option) list)
+                 (input_value ic : (Compunit.t * Digest.t option) list)
            | "DLLS" ->
                p_list
                  "Used DLLs"
@@ -366,6 +370,7 @@ let dump_obj filename =
   end
 
 let arg_list = [
+  "-full-path", Arg.Set full_path, "";
   "-no-approx", Arg.Set no_approx,
     " Do not print module approximation information";
   "-no-code", Arg.Set no_code,

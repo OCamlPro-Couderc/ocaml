@@ -48,7 +48,7 @@ end
 
 module Prefix = struct
 
-  include Misc.Prefix
+  include Compunit.Prefix
 
   let of_prefix p = p
 
@@ -76,10 +76,7 @@ include Identifiable.Make (struct
       else
         let c = String.compare basename1 basename2 in
         if c <> 0 then c
-        else
-          (* With identifiers now prefixed by their pack, this case should
-             always return 0 *)
-          Prefix.compare for_pack_prefix1 for_pack_prefix2
+        else Prefix.compare for_pack_prefix1 for_pack_prefix2
 
   let equal x y =
     if x == y then true
@@ -117,6 +114,8 @@ let of_persistent_ident id =
   let for_pack_prefix, basename = Prefix.extract_prefix (Ident.name id) in
   create ~for_pack_prefix basename
 
+let of_unit unit =
+  create ~for_pack_prefix:(Compunit.prefix unit) (Compunit.name unit)
 
 let none = create (Name.of_string "*none*")
 

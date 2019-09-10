@@ -38,6 +38,16 @@ utils/clflags.cmx : \
 utils/clflags.cmi : \
     utils/profile.cmi \
     utils/misc.cmi
+utils/compunit.cmo : \
+    utils/misc.cmi \
+    utils/identifiable.cmi \
+    utils/compunit.cmi
+utils/compunit.cmx : \
+    utils/misc.cmx \
+    utils/identifiable.cmx \
+    utils/compunit.cmi
+utils/compunit.cmi : \
+    utils/identifiable.cmi
 utils/config.cmo : \
     utils/config.cmi
 utils/config.cmx : \
@@ -242,11 +252,6 @@ parsing/builtin_attributes.cmi : \
     parsing/parsetree.cmi \
     utils/misc.cmi \
     parsing/location.cmi
-parsing/camlinternalMenhirLib.cmo : \
-    parsing/camlinternalMenhirLib.cmi
-parsing/camlinternalMenhirLib.cmx : \
-    parsing/camlinternalMenhirLib.cmi
-parsing/camlinternalMenhirLib.cmi :
 parsing/depend.cmo : \
     parsing/parsetree.cmi \
     utils/misc.cmi \
@@ -284,20 +289,17 @@ parsing/docstrings.cmi : \
     parsing/location.cmi
 parsing/lexer.cmo : \
     utils/warnings.cmi \
-    parsing/parser.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
     parsing/docstrings.cmi \
     parsing/lexer.cmi
 parsing/lexer.cmx : \
     utils/warnings.cmx \
-    parsing/parser.cmx \
     utils/misc.cmx \
     parsing/location.cmx \
     parsing/docstrings.cmx \
     parsing/lexer.cmi
 parsing/lexer.cmi : \
-    parsing/parser.cmi \
     parsing/location.cmi
 parsing/location.cmo : \
     utils/warnings.cmi \
@@ -325,7 +327,6 @@ parsing/longident.cmi :
 parsing/parse.cmo : \
     parsing/syntaxerr.cmi \
     parsing/pprintast.cmi \
-    parsing/parser.cmi \
     parsing/location.cmi \
     parsing/lexer.cmi \
     parsing/docstrings.cmi \
@@ -333,40 +334,12 @@ parsing/parse.cmo : \
 parsing/parse.cmx : \
     parsing/syntaxerr.cmx \
     parsing/pprintast.cmx \
-    parsing/parser.cmx \
     parsing/location.cmx \
     parsing/lexer.cmx \
     parsing/docstrings.cmx \
     parsing/parse.cmi
 parsing/parse.cmi : \
     parsing/parsetree.cmi
-parsing/parser.cmo : \
-    parsing/syntaxerr.cmi \
-    parsing/parsetree.cmi \
-    parsing/longident.cmi \
-    parsing/location.cmi \
-    parsing/docstrings.cmi \
-    utils/clflags.cmi \
-    parsing/camlinternalMenhirLib.cmi \
-    parsing/asttypes.cmi \
-    parsing/ast_helper.cmi \
-    parsing/parser.cmi
-parsing/parser.cmx : \
-    parsing/syntaxerr.cmx \
-    parsing/parsetree.cmi \
-    parsing/longident.cmx \
-    parsing/location.cmx \
-    parsing/docstrings.cmx \
-    utils/clflags.cmx \
-    parsing/camlinternalMenhirLib.cmx \
-    parsing/asttypes.cmi \
-    parsing/ast_helper.cmx \
-    parsing/parser.cmi
-parsing/parser.cmi : \
-    parsing/parsetree.cmi \
-    parsing/location.cmi \
-    parsing/docstrings.cmi \
-    parsing/camlinternalMenhirLib.cmi
 parsing/parsetree.cmi : \
     parsing/longident.cmi \
     parsing/location.cmi \
@@ -1835,6 +1808,8 @@ bytecomp/printinstr.cmx : \
     bytecomp/printinstr.cmi
 bytecomp/printinstr.cmi : \
     bytecomp/instruct.cmi
+bytecomp/runtimedef.cmo :
+bytecomp/runtimedef.cmx :
 bytecomp/symtable.cmo : \
     lambda/runtimedef.cmi \
     typing/predef.cmi \
@@ -2396,6 +2371,7 @@ asmcomp/emitaux.cmo : \
     utils/config.cmi \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
+    asmcomp/asm_target/asm_symbol.cmi \
     asmcomp/arch.cmo \
     asmcomp/emitaux.cmi
 asmcomp/emitaux.cmx : \
@@ -2403,10 +2379,12 @@ asmcomp/emitaux.cmx : \
     utils/config.cmx \
     asmcomp/cmm.cmx \
     utils/clflags.cmx \
+    asmcomp/asm_target/asm_symbol.cmx \
     asmcomp/arch.cmx \
     asmcomp/emitaux.cmi
 asmcomp/emitaux.cmi : \
-    lambda/debuginfo.cmi
+    lambda/debuginfo.cmi \
+    asmcomp/asm_target/asm_symbol.cmi
 asmcomp/interf.cmo : \
     asmcomp/reg.cmi \
     asmcomp/proc.cmi \
@@ -3554,7 +3532,6 @@ file_formats/cmi_format.cmi : \
     typing/types.cmi \
     utils/misc.cmi
 file_formats/cmo_format.cmi : \
-    utils/misc.cmi \
     lambda/lambda.cmi \
     typing/ident.cmi
 file_formats/cmt_format.cmo : \
@@ -3586,7 +3563,6 @@ file_formats/cmt_format.cmx : \
 file_formats/cmt_format.cmi : \
     typing/types.cmi \
     typing/typedtree.cmi \
-    utils/misc.cmi \
     parsing/location.cmi \
     typing/env.cmi \
     file_formats/cmi_format.cmi
@@ -5677,6 +5653,30 @@ asmcomp/asm_target/asm_symbol.cmi : \
     utils/identifiable.cmi \
     asmcomp/backend_sym.cmi \
     asmcomp/asm_target/asm_section.cmi
+driver/compdynlink.cmi :
+driver/compdynlink_common.cmo : \
+    driver/compdynlink_types.cmi \
+    driver/compdynlink_platform_intf.cmi \
+    driver/compdynlink_common.cmi
+driver/compdynlink_common.cmx : \
+    driver/compdynlink_types.cmx \
+    driver/compdynlink_platform_intf.cmx \
+    driver/compdynlink_common.cmi
+driver/compdynlink_common.cmi : \
+    driver/compdynlink_platform_intf.cmi
+driver/compdynlink_platform_intf.cmo : \
+    driver/compdynlink_types.cmi \
+    driver/compdynlink_platform_intf.cmi
+driver/compdynlink_platform_intf.cmx : \
+    driver/compdynlink_types.cmx \
+    driver/compdynlink_platform_intf.cmi
+driver/compdynlink_platform_intf.cmi : \
+    driver/compdynlink_types.cmi
+driver/compdynlink_types.cmo : \
+    driver/compdynlink_types.cmi
+driver/compdynlink_types.cmx : \
+    driver/compdynlink_types.cmi
+driver/compdynlink_types.cmi :
 driver/compenv.cmo : \
     utils/warnings.cmi \
     utils/profile.cmi \
@@ -5856,7 +5856,6 @@ driver/main_args.cmi :
 driver/makedepend.cmo : \
     driver/pparse.cmi \
     parsing/parsetree.cmi \
-    parsing/parser.cmi \
     parsing/parse.cmi \
     utils/misc.cmi \
     parsing/longident.cmi \
@@ -5870,7 +5869,6 @@ driver/makedepend.cmo : \
 driver/makedepend.cmx : \
     driver/pparse.cmx \
     parsing/parsetree.cmi \
-    parsing/parser.cmx \
     parsing/parse.cmx \
     utils/misc.cmx \
     parsing/longident.cmx \
