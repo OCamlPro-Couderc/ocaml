@@ -600,7 +600,7 @@ let find_same_module id tbl =
 type persistent_module = {
   pm_signature: signature Lazy.t;
   pm_components: module_components;
-  pm_addr: Ident.t;
+  pm_addr: address;
 }
 
 let add_persistent_structure id env =
@@ -624,10 +624,10 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     List.find_opt (function Pack _ -> true | _ -> false) flags
     |> function
       Some (Pack prefix) ->
-        Ident.create_persistent ~prefix name
-    | _ -> id
+        Aident (Ident.create_persistent ~prefix name)
+    | _ -> Aident id
   in
-  let addr = EnvLazy.create_forced (Aident pm_addr) in
+  let addr = EnvLazy.create_forced pm_addr in
   let alerts =
     List.fold_left (fun acc -> function Alerts s -> s | _ -> acc)
       Misc.Stdlib.String.Map.empty
@@ -859,9 +859,14 @@ let find_module ~alias path env =
           raise Not_found
       end
 
-let find_pers_address_ident id =
+let find_pers_address id =
   if not (Ident.persistent id) then raise Not_found;
   (find_pers_mod (Ident.name id)).pm_addr
+
+let find_pers_address_ident id =
+  match find_pers_address id with
+    Aident id -> id
+  | _ -> raise Not_found
 
 let rec find_module_address path env =
   match path with
@@ -869,7 +874,7 @@ let rec find_module_address path env =
       begin
         match find_same_module id env.modules with
         | Value (_, addr) -> get_address addr
-        | Persistent -> Aident (find_pers_address_ident id)
+        | Persistent -> find_pers_address id
       end
   | Pdot(p, s) -> begin
       match get_components (find_module_descr p env) with
