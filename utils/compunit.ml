@@ -1,5 +1,10 @@
 open Misc
 
+type error =
+  Invalid_character of char
+
+exception Error of error
+
 module Name = struct
 
   type t = string
@@ -34,20 +39,24 @@ module Prefix = struct
       || code >= 65 && code <= 90 (* [A-Z] *)
       || code >= 97 && code <= 122 (* [a-z] *)
 
-  let parse_for_pack pack =
+  let parse pack =
     let prefix = String.split_on_char '.' pack in
     List.iter (fun module_name ->
         String.iteri (fun i c ->
             if not (is_valid_character (i=0) c) then
-              failwith module_name)
+              raise (Error (Invalid_character c)))
           module_name) prefix;
     prefix
+
+  let parse_for_pack = function
+      None -> []
+    | Some pack -> parse pack
 
   let extract_prefix name =
     match String.rindex_opt name '.' with
     | None -> [], name
     | Some pos ->
-        parse_for_pack (String.sub name 0 (pos+1)),
+        parse (String.sub name 0 (pos+1)),
         String.sub name (pos+1) (String.length name - pos - 1)
 
   let print fmt p =
@@ -116,3 +125,18 @@ let prefix unit = unit.prefix
 
 let full_path unit =
   Format.asprintf "%a" print unit
+
+let of_raw_string str =
+  let for_pack_prefix, name = Prefix.extract_prefix str in
+  create ~for_pack_prefix name
+
+let _report_error ppf = function
+    Invalid_character c ->
+      Format.fprintf ppf "`%c` is not a valid character for a pack name" c
+
+(* let () =
+ *   Location.register_error_of_exn
+ *     (function
+ *       | Error err -> Some (Location.error_of_printer_file report_error err)
+ *       | _ -> None
+ *     ) *)

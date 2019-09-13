@@ -990,7 +990,7 @@ let compile_implementation modulename expr =
   label_counter := 0;
   sz_static_raises := [] ;
   compunit_name :=
-    (match Compunit.prefix (Env.get_current_unit ()) with
+    (match Compunit.prefix (Persistent_env.Current_unit.get ()) with
        [] -> modulename
      | prefix ->
          Compunit.Prefix.to_string prefix ^ "." ^ modulename);

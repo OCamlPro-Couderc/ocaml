@@ -1,3 +1,8 @@
+type error =
+  Invalid_character of char
+
+exception Error of error
+
 module Name : sig
 
   type t = string
@@ -22,7 +27,7 @@ module Prefix : sig
 
   val compare : t -> t -> int
 
-  val parse_for_pack : string -> t
+  val parse_for_pack : string option -> t
   (** [parse_for_pack p] returns the list of nested packed modules from a
       `-for-pack` argument.*)
 
@@ -45,6 +50,8 @@ val name : t -> Name.t
 val prefix : t -> Prefix.t
 
 val full_path : t -> string
+
+val of_raw_string : string -> t
 
 type crcs = (t * Digest.t option) list
 

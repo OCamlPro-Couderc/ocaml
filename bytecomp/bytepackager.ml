@@ -185,7 +185,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
   let packagename = match !Clflags.for_package with
       None -> targetname
     | Some p -> p ^ "." ^ targetname in
-  let prefix = Compunit.Prefix.parse_for_pack packagename in
+  let prefix = Compunit.Prefix.parse_for_pack (Some packagename) in
   let identifiers, required_globals, pack_dependencies =
     List.fold_right
       (fun compunit (identifiers, required_globals, pack_dependencies) ->
@@ -236,7 +236,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
       List.filter
         (fun (unit, _crc) -> not (List.mem (Compunit.name unit) unit_names))
         (Bytelink.extract_crc_interfaces()) in
-    let unit = Env.get_current_unit () in
+    let unit = Persistent_env.Current_unit.get () in
     let compunit =
       { cu_name = targetname;
         cu_pos = pos_code;

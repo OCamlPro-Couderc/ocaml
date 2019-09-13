@@ -34,6 +34,16 @@ exception Error of error
 
 val report_error: Format.formatter -> error -> unit
 
+(* Remember the current compilation unit. If no prefix is given, it is infered
+   from the `-for-pack` CLI argument. Returns "" if outside a compilation unit.
+*)
+module Current_unit : sig
+  val get : unit -> Compunit.t
+  val set : ?prefix:Compunit.Prefix.t -> Compunit.Name.t -> unit
+  val is : Compunit.Name.t -> bool
+  val is_name_of : Ident.t -> bool
+end
+
 module Persistent_signature : sig
   type t =
     { filename : string; (** Name of the file containing the signature. *)
@@ -110,6 +120,3 @@ val crc_of_unit: 'a t -> (Persistent_signature.t -> 'a) -> Compunit.Name.t -> Di
 
 (* Forward declaration to break mutual recursion with Typecore. *)
 val add_delayed_check_forward: ((unit -> unit) -> unit) ref
-
-(* Forward declaration to break mutual recursion with Env. *)
-val get_current_unit_forward: (unit -> Compunit.t) ref

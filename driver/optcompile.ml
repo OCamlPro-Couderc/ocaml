@@ -125,7 +125,8 @@ let closure i backend typed =
 let implementation ~backend ~source_file ~output_prefix =
   let backend info typed =
     let for_pack_prefix =
-      CU.Prefix.of_prefix (Compunit.prefix (Env.get_current_unit ())) in
+      CU.Prefix.of_prefix
+        (Compunit.prefix (Persistent_env.Current_unit.get ())) in
     let compilation_unit =
       CU.create ~for_pack_prefix (CU.Name.of_string info.module_name)
     in

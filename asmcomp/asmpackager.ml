@@ -275,7 +275,8 @@ let package_files ~ppf_dump initial_env files targetcmx ~backend =
   Location.input_name := targetcmx;
   (* Set the name of the current compunit *)
   let for_pack_prefix =
-    CU.Prefix.of_prefix (Compunit.prefix (Env.get_current_unit ())) in
+    CU.Prefix.of_prefix
+      (Compunit.prefix (Persistent_env.Current_unit.get ())) in
   let comp_unit = CU.create ~for_pack_prefix (CU.Name.of_string targetname) in
   Compilation_unit.set_current comp_unit;
   Compilation_state.reset comp_unit;

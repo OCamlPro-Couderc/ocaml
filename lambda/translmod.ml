@@ -728,7 +728,7 @@ let required_globals ~flambda body =
 (* Compile an implementation *)
 
 let transl_current_module_ident module_name =
-  let unit = Env.get_current_unit () in
+  let unit = Persistent_env.Current_unit.get () in
   Ident.create_persistent ~prefix:(Compunit.prefix unit) module_name
 
 let transl_implementation_flambda module_name (str, cc) =

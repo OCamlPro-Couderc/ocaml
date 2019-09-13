@@ -236,11 +236,6 @@ val reset_cache: unit -> unit
 (* To be called before each toplevel phrase. *)
 val reset_cache_toplevel: unit -> unit
 
-(* Remember the current compilation unit. If no prefix is given, it is infered
-   from the `-for-pack` CLI argument. *)
-val set_current_unit: ?prefix:Compunit.Prefix.t -> string -> unit
-val get_current_unit: unit -> Compunit.t
-
 (* Read, save a signature to/from a file *)
 val read_signature: Compunit.Name.t -> filepath -> signature
         (* Arguments: module name, file name. Results: signature. *)

@@ -23,8 +23,6 @@ module Consistbl = Consistbl.Make (Compunit)
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
-let get_current_unit_forward = ref (fun _ -> assert false)
-
 type error =
   | Illegal_renaming of Compunit.Name.t * Compunit.Name.t * filepath
   | Inconsistent_import of Compunit.Name.t * filepath * filepath
@@ -37,6 +35,33 @@ type error =
 
 exception Error of error
 let error err = raise (Error err)
+
+(* The compilation unit currently compiled.
+   "" if outside a compilation unit. *)
+module Current_unit : sig
+  val get : unit -> Compunit.t
+  val set : ?prefix:Compunit.Prefix.t -> Compunit.Name.t -> unit
+  val is : Compunit.Name.t -> bool
+  val is_name_of : Ident.t -> bool
+end = struct
+  let current_unit =
+    ref (Compunit.create "")
+  let get () =
+    !current_unit
+  let set ?prefix name =
+    let prefix =
+      match prefix with
+        Some p -> p
+      | None -> Compunit.Prefix.parse_for_pack !Clflags.for_package
+    in
+    current_unit := Compunit.create ~for_pack_prefix:prefix name
+
+  let is name =
+    Compunit.Name.equal (Compunit.name !current_unit) name
+
+  let is_name_of id =
+    is (Ident.name id)
+end
 
 module Persistent_signature = struct
   type t =
@@ -223,7 +248,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
       | Pack p ->
           (* Current for-pack prefix should be stored somewhere to avoid
              computing it using `split_on_char` each time *)
-          let curr_prefix = Compunit.prefix (!get_current_unit_forward ()) in
+          let curr_prefix = Compunit.prefix (Current_unit.get ()) in
           if not (check_pack_compatibility curr_prefix p)
           && not !Clflags.make_package then
             error (Inconsistent_package_declaration
@@ -371,7 +396,7 @@ let make_cmi penv modname sign alerts =
       if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
       if !Clflags.opaque then [Cmi_format.Opaque] else [];
       (if !Clflags.unsafe_string then [Cmi_format.Unsafe_string] else []);
-      (match Compunit.prefix (!get_current_unit_forward ()) with
+      (match Compunit.prefix (Current_unit.get ()) with
          [] -> []
        | prefix -> [Cmi_format.Pack prefix] );
       [Alerts alerts];

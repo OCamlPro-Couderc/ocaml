@@ -556,44 +556,13 @@ let rec print_address ppf = function
   | Aident id -> Format.fprintf ppf "%s" (Ident.name id)
   | Adot(a, pos) -> Format.fprintf ppf "%a.[%i]" print_address a pos
 
-(* The compilation unit currently compiled.
-   "" if outside a compilation unit. *)
-module Current_unit : sig
-  val get : unit -> Compunit.t
-  val set : ?prefix:Compunit.Prefix.t -> Compunit.Name.t -> unit
-  val is : Compunit.Name.t -> bool
-  val is_name_of : Ident.t -> bool
-end = struct
-  let current_unit =
-    ref (Compunit.create "")
-  let get () =
-    !current_unit
-  let set ?prefix name =
-    let prefix =
-      match prefix with
-        Some p -> p
-      | None ->
-          match !Clflags.for_package with
-            None -> []
-          | Some p -> Compunit.Prefix.parse_for_pack p
-    in
-    current_unit := Compunit.create ~for_pack_prefix:prefix name
-
-  let is name =
-    Compunit.Name.equal (Compunit.name !current_unit) name
-
-  let is_name_of id =
-    is (Ident.name id)
-end
-
-let get_current_unit = Current_unit.get
-let set_current_unit = Current_unit.set
 
 let find_same_module id tbl =
   match IdTbl.find_same id tbl with
   | x -> x
   | exception Not_found
-    when Ident.persistent id && not (Current_unit.is_name_of id) ->
+    when Ident.persistent id
+      && not (Persistent_env.Current_unit.is_name_of id) ->
       Persistent
 
 (* signature of persistent compilation units *)
@@ -605,7 +574,7 @@ type persistent_module = {
 
 let add_persistent_structure id env =
   if not (Ident.persistent id) then invalid_arg "Env.add_persistent_structure";
-  if not (Current_unit.is_name_of id) then
+  if not (Persistent_env.Current_unit.is_name_of id) then
     { env with
       modules = IdTbl.add id Persistent env.modules;
       components = IdTbl.add id Persistent env.components;
@@ -688,7 +657,7 @@ let reset_declaration_caches () =
   ()
 
 let reset_cache () =
-  Current_unit.set ~prefix:[] "";
+  Persistent_env.Current_unit.set ~prefix:[] "";
   (* Current_prefix.reset (); *)
   Persistent_env.clear persistent_env;
   reset_declaration_caches ();
@@ -1076,7 +1045,7 @@ let rec lookup_module_descr_aux ?loc ~mark lid env =
     Lident s ->
       let find_components s = (find_pers_mod s).pm_components in
       begin match IdTbl.find_name ~mark s env.components with
-      | exception Not_found when not (Current_unit.is s) ->
+      | exception Not_found when not (Persistent_env.Current_unit.is s) ->
         let p = Path.Pident (Ident.create_persistent s) in
         (p, find_components s)
       | (p, data) ->
@@ -2535,7 +2504,6 @@ let report_error ppf = function
         name
 
 let () =
-  Persistent_env.get_current_unit_forward := Current_unit.get;
   Location.register_error_of_exn
     (function
       | Error err ->
