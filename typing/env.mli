@@ -345,9 +345,6 @@ val reset_cache: unit -> unit
 val reset_cache_toplevel: unit -> unit
 
 
-val module_type_of_compilation_unit_type: compilation_unit -> module_type
-val compilation_unit_type_of_module_type: module_type -> compilation_unit
-
 (* Read, save a signature to/from a file *)
 val read_interface: Compilation_unit.Name.t -> filepath -> compilation_unit
         (* Arguments: module name, file name. Results: signature. *)

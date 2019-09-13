@@ -49,7 +49,7 @@ val check_modtype_inclusion :
 val signatures: Env.t -> ?mark:mark ->
   signature -> signature -> module_coercion
 
-val compunit:
+val implementation:
       Env.t -> ?mark:mark -> string -> compilation_unit ->
       string -> compilation_unit -> module_coercion
 

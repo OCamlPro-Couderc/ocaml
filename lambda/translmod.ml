@@ -419,7 +419,7 @@ let transl_class_bindings cl_list =
    functor(s) being merged with.  Such an attribute will be placed on the
    resulting merged functor. *)
 
-let extract_functor_components mexp =
+let rec extract_functor_components mexp =
   match mexp.mod_desc with
     Tmod_functor (param, body) ->
       let param =
@@ -427,37 +427,42 @@ let extract_functor_components mexp =
           Unit -> Types.Unit
         | Named (id, _, mty) -> Types.Named (id, mty.mty_type)
       in
-      Some (param, body, mexp.mod_loc,
-            Translattribute.get_inline_attribute mexp.mod_attributes)
-  | _ -> None
+      let rem, body = extract_functor_components body in
+      (param, mexp.mod_loc,
+       Translattribute.get_inline_attribute mexp.mod_attributes) ::
+      rem, body
+  | _ -> [], mexp
 
 let extract_impl_functor_components exp =
+  let str_to_mod str =
+    { mod_desc = Tmod_structure str;
+      mod_type = Mty_signature str.str_type;
+      mod_env = str.str_final_env;
+      mod_loc = Location.none;
+      mod_attributes = []; }
+  in
   match exp.timpl_desc with
-    Timpl_functor ((id, mty) :: rem, body) ->
-      let timpl_desc =
-        if rem = [] then Timpl_structure body else Timpl_functor (rem, body) in
-      let body' = { exp with timpl_desc } in
-      Some (Types.Named (Some id, mty), body', Location.none, Default_inline)
-  |  _ -> None
+    Timpl_functor (params, body) ->
+      List.map (fun (id, mty) ->
+          Types.Named (Some id, mty), Location.none, Default_inline) params,
+      str_to_mod body
+  |  Timpl_structure str -> [], str_to_mod str
 
 let merge_inline_attributes attr1 attr2 loc =
   match Lambda.merge_inline_attributes attr1 attr2 with
   | Some attr -> attr
   | None -> raise (Error (loc, Conflicting_inline_attributes))
 
-let merge_functors extract mexp coercion root_path =
-  let rec merge mexp coercion path acc inline_attribute =
-    let finished = acc, mexp, path, coercion, inline_attribute in
-    match extract mexp with
-    | Some (param, body, exp_loc, inline_attribute') ->
-      let arg_coercion, res_coercion =
+let merge_functors params coercion root_path =
+  let merge (args, coercion, path, inline_attribute) param =
+    let param, loc, inline_attribute' = param in
+    let arg_coercion, res_coercion =
         match coercion with
         | Tcoerce_none -> Tcoerce_none, Tcoerce_none
         | Tcoerce_functor (arg_coercion, res_coercion) ->
           arg_coercion, res_coercion
         | _ -> fatal_error "Translmod.merge_functors: bad coercion"
       in
-      let loc = exp_loc in
       let path, param =
         match param with
         | Types.Unit -> None, Ident.create_local "*"
@@ -469,19 +474,14 @@ let merge_functors extract mexp coercion root_path =
       let inline_attribute =
         merge_inline_attributes inline_attribute inline_attribute' loc
       in
-      merge body res_coercion path ((param, loc, arg_coercion) :: acc)
-        inline_attribute
-    | None -> finished
+      (param, loc, arg_coercion) :: args, res_coercion, path, inline_attribute
+    (* | None -> finished *)
   in
-  merge mexp coercion root_path [] Default_inline
+  List.fold_left merge ([], coercion, root_path, Default_inline) params
 
-let rec compile_functor :
-  type exp. (exp -> (Types.functor_parameter * exp * Location.t *  'attr) option) ->
-  (module_coercion -> 'path -> exp -> lambda) -> exp -> module_coercion -> 'path ->
-  Location.t -> lambda =
-  fun extract_components transl_body mexp coercion root_path loc ->
-  let functor_params_rev, body, body_path, res_coercion, inline_attribute =
-    merge_functors extract_components mexp coercion root_path
+let rec compile_functor params body coercion root_path loc =
+  let functor_params_rev, res_coercion, body_path, inline_attribute =
+    merge_functors params coercion root_path
   in
   assert (List.length functor_params_rev >= 1);  (* cf. [transl_module] *)
   let params, body =
@@ -491,7 +491,7 @@ let rec compile_functor :
         let params = (param', Pgenval) :: params in
         let body = Llet (Alias, Pgenval, param, arg, body) in
         params, body)
-      ([], transl_body res_coercion body_path body)
+      ([], transl_module res_coercion body_path body)
       functor_params_rev
   in
   Lfunction {
@@ -523,8 +523,8 @@ and transl_module cc rootpath mexp =
       fst (transl_struct loc [] cc rootpath str)
   | Tmod_functor _ ->
       oo_wrap mexp.mod_env true (fun () ->
-          compile_functor extract_functor_components transl_module
-            mexp cc rootpath loc) ()
+          let params, body = extract_functor_components mexp in
+          compile_functor params body cc rootpath loc) ()
   | Tmod_apply(funct, arg, ccarg) ->
       let inlined_attribute, funct =
         Translattribute.get_and_remove_inlined_attribute_on_module funct
@@ -798,15 +798,15 @@ let required_globals ~flambda body =
   required
 
 let transl_functorized_implementation module_id (impl, cc) =
-  let rec transl_impl cc path impl =
+  let transl_impl cc path impl =
     match impl.timpl_desc with
       Timpl_structure str ->
         transl_struct Location.none [] cc
           (global_path module_id) str
     | Timpl_functor (_, _) ->
-        compile_functor extract_impl_functor_components
-          (fun cc p i -> fst (transl_impl cc p i))
-          impl cc path Location.none,
+        let params, body = extract_impl_functor_components impl in
+        compile_functor
+          params body cc path Location.none,
         1
   in
   transl_impl cc (global_path module_id) impl

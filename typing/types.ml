@@ -408,3 +408,11 @@ let signature_item_id = function
   | Sig_class (id, _, _, _)
   | Sig_class_type (id, _, _, _)
     -> id
+
+let module_type_of_compilation_unit = function
+    Unit_signature sg -> Mty_signature sg
+  | Unit_functor (args, sg) ->
+      List.fold_right (fun (id, mty) acc ->
+          Mty_functor (Named (Some id, mty), acc))
+        args
+        (Mty_signature sg)

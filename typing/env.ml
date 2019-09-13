@@ -702,14 +702,6 @@ let components_of_module ~alerts ~loc env fs ps path addr mty =
     }
   }
 
-let module_type_of_compilation_unit_type = function
-    Unit_signature sg -> Mty_signature sg
-  | Unit_functor (args, sg) ->
-      List.fold_right (fun (id, mty) acc ->
-          Mty_functor (Named (Some id, mty), acc))
-        args
-        (Mty_signature sg)
-
 let compilation_unit_type_of_module_type = function
     Mty_signature sg -> Unit_signature sg
   | Mty_functor _ as mty ->
@@ -728,7 +720,6 @@ let compilation_unit_type_of_module_type = function
 let type_of_cmi ~freshen { Persistent_env.Persistent_interface.cmi; _ } =
   let name = CU.Name.to_string cmi.cmi_name in
   let uty = cmi.cmi_type in
-  let mty = module_type_of_compilation_unit_type uty in
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent name in
   let path = Pident id in
@@ -749,6 +740,7 @@ let type_of_cmi ~freshen { Persistent_env.Persistent_interface.cmi; _ } =
       flags
   in
   let loc = Location.none in
+  let mty = Types.module_type_of_compilation_unit uty in
   let mda_address = EnvLazy.create_forced pers_address in
   let mda_declaration =
     EnvLazy.create (Subst.identity, Subst.Make_local, md mty)
@@ -2090,7 +2082,7 @@ let persistent_structures_of_dir dir =
 let save_interface_with_transform cmi_transform ~alerts uty modname filename =
   Btype.cleanup_abbrev ();
   Subst.reset_for_saving ();
-  let uty = Subst.compunit Make_local (Subst.for_saving Subst.identity) uty in
+  let uty = Subst.compilation_unit Make_local (Subst.for_saving Subst.identity) uty in
   let cmi =
     Persistent_env.make_cmi persistent_env modname uty alerts
     |> cmi_transform in

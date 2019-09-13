@@ -551,3 +551,5 @@ type label_description =
 val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
+
+val module_type_of_compilation_unit: compilation_unit -> module_type
