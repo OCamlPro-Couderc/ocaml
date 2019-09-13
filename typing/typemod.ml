@@ -2500,7 +2500,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
                           Interface_not_compiled sourceintf)) in
           let dcluty = Env.read_interface modulename intf_file in
           let coercion =
-            Includemod.compunit initial_env ~mark:Includemod.Mark_positive
+            Includemod.implementation initial_env ~mark:Includemod.Mark_positive
               sourcefile uty intf_file dcluty
           in
           Typecore.force_delayed_checks ();
@@ -2514,7 +2514,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           coercion
         end else begin
           let coercion =
-            Includemod.compunit initial_env ~mark:Includemod.Mark_positive
+            Includemod.implementation initial_env ~mark:Includemod.Mark_positive
               sourcefile uty "(inferred signature)" simple_uty
           in
           check_nongen_schemes_compunit finalenv simple_uty;
@@ -2594,7 +2594,7 @@ let package_module_types units =
       (fun (name, uty) ->
         let oldid = Ident.create_persistent name in
         let newid = Ident.create_local name in
-        (oldid, newid, Env.module_type_of_compilation_unit_type uty))
+        (oldid, newid, Types.module_type_of_compilation_unit uty))
       units
   in
   let subst =
@@ -2650,7 +2650,7 @@ let package_units initial_env objfiles cmifile modulename =
     let dcluty = Env.read_interface modulename cmifile in
     Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
       (Cmt_format.Packed (sg, objfiles)) None initial_env  None ;
-    Includemod.compunit initial_env "(obtained by packing)" uty mlifile dcluty
+    Includemod.implementation initial_env "(obtained by packing)" uty mlifile dcluty
   end else begin
     (* Determine imports *)
     let unit_names = List.map fst units in

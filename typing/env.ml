@@ -567,7 +567,7 @@ let find_same_module id tbl =
 
 (* signature of persistent compilation units *)
 type persistent_module = {
-  pm_module_type: module_type Lazy.t;
+  pm_compilation_unit_type: Types.compilation_unit Lazy.t;
   pm_components: module_components;
   pm_addr: address;
 }
@@ -583,34 +583,9 @@ let add_persistent_structure id env =
   else
     env
 
-
-let module_type_of_compilation_unit_type = function
-    Unit_signature sg -> Mty_signature sg
-  | Unit_functor (args, sg) ->
-      List.fold_right (fun (id, mty) acc ->
-          Mty_functor (id, Some mty, acc))
-        args
-        (Mty_signature sg)
-
-let compilation_unit_type_of_module_type = function
-    Mty_signature sg -> Unit_signature sg
-  | Mty_functor _ as mty ->
-      let rec translate acc = function
-          Mty_signature sg ->
-            Unit_functor (List.rev acc, sg)
-        | Mty_functor (id, Some mty, mty') ->
-            translate ((id, mty) :: acc) mty'
-        | _ -> failwith "[compilation_unit_type_of_module_type] \
-                         illformed compilation unit type"
-      in
-      translate [] mty
-  | _ -> failwith "[compilation_unit_type_of_module_type] \
-                   illformed compilation unit type"
-
 let type_of_cmi ~freshen { Persistent_env.Persistent_interface.cmi; _ } =
   let name = cmi.cmi_name in
   let uty = cmi.cmi_type in
-  let mty = module_type_of_compilation_unit_type uty in
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent name in
   let path = Pident id in
@@ -632,14 +607,15 @@ let type_of_cmi ~freshen { Persistent_env.Persistent_interface.cmi; _ } =
       flags
   in
   let loc = Location.none in
-  let pm_module_type = lazy (Subst.modtype Subst.identity mty) in
+  let pm_compilation_unit_type = lazy (Subst.compilation_unit Subst.identity uty) in
   let pm_components =
     let freshening_subst =
       if freshen then (Some Subst.identity) else None in
     !components_of_module' ~alerts ~loc
-      empty freshening_subst Subst.identity path addr mty in
+      empty freshening_subst Subst.identity path addr
+      (Types.module_type_of_compilation_unit uty) in
   {
-    pm_module_type;
+    pm_compilation_unit_type;
     pm_components;
     pm_addr;
   }
@@ -819,7 +795,8 @@ let find_module ~alias path env =
         | Value (data, _) -> EnvLazy.force subst_modtype_maker data
         | Persistent ->
             let pm = find_pers_mod (Ident.name id) in
-            md (Lazy.force pm.pm_module_type)
+            md (Lazy.force pm.pm_compilation_unit_type
+                |> Types.module_type_of_compilation_unit)
       end
   | Pdot(p, s) ->
       begin match get_components (find_module_descr p env) with
@@ -2265,8 +2242,7 @@ let open_signature
 (* Read a module_type from a file *)
 let read_interface modname filename =
   let pm = read_pers_mod modname filename in
-  Lazy.force pm.pm_module_type
-  |> compilation_unit_type_of_module_type
+  Lazy.force pm.pm_compilation_unit_type
 
 let is_identchar_latin1 = function
   | 'A'..'Z' | 'a'..'z' | '_' | '\192'..'\214' | '\216'..'\246'
@@ -2296,7 +2272,7 @@ let persistent_structures_of_dir dir =
 let save_interface_with_transform cmi_transform ~alerts uty modname filename =
   Btype.cleanup_abbrev ();
   Subst.reset_for_saving ();
-  let uty = Subst.compunit (Subst.for_saving Subst.identity) uty in
+  let uty = Subst.compilation_unit (Subst.for_saving Subst.identity) uty in
   let cmi =
     Persistent_env.make_cmi persistent_env modname uty alerts
     |> cmi_transform in
@@ -2367,7 +2343,8 @@ let fold_modules f lid env acc =
                match Persistent_env.find_in_cache persistent_env name with
                | None -> acc
                | Some pm ->
-                   let data = md (Lazy.force pm.pm_module_type) in
+                   let data = md (Lazy.force pm.pm_compilation_unit_type
+                                 |> Types.module_type_of_compilation_unit) in
                    f name p data acc)
         env.modules
         acc

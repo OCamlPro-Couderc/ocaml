@@ -489,14 +489,14 @@ and modtype_declaration s decl  =
     mtd_loc = loc s decl.mtd_loc;
   }
 
-let compunit s uty =
+let compilation_unit s uty =
   match uty with
   | Unit_signature sg ->
       Unit_signature (signature s sg)
   | Unit_functor(args, res) ->
       let args', s' = List.fold_left (fun (args, subst) (id, arg) ->
           let id' = Ident.rename id in
-          (id, modtype s arg) :: args,
+          (id', modtype s arg) :: args,
           add_module id (Pident id') subst)
           ([], s) args
       in
