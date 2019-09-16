@@ -102,6 +102,7 @@ type error =
   | Cannot_hide_id of hiding_error
   | Invalid_type_subst_rhs
   | Parameter_interface_unavailable of Compilation_unit.Name.t
+  | Interface_flagged_as_parameter of filepath
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -2635,13 +2636,14 @@ let type_implementation_aux env ast loc = function
       let args, newenv, _ =
         List.fold_left (fun (args, env, subst) param ->
           let id_arg_pers = Ident.create_persistent param in
+          let unit_name = Compilation_unit.Name.of_string param in
           let mty_arg =
             Persistent_env.Persistent_interface.(
-              match !load ~unit_name:param with
+              match !load ~unit_name with
                 Some { cmi = Cmi_format.{ cmi_type } } ->
                   Types.module_type_of_compilation_unit cmi_type
               | None ->
-                  raise (Error(loc, env, Parameter_interface_unavailable param))
+                  raise (Error(loc, env, Parameter_interface_unavailable unit_name))
             ) in
           let scope = Ctype.create_scope () in
           let mty_arg = Subst.modtype Make_local subst mty_arg in
@@ -2700,6 +2702,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
               raise(Error(Location.in_file sourcefile, Env.empty,
                           Interface_not_compiled sourceintf)) in
           let dcluty = Env.read_interface modulename intf_file in
+          if Env.is_imported_as_parameter modulename
+          || !Clflags.functor_parameter_of <> None then
+            raise (Error (Location.in_file sourcefile, Env.empty,
+                          Interface_flagged_as_parameter intf_file));
           let coercion =
             Includemod.implementation initial_env ~mark:Includemod.Mark_positive
               sourcefile uty intf_file dcluty
@@ -2714,6 +2720,9 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           timpl,
           coercion
         end else begin
+          if !Clflags.functor_parameter_of <> None then
+            raise (Error (Location.in_file sourcefile, Env.empty,
+                          Interface_flagged_as_parameter sourcefile));
           let coercion =
             Includemod.implementation initial_env ~mark:Includemod.Mark_positive
               sourcefile uty "(inferred signature)" simple_uty
@@ -2764,13 +2773,14 @@ let transl_interface env ast params =
       let args, newenv, _ =
         List.fold_left (fun (args, env, subst) param ->
           let id_arg_pers = Ident.create_persistent param in
+          let unit_name = Compilation_unit.Name.of_string param in
           let mty_arg =
             Persistent_env.Persistent_interface.(
-              match !load ~unit_name:param with
+              match !load ~unit_name with
                 Some { cmi = Cmi_format.{ cmi_type } } ->
                   Types.module_type_of_compilation_unit cmi_type
               | None ->
-                  raise (Error(loc, env, Parameter_interface_unavailable param))
+                  raise (Error(loc, env, Parameter_interface_unavailable unit_name))
             ) in
           let scope = Ctype.create_scope () in
           let mty_arg = Subst.modtype Make_local subst mty_arg in
@@ -3026,6 +3036,11 @@ let report_error ppf = function
   | Parameter_interface_unavailable name ->
       fprintf ppf "No compiled interface found for this unit parameter %a"
         Compilation_unit.Name.print name
+  | Interface_flagged_as_parameter path ->
+      fprintf ppf
+        "@[Interface %s@ found for this unit is flagged as a functor parameter.@ \
+         It cannot be implemented."
+        path
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env ~error:true env (fun () -> report_error ppf err)

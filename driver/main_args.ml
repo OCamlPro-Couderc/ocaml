@@ -684,9 +684,9 @@ let mk_functor_parameter f =
                  functorized unit."
 ;;
 
-let mk_as_functor_parameter f =
-  "-as-parameter", Arg.Unit f,
-  "<module name> Compiles the interface as a parameter for a \n\
+let mk_functor_parameter_of f =
+  "-parameter-of", Arg.String f,
+  "<module name> Compiles the interface as a parameter for a given \n\
                  functorized unit."
 ;;
 
@@ -965,7 +965,7 @@ module type Compiler_options = sig
   val _config_var : string -> unit
   val _for_pack : string -> unit
   val _functor_parameter : string -> unit
-  val _as_functor_parameter : unit -> unit
+  val _functor_parameter_of : string -> unit
   val _g : unit -> unit
   val _stop_after : string -> unit
   val _i : unit -> unit
@@ -1167,7 +1167,7 @@ struct
     mk_dtypes F._annot;
     mk_for_pack_byt F._for_pack;
     mk_functor_parameter F._functor_parameter;
-    mk_as_functor_parameter F._as_functor_parameter;
+    mk_functor_parameter_of F._functor_parameter_of;
     mk_g_byt F._g;
     mk_stop_after ~native:false F._stop_after;
     mk_i F._i;
@@ -1347,7 +1347,7 @@ struct
     mk_dtypes F._annot;
     mk_for_pack_opt F._for_pack;
     mk_functor_parameter F._functor_parameter;
-    mk_as_functor_parameter F._as_functor_parameter;
+    mk_functor_parameter_of F._functor_parameter_of;
     mk_g_opt F._g;
     mk_function_sections F._function_sections;
     mk_stop_after ~native:true F._stop_after;
@@ -1851,7 +1851,7 @@ module Default = struct
     let _dump_into_file = set dump_into_file
     let _for_pack s = for_package := (Some s)
     let _functor_parameter s = functor_parameters := s :: !functor_parameters
-    let _as_functor_parameter = set as_functor_parameter
+    let _functor_parameter_of s = functor_parameter_of := Some s
     let _g = set debug
     let _i = set print_types
     let _impl = impl

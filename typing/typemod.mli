@@ -134,6 +134,7 @@ type error =
   | Cannot_hide_id of hiding_error
   | Invalid_type_subst_rhs
   | Parameter_interface_unavailable of Compilation_unit.Name.t
+  | Interface_flagged_as_parameter of Misc.filepath
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
