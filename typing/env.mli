@@ -262,6 +262,10 @@ val import_crcs: source:string -> Compilation_unit.crcs -> unit
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module  *)
 val is_imported_opaque: Compilation_unit.Name.t -> bool
 
+(* [is_imported_opaque md] returns true if [md] is a parameter of a functorized
+   module *)
+val is_imported_as_parameter: Compilation_unit.Name.t -> bool
+
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)
 

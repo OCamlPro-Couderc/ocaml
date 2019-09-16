@@ -21,8 +21,7 @@ type pers_flags =
   | Opaque
   | Unsafe_string
   | Pack of Compilation_unit.Prefix.t
-  | As_parameter
-  | Parameters of Compilation_unit.Name.t list
+  | Parameter_of of Compilation_unit.t
 
 type cmi_infos = {
     cmi_name : Compilation_unit.Name.t;

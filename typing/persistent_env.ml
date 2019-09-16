@@ -201,9 +201,20 @@ let check_consistency penv ps =
   with Consistbl.Inconsistency(unit, source, auth) ->
     error (Inconsistent_import(CU.name unit, auth, source))
 
-let check_parameter modname =
-  List.mem modname !Clflags.functor_parameters ||
-  !Clflags.as_functor_parameter
+let check_parameter modname flags functor_unit =
+  let parameter_for_same_module =
+    match !Clflags.functor_parameter_of with
+      None -> false
+    | Some unit ->
+        let unit = Compilation_unit.of_raw_string unit in
+        List.exists
+          (function Parameter_of unit' -> Compilation_unit.equal unit unit'
+                  | _ -> false)
+          flags
+  in
+  List.mem modname !Clflags.functor_parameters &&
+  Compilation_unit.equal (Current_unit.get_exn ()) functor_unit ||
+  parameter_for_same_module
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
@@ -244,8 +255,7 @@ let save_pers_struct penv crc ps pm =
         | Unsafe_string -> ()
         | Pack _prefix -> ()
         | Opaque -> add_imported_opaque penv modname
-        | Parameters _ -> ()
-        | As_parameter -> add_imported_parameter penv ps.ps_name)
+        | Parameter_of _ -> add_imported_parameter penv ps.ps_name)
     ps.ps_flags;
   let for_pack_prefix = prefix_of_pers_struct ps in
   let unit = CU.create ~for_pack_prefix modname in
@@ -302,9 +312,8 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
                          CU.Name.to_string modname)))
       | Opaque ->
           add_imported_opaque penv modname
-      | Parameters _ -> ()
-      | As_parameter ->
-          if not (check_parameter ps.ps_name) then
+      | Parameter_of functor_unit ->
+          if not (check_parameter ps.ps_name ps.ps_flags functor_unit) then
             error (Illegal_import_of_parameter(ps.ps_name, filename))
           else add_imported_parameter penv ps.ps_name)
     ps.ps_flags;
@@ -446,10 +455,10 @@ let make_cmi penv modname mty alerts =
       (match CU.for_pack_prefix (Current_unit.get_exn ()) with
          [] -> []
        | prefix -> [Cmi_format.Pack prefix] );
-      (match !Clflags.functor_parameters with
-         _ :: _ as ps -> [Cmi_format.Parameters ps]
-       | [] -> []);
-      (if !Clflags.as_functor_parameter then [Cmi_format.As_parameter] else []);
+      (match !Clflags.functor_parameter_of with
+         Some unit ->
+           [Cmi_format.Parameter_of (Compilation_unit.of_raw_string unit)]
+       | None -> []);
       [Alerts alerts];
     ]
   in

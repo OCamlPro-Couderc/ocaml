@@ -650,6 +650,9 @@ let crc_of_unit name =
 let is_imported_opaque modname =
   Persistent_env.is_imported_opaque persistent_env modname
 
+let is_imported_as_parameter modname =
+  Persistent_env.is_imported_as_parameter persistent_env modname
+
 let reset_declaration_caches () =
   Hashtbl.clear value_declarations;
   Hashtbl.clear type_declarations;
