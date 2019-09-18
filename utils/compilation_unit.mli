@@ -50,6 +50,8 @@ module Prefix : sig
   (** [for_address p] generates a string representation of a prefix stripped of
       the functor(s) parameter(s) *)
 
+  val in_common_functor: t -> t -> bool
+
 end
 
 (** The name of a "compilation unit" along with any "-for-pack" prefix that

@@ -146,6 +146,16 @@ module Prefix = struct
     Format.asprintf "%a"
       (print_gen pp_functor (fun _ _ -> ())) p
 
+  let in_common_functor curr dep =
+    let common =
+      Misc.Stdlib.List.find_and_chop_longest_common_prefix
+        ~equal:(fun (m1, _) (m2, _) -> Name.equal m1 m2)
+        ~first:curr
+        ~second:dep
+    in
+    List.exists (fun (_, args) -> match args with [] -> false | _ -> true)
+      common.Misc.Stdlib.List.longest_common_prefix
+
 end
 
 type t = {

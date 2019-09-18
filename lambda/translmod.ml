@@ -829,16 +829,6 @@ let for_functorized_package prefix =
   let in_functor = List.exists (fun (_, args) -> args <> []) in
   if in_functor prefix then Some prefix else None
 
-let in_common_functor curr dep =
-  let common =
-    Misc.Stdlib.List.find_and_chop_longest_common_prefix
-      ~equal:(fun (m1, _) (m2, _) -> m1 = m2)
-      ~first:curr
-      ~second:dep
-  in
-  List.exists (fun (_, args) -> args <> [])
-    common.Misc.Stdlib.List.longest_common_prefix
-
 let transl_functorized_package_component_gen lam curr_prefix =
   let package_parameters =
     List.map (fun (_, params) -> params) curr_prefix |> List.concat in
@@ -852,7 +842,7 @@ let transl_functorized_package_component_gen lam curr_prefix =
   let subst, packed_dependencies =
     Ident.Set.fold (fun id (s, ids) ->
         let prefix, _ = Compilation_unit.Prefix.extract_prefix (Ident.name id) in
-        if in_common_functor curr_prefix prefix then
+        if Compilation_unit.Prefix.in_common_functor curr_prefix prefix then
           let id' = Ident.create_local (Ident.name id) in
           Ident.Map.add id id' s, id' :: ids
         else s, ids)
@@ -1672,11 +1662,16 @@ let generate_functor_component params identifiers = function
       }
 
 
-let transl_functorized_package_gen components params =
+let transl_functorized_package_gen components params dependencies =
   let identifiers = List.map fresh_component_id components in
   let params = List.map (Ident.create_local) params in
+  let dependencies =
+    List.map (fun id -> Ident.create_local (Ident.name id)) dependencies in
   let components =
-    List.map (generate_functor_component params identifiers) components in
+    List.map
+      (generate_functor_component params
+         (List.sort Ident.compare (identifiers @ dependencies)))
+      components in
   let pack_block =
     Lprim(Pmakeblock(0, Immutable, None),
           List.map (fun id -> Lvar id) identifiers, Location.none) in
@@ -1686,7 +1681,7 @@ let transl_functorized_package_gen components params =
       components pack_block in
   Lfunction {
     kind = Curried;
-    params = List.map (fun id -> id, Pgenval) params;
+    params = List.map (fun id -> id, Pgenval) (params @ dependencies) ;
     return = Pgenval;
     attr = {
       inline = Default_inline;
@@ -1699,23 +1694,24 @@ let transl_functorized_package_gen components params =
     body = instanciation;
   }
 
-let transl_functorized_package components params =
-  let functor_pack = transl_functorized_package_gen components params in
+let transl_functorized_package components params dependencies =
+  let functor_pack =
+    transl_functorized_package_gen components params dependencies in
   let id = Ident.create_local "functor_pack" in
   Llet (Strict, Pgenval, id,
         functor_pack,
         Lprim(Pmakeblock(0, Immutable, None), [Lvar id], Location.none))
 
 
-let transl_package_body components params =
+let transl_package_body components params functor_dependencies =
   if params <> [] then
-    transl_functorized_package components params
+    transl_functorized_package components params functor_dependencies
   else
     Lprim(Pmakeblock(0, Immutable, None),
           List.map get_component components,
           Location.none)
 
-let transl_package_flambda components coercion =
+let transl_package_flambda components functor_dependencies coercion =
   let size =
     match coercion with
     | _ when !Clflags.functor_parameters <> [] -> 1
@@ -1727,18 +1723,20 @@ let transl_package_flambda components coercion =
   in
   size,
   apply_coercion Location.none Strict coercion
-    (transl_package_body components !Clflags.functor_parameters)
+    (transl_package_body components !Clflags.functor_parameters functor_dependencies)
 
-let transl_package components target_name coercion =
+let transl_package components target_name functor_dependencies coercion =
   let module_name = transl_current_module_ident (Ident.name target_name) in
   let parameters =
     let current_unit = Persistent_env.Current_unit.get_exn () in
     List.flatten
-      (List.map (fun (_, args) -> args) (Compilation_unit.for_pack_prefix current_unit))
+      (List.map (fun (_, args) ->
+           List.map Compilation_unit.Name.to_string args)
+         (Compilation_unit.for_pack_prefix current_unit))
     @ !Clflags.functor_parameters in
   Lprim(Psetglobal module_name,
         [apply_coercion Location.none Strict coercion
-           (transl_package_body components parameters)],
+           (transl_package_body components parameters functor_dependencies)],
         Location.none)
   (*
   let components =
@@ -1756,8 +1754,9 @@ let transl_package components target_name coercion =
   Lprim(Psetglobal target_name, [Lprim(Pmakeblock(0, Immutable), components)])
    *)
 
-let transl_store_functorized_package components params target_name coercion =
-  let body = transl_functorized_package_gen components params in
+let transl_store_functorized_package
+    components params deps target_name coercion =
+  let body = transl_functorized_package_gen components params deps in
   let fct = Ident.create_local "functor" in
   1,
   Llet (Strict, Pgenval, fct,
@@ -1767,7 +1766,8 @@ let transl_store_functorized_package components params target_name coercion =
                Lvar fct],
               Location.none))
 
-let transl_store_package component_names target_name coercion =
+let transl_store_package
+    component_names target_name functor_dependencies coercion =
   let rec make_sequence fn pos arg =
     match arg with
       [] -> lambda_unit
@@ -1785,7 +1785,11 @@ let transl_store_package component_names target_name coercion =
            0 component_names)
       else
         transl_store_functorized_package
-          component_names !Clflags.functor_parameters target_name coercion
+          component_names
+          !Clflags.functor_parameters
+          functor_dependencies
+          target_name
+          coercion
   | Tcoerce_structure (pos_cc_list, _id_pos_list) ->
       let components =
         Lprim(Pmakeblock(0, Immutable, None),
@@ -1805,7 +1809,11 @@ let transl_store_package component_names target_name coercion =
                0 pos_cc_list))
   | Tcoerce_functor (_, _) ->
       transl_store_functorized_package
-        component_names !Clflags.functor_parameters target_name coercion
+        component_names
+        !Clflags.functor_parameters
+        functor_dependencies
+        target_name
+        coercion
 (*
               (* ignore id_pos_list as the ids are already bound *)
       let id = Array.of_list component_names in

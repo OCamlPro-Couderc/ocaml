@@ -168,7 +168,7 @@ let rec append_bytecode_list packagename oc identifiers defined ofs subst =
 (* Generate the code that builds the tuple representing the package module *)
 
 let build_global_target
-    ~ppf_dump oc target_name prefix members identifiers pos coercion =
+    ~ppf_dump oc target_name prefix members identifiers dependencies pos coercion =
   let components =
     List.map2
       (fun m id ->
@@ -195,7 +195,9 @@ let build_global_target
   let lam =
     Translmod.transl_package
       components
-      (Ident.create_persistent (CU.Name.to_string target_name)) coercion in
+      (Ident.create_persistent (CU.Name.to_string target_name))
+      dependencies
+      coercion in
   let lam = Simplif.simplify_lambda lam in
   if !Clflags.dump_lambda then
     Format.fprintf ppf_dump "%a@." Printlambda.lambda lam;
@@ -238,6 +240,12 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     List.map
       (fun name -> Ident.create_persistent ~prefix (CU.Name.to_string name))
       unit_names in
+  let functor_dependencies =
+    Ident.Set.filter (fun req ->
+        let prefix_req, _ =
+          Compilation_unit.Prefix.extract_prefix (Ident.name req) in
+        Compilation_unit.Prefix.in_common_functor prefix prefix_req) Ident.Set.empty (* pack_dependencies *)
+    |> Ident.Set.elements in
   let oc = open_out_bin targetfile in
   try
     output_string oc Config.cmo_magic_number;
@@ -246,7 +254,8 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let pos_code = pos_out oc in
     let ofs = append_bytecode_list packagename oc identifiers [] 0
                                    Subst.identity members in
-    build_global_target ~ppf_dump oc targetname prefix members identifiers ofs coercion;
+    build_global_target ~ppf_dump oc targetname
+      prefix members identifiers functor_dependencies ofs coercion;
     let pos_debug = pos_out oc in
     if !Clflags.debug && !events <> [] then begin
       output_value oc (List.rev !events);

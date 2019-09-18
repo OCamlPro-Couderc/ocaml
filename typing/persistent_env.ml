@@ -224,7 +224,8 @@ let check_parameter modname flags functor_unit =
   Compilation_unit.equal current_unit functor_unit ||
   parameter_for_same_module ||
   List.exists
-    (fun (_, args) -> List.exists (Compilation_unit.Name.equal modname) args)
+    (fun (_, args) ->
+       List.exists Compilation_unit.Name.(equal (of_string modname)) args)
     (Compilation_unit.for_pack_prefix current_unit)
 
 let can_load_cmis penv =

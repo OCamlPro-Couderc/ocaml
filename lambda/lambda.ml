@@ -635,6 +635,12 @@ let in_common_functor curr dep =
   List.exists (fun (_, args) -> args <> [])
     common_prefix.Stdlib.List.longest_common_prefix
 
+let in_package_functor_parameters id prefix =
+  List.exists (fun (_, args) ->
+      List.exists
+        Compilation_unit.Name.(equal (of_string (Ident.name id))) args)
+    prefix
+
 (* Translate an access path *)
 
 let rec transl_address loc = function
@@ -646,8 +652,8 @@ let rec transl_address loc = function
           Compilation_unit.for_pack_prefix
           (Persistent_env.Current_unit.get_exn ()) in
         if in_common_functor curr_prefix prefix ||
-           List.exists (fun (_, args) ->
-               List.mem (Ident.name id) args) curr_prefix then Lvar id
+           in_package_functor_parameters id curr_prefix
+        then Lvar id
         else Lprim(Pgetglobal id, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->
