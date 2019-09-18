@@ -136,6 +136,14 @@ module Prefix = struct
   let to_string p =
     Format.asprintf "%a" print p
 
+  let for_address p =
+    let open Format in
+    let pp_functor _ fmt (m, _) =
+      fprintf fmt "%s" m
+    in
+    Format.asprintf "%a"
+      (print_gen pp_functor (fun _ _ -> ())) p
+
 end
 
 type t = {

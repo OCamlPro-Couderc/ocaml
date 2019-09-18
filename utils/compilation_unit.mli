@@ -40,6 +40,10 @@ module Prefix : sig
 
   val to_string: t -> string
 
+  val for_address: t -> string
+  (** [for_address p] generates a string representation of a prefix stripped of
+      the functor(s) parameter(s) *)
+
 end
 
 (** The name of a "compilation unit" along with any "-for-pack" prefix that
