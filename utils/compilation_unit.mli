@@ -27,7 +27,7 @@ end
 
 module Prefix : sig
 
-  type component = Name.t
+  type component = (Name.t * Name.t list)
 
   type t = component list
 

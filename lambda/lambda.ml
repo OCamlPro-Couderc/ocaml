@@ -626,11 +626,20 @@ let rec patch_guarded patch = function
       Levent (patch_guarded patch lam, ev)
   | _ -> fatal_error "Lambda.patch_guarded"
 
+
+let for_functorized_package for_pack =
+  let in_functor = List.exists (fun (_, args) -> args <> []) in
+  match for_pack with
+  | None -> false
+  | Some _ ->
+      let prefix = Compilation_unit.Prefix.parse_for_pack for_pack in
+      in_functor prefix
+
 (* Translate an access path *)
 
 let rec transl_address loc = function
   | Env.Aident id ->
-      if Ident.global id
+      if Ident.global id && not (for_functorized_package !Clflags.for_package)
       then Lprim(Pgetglobal id, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->

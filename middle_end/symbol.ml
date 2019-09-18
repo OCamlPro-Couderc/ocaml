@@ -307,11 +307,12 @@ let kind t : kind =
 
 let prefix_for_compilation_unit cu =
   let open Format in
+  let path = List.map fst (Compilation_unit.full_path cu) in
   asprintf "caml%a"
     (pp_print_list
        ~pp_sep:(fun ppf () -> fprintf ppf "__")
        Compilation_unit.Name.print)
-    (Compilation_unit.full_path cu)
+    path
 
 let name_for_backend t =
   (* Care: these must not clash with the names produced in

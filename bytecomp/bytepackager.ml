@@ -179,8 +179,10 @@ let build_global_target
                 Types.Unit_functor (_, _) -> true
               | _ -> false in
             let required =
-              List.filter_map (fun (name, _) ->
-                  let pers_id = Ident.create_persistent ~prefix name in
+              List.filter_map (fun (unit, _) ->
+                  let pers_id =
+                    Ident.create_persistent ~prefix
+                      Compilation_unit.(Name.to_string (name unit)) in
                   if not (Ident.equal pers_id id) &&
                      List.exists (Ident.equal pers_id) identifiers then
                     Some pers_id

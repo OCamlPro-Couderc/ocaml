@@ -278,7 +278,7 @@ let check_pack_compatibility current_prefix imported_prefix =
 let check_pack_import current_prefix imported_prefix imported_unit =
   not (Misc.Stdlib.List.is_prefix
          ~equal:(=)
-         (imported_prefix @ [imported_unit])
+         (imported_prefix @ [imported_unit, []])
          ~of_:current_prefix)
 
 let acknowledge_pers_struct penv check modname pers_sig pm =
