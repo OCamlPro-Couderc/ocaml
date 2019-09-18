@@ -427,7 +427,7 @@ module Flambda_only = struct
     let name_of_unit_containing_symbol =
       match desired_path_without_for_pack_prefix with
       | [] -> CU.name current_comp_unit
-      | (name_of_unit_containing_symbol, _)::_ -> name_of_unit_containing_symbol
+      | (name_of_unit_containing_symbol, _) ::_ -> name_of_unit_containing_symbol
     in
     let extract_flambda_export_info info =
       match UI.export_info info with

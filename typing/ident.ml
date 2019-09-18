@@ -45,7 +45,7 @@ let create_persistent ?prefix s =
   match prefix with
     None | Some [] -> Global s
   | Some prefix ->
-      Global (Compilation_unit.Prefix.to_string prefix ^ "." ^ s)
+      Global (Compilation_unit.Prefix.for_address prefix ^ "." ^ s)
 
 let name = function
   | Local { name; _ }
