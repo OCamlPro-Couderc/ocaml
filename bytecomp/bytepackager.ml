@@ -153,7 +153,8 @@ let rec append_bytecode_list packagename oc identifiers defined ofs subst =
             append_bytecode oc identifiers defined ofs
               subst m.pm_file compunit in
           (* /!\ TEMP *)
-          let prefix = String.split_on_char '.' packagename in
+          let prefix =
+            Compilation_unit.Prefix.parse_for_pack (Some packagename) in
           let id = Ident.create_persistent ~prefix m.pm_name in
           let root = Path.Pident id in
           append_bytecode_list packagename oc identifiers (id :: defined)
@@ -176,8 +177,9 @@ let build_global_target
                 Types.Unit_functor (_, _) -> true
               | _ -> false in
             let required =
-              List.filter_map (fun (name, _) ->
-                  let pers_id = Ident.create_persistent ~prefix name in
+              List.filter_map (fun (unit, _) ->
+                  let pers_id =
+                    Ident.create_persistent ~prefix (Compilation_unit.name unit) in
                   if not (Ident.equal pers_id id) &&
                      List.exists (Ident.equal pers_id) identifiers then
                     Some pers_id

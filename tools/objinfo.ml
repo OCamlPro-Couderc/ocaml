@@ -116,9 +116,10 @@ let print_pers_flags =
   | Alerts _ -> ()
   | Opaque -> printf " -opaque"
   | Unsafe_string -> printf " -unsafe-string"
-  | Pack modnames -> printf " -for-pack %s" (String.concat "." modnames)
-  | Parameter_of c -> printf " -parameter-of %s"
-                        (Compilation_unit.full_path_as_string c)
+  | Pack prefix ->
+      printf " -for-pack %s" (Compilation_unit.Prefix.to_string prefix)
+  | Parameter_of c ->
+      printf " -parameter-of %s" (Compilation_unit.full_path_as_string c)
 
 let print_cmi_infos name crcs flags =
   printf "Unit name: %s\n" name;

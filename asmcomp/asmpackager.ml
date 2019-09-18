@@ -137,10 +137,10 @@ let make_package_object
                   Types.Unit_functor (_, _) -> true
                 | _ -> false in
               let required =
-                CU.Name.Map.fold (fun name _ req ->
+                CU.Map.fold (fun unit _ req ->
                     let pers_id =
-                      Ident.create_persistent (* ~prefix *) (CU.Name.to_string
-                                                               name) in
+                      Ident.create_persistent (* ~prefix *)
+                        (CU.Name.to_string (CU.name unit)) in
                     if not (Ident.equal pers_id id) &&
                        List.exists (Ident.equal pers_id) identifiers then
                       pers_id :: req

@@ -756,14 +756,13 @@ let transl_functorized_implementation module_id (impl, cc) =
   in
   transl_impl cc (global_path module_id) impl
 
-let wrap_functorized_implementation impl (code, size) =
+let wrap_functorized_implementation impl code =
   match impl.timpl_desc with
-    Timpl_structure _ -> code, size
+    Timpl_structure _ -> code
   | Timpl_functor (_, _) ->
       Lprim(Pmakeblock(0, Immutable, None),
             [ code ],
-            Location.none),
-      1
+            Location.none)
 
 (* Compile an implementation *)
 
@@ -771,21 +770,31 @@ let transl_current_module_ident module_name =
   let prefix = Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
   Ident.create_persistent ~prefix module_name
 
-let for_functorized_package _ = false
+let for_functorized_package for_pack =
+  let in_functor = List.exists (fun (_, args) -> args <> []) in
+  match for_pack with
+  | None -> None
+  | Some _ ->
+      let prefix = Compilation_unit.Prefix.parse_for_pack for_pack in
+      if in_functor prefix then Some prefix else None
 
-let transl_functorized_package_component lam =
-  let package_parameters = [] in
+let transl_functorized_package_component lam deps curr_prefix =
+  let package_parameters =
+    List.map (fun (_, params) -> params) curr_prefix |> List.concat in
   let subst, rev_package_parameters =
-    List.fold_left (fun (s, ids) id ->
-        let id' = Ident.create_local (Ident.name id) in
-        Ident.Map.add id s, id' :: ids)
-    Ident.Map.empty package_parameters in
+    List.fold_left (fun (s, ids) param ->
+        let id = Ident.create_persistent param in
+        let id' = Ident.create_local param in
+        Ident.Map.add id id' s, id' :: ids)
+    (Ident.Map.empty, []) package_parameters in
   let subst, packed_dependencies =
-    List.sort Ident.compare []
-    |> List.fold_left (fun (s, ids) id ->
-        let id' = Ident.create_local (Ident.name id) in
-        Ident.Map.add id s, id' :: ids)
-      subst
+    Ident.Set.fold (fun id (s, ids) ->
+        let prefix, _ = Compilation_unit.Prefix.extract_prefix (Ident.name id) in
+        if Compilation_unit.Prefix.equal prefix curr_prefix then
+          let id' = Ident.create_local (Ident.name id) in
+          Ident.Map.add id id' s, id' :: ids
+        else s, ids)
+      deps (subst, [])
     |> fun (s, rev_deps) -> s, List.rev rev_deps in
   let params = List.rev_append rev_package_parameters packed_dependencies in
   let body = Lambda.rename subst lam in
@@ -802,23 +811,25 @@ let transl_functorized_package_component lam =
       };
       loc = Location.none;
       body;
-    }
+    }, 1
 
 let transl_implementation_flambda module_name (impl, cc) =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
   let module_id = transl_current_module_ident module_name in
-  let body, size, required_globals =
+  let body, (size, required_globals) =
     Translobj.transl_label_init
       (fun () ->
-         let body = transl_functorized_implementation module_id (impl, cc) in
+         let body, size = transl_functorized_implementation module_id (impl, cc) in
          let required_globals = required_globals ~flambda:true body in
-         let body =
-           if for_functorized_package !Clflags.for_package then
-             transl_functorized_package_component body required_globals
-           else body in
-         wrap_functorized_implementation impl body) in
+         let body, size =
+           match for_functorized_package !Clflags.for_package with
+             Some prefix ->
+               transl_functorized_package_component body required_globals prefix
+           | None -> body, size in
+         wrap_functorized_implementation impl body,
+         (size, required_globals)) in
   { module_ident = module_id;
     main_module_block_size = size;
     required_globals;
