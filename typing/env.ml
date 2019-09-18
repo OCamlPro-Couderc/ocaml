@@ -590,15 +590,18 @@ let type_of_cmi ~freshen { Persistent_env.Persistent_interface.cmi; _ } =
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent name in
   let path = Pident id in
-  let pers_id =
+  let pers_id, for_functor_pack =
     List.find_opt (function Pack _ -> true | _ -> false) flags
     |> function
       Some (Pack prefix) ->
-        Ident.create_persistent ~prefix name
-    | _ -> id
+        Ident.create_persistent ~prefix name,
+        List.exists (fun (_, args) -> args <> []) prefix
+    | _ -> id, false
+    (* in that case, it is not dependency from the same pack *)
   in
   let pm_addr = match uty with
-      Unit_functor _ -> Adot (Aident pers_id, 0)
+      Unit_functor _  -> Adot (Aident pers_id, 0)
+    | Unit_signature _ when for_functor_pack -> Adot (Aident pers_id, 0)
     | Unit_signature _ -> Aident pers_id
   in
   let addr = EnvLazy.create_forced pm_addr in

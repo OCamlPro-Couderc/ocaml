@@ -799,20 +799,22 @@ let transl_functorized_package_component lam curr_prefix =
     |> fun (s, rev_deps) -> s, List.rev rev_deps in
   let params = List.rev_append rev_package_parameters packed_dependencies in
   let body = Lambda.rename subst lam in
-  Lfunction {
-      kind = Curried;
-      params = List.map (fun id -> id, Pgenval) params;
-      return = Pgenval;
-      attr = {
-        inline = Default_inline;
-        specialise = Default_specialise;
-        local = Default_local;
-        is_a_functor = true;
-        stub = false;
-      };
-      loc = Location.none;
-      body;
-    }, 1
+  Lprim (Pmakeblock(0, Immutable, None),
+         [ Lfunction {
+               kind = Curried;
+               params = List.map (fun id -> id, Pgenval) params;
+               return = Pgenval;
+               attr = {
+                 inline = Default_inline;
+                 specialise = Default_specialise;
+                 local = Default_local;
+                 is_a_functor = true;
+                 stub = false;
+               };
+               loc = Location.none;
+               body;
+             }],
+        Location.none), 1
 
 let transl_implementation_flambda module_name (impl, cc) =
   reset_labels ();
@@ -823,12 +825,11 @@ let transl_implementation_flambda module_name (impl, cc) =
     Translobj.transl_label_init
       (fun () ->
          let body, size = transl_functorized_implementation module_id (impl, cc) in
-         let body, size =
-           match for_functorized_package !Clflags.for_package with
-             Some prefix ->
-               transl_functorized_package_component body prefix
-           | None -> body, size in
-         wrap_functorized_implementation impl body, size)
+         match for_functorized_package !Clflags.for_package with
+           Some prefix ->
+             transl_functorized_package_component body prefix
+         | None ->
+             wrap_functorized_implementation impl body, size)
   in
   { module_ident = module_id;
     main_module_block_size = size;
@@ -1559,7 +1560,8 @@ let generate_functor_component params identifiers = function
           List.exists (fun req -> Ident.name id = Ident.name req) required) identifiers in
       fresh_id,
       Lapply {
-        ap_func = Lprim(Pgetglobal id, [], Location.none);
+        ap_func = Lprim(Pfield 0, [Lprim(Pgetglobal id, [], Location.none)],
+                        Location.none);
         ap_args = List.map (fun id -> Lvar id) (params @ args);
         ap_loc = Location.none;
         ap_should_be_tailcall = false;
