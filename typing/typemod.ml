@@ -2606,7 +2606,7 @@ let type_interface sourcefile env ast =
 (* "Packaging" of several compilation units into one unit
    having them as sub-modules.  *)
 
-let package_module_types units =
+let package_module_types env parameters units =
   let units_with_ids =
     List.map
       (fun (name, uty) ->
@@ -2633,7 +2633,24 @@ let package_module_types units =
          Sig_module(newid, Mp_present, md, Trec_not, Exported))
       units_with_ids
   in
-  Unit_signature sg
+  match parameters with
+    [] -> Unit_signature sg
+  | params ->
+      let args, _ =
+        List.fold_left (fun (args, subst) param ->
+          let id_arg_pers = Ident.create_persistent param in
+          let mty_arg = (Env.find_module (Path.Pident id_arg_pers) env).md_type in
+          let mty_arg = Subst.modtype subst mty_arg in
+          let id_arg = Ident.create_local param in
+          (id_arg, mty_arg) :: args,
+          Subst.add_module_path
+            (Path.Pident id_arg_pers)
+            (Path.Pident id_arg)
+            subst)
+          ([], Subst.identity) params
+      in
+      let args = List.rev args in
+      Unit_functor (args, sg)
 
 let package_units initial_env objfiles cmifile modulename =
   (* Read the signatures of the units *)
@@ -2651,7 +2668,9 @@ let package_units initial_env objfiles cmifile modulename =
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
-  let uty = package_module_types units in
+  let uty = package_module_types initial_env
+      (List.rev !Clflags.functor_parameters)
+      units in
   (* See if explicit interface is provided *)
   let prefix = Filename.remove_extension cmifile in
   let mlifile = prefix ^ !Config.interface_suffix in

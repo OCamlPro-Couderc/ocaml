@@ -212,9 +212,13 @@ let check_parameter modname flags functor_unit =
                   | _ -> false)
           flags
   in
+  let current_unit = Current_unit.get_exn () in
   List.mem modname !Clflags.functor_parameters &&
-  Compilation_unit.equal (Current_unit.get_exn ()) functor_unit ||
-  parameter_for_same_module
+  Compilation_unit.equal current_unit functor_unit ||
+  parameter_for_same_module ||
+  List.exists
+    (fun (_, args) -> List.exists (Compilation_unit.Name.equal modname) args)
+    (Compilation_unit.for_pack_prefix current_unit)
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
