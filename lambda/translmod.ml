@@ -833,9 +833,10 @@ let for_functorized_package for_pack =
       let prefix = Compilation_unit.Prefix.parse_for_pack for_pack in
       if in_functor prefix then Some prefix else None
 
-let transl_functorized_package_component lam deps curr_prefix =
+let transl_functorized_package_component lam curr_prefix =
   let package_parameters =
     List.map (fun (_, params) -> params) curr_prefix |> List.concat in
+  let curr_prefix_for_address = List.map (fun (m, _) -> m, []) curr_prefix in
   let subst, rev_package_parameters =
     List.fold_left (fun (s, ids) param ->
         let param_as_string = Compilation_unit.Name.to_string param in
@@ -846,11 +847,11 @@ let transl_functorized_package_component lam deps curr_prefix =
   let subst, packed_dependencies =
     Ident.Set.fold (fun id (s, ids) ->
         let prefix, _ = Compilation_unit.Prefix.extract_prefix (Ident.name id) in
-        if Compilation_unit.Prefix.equal prefix curr_prefix then
+        if Compilation_unit.Prefix.equal prefix curr_prefix_for_address then
           let id' = Ident.create_local (Ident.name id) in
           Ident.Map.add id id' s, id' :: ids
         else s, ids)
-      deps (subst, [])
+      (Lambda.free_variables lam) (subst, [])
     |> fun (s, rev_deps) -> s, List.rev rev_deps in
   let params = List.rev_append rev_package_parameters packed_dependencies in
   let body = Lambda.rename subst lam in
@@ -874,21 +875,20 @@ let transl_implementation_flambda module_name (impl, cc) =
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
   let module_id = transl_current_module_ident module_name in
-  let body, (size, required_globals) =
+  let body, size =
     Translobj.transl_label_init
       (fun () ->
          let body, size = transl_functorized_implementation module_id (impl, cc) in
-         let required_globals = required_globals ~flambda:true body in
          let body, size =
            match for_functorized_package !Clflags.for_package with
              Some prefix ->
-               transl_functorized_package_component body required_globals prefix
+               transl_functorized_package_component body prefix
            | None -> body, size in
-         wrap_functorized_implementation impl body,
-         (size, required_globals)) in
+         wrap_functorized_implementation impl body, size)
+  in
   { module_ident = module_id;
     main_module_block_size = size;
-    required_globals;
+    required_globals = required_globals ~flambda:true body;
     code = body }
 
 let transl_implementation module_name (impl, cc) =

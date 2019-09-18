@@ -626,21 +626,27 @@ let rec patch_guarded patch = function
       Levent (patch_guarded patch lam, ev)
   | _ -> fatal_error "Lambda.patch_guarded"
 
-
-let for_functorized_package for_pack =
-  let in_functor = List.exists (fun (_, args) -> args <> []) in
-  match for_pack with
-  | None -> false
-  | Some _ ->
-      let prefix = Compilation_unit.Prefix.parse_for_pack for_pack in
-      in_functor prefix
+let in_common_functor curr dep =
+  let equal (m1, _) (m2, _) = Compilation_unit.Name.equal m1 m2 in
+  let common_prefix =
+    Misc.Stdlib.List.find_and_chop_longest_common_prefix
+      ~equal ~first:curr ~second:dep
+  in
+  List.exists (fun (_, args) -> args <> [])
+    common_prefix.Stdlib.List.longest_common_prefix
 
 (* Translate an access path *)
 
 let rec transl_address loc = function
   | Env.Aident id ->
-      if Ident.global id && not (for_functorized_package !Clflags.for_package)
-      then Lprim(Pgetglobal id, [], loc)
+      if Ident.global id then
+        let curr_prefix =
+          Compilation_unit.for_pack_prefix
+            (Persistent_env.Current_unit.get_exn ()) in
+        let prefix, _ =
+          Compilation_unit.Prefix.extract_prefix (Ident.name id) in
+        if in_common_functor curr_prefix prefix then Lvar id
+        else Lprim(Pgetglobal id, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->
       Lprim(Pfield pos, [transl_address loc addr], loc)
