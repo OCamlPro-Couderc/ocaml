@@ -774,10 +774,19 @@ let for_functorized_package prefix =
   let in_functor = List.exists (fun (_, args) -> args <> []) in
   if in_functor prefix then Some prefix else None
 
-let transl_functorized_package_component lam curr_prefix =
+let in_common_functor curr dep =
+  let common =
+    Misc.Stdlib.List.find_and_chop_longest_common_prefix
+      ~equal:(fun (m1, _) (m2, _) -> m1 = m2)
+      ~first:curr
+      ~second:dep
+  in
+  List.exists (fun (_, args) -> args <> [])
+    common.Misc.Stdlib.List.longest_common_prefix
+
+let transl_functorized_package_component_gen lam curr_prefix =
   let package_parameters =
     List.map (fun (_, params) -> params) curr_prefix |> List.concat in
-  let curr_prefix_for_address = List.map (fun (m, _) -> m, []) curr_prefix in
   let subst, rev_package_parameters =
     List.fold_left (fun (s, ids) param ->
         let id = Ident.create_persistent param in
@@ -787,7 +796,7 @@ let transl_functorized_package_component lam curr_prefix =
   let subst, packed_dependencies =
     Ident.Set.fold (fun id (s, ids) ->
         let prefix, _ = Compilation_unit.Prefix.extract_prefix (Ident.name id) in
-        if Compilation_unit.Prefix.equal prefix curr_prefix_for_address then
+        if in_common_functor curr_prefix prefix then
           let id' = Ident.create_local (Ident.name id) in
           Ident.Map.add id id' s, id' :: ids
         else s, ids)
@@ -795,23 +804,25 @@ let transl_functorized_package_component lam curr_prefix =
     |> fun (s, rev_deps) -> s, List.rev rev_deps in
   let params = List.rev_append rev_package_parameters packed_dependencies in
   let body = Lambda.rename subst lam in
+  Lfunction {
+    kind = Curried;
+    params = List.map (fun id -> id, Pgenval) params;
+    return = Pgenval;
+    attr = {
+      inline = Default_inline;
+      specialise = Default_specialise;
+      local = Default_local;
+      is_a_functor = true;
+      stub = false;
+    };
+    loc = Location.none;
+    body }, 1
+
+let transl_functorized_package_component lam curr_prefix =
+  let code, _ = transl_functorized_package_component_gen lam curr_prefix in
   let id = Ident.create_local "impl" in
-  let impl =
-    Lfunction {
-      kind = Curried;
-      params = List.map (fun id -> id, Pgenval) params;
-      return = Pgenval;
-      attr = {
-        inline = Default_inline;
-        specialise = Default_specialise;
-        local = Default_local;
-        is_a_functor = true;
-        stub = false;
-      };
-      loc = Location.none;
-      body } in
   Llet (Strict, Pgenval, id,
-        impl,
+        code,
         Lprim (Pmakeblock(0, Immutable, None),
                [ Lvar id ],
                Location.none)), 1
@@ -1348,7 +1359,7 @@ let transl_store_gen_init module_name =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
-  Ident.create_persistent module_name
+  transl_current_module_ident module_name
 
 let transl_store_structure_gen module_id ({str_items = str}, restr) topl =
   let (map, prims, aliases, size) =
@@ -1362,24 +1373,26 @@ let transl_store_structure_gen module_id ({str_items = str}, restr) topl =
   transl_store_label_init module_id size f str
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
-let transl_store_functorized_implementation module_id (impl, restr) =
-  let code, i =
-    transl_functorized_implementation module_id (impl, restr) in
+let transl_store_functorized_implementation_gen module_id (body, size) =
   let body_id = Ident.create_local "*unit-body*" in
-  i,
-  Llet (Strict, Pgenval, body_id, code,
+  size,
+  Llet (Strict, Pgenval, body_id, body,
         Lsequence (Lprim(Psetfield(0, Pointer, Root_initialization),
                          [Lprim(Pgetglobal module_id, [], Location.none);
                           Lvar body_id],
                          Location.none),
                    lambda_unit))
 
+let transl_store_functorized_implementation module_id ((impl, restr)) =
+  let body =
+    transl_functorized_implementation module_id (impl, restr) in
+  transl_store_functorized_implementation_gen module_id body
+
 let transl_store_phrases module_name str =
   let module_id = transl_store_gen_init module_name in
   transl_store_structure_gen module_id (str,Tcoerce_none) true
 
-let transl_store_gen module_name (impl, restr) topl =
-  let module_id = transl_store_gen_init module_name in
+let transl_store_gen module_id (impl, restr) topl =
   match impl.timpl_desc with
     Timpl_structure str -> transl_store_structure_gen module_id (str, restr) topl
   | Timpl_functor _ ->
@@ -1388,8 +1401,17 @@ let transl_store_gen module_name (impl, restr) topl =
 let transl_store_implementation module_name (impl, restr) =
   let s = !transl_store_subst in
   transl_store_subst := Ident.Map.empty;
+  let module_id = transl_store_gen_init module_name in
   let (i, code) =
-    transl_store_gen module_name (impl, restr) false in
+    let current_unit = Persistent_env.Current_unit.get_exn () in
+    match for_functorized_package (Compilation_unit.for_pack_prefix current_unit) with
+      Some prefix ->
+        let body, _ =
+          transl_functorized_implementation module_id (impl, restr) in
+        let body = transl_functorized_package_component_gen body prefix in
+        transl_store_functorized_implementation_gen module_id body
+    | None -> transl_store_gen module_id (impl, restr) false
+  in
   transl_store_subst := s;
   { Lambda.main_module_block_size = i;
     code;
@@ -1574,7 +1596,7 @@ let generate_functor_component params identifiers = function
       }
 
 
-let transl_functorized_package components params =
+let transl_functorized_package_gen components params =
   let identifiers = List.map fresh_component_id components in
   let params = List.map (Ident.create_local) params in
   let components =
@@ -1586,21 +1608,23 @@ let transl_functorized_package components params =
     List.fold_right (fun (id, lam) k ->
         Llet (Strict, Pgenval, id, lam, k))
       components pack_block in
-  let functor_pack =
-    Lfunction {
-      kind = Curried;
-      params = List.map (fun id -> id, Pgenval) params;
-      return = Pgenval;
-      attr = {
-        inline = Default_inline;
-        specialise = Default_specialise;
-        local = Default_local;
-        is_a_functor = true;
-        stub = false;
-      };
-      loc = Location.none;
-      body = instanciation;
-    } in
+  Lfunction {
+    kind = Curried;
+    params = List.map (fun id -> id, Pgenval) params;
+    return = Pgenval;
+    attr = {
+      inline = Default_inline;
+      specialise = Default_specialise;
+      local = Default_local;
+      is_a_functor = true;
+      stub = false;
+    };
+    loc = Location.none;
+    body = instanciation;
+  }
+
+let transl_functorized_package components params =
+  let functor_pack = transl_functorized_package_gen components params in
   let id = Ident.create_local "functor_pack" in
   Llet (Strict, Pgenval, id,
         functor_pack,
@@ -1631,9 +1655,14 @@ let transl_package_flambda components coercion =
 
 let transl_package components target_name coercion =
   let module_name = transl_current_module_ident (Ident.name target_name) in
+  let parameters =
+    let current_unit = Persistent_env.Current_unit.get_exn () in
+    List.flatten
+      (List.map (fun (_, args) -> args) (Compilation_unit.for_pack_prefix current_unit))
+    @ !Clflags.functor_parameters in
   Lprim(Psetglobal module_name,
         [apply_coercion Location.none Strict coercion
-           (transl_package_body components !Clflags.functor_parameters)],
+           (transl_package_body components parameters)],
         Location.none)
   (*
   let components =
@@ -1652,7 +1681,7 @@ let transl_package components target_name coercion =
    *)
 
 let transl_store_functorized_package components params target_name coercion =
-  let body = transl_functorized_package components params in
+  let body = transl_functorized_package_gen components params in
   let fct = Ident.create_local "functor" in
   1,
   Llet (Strict, Pgenval, fct,
