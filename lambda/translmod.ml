@@ -825,13 +825,9 @@ let transl_current_module_ident module_name =
   let prefix = Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
   Ident.create_persistent ~prefix module_name
 
-let for_functorized_package for_pack =
+let for_functorized_package prefix =
   let in_functor = List.exists (fun (_, args) -> args <> []) in
-  match for_pack with
-  | None -> None
-  | Some _ ->
-      let prefix = Compilation_unit.Prefix.parse_for_pack for_pack in
-      if in_functor prefix then Some prefix else None
+  if in_functor prefix then Some prefix else None
 
 let transl_functorized_package_component lam curr_prefix =
   let package_parameters =
@@ -880,8 +876,10 @@ let transl_implementation_flambda module_name (impl, cc) =
   let body, size =
     Translobj.transl_label_init
       (fun () ->
+         let current_unit = Persistent_env.Current_unit.get_exn () in
          let body, size = transl_functorized_implementation module_id (impl, cc) in
-         match for_functorized_package !Clflags.for_package with
+         match for_functorized_package
+                 (Compilation_unit.for_pack_prefix current_unit) with
            Some prefix ->
              transl_functorized_package_component body prefix
          | None ->

@@ -640,12 +640,14 @@ let in_common_functor curr dep =
 let rec transl_address loc = function
   | Env.Aident id ->
       if Ident.global id then
-        let curr_prefix =
-          Compilation_unit.for_pack_prefix
-            (Persistent_env.Current_unit.get_exn ()) in
         let prefix, _ =
           Compilation_unit.Prefix.extract_prefix (Ident.name id) in
-        if in_common_functor curr_prefix prefix then Lvar id
+        let curr_prefix =
+          Compilation_unit.for_pack_prefix
+          (Persistent_env.Current_unit.get_exn ()) in
+        if in_common_functor curr_prefix prefix ||
+           List.exists (fun (_, args) ->
+               List.mem (Ident.name id) args) curr_prefix then Lvar id
         else Lprim(Pgetglobal id, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->
