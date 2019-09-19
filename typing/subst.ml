@@ -522,7 +522,7 @@ let compilation_unit scoping s uty =
   | Unit_functor(args, res) ->
       let args', s' = List.fold_left (fun (args, subst) (id, arg) ->
           let id' = Ident.rename id in
-          (id', modtype scoping s arg) :: args,
+          (id', modtype scoping subst arg) :: args,
           add_module id (Pident id') subst)
           ([], s) args
       in

@@ -2646,13 +2646,14 @@ let type_implementation_aux env ast loc = function
                   raise (Error(loc, env, Parameter_interface_unavailable unit_name))
             ) in
           let scope = Ctype.create_scope () in
-          let mty_arg = Subst.modtype Make_local subst mty_arg in
+          let mty_arg' = Subst.modtype Make_local subst mty_arg in
+          let mty_arg' = Mtype.scrape_for_functor_arg env mty_arg' in
           let id_arg, newenv =
-            Env.enter_module ~scope ~arg:true param Mp_present mty_arg env in
-          (id_arg, mty_arg) :: args,
+            Env.enter_module ~scope ~arg:true param Mp_present mty_arg' env in
+          (id_arg, mty_arg') :: args,
           newenv,
-          Subst.add_module_path
-            (Path.Pident id_arg_pers)
+          Subst.add_module
+            (id_arg_pers)
             (Path.Pident id_arg)
             subst)
           ([], env, Subst.identity) params
