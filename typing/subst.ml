@@ -496,7 +496,7 @@ let compilation_unit s uty =
   | Unit_functor(args, res) ->
       let args', s' = List.fold_left (fun (args, subst) (id, arg) ->
           let id' = Ident.rename id in
-          (id', modtype s arg) :: args,
+          (id', modtype subst arg) :: args,
           add_module id (Pident id') subst)
           ([], s) args
       in

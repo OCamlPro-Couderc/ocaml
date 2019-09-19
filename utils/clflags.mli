@@ -76,6 +76,7 @@ val output_name : string option ref
 val include_dirs : string list ref
 val no_std_include : bool ref
 val print_types : bool ref
+val print_full_interface : bool ref
 val make_archive : bool ref
 val debug : bool ref
 val debug_full : bool ref

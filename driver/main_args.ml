@@ -127,6 +127,10 @@ let mk_i f =
   "-i", Arg.Unit f, " Print inferred interface"
 ;;
 
+let mk_full_interface f =
+  "-full-intf", Arg.Unit f, " Print functorized interface"
+;;
+
 let mk_I f =
   "-I", Arg.String f, "<dir>  Add <dir> to the list of include directories"
 ;;
@@ -925,6 +929,7 @@ module type Compiler_options = sig
   val _config : unit -> unit
   val _config_var : string -> unit
   val _for_pack : string -> unit
+  val _full_interface : unit -> unit
   val _functor_parameter : string -> unit
   val _functor_parameter_of : string -> unit
   val _g : unit -> unit
@@ -1123,6 +1128,7 @@ struct
     mk_dllpath F._dllpath;
     mk_dtypes F._annot;
     mk_for_pack_byt F._for_pack;
+    mk_full_interface F._full_interface;
     mk_functor_parameter F._functor_parameter;
     mk_functor_parameter_of F._functor_parameter_of;
     mk_g_byt F._g;

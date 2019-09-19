@@ -47,6 +47,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _dllib s = defer (ProcessDLLs (Misc.rev_split_words s))
   let _dllpath s = dllpaths := !dllpaths @ [s]
   let _for_pack s = for_package := Some s
+  let _full_interface = set print_full_interface
   let _functor_parameter s = functor_parameters := s :: !functor_parameters
   let _functor_parameter_of s = functor_parameter_of := Some s
   let _g = set debug
