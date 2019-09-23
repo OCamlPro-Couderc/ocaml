@@ -829,7 +829,7 @@ let for_functorized_package prefix =
   let in_functor = List.exists (fun (_, args) -> args <> []) in
   if in_functor prefix then Some prefix else None
 
-let transl_functorized_package_component_gen lam curr_prefix =
+let transl_functorized_package_component_gen module_name lam curr_prefix =
   let package_parameters =
     List.map (fun (_, params) -> params) curr_prefix |> List.concat in
   let subst, rev_package_parameters =
@@ -840,15 +840,21 @@ let transl_functorized_package_component_gen lam curr_prefix =
         Ident.Map.add id id' s, id' :: ids)
     (Ident.Map.empty, []) package_parameters in
   let subst, packed_dependencies =
-    Ident.Set.fold (fun id (s, ids) ->
-        let prefix, _ = Compilation_unit.Prefix.extract_prefix (Ident.name id) in
-        if Compilation_unit.Prefix.in_common_functor curr_prefix prefix then
-          let id' = Ident.create_local (Ident.name id) in
+    List.fold_left (fun (s, ids) (unit, _) ->
+        let prefix = Compilation_unit.for_pack_prefix unit in
+        let unit_name = Compilation_unit.(Name.to_string (name unit)) in
+        if Compilation_unit.Prefix.in_common_functor curr_prefix prefix
+        && not (Compilation_unit.Name.equal
+                  module_name (Compilation_unit.name unit)) then
+          let id = Ident.create_persistent ~prefix unit_name in
+          let id' = Ident.create_local unit_name in
           Ident.Map.add id id' s, id' :: ids
         else s, ids)
-      (Lambda.free_variables lam) (subst, [])
+      (subst, []) (Env.imports ())
     |> fun (s, rev_deps) -> s, List.rev rev_deps in
-  let params = List.rev_append rev_package_parameters packed_dependencies in
+  let params =
+    List.rev_append rev_package_parameters
+      (List.rev packed_dependencies) in
   let body = Lambda.rename subst lam in
   Lfunction {
     kind = Curried;
@@ -864,8 +870,9 @@ let transl_functorized_package_component_gen lam curr_prefix =
     loc = Location.none;
     body }, 1
 
-let transl_functorized_package_component lam curr_prefix =
-  let code, _ = transl_functorized_package_component_gen lam curr_prefix in
+let transl_functorized_package_component module_name lam curr_prefix =
+  let code, _ =
+    transl_functorized_package_component_gen module_name lam curr_prefix in
   let id = Ident.create_local "impl" in
   Llet (Strict, Pgenval, id,
         code,
@@ -886,7 +893,8 @@ let transl_implementation_flambda module_name (impl, cc) =
          match for_functorized_package
                  (Compilation_unit.for_pack_prefix current_unit) with
            Some prefix ->
-             transl_functorized_package_component body prefix
+             transl_functorized_package_component
+               (Compilation_unit.Name.of_string module_name) body prefix
          | None ->
              wrap_functorized_implementation impl body, size)
   in
@@ -1469,7 +1477,9 @@ let transl_store_implementation module_name (impl, restr) =
       Some prefix ->
         let body, _ =
           transl_functorized_implementation module_id (impl, restr) in
-        let body = transl_functorized_package_component_gen body prefix in
+        let body =
+          transl_functorized_package_component_gen
+            (Compilation_unit.Name.of_string module_name) body prefix in
         transl_store_functorized_implementation_gen module_id body
     | None -> transl_store_gen module_id (impl, restr) false
   in
