@@ -126,9 +126,9 @@ let append_bytecode oc mapping defined ofs subst objfile compunit =
       seek_in ic compunit.cu_debug;
       List.iter (relocate_debug ofs subst) (input_value ic);
       debug_dirs := List.fold_left
-        (fun s e -> String.Set.add e s)
-        !debug_dirs
-        (input_value ic);
+          (fun s e -> String.Set.add e s)
+          !debug_dirs
+          (input_value ic);
     end;
     close_in ic;
     compunit.cu_codesize
@@ -147,7 +147,7 @@ let rec append_bytecode_list packagename oc identifiers defined ofs subst =
       match m.pm_kind with
       | PM_intf ->
           append_bytecode_list packagename oc identifiers defined ofs
-                                      subst rem
+            subst rem
       | PM_impl (compunit, _) ->
           let size =
             append_bytecode oc identifiers defined ofs
@@ -160,34 +160,39 @@ let rec append_bytecode_list packagename oc identifiers defined ofs subst =
           append_bytecode_list packagename oc identifiers (id :: defined)
             (ofs + size)
             (Subst.add_module id (Path.Pdot (root, Ident.name id))
-                              subst)
+               subst)
             rem
 
 (* Generate the code that builds the tuple representing the package module *)
 
 let build_global_target
-    ~ppf_dump oc target_name prefix members identifiers dependencies pos coercion =
+    ~ppf_dump oc target_name members identifiers dependencies pos coercion =
+
+  let curr_package_as_prefix =
+    let params = List.rev !Clflags.functor_parameters in
+    Compilation_unit.for_pack_prefix (Persistent_env.Current_unit.get_exn ())
+    @ [target_name, params]
+  in
   let components =
     List.map2
       (fun m id ->
-        match m.pm_kind with
-        | PM_intf -> Lambda.PM_intf id
-        | PM_impl (cu, ty) ->
-            let is_functor = match ty with
-                Types.Unit_functor (_, _) -> true
-              | _ -> false in
-            let required =
-              List.filter_map (fun (unit, _) ->
-                  let pers_id =
-                    Ident.create_persistent ~prefix (Compilation_unit.name unit) in
-                  if not (Ident.equal pers_id id) &&
-                     List.exists (Ident.equal pers_id) identifiers then
-                    Some pers_id
-                  else None)
-                cu.cu_imports
-              |> List.sort Ident.compare
-            in
-            Lambda.PM_impl (id, required, is_functor))
+         match m.pm_kind with
+         | PM_intf -> Lambda.PM_intf id
+         | PM_impl (cu, ty) ->
+             let is_functor = match ty with
+                 Types.Unit_functor (_, _) -> true
+               | _ -> false in
+             let required =
+               List.filter_map (fun (unit, _) ->
+                   let prefix = Compilation_unit.for_pack_prefix unit in
+                   if Compilation_unit.Prefix.in_common_functor
+                       curr_package_as_prefix prefix
+                   && not (Compilation_unit.Name.equal
+                             cu.cu_name (Compilation_unit.name unit)) then
+                     Some (Ident.create_persistent ~prefix
+                             (Compilation_unit.name unit))
+                   else None) cu.cu_imports in
+             Lambda.PM_impl (id, required, is_functor))
       members identifiers in
   let lam =
     Translmod.transl_package
@@ -206,9 +211,10 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
   let packagename = match !Clflags.for_package with
       None -> targetname
     | Some p -> p ^ "." ^ targetname in
-  let prefix = Compilation_unit.Prefix.parse_for_pack (Some packagename) in
+  let packagename_as_prefix =
+    Compilation_unit.Prefix.parse_for_pack (Some packagename) in
   let members =
-    map_left_right (read_member_info prefix) files in
+    map_left_right (read_member_info packagename_as_prefix) files in
   let required_globals =
     List.fold_right (fun compunit required_globals -> match compunit with
         | { pm_kind = PM_intf } ->
@@ -231,14 +237,9 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     List.map (fun m -> m.pm_name) members in
   let identifiers =
     List.map
-      (fun name -> Ident.create_persistent ~prefix name)
+      (fun name ->
+         Ident.create_persistent ~prefix:packagename_as_prefix name)
       unit_names in
-  let functor_dependencies =
-    Ident.Set.filter (fun req ->
-        let prefix_req, _ =
-          Compilation_unit.Prefix.extract_prefix (Ident.name req) in
-        Compilation_unit.Prefix.in_common_functor prefix prefix_req) Ident.Set.empty (* pack_dependencies *)
-    |> Ident.Set.elements in
   let oc = open_out_bin targetfile in
   try
     output_string oc Config.cmo_magic_number;
@@ -246,21 +247,28 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     output_binary_int oc 0;
     let pos_code = pos_out oc in
     let ofs = append_bytecode_list packagename oc identifiers [] 0
-                                   Subst.identity members in
+        Subst.identity members in
+    let imports =
+      List.filter
+        (fun (unit, _crc) -> not (List.mem (Compilation_unit.name unit) unit_names))
+        (Bytelink.extract_crc_interfaces()) in
+    let functor_dependencies =
+      List.filter_map (fun (unit, _) ->
+          let prefix = Compilation_unit.for_pack_prefix unit in
+          if Compilation_unit.Prefix.in_common_functor
+              packagename_as_prefix prefix then
+            Some (Ident.create_persistent ~prefix
+                    (Compilation_unit.name unit))
+          else None) imports in
     build_global_target ~ppf_dump oc targetname
-      prefix members identifiers functor_dependencies ofs coercion;
+      members identifiers functor_dependencies ofs coercion;
     let pos_debug = pos_out oc in
     if !Clflags.debug && !events <> [] then begin
       output_value oc (List.rev !events);
       output_value oc (String.Set.elements !debug_dirs);
     end;
     let pos_final = pos_out oc in
-    let imports =
-      List.filter
-        (fun (unit, _crc) ->
-           not (List.mem (Compilation_unit.name unit) unit_names))
-        (Bytelink.extract_crc_interfaces()) in
-    let unit = Compilation_unit.of_raw_string packagename in
+    let unit = Persistent_env.Current_unit.get_exn () in
     let compunit =
       { cu_name = targetname;
         cu_prefix = Compilation_unit.Prefix.parse_for_pack !Clflags.for_package;
@@ -287,22 +295,23 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
 (* The entry point *)
 
 let package_files ~ppf_dump initial_env files targetfile =
-    let files =
+  let files =
     List.map
-        (fun f ->
-        try Load_path.find f
-        with Not_found -> raise(Error(File_not_found f)))
-        files in
-    let prefix = chop_extensions targetfile in
-    let targetcmi = prefix ^ ".cmi" in
-    let targetname = String.capitalize_ascii(Filename.basename prefix) in
-    Persistent_env.Current_unit.set targetname;
-    Misc.try_finally (fun () ->
-        let coercion =
-          Typemod.package_units initial_env files targetcmi targetname in
-        package_object_files ~ppf_dump files targetfile targetname coercion
-      )
-      ~exceptionally:(fun () -> remove_file targetfile)
+      (fun f ->
+         try Load_path.find f
+         with Not_found -> raise(Error(File_not_found f)))
+      files in
+  let prefix = chop_extensions targetfile in
+  let targetcmi = prefix ^ ".cmi" in
+  let targetname = String.capitalize_ascii(Filename.basename prefix) in
+  let prefix = Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
+  Persistent_env.Current_unit.set ~prefix targetname;
+  Misc.try_finally (fun () ->
+      let coercion =
+        Typemod.package_units initial_env files targetcmi targetname in
+      package_object_files ~ppf_dump files targetfile targetname coercion
+    )
+    ~exceptionally:(fun () -> remove_file targetfile)
 
 (* Error report *)
 

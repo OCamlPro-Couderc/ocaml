@@ -107,7 +107,7 @@ let check_units members =
 (* Make the .o file for the package *)
 
 let make_package_object
-    ~ppf_dump members targetobj targetname prefix coercion ~backend =
+    ~ppf_dump members targetobj targetname coercion ~backend =
   Profile.record_call (Printf.sprintf "pack(%s)" targetname) (fun () ->
     let objtemp =
       if !Clflags.keep_asm_file
@@ -121,10 +121,16 @@ let make_package_object
         let backend_sym = Backend_sym.of_symbol symbol in
         Filename.temp_file (Backend_sym.to_string backend_sym) Config.ext_obj
     in
-    let identifiers =
-      List.map (fun m ->
-          Ident.create_persistent (* ~prefix *) (CU.Name.to_string m.pm_name))
-        members in
+    (* let identifiers =
+     *   List.map (fun m ->
+     *       Ident.create_persistent (\* ~prefix *\) (CU.Name.to_string m.pm_name))
+     *     members in *)
+    let curr_package_as_prefix =
+      let params = List.rev !Clflags.functor_parameters in
+      Compilation_unit.for_pack_prefix
+        (Persistent_env.Current_unit.get_exn ())
+      @ [targetname, params]
+    in
     let components, functor_dependencies =
       List.fold_right
         (fun m (components, functor_dependencies) ->
@@ -143,26 +149,35 @@ let make_package_object
                       Ident.create_persistent
                         ~prefix:prefix_req
                         (CU.Name.to_string (CU.name cu)) in
-                    if not (Ident.equal pers_id id) &&
-                       List.exists (Ident.equal pers_id) identifiers then
-                      Ident.Set.add pers_id req, deps
-                    else if Compilation_unit.Prefix.in_common_functor
-                        prefix prefix_req then
-                      req, Ident.Set.add pers_id deps
+                    if Compilation_unit.Prefix.in_common_functor
+                        curr_package_as_prefix prefix_req
+                    && not (CU.Name.equal
+                              (CU.name cu) (m.pm_name))
+                    then
+                      Ident.Set.add pers_id req, CU.Map.add cu pers_id deps
                     else req, deps)
-                  (UI.imports_cmx ui) (Ident.Set.empty, functor_dependencies)
+                  (UI.imports_cmi ui) (Ident.Set.empty, functor_dependencies)
               in
               Lambda.PM_impl
                 (Ident.create_persistent (CU.Name.to_string m.pm_name),
                  (Ident.Set.elements required),
                  is_functor) :: components,
               functor_dependencies)
-        members ([], Ident.Set.empty)
+        members ([], CU.Map.empty)
     in
-    if !Clflags.debug_compiler then
-      Format.eprintf "functor_dependencies: %a\n%!"
-        Ident.Set.print functor_dependencies;
-    let functor_dependencies = Ident.Set.elements functor_dependencies in
+    let functor_dependencies =
+      let curr_prefix =
+        Compilation_unit.for_pack_prefix
+          (Persistent_env.Current_unit.get_exn ()) in
+      CU.Map.fold (fun cu id ids ->
+          if Compilation_unit.Prefix.in_common_functor
+            curr_prefix
+            (CU.for_pack_prefix cu) then
+            Ident.Set.add id ids
+          else ids)
+        functor_dependencies
+        Ident.Set.empty
+      |> Ident.Set.elements in
     let module_ident = Ident.create_persistent targetname in
     let prefixname = Filename.remove_extension objtemp in
     let required_globals = Ident.Set.empty in
@@ -289,7 +304,7 @@ let build_package_cmx members cmxfile =
 (* Make the .cmx and the .o for the package *)
 
 let package_object_files ~ppf_dump files targetcmx
-                         targetobj targetname prefix coercion ~backend =
+                         targetobj targetname coercion ~backend =
   let packagename =
     match !Clflags.for_package with
     | None -> targetname
@@ -297,7 +312,7 @@ let package_object_files ~ppf_dump files targetcmx
   let pack_path = CU.Prefix.parse_for_pack (Some packagename) in
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
-  make_package_object ~ppf_dump members targetobj targetname prefix coercion ~backend;
+  make_package_object ~ppf_dump members targetobj targetname coercion ~backend;
   build_package_cmx members targetcmx
 
 (* The entry point *)
@@ -313,19 +328,18 @@ let package_files ~ppf_dump initial_env files targetcmx ~backend =
   let targetcmi = prefix ^ ".cmi" in
   let targetobj = Filename.remove_extension targetcmx ^ Config.ext_obj in
   let targetname = String.capitalize_ascii(Filename.basename prefix) in
+  let for_pack_prefix = CU.Prefix.parse_for_pack !Clflags.for_package in
+  let comp_unit = CU.create ~for_pack_prefix targetname in
+  Persistent_env.Current_unit.set_unit comp_unit;
   (* Set the name of the current "input" *)
   Location.input_name := targetcmx;
   (* Set the name of the current compunit *)
-  let for_pack_prefix =
-      CU.Prefix.parse_for_pack !Clflags.for_package in
-  let comp_unit = CU.create ~for_pack_prefix (CU.Name.of_string targetname) in
-  Persistent_env.Current_unit.set_unit comp_unit;
   Compilation_state.reset comp_unit;
   Misc.try_finally (fun () ->
       let coercion =
         Typemod.package_units initial_env files targetcmi targetname in
       package_object_files ~ppf_dump files targetcmx targetobj targetname
-        for_pack_prefix coercion ~backend
+        coercion ~backend
     )
     ~exceptionally:(fun () -> remove_file targetcmx; remove_file targetobj)
 
