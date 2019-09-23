@@ -182,21 +182,11 @@ let build_global_target ~ppf_dump oc target_name members identifiers pos coercio
 let package_object_files ~ppf_dump files targetfile targetname coercion =
   let members =
     map_left_right read_member_info files in
-  let packagename = match !Clflags.for_package with
-      None -> targetname
-    | Some p -> p ^ "." ^ targetname in
-  let prefix = Compunit.Prefix.parse_for_pack (Some packagename) in
-  let identifiers, required_globals, pack_dependencies =
-    List.fold_right
-      (fun compunit (identifiers, required_globals, pack_dependencies) ->
-         let id = Ident.create_persistent ~prefix compunit.pm_name in
-         match compunit with
+  let required_globals =
+    List.fold_right (fun compunit required_globals -> match compunit with
         | { pm_kind = PM_intf } ->
-            id :: identifiers,
-            required_globals,
-            Ident.Set.remove id pack_dependencies
-        | { pm_kind = PM_impl
-                { cu_required_globals; cu_reloc; cu_pack_dependencies } } ->
+            required_globals
+        | { pm_kind = PM_impl { cu_required_globals; cu_reloc } } ->
             let remove_required (rel, _pos) required_globals =
               match rel with
                 Reloc_setglobal id ->
@@ -207,16 +197,19 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
             let required_globals =
               List.fold_right remove_required cu_reloc required_globals
             in
-            let pack_dependencies =
-              List.fold_right Ident.Set.add cu_pack_dependencies pack_dependencies
-            in
-            id :: identifiers,
-            List.fold_right Ident.Set.add cu_required_globals required_globals,
-            Ident.Set.remove id pack_dependencies)
-      members ([], Ident.Set.empty, Ident.Set.empty)
+            List.fold_right Ident.Set.add cu_required_globals required_globals)
+      members Ident.Set.empty
   in
+  let packagename = match !Clflags.for_package with
+      None -> targetname
+    | Some p -> p ^ "." ^ targetname in
+  let prefix = Compunit.Prefix.parse_for_pack (Some packagename) in
   let unit_names =
     List.map (fun m -> m.pm_name) members in
+  let identifiers =
+    List.map
+      (fun name -> Ident.create_persistent ~prefix name)
+      unit_names in
   let oc = open_out_bin targetfile in
   try
     output_string oc Config.cmo_magic_number;
@@ -246,7 +239,6 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
           (unit, Some (Env.crc_of_unit targetname)) :: imports;
         cu_primitives = !primitives;
         cu_required_globals = Ident.Set.elements required_globals;
-        cu_pack_dependencies = Ident.Set.elements pack_dependencies;
         cu_force_link = !force_link;
         cu_debug = if pos_final > pos_debug then pos_debug else 0;
         cu_debugsize = pos_final - pos_debug } in

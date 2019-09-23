@@ -258,9 +258,6 @@ val imports: unit -> Compunit.crcs
 (* may raise Persistent_env.Consistbl.Inconsistency *)
 val import_crcs: source:string -> Compunit.crcs -> unit
 
-(* Return the set of packed compilation units imported *)
-val packed_imports: unit -> Ident.t list
-
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module  *)
 val is_imported_opaque: Compunit.Name.t -> bool
 

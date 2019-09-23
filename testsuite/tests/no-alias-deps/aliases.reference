@@ -11,6 +11,5 @@ Interfaces imported:
 Required globals:
 	D
 	Stdlib
-Pack dependencies:
 Uses unsafe features: no
 Force link: no

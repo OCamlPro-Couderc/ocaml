@@ -97,7 +97,6 @@ type 'a t = {
   persistent_structures : (string, 'a pers_struct_info) Hashtbl.t;
   imported_units: Compunit.Set.t ref;
   imported_opaque_units: String.Set.t ref;
-  imported_packed_units: Compunit.Prefix.t String.Map.t ref;
   crc_units: Consistbl.t;
   can_load_cmis: can_load_cmis ref;
 }
@@ -106,7 +105,6 @@ let empty () = {
   persistent_structures = Hashtbl.create 17;
   imported_units = ref Compunit.Set.empty;
   imported_opaque_units = ref String.Set.empty;
-  imported_packed_units = ref String.Map.empty;
   crc_units = Consistbl.create ();
   can_load_cmis = ref Can_load_cmis;
 }
@@ -116,14 +114,12 @@ let clear penv =
     persistent_structures;
     imported_units;
     imported_opaque_units;
-    imported_packed_units;
     crc_units;
     can_load_cmis;
   } = penv in
   Hashtbl.clear persistent_structures;
   imported_units := Compunit.Set.empty;
   imported_opaque_units := String.Set.empty;
-  imported_packed_units := String.Map.empty;
   Consistbl.clear crc_units;
   can_load_cmis := Can_load_cmis;
   ()
@@ -142,9 +138,6 @@ let add_import {imported_units; _} unit =
 
 let add_imported_opaque {imported_opaque_units; _} s =
   imported_opaque_units := String.Set.add s !imported_opaque_units
-
-let add_imported_packed {imported_packed_units; _} s prefix =
-  imported_packed_units := String.Map.add s prefix !imported_packed_units
 
 let find_in_cache {persistent_structures; _} s =
   match Hashtbl.find persistent_structures s with
@@ -204,7 +197,7 @@ let save_pers_struct penv crc ps pm =
         | Rectypes -> ()
         | Alerts _ -> ()
         | Unsafe_string -> ()
-        | Pack prefix -> add_imported_packed penv modname prefix
+        | Pack _p -> ()
         | Opaque -> add_imported_opaque penv modname)
     ps.ps_flags;
   let for_pack_prefix = prefix_of_pers_struct ps in
@@ -256,8 +249,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
                       current_pack = curr_prefix});
           if not (check_pack_import curr_prefix p ps.ps_name) then
             error (Inconsistent_package_import
-                     (filename,  Compunit.Prefix.to_string p ^ "." ^ modname));
-          add_imported_packed penv modname p
+                     (filename,  Compunit.Prefix.to_string p ^ "." ^ modname))
       | Opaque ->
           add_imported_opaque penv modname)
     ps.ps_flags;
@@ -378,17 +370,11 @@ let imports {imported_units; crc_units; _} =
 let looked_up {persistent_structures; _} modname =
   Hashtbl.mem persistent_structures modname
 
-let packed {imported_packed_units; _} =
-  String.Map.bindings !imported_packed_units
-
 let is_imported {imported_units; _} u =
   Compunit.Set.mem u !imported_units
 
 let is_imported_opaque {imported_opaque_units; _} s =
   String.Set.mem s !imported_opaque_units
-
-let is_imported_packed {imported_packed_units; _} s =
-  String.Map.mem s !imported_packed_units
 
 let make_cmi penv modname sign alerts =
   let flags =
