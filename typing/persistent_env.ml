@@ -213,20 +213,20 @@ let check_parameter modname flags functor_unit =
     match !Clflags.functor_parameter_of with
       None -> false
     | Some unit ->
-        let unit = Compilation_unit.of_raw_string unit in
+        let unit = CU.of_raw_string unit in
         List.exists
-          (function Parameter_of unit' -> Compilation_unit.equal unit unit'
+          (function Parameter_of unit' -> CU.equal unit unit'
                   | _ -> false)
           flags
   in
   let current_unit = Current_unit.get_exn () in
   List.mem modname !Clflags.functor_parameters &&
-  Compilation_unit.equal current_unit functor_unit ||
+  CU.equal current_unit functor_unit ||
   parameter_for_same_module ||
   List.exists
-    (fun (_, args) ->
-       List.exists Compilation_unit.Name.(equal (of_string modname)) args)
-    (Compilation_unit.for_pack_prefix current_unit)
+    (function CU.Prefix.Pack (_, args) ->
+       List.exists CU.Name.(equal (of_string modname)) args)
+    (CU.for_pack_prefix current_unit)
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
@@ -276,14 +276,14 @@ let save_pers_struct penv crc ps pm =
 
 let check_pack_compatibility current_prefix imported_prefix =
   Misc.Stdlib.List.is_prefix
-    ~equal:(=)
+    ~equal:CU.Prefix.equal_component
     imported_prefix
     ~of_:current_prefix
 
 let check_pack_import current_prefix imported_prefix imported_unit =
   not (Misc.Stdlib.List.is_prefix
-         ~equal:(=)
-         (imported_prefix @ [imported_unit, []])
+         ~equal:CU.Prefix.equal_component
+         (imported_prefix @ [CU.Prefix.Pack (imported_unit, [])])
          ~of_:current_prefix)
 
 let acknowledge_pers_struct penv check modname pers_sig pm =
@@ -480,7 +480,7 @@ let make_cmi penv modname mty alerts =
        | prefix -> [Cmi_format.Pack prefix] );
       (match !Clflags.functor_parameter_of with
          Some unit ->
-           [Cmi_format.Parameter_of (Compilation_unit.of_raw_string unit)]
+           [Cmi_format.Parameter_of (CU.of_raw_string unit)]
        | None -> []);
       [Alerts alerts];
     ]

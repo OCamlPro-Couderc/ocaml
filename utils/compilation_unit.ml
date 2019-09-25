@@ -41,11 +41,11 @@ end
 
 module Prefix = struct
 
-  type component = (Name.t * Name.t list)
+  type component = Pack of Name.t * Name.t list
 
   type t = component list
 
-  let equal_component (m, args) (m', args') =
+  let equal_component (Pack (m, args)) (Pack (m', args')) =
     Name.equal m m' && Misc.Stdlib.List.equal Name.equal args args'
 
   let print_gen pp_functor pp_arg fmt p =
@@ -61,7 +61,7 @@ module Prefix = struct
       let equal = Misc.Stdlib.List.equal equal_component
 
       let compare (p1 : t) (p2 : t) =
-        let compare_functors (m1, args1) (m2, args2) =
+        let compare_functors (Pack (m1, args1)) (Pack (m2, args2)) =
           let c = String.compare m1 m2 in
           if c = 0 then Misc.Stdlib.List.compare String.compare args1 args2
           else c
@@ -73,7 +73,7 @@ module Prefix = struct
       let print fmt p =
         let open Format in
         let pp_arg fmt arg = fprintf fmt "(%a)" Name.print arg in
-        let pp_functor pp_arg fmt (m, args) =
+        let pp_functor pp_arg fmt (Pack (m, args)) =
           fprintf fmt "%a%a"
             Name.print m
             (pp_print_list pp_arg) args
@@ -104,10 +104,10 @@ module Prefix = struct
             extract (String.sub p (i+1) (stop-i-1) :: acc) (stop+1)
     in
     match String.index_opt p '(' with
-      None -> p, []
+      None -> Pack (p, [])
     | Some i ->
         let rev_args = extract [] i in
-        String.sub p 0 i, List.rev rev_args
+        Pack (String.sub p 0 i, List.rev rev_args)
 
   let check_module_name name =
     String.iteri (fun i c ->
@@ -118,7 +118,7 @@ module Prefix = struct
   let parse pack =
     let prefix =
       String.split_on_char '.' pack |> List.map parse_functorized_pack in
-    List.iter (fun (module_name, args) ->
+    List.iter (function Pack (module_name, args) ->
         check_module_name module_name;
         List.iter check_module_name args)
       prefix;
@@ -140,21 +140,29 @@ module Prefix = struct
 
   let for_address p =
     let open Format in
-    let pp_functor _ fmt (m, _) =
+    let pp_functor _ fmt (Pack (m, _)) =
       fprintf fmt "%s" m
     in
     Format.asprintf "%a"
       (print_gen pp_functor (fun _ _ -> ())) p
 
+  let in_functor prefix =
+    List.exists (function Pack (_, args) ->
+        match args with [] -> false | _ -> true) prefix
+
   let in_common_functor curr dep =
     let common =
       Misc.Stdlib.List.find_and_chop_longest_common_prefix
-        ~equal:(fun (m1, _) (m2, _) -> Name.equal m1 m2)
+        ~equal:(fun (Pack (m1, _)) (Pack (m2, _)) -> Name.equal m1 m2)
         ~first:curr
         ~second:dep
     in
-    List.exists (fun (_, args) -> match args with [] -> false | _ -> true)
-      common.Misc.Stdlib.List.longest_common_prefix
+    in_functor common.Misc.Stdlib.List.longest_common_prefix
+
+  let in_functor_parameters unit_name prefix =
+    List.exists (function Pack (_, args) ->
+        List.exists (Name.equal unit_name) args)
+      prefix
 
 end
 
@@ -186,7 +194,7 @@ let is_packed t =
   | _::_ -> true
 
 let full_path unit =
-  unit.for_pack_prefix @ [ unit.basename, [] ]
+  unit.for_pack_prefix @ [ Prefix.Pack (unit.basename, []) ]
 
 type crcs = (t * Digest.t option) list
 

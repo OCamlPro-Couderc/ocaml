@@ -307,7 +307,10 @@ let kind t : kind =
 
 let prefix_for_compilation_unit cu =
   let open Format in
-  let path = List.map fst (Compilation_unit.full_path cu) in
+  let path =
+    List.map (function Compilation_unit.Prefix.Pack (m, _) -> m)
+      (Compilation_unit.full_path cu)
+  in
   asprintf "caml%a"
     (pp_print_list
        ~pp_sep:(fun ppf () -> fprintf ppf "__")

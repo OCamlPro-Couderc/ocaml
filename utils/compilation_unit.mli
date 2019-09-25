@@ -27,7 +27,7 @@ end
 
 module Prefix : sig
 
-  type component = (Name.t * Name.t list)
+  type component = Pack of Name.t * Name.t list
 
   type t = component list
 
@@ -50,7 +50,11 @@ module Prefix : sig
   (** [for_address p] generates a string representation of a prefix stripped of
       the functor(s) parameter(s) *)
 
+  val in_functor: t -> bool
+
   val in_common_functor: t -> t -> bool
+
+  val in_functor_parameters: Name.t -> t -> bool
 
 end
 

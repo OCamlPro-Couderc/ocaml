@@ -826,12 +826,14 @@ let transl_current_module_ident module_name =
   Ident.create_persistent ~prefix module_name
 
 let for_functorized_package prefix =
-  let in_functor = List.exists (fun (_, args) -> args <> []) in
+  let in_functor = Compilation_unit.Prefix.in_functor in
   if in_functor prefix then Some prefix else None
 
 let transl_functorized_package_component_gen module_name lam curr_prefix =
   let package_parameters =
-    List.map (fun (_, params) -> params) curr_prefix |> List.concat in
+    List.map (function Compilation_unit.Prefix.Pack (_, params) -> params)
+      curr_prefix
+    |> List.concat in
   let subst, rev_package_parameters =
     List.fold_left (fun (s, ids) param ->
         let param_as_string = Compilation_unit.Name.to_string param in
@@ -1740,9 +1742,10 @@ let transl_package components target_name functor_dependencies coercion =
   let parameters =
     let current_unit = Persistent_env.Current_unit.get_exn () in
     List.flatten
-      (List.map (fun (_, args) ->
-           List.map Compilation_unit.Name.to_string args)
-         (Compilation_unit.for_pack_prefix current_unit))
+      Compilation_unit.(
+        List.map (function Prefix.Pack (_, args) ->
+            List.map Name.to_string args)
+          (for_pack_prefix current_unit))
     @ !Clflags.functor_parameters in
   Lprim(Psetglobal module_name,
         [apply_coercion Location.none Strict coercion
