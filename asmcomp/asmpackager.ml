@@ -127,9 +127,8 @@ let make_package_object
      *     members in *)
     let curr_package_as_prefix =
       let params = List.rev !Clflags.functor_parameters in
-      Compilation_unit.for_pack_prefix
-        (Persistent_env.Current_unit.get_exn ())
-      @ [targetname, params]
+      CU.for_pack_prefix (Persistent_env.Current_unit.get_exn ())
+      @ [CU.Prefix.Pack (targetname, params)]
     in
     let components, functor_dependencies =
       List.fold_right

@@ -217,7 +217,8 @@ let check_parameter modname flags functor_unit =
   Compilation_unit.equal current_unit functor_unit ||
   parameter_for_same_module ||
   List.exists
-    (fun (_, args) -> List.exists (Compilation_unit.Name.equal modname) args)
+    (function Compilation_unit.Prefix.Pack (_, args) ->
+       List.exists (Compilation_unit.Name.equal modname) args)
     (Compilation_unit.for_pack_prefix current_unit)
 
 let can_load_cmis penv =
@@ -268,14 +269,14 @@ let save_pers_struct penv crc ps pm =
 
 let check_pack_compatibility current_prefix imported_prefix =
   Misc.Stdlib.List.is_prefix
-    ~equal:(=)
+    ~equal:Compilation_unit.Prefix.equal_component
     imported_prefix
     ~of_:current_prefix
 
 let check_pack_import current_prefix imported_prefix imported_unit =
   not (Misc.Stdlib.List.is_prefix
-         ~equal:(=)
-         (imported_prefix @ [imported_unit, []])
+         ~equal:Compilation_unit.Prefix.equal_component
+         (imported_prefix @ [Compilation_unit.Prefix.Pack (imported_unit, [])])
          ~of_:current_prefix)
 
 let acknowledge_pers_struct penv check modname pers_sig pm =

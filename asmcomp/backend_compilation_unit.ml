@@ -72,7 +72,9 @@ let name_for_backend_sym ~separator t =
   match t with
   | Compilation_unit comp_unit ->
     let path =
-      List.map (fun (name, _) -> Compilation_unit.Name.to_string name)
+      List.map
+        (function Compilation_unit.Prefix.Pack (name, _) ->
+              Compilation_unit.Name.to_string name)
         (Compilation_unit.full_path comp_unit)
     in
     String.concat separator path
