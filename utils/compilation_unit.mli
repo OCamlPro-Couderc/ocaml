@@ -99,6 +99,8 @@ val print_full_path : Format.formatter -> t -> unit
 (** Returns the full path of the compilation unit, as a string. *)
 val full_path_as_string : t -> string
 
+val for_address : t -> string
+
 type crcs = (t * Digest.t option) list
 
 (** Printing, comparison, sets, maps, etc. *)

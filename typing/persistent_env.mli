@@ -134,8 +134,15 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
    in [penv] as a functor parameter *)
 val is_imported_as_parameter : 'a t -> Compilation_unit.Name.t -> bool
 
-val make_cmi :
-  'a t -> Compilation_unit.Name.t -> Types.compilation_unit -> alerts
+(* [is_imported_from_functorized_pack penv md] checks if [md] has been imported
+   in [penv] as a unit from the same functorized pack as the current one *)
+val is_imported_from_functorized_pack : 'a t -> Compilation_unit.Name.t -> bool
+
+(* [functorized_pack_component_address penv md] returns the local identifier
+   generated for [md] as argument for the functor *)
+val functorized_pack_component_id : 'a t -> Compilation_unit.Name.t -> Ident.t
+
+val make_cmi : 'a t -> Compilation_unit.Name.t -> Types.compilation_unit -> alerts
   -> Cmi_format.cmi_infos
 
 val save_cmi : 'a t -> Persistent_interface.t -> 'a -> unit
@@ -151,6 +158,10 @@ val import_crcs : 'a t -> source:filepath -> Compilation_unit.crcs -> unit
 
 (* Return the set of compilation units imported, with their CRC *)
 val imports : 'a t -> Compilation_unit.crcs
+
+(* Return the set of compilation units imported from the same functorized pack
+   than the current one, with their local identifier *)
+val imports_from_functorized_pack : 'a t -> (Compilation_unit.t * Ident.t) list
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit:

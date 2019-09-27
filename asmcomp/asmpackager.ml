@@ -125,58 +125,50 @@ let make_package_object
      *   List.map (fun m ->
      *       Ident.create_persistent (\* ~prefix *\) (CU.Name.to_string m.pm_name))
      *     members in *)
+    let package_prefix = CU.for_pack_prefix (Persistent_env.Current_unit.get_exn ()) in
     let curr_package_as_prefix =
       let params = List.rev !Clflags.functor_parameters in
-      CU.for_pack_prefix (Persistent_env.Current_unit.get_exn ())
-      @ [CU.Prefix.Pack (targetname, params)]
+      package_prefix @ [CU.Prefix.Pack (targetname, params)]
     in
-    let components, functor_dependencies =
-      List.fold_right
-        (fun m (components, functor_dependencies) ->
-           let id = Ident.create_persistent (CU.Name.to_string m.pm_name) in
-          match m.pm_kind with
-            | PM_intf ->
-                Lambda.PM_intf id :: components, functor_dependencies
-            | PM_impl (ui, _, ty) ->
-              let is_functor = match ty with
-                  Types.Unit_functor (_, _) -> true
-                | _ -> false in
-              let required, functor_dependencies =
-                CU.Map.fold (fun cu _ (req, deps) ->
-                    let prefix_req = CU.for_pack_prefix cu in
-                    let pers_id =
-                      Ident.create_persistent
-                        ~prefix:prefix_req
-                        (CU.Name.to_string (CU.name cu)) in
-                    if Compilation_unit.Prefix.in_common_functor
-                        curr_package_as_prefix prefix_req
-                    && not (CU.Name.equal
-                              (CU.name cu) (m.pm_name))
-                    then
-                      Ident.Set.add pers_id req, CU.Map.add cu pers_id deps
-                    else req, deps)
-                  (UI.imports_cmi ui) (Ident.Set.empty, functor_dependencies)
-              in
-              Lambda.PM_impl
-                (Ident.create_persistent (CU.Name.to_string m.pm_name),
-                 (Ident.Set.elements required),
-                 is_functor) :: components,
-              functor_dependencies)
-        members ([], CU.Map.empty)
+    let components =
+      List.map
+        (fun m ->
+           let id =
+             Ident.create_persistent
+               ~prefix:curr_package_as_prefix
+               (CU.Name.to_string m.pm_name) in
+           match m.pm_kind with
+           | PM_intf ->
+               Lambda.PM_intf id
+           | PM_impl (ui, _, ty) ->
+               let is_functor = match ty with
+                   Types.Unit_functor (_, _) -> true
+                 | _ -> false in
+               let deps = UI.functorized_pack_imports ui in
+               Lambda.PM_impl (id, deps, is_functor))
+        members
     in
+    let unit_names_in_pack =
+      CU.Name.Set.of_list (List.map (fun m -> m.pm_name) members)
+    in
+    let imports_cmi =
+      CU.Map.filter (fun cu _crc ->
+          not (CU.Name.Set.mem (CU.name cu) unit_names_in_pack))
+        (Asmlink.extract_crc_interfaces ())
+    in
+    let package_prefix_parameters =
+      List.map (function CU.Prefix.Pack (_, params) -> params)
+        package_prefix
+      |> List.flatten in
     let functor_dependencies =
-      let curr_prefix =
-        Compilation_unit.for_pack_prefix
-          (Persistent_env.Current_unit.get_exn ()) in
-      CU.Map.fold (fun cu id ids ->
-          if Compilation_unit.Prefix.in_common_functor
-            curr_prefix
-            (CU.for_pack_prefix cu) then
-            Ident.Set.add id ids
-          else ids)
-        functor_dependencies
-        Ident.Set.empty
-      |> Ident.Set.elements in
+      List.filter_map (fun (unit, _) ->
+          let prefix = CU.for_pack_prefix unit in
+          if CU.Prefix.in_common_functor curr_package_as_prefix prefix ||
+             List.exists ((=) (CU.Name.to_string (CU.name unit)))
+               package_prefix_parameters
+          then
+            Some (Ident.create_local (CU.full_path_as_string unit))
+          else None) (CU.Map.bindings imports_cmi) in
     let module_ident = Ident.create_persistent targetname in
     let prefixname = Filename.remove_extension objtemp in
     let required_globals = Ident.Set.empty in
@@ -259,12 +251,30 @@ let build_package_cmx members cmxfile =
   let current_unit_crc =
     Env.crc_of_unit (CU.Name.to_string current_unit_name)
   in
-  let imports_cmi =
+  let package_prefix = CU.for_pack_prefix (Persistent_env.Current_unit.get_exn ()) in
+  let curr_package_as_prefix =
+    let params = List.rev !Clflags.functor_parameters in
+    package_prefix
+    @ [CU.Prefix.Pack (CU.Name.to_string current_unit_name, params)]
+    in
+  let package_prefix_parameters =
+    List.map (function CU.Prefix.Pack (_, params) -> params)
+      package_prefix
+    |> List.flatten in
     let imports_cmi =
       CU.Map.filter (fun cu _crc ->
           not (CU.Name.Set.mem (CU.name cu) unit_names_in_pack))
         (Asmlink.extract_crc_interfaces ())
     in
+  let functorized_pack_imports =
+    List.filter_map (fun (unit, _) ->
+        let prefix = CU.for_pack_prefix unit in
+        if CU.Prefix.in_common_functor curr_package_as_prefix prefix ||
+           List.exists ((=) (CU.Name.to_string (CU.name unit)))
+             package_prefix_parameters
+        then Some unit
+        else None) (CU.Map.bindings imports_cmi) in
+  let imports_cmi =
     CU.Map.add current_unit (Some current_unit_crc) imports_cmi
   in
   let imports_cmx =
@@ -295,7 +305,7 @@ let build_package_cmx members cmxfile =
   in
   let pkg_infos =
     UI.create ~unit:current_unit ~defines ~imports_cmi ~imports_cmx
-      ~export_info
+      ~functorized_pack_imports ~export_info
   in
   let pkg_link_infos = Cmx_format.Unit_info_link_time.join unit_link_infos in
   Cmx_format.save pkg_infos pkg_link_infos ~filename:cmxfile

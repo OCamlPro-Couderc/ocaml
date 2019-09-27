@@ -78,12 +78,17 @@ let print_line name =
 let print_required_global id =
   printf "\t%s\n" (Ident.name id)
 
+let print_functor_pack_dependency cu =
+  printf "\t%s\n" (Compilation_unit.full_path_as_string cu)
+
 let print_cmo_infos cu =
   printf "Unit name: %s\n" cu.cu_name;
   print_string "Interfaces imported:\n";
   List.iter print_name_crc cu.cu_imports;
   print_string "Required globals:\n";
   List.iter print_required_global cu.cu_required_globals;
+  print_string "Functor pack dependencies:\n";
+  List.iter print_functor_pack_dependency cu.cu_functor_pack_imports;
   printf "Uses unsafe features: ";
   (match cu.cu_primitives with
     | [] -> printf "no\n"
@@ -146,6 +151,9 @@ let print_cmt_infos cmt =
      | None -> ""
      | Some crc -> string_of_crc crc)
 
+let print_name f name =
+  printf "\t%s\n" (Format.asprintf "%a" f name)
+
 let print_name_crc_native print_name (name, crco) =
   let crc =
     match crco with
@@ -154,7 +162,7 @@ let print_name_crc_native print_name (name, crco) =
   in
   printf "\t%s\t%s\n" crc (Format.asprintf "%a" print_name name)
 
-let print_general_infos name crc defines cmi cmx =
+let print_general_infos name crc defines cmi cmx fun_deps =
   printf "Name: %s\n" (Format.asprintf "%a" CU.Name.print (CU.name name));
   printf "CRC of implementation: %s\n" (string_of_crc crc);
   printf "Globals defined:\n";
@@ -169,7 +177,9 @@ let print_general_infos name crc defines cmi cmx =
   List.iter (print_name_crc_native CU.print) cmi;
   printf "Implementations imported:\n";
   let cmx = CU.Map.bindings cmx in
-  List.iter (print_name_crc_native CU.print) cmx
+  List.iter (print_name_crc_native CU.print) cmx;
+  printf "Functorized pack components imported:\n";
+  List.iter (print_name CU.print) fun_deps
 
 let print_global_table table =
   printf "Globals defined:\n";
@@ -179,7 +189,8 @@ let print_global_table table =
 
 let print_cmx_infos (ui, ui_link, crc) =
   print_general_infos (UI.unit ui) crc (UI.defines ui)
-    (UI.imports_cmi ui) (UI.imports_cmx ui);
+    (UI.imports_cmi ui) (UI.imports_cmx ui)
+    (UI.functorized_pack_imports ui);
   begin match UI.export_info ui with
   | Closure approx ->
     if not !no_approx then begin
@@ -232,7 +243,8 @@ let print_cmxs_infos header =
          (DU.crc ui)
          (DU.defines ui)
          (DU.imports_cmi ui)
-         (DU.imports_cmx ui))
+         (DU.imports_cmx ui)
+         ([]))
     (DH.units header)
 
 let p_title title = printf "%s:\n" title

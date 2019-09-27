@@ -258,6 +258,9 @@ val crc_of_unit: Compilation_unit.Name.t -> Digest.t
 (* Return the set of compilation units imported, with their CRC *)
 val imports: unit -> Compilation_unit.crcs
 
+(* Return the set of compilation units imported, with their CRC *)
+val functorized_pack_imports: unit -> (Compilation_unit.t * Ident.t) list
+
 (* may raise Persistent_env.Consistbl.Inconsistency *)
 val import_crcs: source:string -> Compilation_unit.crcs -> unit
 
@@ -267,6 +270,14 @@ val is_imported_opaque: Compilation_unit.Name.t -> bool
 (* [is_imported_opaque md] returns true if [md] is a parameter of a functorized
    module *)
 val is_imported_as_parameter: Compilation_unit.Name.t -> bool
+
+(* [is_imported_from_functorized_pack md] checks if [md] has been imported
+   as a unit from the same functorized pack as the current one *)
+val is_imported_from_functorized_pack: Compilation_unit.Name.t -> bool
+
+(* [functorized_pack_component_address md] returns the local identifier
+   generated for [md] as argument for the functor *)
+val functorized_pack_component_id: Compilation_unit.Name.t -> Ident.t
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)

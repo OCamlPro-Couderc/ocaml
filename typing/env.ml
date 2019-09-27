@@ -573,34 +573,22 @@ type persistent_module = {
   pm_addr: address;
 }
 
-let add_persistent_structure id env =
-  if not (Ident.persistent id) then invalid_arg "Env.add_persistent_structure";
-  if not (Persistent_env.Current_unit.is_name_of id) then
-    { env with
-      modules = IdTbl.add id Persistent env.modules;
-      components = IdTbl.add id Persistent env.components;
-      summary = Env_persistent (env.summary, id);
-    }
-  else
-    env
-
 let type_of_cmi ~freshen { Persistent_env.Persistent_interface.cmi; _ } =
   let name = cmi.cmi_name in
   let uty = cmi.cmi_type in
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent name in
   let path = Pident id in
-  let pers_id =
+  let prefix =
     List.find_opt (function Pack _ -> true | _ -> false) flags
     |> function
-      Some (Pack prefix) ->
-        Ident.create_persistent ~prefix name
-    | _ -> id
-    (* in that case, it is not dependency from the same pack *)
+      Some (Pack prefix) -> prefix
+    | _ -> []
   in
+  let addr_id = Ident.create_persistent ~prefix name in
   let pm_addr = match uty with
-      Unit_functor _  -> Adot (Aident pers_id, 0)
-    | Unit_signature _ -> Aident pers_id
+      Unit_functor _  -> Adot (Aident addr_id, 0)
+    | Unit_signature _ -> Aident addr_id
   in
   let addr = EnvLazy.create_forced pm_addr in
   let alerts =
@@ -629,10 +617,24 @@ let save_type_of_cmi = type_of_cmi ~freshen:false
 let persistent_env : persistent_module Persistent_env.t =
   Persistent_env.empty ()
 
+let add_persistent_structure id env =
+  if not (Ident.persistent id) then invalid_arg "Env.add_persistent_structure";
+  if not (Persistent_env.Current_unit.is_name_of id) then
+    { env with
+      modules = IdTbl.add id Persistent env.modules;
+      components = IdTbl.add id Persistent env.components;
+      summary = Env_persistent (env.summary, id);
+    }
+  else
+    env
+
 let without_cmis f x =
   Persistent_env.without_cmis persistent_env f x
 
 let imports () = Persistent_env.imports persistent_env
+
+let functorized_pack_imports () =
+  Persistent_env.imports_from_functorized_pack persistent_env
 
 let import_crcs ~source crcs =
   Persistent_env.import_crcs persistent_env ~source crcs
@@ -657,6 +659,12 @@ let is_imported_opaque modname =
 
 let is_imported_as_parameter modname =
   Persistent_env.is_imported_as_parameter persistent_env modname
+
+let is_imported_from_functorized_pack unit =
+  Persistent_env.is_imported_from_functorized_pack persistent_env unit
+
+let functorized_pack_component_id unit =
+  Persistent_env.functorized_pack_component_id persistent_env unit
 
 let reset_declaration_caches () =
   Hashtbl.clear value_declarations;

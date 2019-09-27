@@ -189,6 +189,12 @@ let is_packed t =
 let full_path unit =
   unit.for_pack_prefix @ [ Prefix.Pack (unit.basename, []) ]
 
+let for_address unit =
+  match unit.for_pack_prefix with
+    [] -> unit.basename
+  | (_ :: _) as prefix ->
+      Format.asprintf "%s.%a" (Prefix.for_address prefix) Name.print unit.basename
+
 type crcs = (t * Digest.t option) list
 
 include Identifiable.Make (struct

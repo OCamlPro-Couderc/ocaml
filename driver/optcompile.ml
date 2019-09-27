@@ -46,6 +46,8 @@ let write_cmx_file filename =
       CU.Map.empty
       (Env.imports ())
   in
+  let functorized_pack_imports =
+    List.map fst (Env.functorized_pack_imports ()) in
   let unit_info =
     let compilation_state = Compilation_state.Snapshot.create () in
     let unit = compilation_state.unit in
@@ -56,7 +58,8 @@ let write_cmx_file filename =
       | Closure approx -> Closure approx
       | Flambda export_info -> Flambda export_info
     in
-    UI.create ~unit ~defines ~imports_cmi ~imports_cmx ~export_info
+    UI.create ~unit ~defines ~imports_cmi ~imports_cmx
+      ~functorized_pack_imports ~export_info
   in
   let unit_info_link_time =
     let linking_state = Linking_state.Snapshot.create () in

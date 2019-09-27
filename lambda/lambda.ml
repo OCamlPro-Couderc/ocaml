@@ -332,7 +332,7 @@ and lambda_event_kind =
 
 type pack_member =
     PM_intf of Ident.t
-  | PM_impl of Ident.t * Ident.t list * bool
+  | PM_impl of Ident.t * Compilation_unit.t list * bool
 
 type program =
   { module_ident : Ident.t;
@@ -631,14 +631,10 @@ let rec patch_guarded patch = function
 let rec transl_address loc = function
   | Env.Aident id ->
       if Ident.global id then
-        let prefix, _ =
+        let _, name =
           Compilation_unit.Prefix.extract_prefix (Ident.name id) in
-        let curr_prefix =
-          Compilation_unit.for_pack_prefix
-          (Persistent_env.Current_unit.get_exn ()) in
-        if Compilation_unit.Prefix.in_common_functor curr_prefix prefix ||
-           List.exists (fun (Compilation_unit.Prefix.Pack (_, args)) ->
-               List.mem (Ident.name id) args) curr_prefix then Lvar id
+        if Env.is_imported_from_functorized_pack name then
+          Lvar (Env.functorized_pack_component_id name)
         else Lprim(Pgetglobal id, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->
