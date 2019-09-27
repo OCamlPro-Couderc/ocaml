@@ -30,9 +30,11 @@ val transl_implementation_flambda:
 
 val transl_toplevel_definition: structure -> lambda
 val transl_package:
-  pack_member list -> Ident.t -> Ident.t list -> module_coercion -> lambda
+  pack_member list -> Ident.t -> Ident.t list -> module_coercion
+  -> lambda
 val transl_store_package:
-  pack_member list -> Ident.t -> Ident.t list -> module_coercion -> int * lambda
+  pack_member list -> Ident.t -> Ident.t list -> module_coercion
+  -> int * lambda
 
 val transl_package_flambda:
   pack_member list -> Ident.t list -> module_coercion -> int * lambda

@@ -52,6 +52,7 @@ module Unit_info : sig
        with a "-for-pack" option (see CR in compilation_state.ml). *)
     -> imports_cmi:Digest.t option Compilation_unit.Map.t
     -> imports_cmx:Digest.t option Compilation_unit.Map.t
+    -> functorized_pack_imports:Compilation_unit.t list
     -> export_info:export_info
     -> t
 
@@ -67,6 +68,9 @@ module Unit_info : sig
 
   (** Info imported. *)
   val imports_cmx : t -> Digest.t option Compilation_unit.Map.t
+
+  (** Units imported from a common functorized pack *)
+  val functorized_pack_imports : t -> Compilation_unit.t list
 
   (** Term language information, e.g. for inlining. *)
   val export_info : t -> export_info

@@ -135,6 +135,7 @@ type 'a t = {
   imported_units: CU.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
   imported_units_as_parameter: CU.Name.Set.t ref;
+  imported_functorized_pack_units: Ident.t CU.Map.t ref;
   crc_units: Consistbl.t;
   can_load_cmis: can_load_cmis ref;
 }
@@ -144,6 +145,7 @@ let empty () = {
   imported_units = ref CU.Set.empty;
   imported_opaque_units = ref CU.Name.Set.empty;
   imported_units_as_parameter = ref CU.Name.Set.empty;
+  imported_functorized_pack_units = ref CU.Map.empty;
   crc_units = Consistbl.create ();
   can_load_cmis = ref Can_load_cmis;
 }
@@ -154,6 +156,7 @@ let clear penv =
     imported_units;
     imported_opaque_units;
     imported_units_as_parameter;
+    imported_functorized_pack_units;
     crc_units;
     can_load_cmis;
   } = penv in
@@ -161,6 +164,7 @@ let clear penv =
   imported_units := CU.Set.empty;
   imported_opaque_units := CU.Name.Set.empty;
   imported_units_as_parameter := CU.Name.Set.empty;
+  imported_functorized_pack_units := CU.Map.empty;
   Consistbl.clear crc_units;
   can_load_cmis := Can_load_cmis;
   ()
@@ -182,6 +186,11 @@ let add_imported_opaque {imported_opaque_units; _} s =
 
 let add_imported_parameter {imported_units_as_parameter; _} s =
   imported_units_as_parameter := CU.Name.Set.add s !imported_units_as_parameter
+
+let add_imported_functorized_pack_unit
+    {imported_functorized_pack_units; _} unit id =
+  imported_functorized_pack_units :=
+    CU.Map.add unit id !imported_functorized_pack_units
 
 let find_in_cache {persistent_structures; _} s =
   match NameTbl.find persistent_structures s with
@@ -208,6 +217,9 @@ let check_consistency penv ps =
     } ->
     error (Inconsistent_import(CU.name unit, auth, source))
 
+let is_package_parameter unit name =
+  CU.Prefix.in_functor_parameters name (CU.for_pack_prefix unit)
+
 let check_parameter modname flags functor_unit =
   let parameter_for_same_module =
     match !Clflags.functor_parameter_of with
@@ -223,10 +235,7 @@ let check_parameter modname flags functor_unit =
   List.mem modname !Clflags.functor_parameters &&
   CU.equal current_unit functor_unit ||
   parameter_for_same_module ||
-  List.exists
-    (function CU.Prefix.Pack (_, args) ->
-       List.exists CU.Name.(equal (of_string modname)) args)
-    (CU.for_pack_prefix current_unit)
+  is_package_parameter current_unit (CU.Name.of_string modname)
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
@@ -296,6 +305,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
              ps_filename = filename;
              ps_flags = flags;
            } in
+  let current_unit = Current_unit.get_exn () in
   if ps.ps_name <> modname then
     error (Illegal_renaming(modname, ps.ps_name, filename));
   List.iter
@@ -310,7 +320,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
       | Pack p ->
           (* Current for-pack prefix should be stored somewhere to avoid
              computing it using `split_on_char` each time *)
-          let curr_prefix = CU.for_pack_prefix (Current_unit.get_exn ()) in
+          let curr_prefix = CU.for_pack_prefix current_unit in
           if not (check_pack_compatibility curr_prefix p)
           && not !Clflags.make_package then
             error (Inconsistent_package_declaration
@@ -321,14 +331,21 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
                      (filename,
                       CU.Name.of_string
                         (CU.Prefix.to_string p ^ "." ^
-                         CU.Name.to_string modname)))
+                         CU.Name.to_string modname)));
+          if CU.Prefix.in_functor p then
+            let unit = CU.create ~for_pack_prefix:p modname in
+            let id = Ident.create_local (CU.for_address unit) in
+            add_imported_functorized_pack_unit penv unit id
       | Opaque ->
           add_imported_opaque penv modname
       | Parameter_of functor_unit ->
-          if not (check_parameter (CU.Name.to_string ps.ps_name)
-                    ps.ps_flags functor_unit) then
+          let ps_name = CU.Name.to_string ps.ps_name in
+          if not (check_parameter ps_name ps.ps_flags functor_unit) then
             error (Illegal_import_of_parameter(ps.ps_name, filename))
-          else add_imported_parameter penv ps.ps_name)
+          else add_imported_parameter penv ps.ps_name;
+          if is_package_parameter current_unit ps.ps_name then
+            let id = Ident.create_local ps_name in
+            add_imported_functorized_pack_unit penv (CU.create name) id)
     ps.ps_flags;
   if check then check_consistency penv ps;
   let {persistent_structures; _} = penv in
@@ -457,6 +474,9 @@ let crc_of_unit penv f name =
 let imports {imported_units; crc_units; _} =
   Consistbl.extract (CU.Set.elements !imported_units) crc_units
 
+let imports_from_functorized_pack {imported_functorized_pack_units; } =
+  CU.Map.bindings !imported_functorized_pack_units
+
 let looked_up {persistent_structures; _} modname =
   NameTbl.mem persistent_structures modname
 
@@ -468,6 +488,16 @@ let is_imported_opaque {imported_opaque_units; _} s =
 
 let is_imported_as_parameter {imported_units_as_parameter; _} s =
   CU.Name.Set.mem s !imported_units_as_parameter
+
+let is_imported_from_functorized_pack {imported_functorized_pack_units; _} s =
+  CU.Map.exists (fun key _ -> CU.Name.equal (CU.name key) s)
+    !imported_functorized_pack_units
+
+let functorized_pack_component_id {imported_functorized_pack_units; _} s =
+  CU.Map.find_first
+    (fun key -> CU.Name.equal (CU.name key) s)
+    !imported_functorized_pack_units
+  |> snd
 
 let make_cmi penv modname mty alerts =
   let flags =

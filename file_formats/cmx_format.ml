@@ -58,14 +58,19 @@ module Unit_info = struct
     defines : Compilation_unit.t list;
     imports_cmi : Digest.t option Compilation_unit.Map.t;
     imports_cmx : Digest.t option Compilation_unit.Map.t;
+    functorized_pack_imports : Compilation_unit.t list;
     export_info : export_info;
   }
 
-  let create ~unit ~defines ~imports_cmi ~imports_cmx ~export_info =
+  let create
+      ~unit ~defines
+      ~imports_cmi ~imports_cmx ~functorized_pack_imports
+      ~export_info =
     { unit;
       defines;
       imports_cmi;
       imports_cmx;
+      functorized_pack_imports;
       export_info;
     }
 
@@ -73,6 +78,7 @@ module Unit_info = struct
   let defines t = t.defines
   let imports_cmi t = t.imports_cmi
   let imports_cmx t = t.imports_cmx
+  let functorized_pack_imports t = t.functorized_pack_imports
   let export_info t = t.export_info
 
   let with_export_info t export_info =

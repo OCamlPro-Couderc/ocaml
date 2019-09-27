@@ -316,7 +316,7 @@ and lambda_event_kind =
 
 type pack_member =
     PM_intf of Ident.t
-  | PM_impl of Ident.t * Ident.t list * bool
+  | PM_impl of Ident.t * Compilation_unit.t list * bool
 
 type program =
   { module_ident : Ident.t;

@@ -169,11 +169,6 @@ let rec append_bytecode_list packagename oc identifiers defined ofs subst =
 
 let build_global_target
     ~ppf_dump oc target_name members identifiers dependencies pos coercion =
-  let curr_package_as_prefix =
-    let params = List.rev !Clflags.functor_parameters in
-    CU.for_pack_prefix (Persistent_env.Current_unit.get_exn ())
-    @ [CU.(Prefix.Pack (target_name, List.map Name.of_string params))]
-  in
   let components =
     List.map2
       (fun m id ->
@@ -183,19 +178,7 @@ let build_global_target
              let is_functor = match ty with
                  Types.Unit_functor (_, _) -> true
                | _ -> false in
-             let required =
-               List.filter_map (fun (unit, _) ->
-                   let pers_id =
-                    Ident.create_persistent ~prefix:curr_package_as_prefix
-                      Compilation_unit.(Name.to_string (name unit)) in
-                   let prefix = Compilation_unit.for_pack_prefix unit in
-                   if Compilation_unit.Prefix.in_common_functor
-                       curr_package_as_prefix prefix
-                   && not (Compilation_unit.Name.equal
-                             cu.cu_name (Compilation_unit.name unit)) then
-                     Some pers_id
-                   else None) cu.cu_imports in
-             Lambda.PM_impl (id, required, is_functor))
+             Lambda.PM_impl (id, cu.cu_functor_pack_imports, is_functor))
       members identifiers in
   let lam =
     Translmod.transl_package
@@ -240,13 +223,21 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
             List.fold_right Ident.Set.add cu_required_globals required_globals)
       members Ident.Set.empty
   in
+  let package_prefix =
+    CU.Prefix.parse_for_pack !Clflags.for_package in
+  let curr_package_as_prefix =
+    let params = List.fold_left (fun acc p ->
+        CU.Name.of_string p :: acc) [] !Clflags.functor_parameters in
+    package_prefix @
+    [CU.Prefix.Pack (targetname, params)]
+  in
   let unit_names =
     List.map (fun m -> m.pm_name) members in
   let identifiers =
     List.map
       (fun name ->
          Ident.create_persistent
-           ~prefix:packagename_as_prefix
+           ~prefix:curr_package_as_prefix
            (CU.Name.to_string name))
       unit_names in
   let oc = open_out_bin targetfile in
@@ -264,11 +255,17 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let functor_dependencies =
       List.filter_map (fun (unit, _) ->
           let prefix = Compilation_unit.for_pack_prefix unit in
-          if Compilation_unit.Prefix.in_common_functor
-              packagename_as_prefix prefix then
-            Some (Ident.create_persistent ~prefix
+          if Compilation_unit.Prefix.(
+              in_common_functor curr_package_as_prefix prefix ||
+              in_functor_parameters
+                (Compilation_unit.name unit) package_prefix)
+          then
+            Some (unit,
+                  Ident.create_persistent ~prefix
                     Compilation_unit.(Name.to_string (name unit)))
           else None) imports in
+    let functor_pack_imports, functor_dependencies =
+      List.split functor_dependencies in
     build_global_target ~ppf_dump oc targetname
       members identifiers functor_dependencies ofs coercion;
     let pos_debug = pos_out oc in
@@ -288,6 +285,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
           (unit, Some (Env.crc_of_unit targetname)) :: imports;
         cu_primitives = !primitives;
         cu_required_globals = Ident.Set.elements required_globals;
+        cu_functor_pack_imports = functor_pack_imports;
         cu_force_link = !force_link;
         cu_debug = if pos_final > pos_debug then pos_debug else 0;
         cu_debugsize = pos_final - pos_debug } in
