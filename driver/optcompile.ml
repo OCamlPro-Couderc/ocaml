@@ -42,8 +42,7 @@ let write_cmx_file filename =
     (* CR-someday mshinwell: Replace type "modname" everywhere with a new type,
        in its own module, such module to supercede [Compilation_unit.Name]. *)
     List.fold_left (fun imports (unit, digest_opt) ->
-        let compunit = CU.of_unit unit in
-        CU.Map.add compunit digest_opt imports)
+        CU.Map.add unit digest_opt imports)
       CU.Map.empty
       (Env.imports ())
   in
@@ -124,13 +123,7 @@ let closure i backend typed =
 
 let implementation ~backend ~source_file ~output_prefix =
   let backend info typed =
-    let for_pack_prefix =
-      CU.Prefix.of_prefix
-        (Compunit.prefix (Persistent_env.Current_unit.get ())) in
-    let compilation_unit =
-      CU.create ~for_pack_prefix (CU.Name.of_string info.module_name)
-    in
-    CU.set_current compilation_unit;
+    let compilation_unit = Persistent_env.Current_unit.get_exn () in
     Compilation_state.reset compilation_unit;
     Linking_state.reset ();
     (if Config.flambda then flambda else closure) info backend typed

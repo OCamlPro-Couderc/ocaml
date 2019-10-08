@@ -20,7 +20,7 @@ open! Int_replace_polymorphic_compare
 let name_expr ~name (named : Flambda.named) : Flambda.t =
   let var =
     Variable.create
-      ~current_compilation_unit:(Compilation_unit.get_current_exn ())
+      ~current_compilation_unit:(Persistent_env.Current_unit.get_exn ())
       name
   in
   Flambda.create_let var named (Var var)
@@ -28,7 +28,7 @@ let name_expr ~name (named : Flambda.named) : Flambda.t =
 let name_expr_from_var ~var (named : Flambda.named) : Flambda.t =
   let var =
     Variable.rename
-      ~current_compilation_unit:(Compilation_unit.get_current_exn ())
+      ~current_compilation_unit:(Persistent_env.Current_unit.get_exn ())
       var
   in
   Flambda.create_let var named (Var var)
@@ -366,7 +366,7 @@ let make_closure_declaration
         sb)
       Variable.Map.empty
   in
-  let compilation_unit = Compilation_unit.get_current_exn () in
+  let compilation_unit = Persistent_env.Current_unit.get_exn () in
   let set_of_closures_var =
     Variable.create Internal_variable_names.set_of_closures
       ~current_compilation_unit:compilation_unit

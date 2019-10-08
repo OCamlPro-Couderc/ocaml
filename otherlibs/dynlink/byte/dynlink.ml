@@ -54,7 +54,7 @@ module Bytecode = struct
 
   type handle = Stdlib.in_channel * filename * Digest.t
 
-  let default_crcs = ref ([] : Compunit.crcs)
+  let default_crcs = ref ([] : Compilation_unit.crcs)
   let default_global_map = ref Symtable.empty_global_map
 
   let init () =
@@ -73,7 +73,7 @@ module Bytecode = struct
 
   let fold_initial_units ~init ~f =
     List.fold_left (fun acc (comp_unit, interface) ->
-        let id = Ident.create_persistent (Compunit.name comp_unit) in
+        let id = Ident.create_persistent (Compilation_unit.name comp_unit) in
         let defined =
           Symtable.is_defined_in_global_map !default_global_map id
         in
@@ -82,7 +82,7 @@ module Bytecode = struct
           else None
         in
         let defined_symbols =
-          if defined then [Compunit.name comp_unit]
+          if defined then [Compilation_unit.name comp_unit]
           else []
         in
         f acc ~comp_unit ~interface ~implementation ~defined_symbols)

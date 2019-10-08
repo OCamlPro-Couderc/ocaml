@@ -20,7 +20,7 @@ type pers_flags =
   | Alerts of alerts
   | Opaque
   | Unsafe_string
-  | Pack of Compunit.Prefix.t
+  | Pack of Compilation_unit.Prefix.t
 
 type error =
   | Not_an_interface of filepath
@@ -30,9 +30,9 @@ type error =
 exception Error of error
 
 type cmi_infos = {
-    cmi_name : Compunit.Name.t;
+    cmi_name : Compilation_unit.Name.t;
     cmi_sign : Types.signature_item list;
-    cmi_crcs : Compunit.crcs;
+    cmi_crcs : Compilation_unit.crcs;
     cmi_flags : pers_flags list;
 }
 
@@ -88,7 +88,8 @@ let output_cmi filename oc cmi =
     | _ -> []
   in
   let crcs =
-    (Compunit.create ~for_pack_prefix cmi.cmi_name, Some crc) :: cmi.cmi_crcs in
+    (Compilation_unit.create ~for_pack_prefix cmi.cmi_name, Some crc)
+    :: cmi.cmi_crcs in
   output_value oc crcs;
   output_value oc cmi.cmi_flags;
   crc

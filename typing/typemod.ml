@@ -2550,7 +2550,7 @@ let package_units initial_env objfiles cmifile modulename =
     let imports =
       List.filter
         (fun (unit, _crc) ->
-           not (List.mem (Compunit.name unit) unit_names))
+           not (List.mem (Compilation_unit.name unit) unit_names))
         (Env.imports()) in
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin

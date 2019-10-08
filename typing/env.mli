@@ -237,29 +237,29 @@ val reset_cache: unit -> unit
 val reset_cache_toplevel: unit -> unit
 
 (* Read, save a signature to/from a file *)
-val read_signature: Compunit.Name.t -> filepath -> signature
+val read_signature: Compilation_unit.Name.t -> filepath -> signature
         (* Arguments: module name, file name. Results: signature. *)
 val save_signature:
-  alerts:alerts -> signature -> Compunit.Name.t -> filepath
+  alerts:alerts -> signature -> Compilation_unit.Name.t -> filepath
   -> Cmi_format.cmi_infos
         (* Arguments: signature, module name, file name. *)
 val save_signature_with_imports:
-  alerts:alerts -> signature -> Compunit.Name.t -> filepath -> Compunit.crcs
+  alerts:alerts -> signature -> Compilation_unit.Name.t -> filepath -> Compilation_unit.crcs
   -> Cmi_format.cmi_infos
         (* Arguments: signature, module name, file name,
            imported units with their CRCs. *)
 
 (* Return the CRC of the interface of the given compilation unit *)
-val crc_of_unit: Compunit.Name.t -> Digest.t
+val crc_of_unit: Compilation_unit.Name.t -> Digest.t
 
 (* Return the set of compilation units imported, with their CRC *)
-val imports: unit -> Compunit.crcs
+val imports: unit -> Compilation_unit.crcs
 
 (* may raise Persistent_env.Consistbl.Inconsistency *)
-val import_crcs: source:string -> Compunit.crcs -> unit
+val import_crcs: source:string -> Compilation_unit.crcs -> unit
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module  *)
-val is_imported_opaque: Compunit.Name.t -> bool
+val is_imported_opaque: Compilation_unit.Name.t -> bool
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)

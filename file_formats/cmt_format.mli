@@ -49,7 +49,7 @@ and binary_part =
   | Partial_module_type of module_type
 
 type cmt_infos = {
-  cmt_modname : Compunit.Name.t;
+  cmt_modname : Compilation_unit.Name.t;
   cmt_annots : binary_annots;
   cmt_value_dependencies :
     (Types.value_description * Types.value_description) list;
@@ -60,7 +60,7 @@ type cmt_infos = {
   cmt_loadpath : string list;
   cmt_source_digest : string option;
   cmt_initial_env : Env.t;
-  cmt_imports : Compunit.crcs;
+  cmt_imports : Compilation_unit.crcs;
   cmt_interface_digest : Digest.t option;
   cmt_use_summaries : bool;
 }

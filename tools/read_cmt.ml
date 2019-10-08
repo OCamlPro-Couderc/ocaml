@@ -88,8 +88,8 @@ let print_info cmt =
         None -> dummy_crc
       | Some crc -> Digest.to_hex crc
     in
-    Printf.fprintf oc "import: %s %s\n" (Compunit.name unit) crc;
-    ) (List.sort (fun (unit1, _) (unit2, _) -> Compunit.compare unit1 unit2)
+    Printf.fprintf oc "import: %s %s\n" (Compilation_unit.name unit) crc;
+    ) (List.sort (fun (unit1, _) (unit2, _) -> Compilation_unit.compare unit1 unit2)
          cmt.cmt_imports);
   Printf.fprintf oc "%!";
   begin match !target_filename with

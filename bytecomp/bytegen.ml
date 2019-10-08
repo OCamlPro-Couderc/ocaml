@@ -985,15 +985,13 @@ let comp_remainder cont =
 
 (**** Compilation of a lambda phrase ****)
 
-let compile_implementation modulename expr =
+let compile_implementation _modulename expr =
   Stack.clear functions_to_compile;
   label_counter := 0;
   sz_static_raises := [] ;
   compunit_name :=
-    (match Compunit.prefix (Persistent_env.Current_unit.get ()) with
-       [] -> modulename
-     | prefix ->
-         Compunit.Prefix.to_string prefix ^ "." ^ modulename);
+    Compilation_unit.full_path_as_string
+      (Persistent_env.Current_unit.get_exn ());
   let init_code = comp_block empty_env expr 0 [] in
   if Stack.length functions_to_compile > 0 then begin
     let lbl_init = new_label() in

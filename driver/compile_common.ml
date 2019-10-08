@@ -34,7 +34,7 @@ let annot i = i.output_prefix ^ ".annot"
 let with_info ~native ~tool_name ~source_file ~output_prefix ~dump_ext k =
   Compmisc.init_path ();
   let module_name = module_of_filename source_file output_prefix in
-  let prefix = Compunit.Prefix.parse_for_pack !Clflags.for_package in
+  let prefix = Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
   Persistent_env.Current_unit.set ~prefix module_name;
   let env = Compmisc.initial_env() in
   let dump_file = String.concat "." [output_prefix; dump_ext] in

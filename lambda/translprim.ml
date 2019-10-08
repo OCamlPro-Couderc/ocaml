@@ -627,7 +627,8 @@ let lambda_of_loc kind loc =
   | Loc_FILE -> Lconst (Const_immstring file)
   | Loc_MODULE ->
     let filename = Filename.basename file in
-    let name = Compunit.name (Persistent_env.Current_unit.get ()) in
+    let name = Compilation_unit.name
+        (Persistent_env.Current_unit.get_exn ()) in
     let module_name = if name = "" then "//"^filename^"//" else name in
     Lconst (Const_immstring module_name)
   | Loc_LOC ->

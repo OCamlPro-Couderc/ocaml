@@ -48,7 +48,7 @@ end)
 let compute_object_file (compilation_unit : BCU.t) =
   match compilation_unit with
   | Compilation_unit compilation_unit ->
-    begin match Compilation_unit.get_current () with
+    begin match Persistent_env.Current_unit.get () with
     | None -> Object_file.another_compilation_unit
     | Some current_unit ->
       if Compilation_unit.equal compilation_unit current_unit then
@@ -68,7 +68,7 @@ let create ?compilation_unit ~base_name kind =
     match compilation_unit with
     | None ->
       BCU.compilation_unit (
-        Compilation_unit.get_current_exn ())
+        Persistent_env.Current_unit.get_exn ())
     | Some compilation_unit -> compilation_unit
   in
   let object_file = compute_object_file compilation_unit in
@@ -95,7 +95,7 @@ let unsafe_create ?compilation_unit name kind =
     match compilation_unit with
     | None ->
       BCU.compilation_unit (
-        Compilation_unit.get_current_exn ())
+        Persistent_env.Current_unit.get_exn ())
     | Some compilation_unit -> compilation_unit
   in
   let object_file = compute_object_file compilation_unit in
@@ -159,7 +159,7 @@ let for_lifted_anonymous_constant ?compilation_unit () =
     match compilation_unit with
     | None ->
       BCU.compilation_unit (
-        Compilation_unit.get_current_exn ())
+        Persistent_env.Current_unit.get_exn ())
     | Some compilation_unit -> compilation_unit
   in
   let name =

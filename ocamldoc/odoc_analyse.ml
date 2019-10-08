@@ -31,7 +31,7 @@ let init_path () = Compmisc.init_path ()
 (** Return the initial environment in which compilation proceeds. *)
 let initial_env () =
   let current =
-    Compunit.name (Persistent_env.Current_unit.get ()) in
+    Compilation_unit.name (Persistent_env.Current_unit.get_exn ()) in
   let initial = !Odoc_global.initially_opened_module in
   let initially_opened_module =
     if initial = current then

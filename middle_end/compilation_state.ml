@@ -146,7 +146,7 @@ let global_infos_table : find_cmx_result CU.Name.Tbl.t = CU.Name.Tbl.create 17
 (* This is the equivalent of the old [Compilenv.get_global_info]. *)
 let find_or_load_unit_info_from_cmx ?comp_unit desired_unit
   : find_cmx_result =
-  let curr = CU.get_current_exn () in
+  let curr = Persistent_env.Current_unit.get_exn () in
   let current_unit_name = CU.name curr in
   let desired_unit_name = CU.name desired_unit in
   if CU.Name.equal desired_unit_name current_unit_name then
@@ -223,10 +223,10 @@ let compilation_unit_for_global id : compilation_unit_or_predef =
   if Ident.is_predef id then begin
     Predef
   end else begin
-    let desired_unit = CU.of_persistent_ident id in
+    let desired_unit = CU.of_raw_string (Ident.name id) in
     match find_or_load_unit_info_from_cmx desired_unit with
     | Current_unit ->
-      Compilation_unit (CU.get_current_exn ())
+      Compilation_unit (Persistent_env.Current_unit.get_exn ())
     | No_cmx_file_or_opaque ->
       (* Assume that the compilation unit (called [id]), whose .cmx file
          is missing, is not packed. *)
@@ -235,7 +235,7 @@ let compilation_unit_for_global id : compilation_unit_or_predef =
     | Just_loaded { info; filename; } ->
       let for_pack_prefix_in_cmx = CU.for_pack_prefix (UI.unit info) in
       let current_for_pack_prefix =
-        CU.for_pack_prefix (CU.get_current_exn ())
+        CU.for_pack_prefix (Persistent_env.Current_unit.get_exn ())
       in
       let is_valid_prefix =
         Misc.Stdlib.List.is_prefix ~equal:CU.Prefix.equal_component
@@ -333,7 +333,8 @@ module Closure_only = struct
       { original_idents = [];
         module_path =
           Path.Pident (Ident.create_persistent (
-            CU.Name.to_string (CU.name (CU.get_current_exn ()))));
+              CU.Name.to_string
+                (CU.name (Persistent_env.Current_unit.get_exn ()))));
       }
     in
     List.map
@@ -358,7 +359,8 @@ module Closure_only = struct
         Misc.fatal_error "Expected Closure approximations but found \
           Flambda export info"
     in
-    CU.Name.Tbl.add toplevel_approx (CU.name (CU.get_current_exn ())) approx
+    CU.Name.Tbl.add toplevel_approx
+      (CU.name (Persistent_env.Current_unit.get_exn ())) approx
 
   let global_approx id =
     if not (Ident.persistent id || Ident.is_predef id) then begin
@@ -369,7 +371,7 @@ module Closure_only = struct
     if Ident.is_predef id then Clambda.Value_unknown
     else
       let name = CU.Name.of_string (Ident.name id) in
-      let unit = CU.of_persistent_ident id in
+      let unit = CU.of_raw_string (Ident.name id) in
       try CU.Name.Tbl.find toplevel_approx name
       with Not_found ->
         match find_or_load_unit_info_from_cmx unit with
@@ -408,7 +410,7 @@ module Flambda_only = struct
     current_unit.export_info <- Flambda export_info
 
   let export_info_for_unit comp_unit =
-    let current_comp_unit = CU.get_current_exn () in
+    let current_comp_unit = Persistent_env.Current_unit.get_exn () in
     let desired_path = CU.full_path comp_unit in
     let current_path = CU.full_path current_comp_unit in
     let prefix_result =
@@ -442,7 +444,7 @@ module Flambda_only = struct
       | Closure _ ->
         Misc.fatal_errorf "%a (current unit): expected Flambda export info \
             but found Closure approximations"
-          CU.print (CU.get_current_exn ())
+          CU.print (Persistent_env.Current_unit.get_exn ())
       | Flambda export_info -> Some export_info
       end
     | Already_loaded info -> extract_flambda_export_info info
@@ -492,7 +494,7 @@ module Snapshot = struct
   }
 
   let create () =
-    { unit = CU.get_current_exn ();
+    { unit = Persistent_env.Current_unit.get_exn ();
       defines = current_unit.defines;
       imports_cmx = current_unit.imports_cmx;
       export_info = current_unit.export_info;

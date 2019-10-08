@@ -66,10 +66,11 @@ let print_name_crc (unit, crco) =
       None -> dummy_crc
     | Some crc -> string_of_crc crc
   in
-  if !full_path then
-    printf "\t%s\t%s\n" crc (Compunit.name unit)
+  if not !full_path then
+    printf "\t%s\t%s\n" crc (Compilation_unit.name unit)
   else
-    printf "\t%s\t%s\n" crc (Format.asprintf "%a" Compunit.print unit)
+    printf "\t%s\t%s\n" crc
+      (Format.asprintf "%a" Compilation_unit.print_full_path unit)
 
 let print_line name =
   printf "\t%s\n" name
@@ -121,7 +122,7 @@ let print_cmi_infos name crcs flags =
   printf "Compunit name: %s\n" name;
   printf "Interfaces imported:\n";
   List.iter print_name_crc crcs;
-  printf "Compilation flags:";
+  printf "Compilation flags:\n";
   List.iter print_pers_flags flags
 
 
@@ -190,7 +191,7 @@ let print_cmx_infos (ui, ui_link, crc) =
       printf "Flambda unit\n";
     if not !no_approx then begin
       let cu = UI.unit ui in
-      CU.set_current cu;
+      Persistent_env.Current_unit.set_unit cu;
       let root_symbols =
         List.map (fun comp_unit -> Symbol.for_module_block comp_unit)
           (UI.defines ui)
@@ -257,7 +258,7 @@ let dump_byte ic =
            | "CRCS" ->
                p_section
                  "Imported units"
-                 (input_value ic : (Compunit.t * Digest.t option) list)
+                 (input_value ic : Compilation_unit.crcs)
            | "DLLS" ->
                p_list
                  "Used DLLs"

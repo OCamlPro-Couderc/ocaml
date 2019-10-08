@@ -122,7 +122,7 @@ let check_consistency ppf filename cu =
   with Persistent_env.Consistbl.Inconsistency(unit, user, auth) ->
     fprintf ppf "@[<hv 0>The files %s@ and %s@ \
                  disagree over interface %s@]@."
-            user auth (Compunit.name unit);
+            user auth (Compilation_unit.name unit);
     raise Load_failed
 
 let load_compunit ic filename ppf compunit =

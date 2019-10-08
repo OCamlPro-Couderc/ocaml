@@ -87,7 +87,7 @@ COMPILERLIBS_SOURCES=\
   utils/warnings.ml \
   utils/load_path.ml \
   utils/int_replace_polymorphic_compare.ml \
-  utils/compunit.ml \
+  utils/compilation_unit.ml \
   parsing/location.ml \
   parsing/longident.ml \
   parsing/docstrings.ml \
@@ -115,7 +115,6 @@ COMPILERLIBS_SOURCES=\
   bytecomp/dll.ml \
   bytecomp/meta.ml \
   bytecomp/symtable.ml \
-  middle_end/compilation_unit.ml \
   file_formats/cmxs_format.ml
 
 # Rules to make a local copy of the .ml and .mli files required.  We also

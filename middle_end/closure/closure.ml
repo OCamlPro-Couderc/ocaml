@@ -1462,7 +1462,7 @@ let reset () =
 
 let intro ~backend ~size lam =
   reset ();
-  let current_unit = Compilation_unit.get_current_exn () in
+  let current_unit = Persistent_env.Current_unit.get_exn () in
   let module_block = Symbol.for_module_block current_unit in
   global_approx :=
     Array.init size (fun i -> Value_global_field (module_block, i));

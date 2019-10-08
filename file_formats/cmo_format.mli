@@ -26,11 +26,11 @@ type reloc_info =
 (* Descriptor for compilation units *)
 
 type compilation_unit =
-  { cu_name: Compunit.Name.t;           (* Name of compilation unit *)
+  { cu_name: Compilation_unit.Name.t;   (* Name of compilation unit *)
     mutable cu_pos: int;                (* Absolute position in file *)
     cu_codesize: int;                   (* Size of code block *)
     cu_reloc: (reloc_info * int) list;  (* Relocation information *)
-    cu_imports: Compunit.crcs;          (* Compunit and CRC of intfs imported *)
+    cu_imports: Compilation_unit.crcs;  (* Compilation_unit and CRC of intfs imported *)
     cu_required_globals: Ident.t list;  (* Compilation units whose
                                            initialization side effects
                                            must occur before this one. *)

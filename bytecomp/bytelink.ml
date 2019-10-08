@@ -24,11 +24,11 @@ type error =
   | Not_an_object_file of filepath
   | Wrong_object_name of filepath
   | Symbol_error of filepath * Symtable.error
-  | Inconsistent_import of Compunit.Name.t * filepath * filepath
+  | Inconsistent_import of Compilation_unit.Name.t * filepath * filepath
   | Custom_runtime
   | File_exists of filepath
   | Cannot_open_dll of filepath
-  | Required_module_unavailable of Compunit.Name.t
+  | Required_module_unavailable of Compilation_unit.Name.t
 
 exception Error of error
 
@@ -159,10 +159,10 @@ let scan_file obj_name tolink =
 
 (* Consistency check between interfaces *)
 
-module Consistbl = Consistbl.Make (Compunit)
+module Consistbl = Consistbl.Make (Compilation_unit)
 
 let crc_interfaces = Consistbl.create ()
-let interfaces = ref ([] : Compunit.t list)
+let interfaces = ref ([] : Compilation_unit.t list)
 let implementations_defined = ref ([] : (string * string) list)
 
 let check_consistency file_name cu =
@@ -173,12 +173,13 @@ let check_consistency file_name cu =
         match crco with
           None -> ()
         | Some crc ->
-            if Compunit.Name.equal (Compunit.name unit) cu.cu_name
+            if Compilation_unit.Name.equal
+                (Compilation_unit.name unit) cu.cu_name
             then Consistbl.set crc_interfaces unit crc file_name
             else Consistbl.check crc_interfaces unit crc file_name)
       cu.cu_imports
   with Consistbl.Inconsistency(unit, user, auth) ->
-    raise(Error(Inconsistent_import(Compunit.name unit, user, auth)))
+    raise(Error(Inconsistent_import(Compilation_unit.name unit, user, auth)))
   end;
   begin try
     let source = List.assoc cu.cu_name !implementations_defined in

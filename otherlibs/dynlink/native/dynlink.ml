@@ -58,11 +58,7 @@ module Native = struct
     let crc t = Some (DU.crc t)
 
     let interface_imports t =
-      List.map (fun (unit, crc_opt) ->
-          Compunit.create
-            ~for_pack_prefix:(CU.Prefix.to_prefix (CU.for_pack_prefix unit))
-            (CU.Name.to_string (CU.name unit)), crc_opt)
-        (CU.Map.bindings (DU.imports_cmi t))
+      CU.Map.bindings (DU.imports_cmi t)
 
     let implementation_imports t =
       List.map (fun (unit, crc_opt) ->
@@ -93,7 +89,7 @@ module Native = struct
           | None -> None
           | Some _ as crco -> Some (crco, DT.Check_inited !rank)
         in
-        let unit = Compunit.create name in
+        let unit = Compilation_unit.create name in
         f acc ~comp_unit:unit ~interface:crc_intf
             ~implementation ~defined_symbols:syms)
       init

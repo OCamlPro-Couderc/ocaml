@@ -727,9 +727,10 @@ let required_globals ~flambda body =
 
 (* Compile an implementation *)
 
-let transl_current_module_ident module_name =
-  let unit = Persistent_env.Current_unit.get () in
-  Ident.create_persistent ~prefix:(Compunit.prefix unit) module_name
+let transl_current_module_ident _module_name =
+  (* let unit = Persistent_env.Current_unit.get () in
+   * Ident.create_persistent ~prefix:(Compilation_unit.prefix unit) module_name *)
+  Persistent_env.Current_unit.get_id_exn ()
 
 let transl_implementation_flambda module_name (str, cc) =
   reset_labels ();
