@@ -102,7 +102,7 @@ type error =
   | Cannot_hide_id of hiding_error
   | Invalid_type_subst_rhs
   | Parameter_interface_unavailable of Compilation_unit.Name.t
-  | Interface_flagged_as_parameter of filepath
+  | Interface_flagged_as_parameter of filepath * string
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -2705,8 +2705,9 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           let dcluty = Env.read_interface modulename intf_file in
           if Env.is_imported_as_parameter modulename
           || !Clflags.functor_parameter_of <> None then
-            raise (Error (Location.in_file sourcefile, Env.empty,
-                          Interface_flagged_as_parameter intf_file));
+            raise (Error (Location.in_file sourcefile, initial_env,
+                          Interface_flagged_as_parameter
+                            (intf_file, "It cannot be implemented.")));
           let coercion =
             Includemod.implementation initial_env ~mark:Includemod.Mark_positive
               sourcefile uty intf_file dcluty
@@ -2722,8 +2723,9 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           coercion
         end else begin
           if !Clflags.functor_parameter_of <> None then
-            raise (Error (Location.in_file sourcefile, Env.empty,
-                          Interface_flagged_as_parameter sourcefile));
+            raise (Error (Location.in_file sourcefile, initial_env,
+                          Interface_flagged_as_parameter
+                            (sourcefile, "It cannot be implemented.")));
           let coercion =
             Includemod.implementation initial_env ~mark:Includemod.Mark_positive
               sourcefile uty "(inferred signature)" simple_uty
@@ -2802,7 +2804,12 @@ let transl_interface env ast params =
         tintf_env = newenv;
       }
 
-let type_interface env ast =
+let type_interface sourcefile env ast =
+  if !Clflags.functor_parameter_of <> None &&
+     !Clflags.for_package <> None then
+    raise (Error (Location.in_file sourcefile, env,
+                  Interface_flagged_as_parameter
+                    (sourcefile, "It cannot be packed into a module.")));
   transl_interface env ast !Clflags.functor_parameters
 
 (* "Packaging" of several compilation units into one unit
@@ -3037,11 +3044,12 @@ let report_error ppf = function
   | Parameter_interface_unavailable name ->
       fprintf ppf "No compiled interface found for this unit parameter %a"
         Compilation_unit.Name.print name
-  | Interface_flagged_as_parameter path ->
+  | Interface_flagged_as_parameter (path, reason) ->
       fprintf ppf
         "@[Interface %s@ found for this unit is flagged as a functor parameter.@ \
-         It cannot be implemented."
+         %s@]"
         path
+        reason
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env ~error:true env (fun () -> report_error ppf err)

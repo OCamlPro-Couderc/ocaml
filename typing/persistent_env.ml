@@ -564,9 +564,9 @@ let report_error ppf =
         intf_filename
         CU.Name.print intf_fullname
   | Illegal_import_of_parameter(modname, filename) -> fprintf ppf
-      "The file %a@ contains the an interface of a parameter.@ \
+      "@[<hov>The file %a@ contains the an interface of a parameter.@ \
        %a is not declared as a parameter for the current unit (-parameter %a)nor \
-       the current unit is itself a parameter.@"
+       the current unit is itself a parameter.@]"
       Location.print_filename filename
       CU.Name.print modname
       CU.Name.print modname
