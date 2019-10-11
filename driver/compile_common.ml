@@ -63,7 +63,7 @@ let typecheck_intf info ast =
   Profile.(record_call typing) @@ fun () ->
   let tintf =
     ast
-    |> Typemod.type_interface info.env
+    |> Typemod.type_interface info.source_file info.env
     |> print_if info.ppf_dump Clflags.dump_typedtree Printtyped.interface
   in
   let uty = tintf.Typedtree.tintf_type in
