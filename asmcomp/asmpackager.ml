@@ -276,9 +276,9 @@ let package_files ~ppf_dump initial_env files targetcmx ~backend =
   Location.input_name := targetcmx;
   (* Set the name of the current compunit *)
   let for_pack_prefix =
-      Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
+      CU.Prefix.parse_for_pack !Clflags.for_package in
   let comp_unit = CU.create ~for_pack_prefix (CU.Name.of_string targetname) in
-  Persistent_env.Current_unit.set targetname;
+  Persistent_env.Current_unit.set_unit comp_unit;
   Compilation_state.reset comp_unit;
   Misc.try_finally (fun () ->
       let coercion =

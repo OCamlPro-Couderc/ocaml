@@ -79,7 +79,7 @@ let print_required_global id =
   printf "\t%s\n" (Ident.name id)
 
 let print_cmo_infos cu =
-  printf "Compunit name: %s\n" cu.cu_name;
+  printf "Unit name: %s\n" cu.cu_name;
   print_string "Interfaces imported:\n";
   List.iter print_name_crc cu.cu_imports;
   print_string "Required globals:\n";
@@ -119,7 +119,7 @@ let print_pers_flags =
   | Pack modnames -> printf " -for-pack %s" (String.concat "." modnames)
 
 let print_cmi_infos name crcs flags =
-  printf "Compunit name: %s\n" name;
+  printf "Unit name: %s\n" name;
   printf "Interfaces imported:\n";
   List.iter print_name_crc crcs;
   printf "Compilation flags:\n";

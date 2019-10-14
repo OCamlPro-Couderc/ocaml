@@ -123,7 +123,9 @@ let closure i backend typed =
 
 let implementation ~backend ~source_file ~output_prefix =
   let backend info typed =
-    let compilation_unit = Persistent_env.Current_unit.get_exn () in
+    let compilation_unit =
+      Compilation_unit.create
+        ~for_pack_prefix:info.for_pack_prefix info.module_name in
     Compilation_state.reset compilation_unit;
     Linking_state.reset ();
     (if Config.flambda then flambda else closure) info backend typed

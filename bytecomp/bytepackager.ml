@@ -230,7 +230,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
         (fun (unit, _crc) ->
            not (List.mem (Compilation_unit.name unit) unit_names))
         (Bytelink.extract_crc_interfaces()) in
-    let unit = Persistent_env.Current_unit.get_exn () in
+    let unit = Compilation_unit.of_raw_string packagename in
     let compunit =
       { cu_name = targetname;
         cu_pos = pos_code;
