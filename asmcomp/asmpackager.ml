@@ -49,7 +49,7 @@ type pack_member =
     pm_name: CU.Name.t;
     pm_kind: pack_member_kind }
 
-let read_member_info pack_path file =
+let read_member_info current_unit file =
   let name =
     CU.Name.of_string (String.capitalize_ascii (
       Filename.basename (chop_extensions file)))
@@ -68,9 +68,16 @@ let read_member_info pack_path file =
         }))
       end;
       let cmx_file_for_pack_prefix = CU.for_pack_prefix (UI.unit info) in
-      if not (CU.Prefix.equal cmx_file_for_pack_prefix pack_path)
+      let full_path_with_params =
+        CU.for_pack_prefix current_unit @
+        [ CU.Prefix.Pack (CU.name current_unit,
+                          List.rev !Clflags.functor_parameters) ]
+      in
+      if not (CU.Prefix.equal
+        cmx_file_for_pack_prefix full_path_with_params)
       then begin
-        raise (Error (Wrong_for_pack (file, pack_path)))
+        raise
+          (Error (Wrong_for_pack (file, CU.full_path current_unit)))
       end;
       Asmlink.check_consistency file info crc;
       Compilation_state.cache_unit_info info;
@@ -107,8 +114,10 @@ let check_units members =
 (* Make the .o file for the package *)
 
 let make_package_object
-    ~ppf_dump members targetobj targetname coercion ~backend =
-  Profile.record_call (Printf.sprintf "pack(%s)" targetname) (fun () ->
+    ~ppf_dump members targetobj current_unit coercion ~backend =
+  Profile.record_call
+    (Printf.sprintf "pack(%s)" (CU.Name.to_string (CU.name current_unit)))
+    (fun () ->
     let objtemp =
       if !Clflags.keep_asm_file
       then Filename.remove_extension targetobj ^ ".pack" ^ Config.ext_obj
@@ -116,19 +125,14 @@ let make_package_object
         (* Put the full name of the module in the temporary file name
            to avoid collisions with MSVC's link /lib in case of successive
            packs *)
-        let comp_unit = Persistent_env.Current_unit.get_exn () in
-        let symbol = Symbol.for_module_block comp_unit in
+        let symbol = Symbol.for_module_block current_unit in
         let backend_sym = Backend_sym.of_symbol symbol in
         Filename.temp_file (Backend_sym.to_string backend_sym) Config.ext_obj
     in
-    (* let identifiers =
-     *   List.map (fun m ->
-     *       Ident.create_persistent (\* ~prefix *\) (CU.Name.to_string m.pm_name))
-     *     members in *)
-    let package_prefix = CU.for_pack_prefix (Persistent_env.Current_unit.get_exn ()) in
     let curr_package_as_prefix =
       let params = List.rev !Clflags.functor_parameters in
-      package_prefix @ [CU.Prefix.Pack (targetname, params)]
+      CU.for_pack_prefix current_unit @
+      [CU.Prefix.Pack (CU.name current_unit, params)]
     in
     let components =
       List.map
@@ -158,7 +162,7 @@ let make_package_object
     in
     let package_prefix_parameters =
       List.map (function CU.Prefix.Pack (_, params) -> params)
-        package_prefix
+        (CU.for_pack_prefix current_unit)
       |> List.flatten in
     let functor_dependencies =
       List.filter_map (fun (unit, _) ->
@@ -167,15 +171,16 @@ let make_package_object
              List.exists ((=) (CU.Name.to_string (CU.name unit)))
                package_prefix_parameters
           then
-            Some (Ident.create_local (CU.full_path_as_string unit))
+            Some (Ident.create_local (CU.for_address unit))
           else None) (CU.Map.bindings imports_cmi) in
+    let targetname = CU.Name.to_string (CU.name current_unit) in
     let module_ident = Ident.create_persistent targetname in
     let prefixname = Filename.remove_extension objtemp in
     let required_globals = Ident.Set.empty in
     if Config.flambda then begin
       let main_module_block_size, code =
         Translmod.transl_package_flambda
-          components functor_dependencies coercion
+          current_unit components functor_dependencies coercion
       in
       if !Clflags.dump_lambda then
         Format.fprintf ppf_dump "%a@." Printlambda.lambda code;
@@ -196,8 +201,8 @@ let make_package_object
     end else begin
       let main_module_block_size, code =
         Translmod.transl_store_package
+          current_unit
           components
-          (Ident.create_persistent targetname)
           functor_dependencies
           coercion
       in
@@ -232,7 +237,7 @@ let make_package_object
 
 (* Make the .cmx file for the package *)
 
-let build_package_cmx members cmxfile =
+let build_package_cmx current_unit members cmxfile =
   let module UI = Cmx_format.Unit_info in
   let unit_names_in_pack =
     CU.Name.Set.of_list (List.map (fun m -> m.pm_name) members)
@@ -246,12 +251,11 @@ let build_package_cmx members cmxfile =
         members [])
   in
   let compilation_state = Compilation_state.Snapshot.create () in
-  let current_unit = Persistent_env.Current_unit.get_exn () in
   let current_unit_name = CU.name current_unit in
   let current_unit_crc =
     Env.crc_of_unit (CU.Name.to_string current_unit_name)
   in
-  let package_prefix = CU.for_pack_prefix (Persistent_env.Current_unit.get_exn ()) in
+  let package_prefix = CU.for_pack_prefix current_unit in
   let curr_package_as_prefix =
     let params = List.rev !Clflags.functor_parameters in
     package_prefix
@@ -313,16 +317,11 @@ let build_package_cmx members cmxfile =
 (* Make the .cmx and the .o for the package *)
 
 let package_object_files ~ppf_dump files targetcmx
-                         targetobj targetname coercion ~backend =
-  let packagename =
-    match !Clflags.for_package with
-    | None -> targetname
-    | Some p -> p ^ "." ^ targetname in
-  let pack_path = CU.Prefix.parse_for_pack (Some packagename) in
-  let members = map_left_right (read_member_info pack_path) files in
+                         targetobj (compunit : CU.t) coercion ~backend =
+  let members = map_left_right (read_member_info compunit) files in
   check_units members;
-  make_package_object ~ppf_dump members targetobj targetname coercion ~backend;
-  build_package_cmx members targetcmx
+  make_package_object ~ppf_dump members targetobj compunit coercion ~backend;
+  build_package_cmx compunit members targetcmx
 
 (* The entry point *)
 
@@ -347,7 +346,7 @@ let package_files ~ppf_dump initial_env files targetcmx ~backend =
   Misc.try_finally (fun () ->
       let coercion =
         Typemod.package_units initial_env files targetcmi targetname in
-      package_object_files ~ppf_dump files targetcmx targetobj targetname
+      package_object_files ~ppf_dump files targetcmx targetobj comp_unit
         coercion ~backend
     )
     ~exceptionally:(fun () -> remove_file targetcmx; remove_file targetobj)
