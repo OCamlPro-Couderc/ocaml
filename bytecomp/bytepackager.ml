@@ -169,6 +169,11 @@ let rec append_bytecode_list packagename oc identifiers defined ofs subst =
 
 let build_global_target
     ~ppf_dump oc target_name members identifiers dependencies pos coercion =
+
+  let current_prefix =
+      Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
+  let current_unit =
+    Compilation_unit.create ~for_pack_prefix:current_prefix target_name in
   let components =
     List.map2
       (fun m id ->
@@ -182,10 +187,7 @@ let build_global_target
       members identifiers in
   let lam =
     Translmod.transl_package
-      components
-      (Ident.create_persistent (CU.Name.to_string target_name))
-      dependencies
-      coercion in
+      current_unit components dependencies coercion in
   let lam = Simplif.simplify_lambda lam in
   if !Clflags.dump_lambda then
     Format.fprintf ppf_dump "%a@." Printlambda.lambda lam;
@@ -274,7 +276,8 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
       output_value oc (String.Set.elements !debug_dirs);
     end;
     let pos_final = pos_out oc in
-    let unit = Persistent_env.Current_unit.get_exn () in
+    let unit =
+      Compilation_unit.create ~for_pack_prefix:package_prefix targetname in
     let compunit =
       { cu_name = targetname;
         cu_prefix = Compilation_unit.Prefix.parse_for_pack !Clflags.for_package;

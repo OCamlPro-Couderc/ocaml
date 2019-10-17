@@ -821,9 +821,10 @@ let wrap_functorized_implementation impl code =
 
 (* Compile an implementation *)
 
-let transl_current_module_ident module_name =
-  let prefix = Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
-  Ident.create_persistent ~prefix module_name
+let transl_current_module_ident current_unit =
+  Ident.create_persistent
+    ~prefix:(Compilation_unit.for_pack_prefix current_unit)
+    Compilation_unit.(Name.to_string (name current_unit))
 
 let transl_functorized_package_component_gen lam deps =
   let params =
@@ -857,11 +858,14 @@ let transl_implementation_flambda module_name (impl, cc) =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
-  let module_id = transl_current_module_ident module_name in
+  let current_prefix =
+    Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
+  let current_unit =
+    Compilation_unit.create ~for_pack_prefix:current_prefix module_name in
+  let module_id = transl_current_module_ident current_unit in
   let body, size =
     Translobj.transl_label_init
       (fun () ->
-         let current_unit = Persistent_env.Current_unit.get_exn () in
          let body, size =
            transl_functorized_implementation module_id (impl, cc) in
          if Compilation_unit.Prefix.in_functor
@@ -1397,11 +1401,11 @@ let build_ident_map restr idlist more_ids =
 (* Compile an implementation using transl_store_structure
    (for the native-code compiler). *)
 
-let transl_store_gen_init module_name =
+let transl_store_gen_init current_unit =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
-  transl_current_module_ident module_name
+  transl_current_module_ident current_unit
 
 let transl_store_structure_gen module_id ({str_items = str}, restr) topl =
   let (map, prims, aliases, size) =
@@ -1431,7 +1435,8 @@ let transl_store_functorized_implementation module_id ((impl, restr)) =
   transl_store_functorized_implementation_gen module_id body
 
 let transl_store_phrases module_name str =
-  let module_id = transl_store_gen_init module_name in
+  let unit = Compilation_unit.create module_name in
+  let module_id = transl_store_gen_init unit in
   transl_store_structure_gen module_id (str,Tcoerce_none) true
 
 let transl_store_gen module_id (impl, restr) topl =
@@ -1443,26 +1448,29 @@ let transl_store_gen module_id (impl, restr) topl =
 let transl_store_implementation module_name (impl, restr) =
   let s = !transl_store_subst in
   transl_store_subst := Ident.Map.empty;
-  let module_id = transl_store_gen_init module_name in
+  let current_prefix =
+    Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
+  let current_unit =
+    Compilation_unit.create ~for_pack_prefix:current_prefix module_name in
+  let module_ident = transl_store_gen_init current_unit in
   let (i, code) =
-    let current_unit = Persistent_env.Current_unit.get_exn () in
     if Compilation_unit.Prefix.in_functor
         (Compilation_unit.for_pack_prefix current_unit) then
       let body, _ =
-        transl_functorized_implementation module_id (impl, restr) in
+        transl_functorized_implementation module_ident (impl, restr) in
       let body =
         transl_functorized_package_component_gen body
           (Env.functorized_pack_imports ()) in
-      transl_store_functorized_implementation_gen module_id body
+      transl_store_functorized_implementation_gen module_ident body
     else
-      transl_store_gen module_id (impl, restr) false
+      transl_store_gen module_ident (impl, restr) false
   in
   transl_store_subst := s;
   { Lambda.main_module_block_size = i;
     code;
     (* module_ident is not used by closure, but this allow to share
        the type with the flambda version *)
-    module_ident = Ident.create_persistent module_name;
+    module_ident;
     required_globals = required_globals ~flambda:true code }
 
 (* Compile a toplevel phrase *)
@@ -1695,10 +1703,9 @@ let transl_functorized_package components params dependencies =
         Lprim(Pmakeblock(0, Immutable, None), [Lvar id], Location.none))
 
 
-let transl_package_body components params functor_dependencies =
+let transl_package_body current_unit components params functor_dependencies =
   (* The current package is either itself a functor or inside a functorized pack
   *)
-  let current_unit = Persistent_env.Current_unit.get_exn () in
   if Compilation_unit.Prefix.in_functor (Compilation_unit.for_pack_prefix current_unit) ||
      params <> [] || functor_dependencies <> [] then
     transl_functorized_package components params functor_dependencies
@@ -1707,7 +1714,7 @@ let transl_package_body components params functor_dependencies =
           List.map get_component components,
           Location.none)
 
-let transl_package_flambda components functor_dependencies coercion =
+let transl_package_flambda current_unit components functor_dependencies coercion =
   let size =
     match coercion with
     | _ when !Clflags.functor_parameters <> [] -> 1
@@ -1719,14 +1726,15 @@ let transl_package_flambda components functor_dependencies coercion =
   in
   size,
   apply_coercion Location.none Strict coercion
-    (transl_package_body components !Clflags.functor_parameters functor_dependencies)
+    (transl_package_body current_unit
+       components !Clflags.functor_parameters functor_dependencies)
 
-let transl_package components target_name functor_dependencies coercion =
-  let module_name = transl_current_module_ident (Ident.name target_name) in
+let transl_package current_unit components functor_dependencies coercion =
+  let module_name = transl_current_module_ident current_unit in
   let parameters = !Clflags.functor_parameters in
   Lprim(Psetglobal module_name,
         [apply_coercion Location.none Strict coercion
-           (transl_package_body components parameters functor_dependencies)],
+           (transl_package_body current_unit components parameters functor_dependencies)],
         Location.none)
   (*
   let components =
@@ -1757,29 +1765,30 @@ let transl_store_functorized_package
               Location.none))
 
 let transl_store_package
-    component_names target_name functor_dependencies coercion =
+    current_unit component_names functor_dependencies coercion =
   let params = !Clflags.functor_parameters in
-  let current_unit = Persistent_env.Current_unit.get_exn () in
+  let current_id = transl_current_module_ident current_unit in
   let rec make_sequence fn pos arg =
     match arg with
       [] -> lambda_unit
     | hd :: tl -> Lsequence(fn pos hd, make_sequence fn (pos + 1) tl) in
   match coercion with
     Tcoerce_none ->
-      if Compilation_unit.Prefix.in_functor (Compilation_unit.for_pack_prefix current_unit) ||
+      if Compilation_unit.Prefix.in_functor
+          (Compilation_unit.for_pack_prefix current_unit) ||
          params <> [] || functor_dependencies <> [] then
         transl_store_functorized_package
           component_names
           params
           functor_dependencies
-          target_name
+          current_id
           coercion
       else
         (List.length component_names,
          make_sequence
            (fun pos id ->
               Lprim(Psetfield(pos, Pointer, Root_initialization),
-                    [Lprim(Pgetglobal target_name, [], Location.none);
+                    [Lprim(Pgetglobal current_id, [], Location.none);
                      get_component id],
                     Location.none))
            0 component_names)
@@ -1796,7 +1805,7 @@ let transl_store_package
              make_sequence
                (fun pos _id ->
                  Lprim(Psetfield(pos, Pointer, Root_initialization),
-                       [Lprim(Pgetglobal target_name, [], Location.none);
+                       [Lprim(Pgetglobal current_id, [], Location.none);
                         Lprim(Pfield pos, [Lvar blk], Location.none)],
                        Location.none))
                0 pos_cc_list))
@@ -1805,7 +1814,7 @@ let transl_store_package
         component_names
         !Clflags.functor_parameters
         functor_dependencies
-        target_name
+        current_id
         coercion
 (*
               (* ignore id_pos_list as the ids are already bound *)
