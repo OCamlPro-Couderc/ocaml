@@ -11,5 +11,6 @@ Interfaces imported:
 Required globals:
 	D
 	Stdlib
+Functor pack dependencies:
 Uses unsafe features: no
 Force link: no
