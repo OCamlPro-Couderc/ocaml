@@ -221,20 +221,32 @@ let is_package_parameter unit name =
   CU.Prefix.in_functor_parameters name (CU.for_pack_prefix unit)
 
 let check_parameter modname flags functor_unit =
-  let parameter_for_same_module =
+  let parameter_for_same_pack =
     match !Clflags.functor_parameter_of with
       None -> false
     | Some unit ->
         let unit = CU.of_raw_string unit in
+        let full_path = CU.full_path unit in
         List.exists
-          (function Parameter_of unit' -> CU.equal unit unit'
-                  | _ -> false)
+          (function
+              Parameter_of unit' ->
+                let full_path' = CU.full_path unit' in
+                let common =
+                  Misc.Stdlib.List.find_and_chop_longest_common_prefix
+                    ~equal:
+                      (fun (CU.Prefix.Pack (m1, _)) (CU.Prefix.Pack (m2, _)) ->
+                         CU.Name.equal m1 m2)
+                    ~first:full_path
+                    ~second:full_path'
+                in
+                common.Misc.Stdlib.List.longest_common_prefix <> []
+            | _ -> false)
           flags
   in
   let current_unit = Current_unit.get_exn () in
   List.mem modname !Clflags.functor_parameters &&
   CU.equal current_unit functor_unit ||
-  parameter_for_same_module ||
+  parameter_for_same_pack ||
   is_package_parameter current_unit (CU.Name.of_string modname)
 
 let can_load_cmis penv =

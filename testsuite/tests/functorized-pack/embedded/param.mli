@@ -1,1 +1,3 @@
-val v : int
+type t = int
+
+val v : t
