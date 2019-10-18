@@ -139,7 +139,6 @@ let toplevel_loop () =
   execute_file_if_any ();
   interactif := true;
   current_prompt := debugger_prompt;
-  Persistent_env.Current_unit.set "";
   protect Format.std_formatter loop loop
 
 (* Parsing of command-line arguments *)
@@ -230,6 +229,7 @@ let main () =
     end;
     if !Parameters.version
     then printf "\tOCaml Debugger version %s@.@." Config.version;
+    Persistent_env.Current_unit.set !program_name;
     Loadprinter.init();
     Load_path.init !default_load_path;
     Clflags.recursive_types := true;    (* Allow recursive types. *)
