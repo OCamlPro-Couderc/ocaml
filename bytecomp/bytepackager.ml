@@ -252,19 +252,21 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
         Subst.identity members in
     let imports =
       List.filter
-        (fun (unit, _crc) -> not (List.mem (Compilation_unit.name unit) unit_names))
+        (fun (unit, _crc) ->
+           not (List.mem (CU.name unit) unit_names) &&
+           not (CU.Prefix.in_functor_parameters (CU.name unit) package_prefix))
         (Bytelink.extract_crc_interfaces()) in
     let functor_dependencies =
       List.filter_map (fun (unit, _) ->
-          let prefix = Compilation_unit.for_pack_prefix unit in
-          if Compilation_unit.Prefix.(
+          let prefix = CU.for_pack_prefix unit in
+          if CU.Prefix.(
               in_common_functor curr_package_as_prefix prefix ||
               in_functor_parameters
-                (Compilation_unit.name unit) package_prefix)
+                (CU.name unit) package_prefix)
           then
             Some (unit,
                   Ident.create_persistent ~prefix
-                    Compilation_unit.(Name.to_string (name unit)))
+                    CU.(Name.to_string (name unit)))
           else None) imports in
     let functor_pack_imports, functor_dependencies =
       List.split functor_dependencies in

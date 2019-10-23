@@ -247,14 +247,16 @@ let build_package_cmx current_unit members cmxfile =
   let current_unit_name = CU.name current_unit in
   let current_unit_crc = Env.crc_of_unit current_unit_name in
   let package_prefix = CU.for_pack_prefix current_unit in
+  let functor_parameters =
+    List.fold_left (fun acc p ->
+        CU.Name.of_string p :: acc) [] !Clflags.functor_parameters in
   let curr_package_as_prefix =
-    let params = List.rev !Clflags.functor_parameters in
-    package_prefix
-    @ [CU.Prefix.Pack (current_unit_name, List.map CU.Name.of_string params)]
+    package_prefix @ [CU.Prefix.Pack (current_unit_name, functor_parameters)]
   in
   let imports_cmi =
     CU.Map.filter (fun cu _crc ->
-        not (CU.Name.Set.mem (CU.name cu) unit_names_in_pack))
+        not (CU.Name.Set.mem (CU.name cu) unit_names_in_pack) &&
+        not (List.exists CU.(Name.equal (name cu)) functor_parameters))
       (Asmlink.extract_crc_interfaces ())
   in
   let functorized_pack_imports =

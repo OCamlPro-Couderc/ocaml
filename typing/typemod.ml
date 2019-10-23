@@ -2890,11 +2890,14 @@ let package_units initial_env objfiles cmifile modulename =
   end else begin
     (* Determine imports *)
     let unit_names = List.map fst units in
+    let params =
+      List.map Compilation_unit.Name.of_string !Clflags.functor_parameters in
     let imports =
       List.filter
         (fun (unit, _crc) ->
            not (List.exists Compilation_unit.(Name.equal (name unit))
-                  unit_names))
+                  unit_names) &&
+           not (List.exists Compilation_unit.(Name.equal (name unit)) params))
         (Env.imports()) in
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin
