@@ -245,7 +245,10 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
         Subst.identity members in
     let imports =
       List.filter
-        (fun (unit, _crc) -> not (List.mem (Compilation_unit.name unit) unit_names))
+        (fun (unit, _crc) ->
+           not (List.mem (Compilation_unit.name unit) unit_names) &&
+           not (List.exists Compilation_unit.(Name.equal (name unit))
+                  !Clflags.functor_parameters))
         (Bytelink.extract_crc_interfaces()) in
     let package_prefix_parameters =
       List.map (function Compilation_unit.Prefix.Pack (_, params) -> params)

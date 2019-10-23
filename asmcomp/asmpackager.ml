@@ -267,7 +267,9 @@ let build_package_cmx current_unit members cmxfile =
     |> List.flatten in
     let imports_cmi =
       CU.Map.filter (fun cu _crc ->
-          not (CU.Name.Set.mem (CU.name cu) unit_names_in_pack))
+          not (CU.Name.Set.mem (CU.name cu) unit_names_in_pack) &&
+          not (List.exists CU.(Name.equal (name cu))
+                 !Clflags.functor_parameters))
         (Asmlink.extract_crc_interfaces ())
     in
   let functorized_pack_imports =

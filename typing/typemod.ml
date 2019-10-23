@@ -2695,7 +2695,9 @@ let package_units initial_env objfiles cmifile modulename =
       List.filter
         (fun (unit, _crc) ->
            not (List.exists Compilation_unit.(Name.equal (name unit))
-                  unit_names))
+                  unit_names) &&
+           not (List.exists Compilation_unit.(Name.equal (name unit))
+                  !Clflags.functor_parameters))
         (Env.imports()) in
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin
