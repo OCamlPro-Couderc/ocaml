@@ -89,7 +89,7 @@ module Prefix = struct
     match String.rindex_opt name '.' with
     | None -> [], name
     | Some pos ->
-        parse (String.sub name 0 (pos+1)),
+        parse (String.sub name 0 pos),
         String.sub name (pos+1) (String.length name - pos - 1)
 
   let to_string p =

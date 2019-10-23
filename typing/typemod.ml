@@ -101,7 +101,6 @@ type error =
   | Badly_formed_signature of string * Typedecl.error
   | Cannot_hide_id of hiding_error
   | Invalid_type_subst_rhs
-  | Parameter_interface_unavailable of Compilation_unit.Name.t
   | Interface_flagged_as_parameter of filepath * string
 
 exception Error of Location.t * Env.t * error
@@ -2444,14 +2443,7 @@ let type_implementation_aux env ast loc = function
       let args, newenv, _ =
         List.fold_left (fun (args, env, subst) param ->
           let id_arg_pers = Ident.create_persistent param in
-          let mty_arg =
-            Persistent_env.Persistent_interface.(
-              match !load ~unit_name:param with
-                Some { cmi = Cmi_format.{ cmi_type } } ->
-                  Types.module_type_of_compilation_unit cmi_type
-              | None ->
-                  raise (Error(loc, env, Parameter_interface_unavailable param))
-            ) in
+          let mty_arg = Env.read_as_parameter loc param in
           let scope = Ctype.create_scope () in
           let mty_arg' = Subst.modtype subst mty_arg in
           let mty_arg' = Mtype.scrape_for_functor_arg env mty_arg' in
@@ -2582,18 +2574,12 @@ let transl_interface env ast params =
       let args, newenv, _ =
         List.fold_left (fun (args, env, subst) param ->
           let id_arg_pers = Ident.create_persistent param in
-          let mty_arg =
-            Persistent_env.Persistent_interface.(
-              match !load ~unit_name:param with
-                Some { cmi = Cmi_format.{ cmi_type } } ->
-                  Types.module_type_of_compilation_unit cmi_type
-              | None ->
-                  raise (Error(loc, env, Parameter_interface_unavailable param))
-            ) in
+          let mty_arg = Env.read_as_parameter loc param in
           let scope = Ctype.create_scope () in
           let mty_arg = Subst.modtype subst mty_arg in
+          let mty_arg' = Mtype.scrape_for_functor_arg env mty_arg in
           let id_arg, newenv =
-            Env.enter_module ~scope ~arg:true param Mp_present mty_arg env in
+            Env.enter_module ~scope ~arg:true param Mp_present mty_arg' env in
           (id_arg, mty_arg) :: args,
           newenv,
           Subst.add_module_path
@@ -2842,9 +2828,6 @@ let report_error ppf = function
         Ident.print opened_item_id
   | Invalid_type_subst_rhs ->
       fprintf ppf "Only type synonyms are allowed on the right of :="
-  | Parameter_interface_unavailable name ->
-      fprintf ppf "No compiled interface found for this unit parameter %a"
-        Compilation_unit.Name.print name
   | Interface_flagged_as_parameter (path, reason) ->
       fprintf ppf
         "@[Interface %s@ found for this unit is flagged as a functor parameter.@ \
