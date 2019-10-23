@@ -536,6 +536,7 @@ type lookup_error =
 type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
+  | Parameter_interface_unavailable of Location.t * Compilation_unit.Name.t
   | Lookup_error of Location.t * t * lookup_error
 
 exception Error of error
@@ -779,6 +780,9 @@ let read_pers_mod modname filename =
 
 let find_pers_mod name =
   Persistent_env.find persistent_env read_type_of_cmi name
+
+let read_as_parameter modname =
+  Persistent_env.read_as_parameter persistent_env read_type_of_cmi modname
 
 let check_pers_mod ~loc name =
   Persistent_env.check persistent_env read_type_of_cmi ~loc name
@@ -2057,6 +2061,14 @@ let read_interface modname filename =
   let md = EnvLazy.force subst_modtype_maker mda.mda_declaration in
   compilation_unit_type_of_module_type md.md_type
 
+let read_as_parameter loc modname =
+  let psig = read_as_parameter modname in
+  match psig with
+    Some Persistent_env.Persistent_interface.{ cmi } ->
+      Types.module_type_of_compilation_unit cmi.Cmi_format.cmi_type
+  | None ->
+      raise (Error(Parameter_interface_unavailable (loc, modname)))
+
 let is_identchar_latin1 = function
   | 'A'..'Z' | 'a'..'z' | '_' | '\192'..'\214' | '\216'..'\246'
   | '\248'..'\255' | '\'' | '0'..'9' -> true
@@ -3158,6 +3170,9 @@ let report_error ppf = function
   | Illegal_value_name(_loc, name) ->
       fprintf ppf "'%s' is not a valid value identifier."
         name
+  | Parameter_interface_unavailable (_loc, name) ->
+      fprintf ppf "No compiled interface found for this unit parameter %a"
+        Compilation_unit.Name.print name
   | Lookup_error(loc, t, err) -> report_lookup_error loc t ppf err
 
 let () =
@@ -3168,6 +3183,7 @@ let () =
             match err with
             | Missing_module (loc, _, _)
             | Illegal_value_name (loc, _)
+              | Parameter_interface_unavailable (loc, _)
             | Lookup_error(loc, _, _) -> loc
           in
           let error_of_printer =

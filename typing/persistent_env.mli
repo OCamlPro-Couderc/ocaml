@@ -116,6 +116,11 @@ val find_in_cache : 'a t -> Compilation_unit.Name.t -> 'a option
 val check : 'a t -> (Persistent_interface.t -> 'a)
   -> loc:Location.t -> Compilation_unit.Name.t -> unit
 
+(* Similar to [read], but does not consider the module as imported *)
+val read_as_parameter :
+  'a t -> (Persistent_interface.t -> 'a) -> Compilation_unit.Name.t
+  -> Persistent_interface.t option
+
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
    [penv] (it may have failed) *)

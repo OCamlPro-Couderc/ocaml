@@ -427,6 +427,14 @@ let check penv f ~loc name =
         (fun () -> check_pers_struct penv f ~loc name)
   end
 
+let read_as_parameter penv val_of_pers_sig modname =
+  match !Persistent_interface.load ~unit_name:modname with
+    Some psig ->
+      let pm = val_of_pers_sig psig in
+      let _ = acknowledge_pers_struct penv true modname psig pm in
+      Some psig
+  | None -> None
+
 let crc_of_unit penv f name =
   let (ps, _pm) = find_pers_struct penv f true name in
   let crco =
@@ -565,7 +573,7 @@ let report_error ppf =
         CU.Name.print intf_fullname
   | Illegal_import_of_parameter(modname, filename) -> fprintf ppf
       "@[<hov>The file %a@ contains the an interface of a parameter.@ \
-       %a is not declared as a parameter for the current unit (-parameter %a)nor \
+       %a is not declared as a parameter for the current unit (-parameter %a) nor \
        the current unit is itself a parameter.@]"
       Location.print_filename filename
       CU.Name.print modname

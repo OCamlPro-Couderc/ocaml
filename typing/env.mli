@@ -358,6 +358,8 @@ val save_interface_with_imports:
         (* Arguments: signature, module name, file name,
            imported units with their CRCs. *)
 
+val read_as_parameter: Location.t -> Compilation_unit.Name.t -> module_type
+
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
 
@@ -391,6 +393,7 @@ val env_of_only_summary : (summary -> Subst.t -> t) -> t -> t
 type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
+  | Parameter_interface_unavailable of Location.t * Compilation_unit.Name.t
   | Lookup_error of Location.t * t * lookup_error
 
 exception Error of error
