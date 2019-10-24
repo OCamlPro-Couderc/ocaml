@@ -25,6 +25,7 @@ type error =
   | Not_an_object_file of string
   | Illegal_renaming of string * string * string
   | File_not_found of string
+  | Wrong_for_pack of string * Compilation_unit.Prefix.t
 
 exception Error of error
 
