@@ -198,18 +198,18 @@ let find_in_cache {persistent_structures; _} s =
   | Missing -> None
   | Found (_ps, pm) -> Some pm
 
-let import_crcs penv ~source crcs =
+let import_crcs penv import ~source crcs =
   let {crc_units; _} = penv in
   let import_crc (unit, crco) =
     match crco with
     | None -> ()
     | Some crc ->
-        add_import penv unit;
+        if import then add_import penv unit;
         Consistbl.check crc_units unit crc source
   in List.iter import_crc crcs
 
-let check_consistency penv ps =
-  try import_crcs penv ~source:ps.ps_filename ps.ps_crcs
+let check_consistency import penv ps =
+  try import_crcs penv import ~source:ps.ps_filename ps.ps_crcs
   with Consistbl.Inconsistency {
       unit_name = unit;
       inconsistent_source = source;
@@ -307,7 +307,7 @@ let check_pack_import current_prefix imported_prefix imported_unit =
          (imported_prefix @ [CU.Prefix.Pack (imported_unit, [])])
          ~of_:current_prefix)
 
-let acknowledge_pers_struct penv check modname pers_sig pm =
+let acknowledge_pers_struct penv check import modname pers_sig pm =
   let { Persistent_interface.filename; cmi } = pers_sig in
   let name = cmi.cmi_name in
   let crcs = cmi.cmi_crcs in
@@ -359,7 +359,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
             let id = Ident.create_local ps_name in
             add_imported_functorized_pack_unit penv (CU.create name) id)
     ps.ps_flags;
-  if check then check_consistency penv ps;
+  if check then check_consistency import penv ps;
   let {persistent_structures; _} = penv in
   NameTbl.add persistent_structures modname (Found (ps, pm));
   ps
@@ -368,7 +368,7 @@ let read_pers_struct penv val_of_pers_sig check modname filename =
   let cmi = read_cmi filename in
   let pers_sig = { Persistent_interface.filename; cmi } in
   let pm = val_of_pers_sig pers_sig in
-  let ps = acknowledge_pers_struct penv check modname pers_sig pm in
+  let ps = acknowledge_pers_struct penv check true modname pers_sig pm in
   let for_pack_prefix = prefix_of_pers_struct ps in
   let unit = CU.create ~for_pack_prefix modname in
   add_import penv unit;
@@ -392,7 +392,7 @@ let find_pers_struct penv val_of_pers_sig check name =
             raise Not_found
         in
         let pm = val_of_pers_sig psig in
-        let ps = acknowledge_pers_struct penv check name psig pm in
+        let ps = acknowledge_pers_struct penv check true name psig pm in
         let for_pack_prefix = prefix_of_pers_struct ps in
         let unit = CU.create ~for_pack_prefix name in
         add_import penv unit;
@@ -465,7 +465,7 @@ let read_as_parameter penv val_of_pers_sig modname =
   match !Persistent_interface.load ~unit_name:modname with
     Some psig ->
       let pm = val_of_pers_sig psig in
-      let _ = acknowledge_pers_struct penv true modname psig pm in
+      let _ = acknowledge_pers_struct penv true false modname psig pm in
       Some psig
   | None -> None
 
@@ -482,6 +482,8 @@ let crc_of_unit penv f name =
     match crco with
       None -> assert false
     | Some crc -> crc
+
+let import_crcs penv ~source crcs = import_crcs penv true ~source crcs
 
 let imports {imported_units; crc_units; _} =
   Consistbl.extract (CU.Set.elements !imported_units) crc_units
