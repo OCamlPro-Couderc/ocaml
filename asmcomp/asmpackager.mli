@@ -31,7 +31,7 @@ type error =
       desired_name : Compilation_unit.Name.t;
     }
   | Forward_reference of string * Compilation_unit.Name.t
-  | Wrong_for_pack of string * string
+  | Wrong_for_pack of string * Compilation_unit.Prefix.t
   | Linking_error
   | File_not_found of string
 

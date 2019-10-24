@@ -32,7 +32,7 @@ type error =
       desired_name : CU.Name.t;
     }
   | Forward_reference of string * CU.Name.t
-  | Wrong_for_pack of string * string
+  | Wrong_for_pack of string * CU.Prefix.t
   | Linking_error
   | File_not_found of string
 
@@ -68,10 +68,7 @@ let read_member_info pack_path file =
         }))
       end;
       let cmx_file_for_pack_prefix = CU.for_pack_prefix (UI.unit info) in
-      let full_path_current_unit =
-        CU.full_path (Persistent_env.Current_unit.get_exn ()) in
-      if not (CU.Prefix.equal
-        cmx_file_for_pack_prefix full_path_current_unit)
+      if not (CU.Prefix.equal cmx_file_for_pack_prefix pack_path)
       then begin
         raise (Error (Wrong_for_pack (file, pack_path)))
       end;
@@ -250,10 +247,11 @@ let build_package_cmx members cmxfile =
 
 let package_object_files ~ppf_dump files targetcmx
                          targetobj targetname coercion ~backend =
-  let pack_path =
+  let packagename =
     match !Clflags.for_package with
     | None -> targetname
     | Some p -> p ^ "." ^ targetname in
+  let pack_path = CU.Prefix.parse_for_pack (Some packagename) in
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
   make_package_object ~ppf_dump members targetobj targetname coercion ~backend;
@@ -302,8 +300,9 @@ let report_error ppf = function
       fprintf ppf "Forward reference to %a in file %a" CU.Name.print cu_name
         Location.print_filename file
   | Wrong_for_pack(file, path) ->
-      fprintf ppf "File %a@ was not compiled with the `-for-pack %s' option"
-              Location.print_filename file path
+      fprintf ppf "File %a@ was not compiled with the `-for-pack %a' option"
+        Location.print_filename file
+        Compilation_unit.Prefix.print path
   | File_not_found file ->
       fprintf ppf "File %s not found" file
   | Linking_error ->
