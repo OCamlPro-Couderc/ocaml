@@ -74,7 +74,7 @@ type pack_member =
     pm_kind: pack_member_kind;
   }
 
-let read_member_info pack_path file = (
+let read_member_info current_unit file = (
   let name =
     CU.Name.of_string
       (String.capitalize_ascii(Filename.basename(chop_extensions file))) in
@@ -95,8 +95,17 @@ let read_member_info pack_path file = (
         let compunit = (input_value ic : compilation_unit) in
         if not (CU.Name.equal compunit.cu_name name)
         then raise(Error(Illegal_renaming(name, file, compunit.cu_name)));
-        if not (Compilation_unit.Prefix.equal compunit.cu_prefix pack_path) then
-          raise (Error (Wrong_for_pack (file, pack_path)));
+        let params =
+          List.fold_left (fun acc p ->
+              CU.Name.of_string p :: acc) [] !Clflags.functor_parameters in
+        let full_path_with_params =
+          Compilation_unit.(
+            for_pack_prefix current_unit @
+            [ Prefix.Pack (name current_unit, params) ])
+        in
+        if not (Compilation_unit.Prefix.equal
+                  compunit.cu_prefix full_path_with_params) then
+          raise (Error (Wrong_for_pack (file, full_path_with_params)));
         close_in ic;
         PM_impl (compunit,
                  Env.read_interface name (chop_extensions file ^ ".cmi"))
@@ -200,13 +209,12 @@ let build_global_target
 (* Build the .cmo file obtained by packaging the given .cmo files. *)
 
 let package_object_files ~ppf_dump files targetfile targetname coercion =
-  let packagename = match !Clflags.for_package with
-      None -> CU.Name.to_string targetname
-    | Some p -> p ^ "." ^ CU.Name.to_string targetname in
-  let packagename_as_prefix =
-    Compilation_unit.Prefix.parse_for_pack (Some packagename) in
+  let for_pack_prefix =
+    Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
+  let current_unit =
+    Compilation_unit.create ~for_pack_prefix targetname in
   let members =
-    map_left_right (read_member_info packagename_as_prefix) files in
+    map_left_right (read_member_info current_unit) files in
   let required_globals =
     List.fold_right (fun compunit required_globals -> match compunit with
         | { pm_kind = PM_intf } ->
@@ -225,12 +233,10 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
             List.fold_right Ident.Set.add cu_required_globals required_globals)
       members Ident.Set.empty
   in
-  let package_prefix =
-    CU.Prefix.parse_for_pack !Clflags.for_package in
   let curr_package_as_prefix =
     let params = List.fold_left (fun acc p ->
         CU.Name.of_string p :: acc) [] !Clflags.functor_parameters in
-    package_prefix @
+    for_pack_prefix @
     [CU.Prefix.Pack (targetname, params)]
   in
   let unit_names =
@@ -248,13 +254,16 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let pos_depl = pos_out oc in
     output_binary_int oc 0;
     let pos_code = pos_out oc in
-    let ofs = append_bytecode_list packagename oc identifiers [] 0
+    let ofs =
+      append_bytecode_list
+        (CU.Prefix.for_address curr_package_as_prefix) oc identifiers [] 0
         Subst.identity members in
     let imports =
       List.filter
         (fun (unit, _crc) ->
            not (List.mem (CU.name unit) unit_names) &&
-           not (CU.Prefix.in_functor_parameters (CU.name unit) package_prefix))
+           not (CU.Prefix.in_functor_parameters (CU.name unit)
+                  curr_package_as_prefix))
         (Bytelink.extract_crc_interfaces()) in
     let functor_dependencies =
       List.filter_map (fun (unit, _) ->
@@ -262,7 +271,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
           if CU.Prefix.(
               in_common_functor curr_package_as_prefix prefix ||
               in_functor_parameters
-                (CU.name unit) package_prefix)
+                (CU.name unit) curr_package_as_prefix)
           then
             Some (unit,
                   Ident.create_persistent ~prefix
@@ -278,16 +287,14 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
       output_value oc (String.Set.elements !debug_dirs);
     end;
     let pos_final = pos_out oc in
-    let unit =
-      Compilation_unit.create ~for_pack_prefix:package_prefix targetname in
     let compunit =
       { cu_name = targetname;
-        cu_prefix = Compilation_unit.Prefix.parse_for_pack !Clflags.for_package;
+        cu_prefix = for_pack_prefix;
         cu_pos = pos_code;
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev !relocs;
         cu_imports =
-          (unit, Some (Env.crc_of_unit targetname)) :: imports;
+          (current_unit, Some (Env.crc_of_unit targetname)) :: imports;
         cu_primitives = !primitives;
         cu_required_globals = Ident.Set.elements required_globals;
         cu_functor_pack_imports = functor_pack_imports;

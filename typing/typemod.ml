@@ -2838,7 +2838,8 @@ let package_module_types env parameters units =
       let args, _, subst =
         List.fold_left (fun (args, env, subst) param ->
           let id_arg_pers = Ident.create_persistent param in
-          let mty_arg = Env.read_as_parameter loc param in
+          let mty_arg =
+            Env.read_as_parameter loc (Compilation_unit.Name.of_string param) in
           let scope = Ctype.create_scope () in
           let mty_arg = Subst.modtype Make_local subst mty_arg in
           let mty_arg = Mtype.scrape_for_functor_arg env mty_arg in
