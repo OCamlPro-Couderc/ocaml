@@ -2633,24 +2633,30 @@ let package_module_types env parameters units =
          Sig_module(newid, Mp_present, md, Trec_not, Exported))
       units_with_ids
   in
+  let loc = Location.none in
   match parameters with
     [] -> Unit_signature sg
   | params ->
-      let args, _ =
-        List.fold_left (fun (args, subst) param ->
+      let args, _, subst =
+        List.fold_left (fun (args, env, subst) param ->
           let id_arg_pers = Ident.create_persistent param in
-          let mty_arg = (Env.find_module (Path.Pident id_arg_pers) env).md_type in
+          let mty_arg = Env.read_as_parameter loc param in
+          let scope = Ctype.create_scope () in
           let mty_arg = Subst.modtype subst mty_arg in
-          let id_arg = Ident.create_local param in
+          let mty_arg = Mtype.scrape_for_functor_arg env mty_arg in
+          let id_arg, newenv =
+            Env.enter_module ~scope ~arg:true param Mp_present mty_arg env in
           (id_arg, mty_arg) :: args,
+          newenv,
           Subst.add_module_path
             (Path.Pident id_arg_pers)
             (Path.Pident id_arg)
             subst)
-          ([], Subst.identity) params
+          ([], env, Subst.identity) params
       in
       let args = List.rev args in
-      Unit_functor (args, sg)
+      let sg' = Subst.signature subst sg in
+      Unit_functor (args, sg')
 
 let package_units initial_env objfiles cmifile modulename =
   (* Read the signatures of the units *)
@@ -2668,7 +2674,8 @@ let package_units initial_env objfiles cmifile modulename =
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
-  let uty = package_module_types initial_env
+  let uty = package_module_types
+      initial_env
       (List.rev !Clflags.functor_parameters)
       units in
   (* See if explicit interface is provided *)
