@@ -418,6 +418,7 @@ let to_file outchan unit_name objfile ~required_globals code =
       (0, 0) in
   let compunit =
     { cu_name = unit_name;
+      cu_prefix = Compilation_unit.Prefix.parse_for_pack !Clflags.for_package;
       cu_pos = pos_code;
       cu_codesize = !out_position;
       cu_reloc = List.rev !reloc_info;

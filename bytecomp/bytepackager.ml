@@ -27,6 +27,7 @@ type error =
   | Not_an_object_file of string
   | Illegal_renaming of string * string * string
   | File_not_found of string
+  | Wrong_for_pack of string * Compilation_unit.Prefix.t
 
 exception Error of error
 
@@ -70,7 +71,7 @@ type pack_member =
     pm_kind: pack_member_kind;
   }
 
-let read_member_info file = (
+let read_member_info pack_path file = (
   let name =
     String.capitalize_ascii(Filename.basename(chop_extensions file)) in
   let kind =
@@ -90,6 +91,8 @@ let read_member_info file = (
         let compunit = (input_value ic : compilation_unit) in
         if compunit.cu_name <> name
         then raise(Error(Illegal_renaming(name, file, compunit.cu_name)));
+        if not (Compilation_unit.Prefix.equal compunit.cu_prefix pack_path) then
+          raise (Error (Wrong_for_pack (file, pack_path)));
         close_in ic;
         PM_impl compunit
       with x ->
@@ -180,8 +183,12 @@ let build_global_target ~ppf_dump oc target_name members identifiers pos coercio
 (* Build the .cmo file obtained by packaging the given .cmo files. *)
 
 let package_object_files ~ppf_dump files targetfile targetname coercion =
+  let packagename = match !Clflags.for_package with
+      None -> targetname
+    | Some p -> p ^ "." ^ targetname in
+  let prefix = Compilation_unit.Prefix.parse_for_pack (Some packagename) in
   let members =
-    map_left_right read_member_info files in
+    map_left_right (read_member_info prefix) files in
   let required_globals =
     List.fold_right (fun compunit required_globals -> match compunit with
         | { pm_kind = PM_intf } ->
@@ -200,10 +207,6 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
             List.fold_right Ident.Set.add cu_required_globals required_globals)
       members Ident.Set.empty
   in
-  let packagename = match !Clflags.for_package with
-      None -> targetname
-    | Some p -> p ^ "." ^ targetname in
-  let prefix = Compilation_unit.Prefix.parse_for_pack (Some packagename) in
   let unit_names =
     List.map (fun m -> m.pm_name) members in
   let identifiers =
@@ -233,6 +236,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let unit = Compilation_unit.of_raw_string packagename in
     let compunit =
       { cu_name = targetname;
+        cu_prefix = Compilation_unit.Prefix.parse_for_pack !Clflags.for_package;
         cu_pos = pos_code;
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev !relocs;
@@ -294,6 +298,10 @@ let report_error ppf = function
         Location.print_filename file name id
   | File_not_found file ->
       fprintf ppf "File %s not found" file
+  | Wrong_for_pack(file, path) ->
+      fprintf ppf "File %a@ was not compiled with the `-for-pack %a' option"
+        Location.print_filename file
+        Compilation_unit.Prefix.print path
 
 let () =
   Location.register_error_of_exn
