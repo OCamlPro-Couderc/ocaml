@@ -887,8 +887,8 @@ let mk__ f =
 ;;
 
 
-let mk_recmod f =
-  "-recmod", Arg.Unit f, "Undocumented"
+let mk_recinterfaces f =
+  "-recursive", Arg.Unit f, "Compile a set of interfaces as mutually recursive"
 ;;
 
 module type Common_options = sig
@@ -907,6 +907,7 @@ module type Common_options = sig
   val _ppx : string -> unit
   val _principal : unit -> unit
   val _no_principal : unit -> unit
+  val _recinterfaces : unit -> unit
   val _rectypes : unit -> unit
   val _no_rectypes : unit -> unit
   val _safe_string : unit -> unit
@@ -998,8 +999,6 @@ module type Compiler_options = sig
 
   val _args: string -> string array
   val _args0: string -> string array
-
-  val _recmod: unit -> unit
 end
 ;;
 
@@ -1198,7 +1197,7 @@ struct
     mk_plugin F._plugin;
     mk_principal F._principal;
     mk_no_principal F._no_principal;
-    mk_recmod F._recmod;
+    mk_recinterfaces F._recinterfaces;
     mk_rectypes F._rectypes;
     mk_no_rectypes F._no_rectypes;
     mk_runtime_variant F._runtime_variant;
@@ -1685,7 +1684,7 @@ module Default = struct
     let _nostdlib = set no_std_include
     let _open s = open_modules := (s :: (!open_modules))
     let _principal = set principal
-    let _recmod = set recmod
+    let _recinterfaces = set recursive_interfaces
     let _rectypes = set recursive_types
     let _safe_string = clear unsafe_string
     let _short_paths = clear real_paths

@@ -635,7 +635,7 @@ let process_action
         raise(Arg.Bad("don't know what to do with " ^ name))
 
 let aggregate_rec_interfaces actions =
-  if !Clflags.recmod then
+  if !Clflags.recursive_interfaces then
     let interfaces, others =
       List.fold_left (fun (interfaces, others) action ->
           match action with
@@ -674,7 +674,7 @@ let process_deferred_actions env =
     match final_output_name with
     | None -> ()
     | Some output_name ->
-        if !compile_only || !recmod then begin
+        if !compile_only || !recursive_interfaces then begin
           if List.filter (function
               | ProcessCFile name -> c_object_of_filename name <> output_name
               | _ -> false) !deferred_actions <> [] then

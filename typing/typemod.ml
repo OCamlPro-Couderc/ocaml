@@ -101,6 +101,7 @@ type error =
   | Badly_formed_signature of string * Typedecl.error
   | Cannot_hide_id of hiding_error
   | Invalid_type_subst_rhs
+  | Cannot_implement_recursive_interface of Compilation_unit.Name.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -2701,6 +2702,13 @@ let type_rec_interfaces env asts =
            {pmd_name=Location.mkloc name loc; pmd_type=modty;
             pmd_attributes=[]; pmd_loc=loc}) asts)
   in
+  List.iter (fun { md_type; md_name; md_loc } ->
+      if !Clflags.for_package = None
+      && not (Mtype.no_code_needed recenv md_type.mty_type) then
+        let name = Option.get md_name.txt |> Compilation_unit.Name.of_string in
+        raise (Error (md_loc, recenv,
+                      (Cannot_implement_recursive_interface name))))
+    mtys;
   List.map (fun { md_type } -> match md_type with
         { mty_desc = Tmty_signature sg } -> sg
       | _ -> assert false)
@@ -2924,6 +2932,11 @@ let report_error ppf = function
         Ident.print opened_item_id
   | Invalid_type_subst_rhs ->
       fprintf ppf "Only type synonyms are allowed on the right of :="
+  | Cannot_implement_recursive_interface modname ->
+      fprintf ppf
+        "Interface %a is declared as recursive,@ \
+         it cannot contain code or should be included in a pack."
+        Compilation_unit.Name.print modname
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env ~error:true env (fun () -> report_error ppf err)
