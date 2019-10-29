@@ -83,6 +83,7 @@ and use_runtime = ref ""                (* -use-runtime ... *)
 and plugin = ref false                  (* -plugin ... *)
 and principal = ref false               (* -principal *)
 and real_paths = ref true               (* -short-paths *)
+and recursive_interfaces = ref false    (* -recursive *)
 and recursive_types = ref false         (* -rectypes *)
 and strict_sequence = ref false         (* -strict-sequence *)
 and strict_formats = ref false          (* -strict-formats *)
@@ -227,8 +228,6 @@ let default_unbox_closures_factor = 10
 let unbox_closures_factor =
   ref default_unbox_closures_factor      (* -unbox-closures-factor *)
 let remove_unused_arguments = ref false (* -remove-unused-arguments *)
-
-let recmod = ref false (* -recmodules *)
 
 type inlining_arguments = {
   inline_call_cost : int option;

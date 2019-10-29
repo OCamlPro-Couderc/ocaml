@@ -33,6 +33,7 @@ module type Common_options = sig
   val _ppx : string -> unit
   val _principal : unit -> unit
   val _no_principal : unit -> unit
+  val _recinterfaces: unit -> unit
   val _rectypes : unit -> unit
   val _no_rectypes : unit -> unit
   val _safe_string : unit -> unit
@@ -113,8 +114,6 @@ module type Compiler_options = sig
 
   val _args: string -> string array
   val _args0: string -> string array
-
-  val _recmod: unit -> unit
 end
 ;;
 

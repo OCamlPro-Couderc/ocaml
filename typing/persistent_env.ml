@@ -33,6 +33,7 @@ type error =
       { imported_unit: CU.Name.t; filename: filepath;
         prefix: CU.Prefix.t; current_pack: CU.Prefix.t }
   | Inconsistent_package_import of filepath * CU.Name.t
+  | Need_recursive_interfaces of CU.Name.t
 
 exception Error of error
 let error err = raise (Error err)
@@ -231,6 +232,7 @@ let save_pers_struct penv crc ps pm =
         | Alerts _ -> ()
         | Unsafe_string -> ()
         | Pack _p -> ()
+        | Recursive -> ()
         | Opaque -> add_imported_opaque penv modname)
     ps.ps_flags;
   let for_pack_prefix = prefix_of_pers_struct ps in
@@ -286,6 +288,22 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
                       CU.Name.of_string
                         (CU.Prefix.to_string p ^ "." ^
                          CU.Name.to_string modname)))
+      | Recursive ->
+          (* The parameters to take account of are:
+             - either the current unit is an interface, and it is compiled in
+               the same set of recursive units
+             - either the current unit is an implementation:
+               - it is the implementation of this interface, as such it should
+                 be compiled with recursive_interface
+               - it is an implementation of the same set of recursive interfaces
+                 as this one.
+               - it is an implementation outside of this set.
+
+             Since pack tie the recursive interfaces together, we can check they
+             belong to the same (recursive) pack.
+          *)
+          if not !Clflags.recursive_interfaces then
+            error (Need_recursive_interfaces(ps.ps_name))
       | Opaque ->
           add_imported_opaque penv modname)
     ps.ps_flags;
@@ -364,6 +382,10 @@ let check_pers_struct penv f ~loc name =
             Printf.sprintf
               "%s corresponds to the current unit's package"
               intf_filename
+        | Need_recursive_interfaces name ->
+            Format.sprintf
+              "%s is compiled in a set of recursive interfaces"
+              name
       in
       let warn = Warnings.No_cmi_file(name, Some msg) in
         Location.prerr_warning loc warn
@@ -421,6 +443,7 @@ let make_cmi penv modname sign alerts =
       (match CU.for_pack_prefix (Current_unit.get_exn ()) with
          [] -> []
        | prefix -> [Cmi_format.Pack prefix] );
+      if !Clflags.recursive_interfaces then [Cmi_format.Recursive] else [];
       [Alerts alerts];
     ]
   in
@@ -508,6 +531,12 @@ let report_error ppf =
       fprintf ppf
         "@[<hov>The interface %s@ corresponds to the current unit's package %s.@]"
         intf_filename intf_fullname
+  | Need_recursive_interfaces name ->
+      fprintf ppf
+        "@[<hov> Invalid import of %s, @ \
+         which is compiled in a set of recursive interfaces.@ %s @]"
+        name
+        "The current unit must be compiled in the same set."
 
 let () =
   Location.register_error_of_exn

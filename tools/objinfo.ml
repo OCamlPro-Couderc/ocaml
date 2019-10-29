@@ -117,6 +117,7 @@ let print_pers_flags =
   | Opaque -> printf " -opaque"
   | Unsafe_string -> printf " -unsafe-string"
   | Pack modnames -> printf " -for-pack %s" (String.concat "." modnames)
+  | Recursive -> printf " -recursive"
 
 let print_cmi_infos name crcs flags =
   printf "Unit name: %s\n" name;

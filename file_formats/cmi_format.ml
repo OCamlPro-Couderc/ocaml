@@ -21,6 +21,7 @@ type pers_flags =
   | Opaque
   | Unsafe_string
   | Pack of Compilation_unit.Prefix.t
+  | Recursive
 
 type error =
   | Not_an_interface of filepath

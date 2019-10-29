@@ -98,6 +98,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _plugin _p = plugin := true
   let _principal = set principal
   let _no_principal = unset principal
+  let _recinterfaces = set recursive_interfaces
   let _rectypes = set recursive_types
   let _no_rectypes = unset recursive_types
   let _runtime_variant s = runtime_variant := s
@@ -142,8 +143,6 @@ module Options = Main_args.Make_bytecomp_options (struct
 
   let _args = Arg.read_arg
   let _args0 = Arg.read_arg0
-
-  let _recmod = set recmod
 
   let anonymous = anonymous
 

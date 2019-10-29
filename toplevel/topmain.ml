@@ -121,6 +121,7 @@ module Options = Main_args.Make_bytetop_options (struct
   let _ppx s = first_ppx := s :: !first_ppx
   let _principal = set principal
   let _no_principal = clear principal
+  let _recinterfaces = set recursive_interfaces
   let _rectypes = set recursive_types
   let _no_rectypes = clear recursive_types
   let _safe_string = clear unsafe_string
