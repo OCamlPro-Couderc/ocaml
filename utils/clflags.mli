@@ -109,6 +109,7 @@ val use_runtime : string ref
 val plugin : bool ref
 val principal : bool ref
 val real_paths : bool ref
+val recursive_interfaces : bool ref
 val recursive_types : bool ref
 val strict_sequence : bool ref
 val strict_formats : bool ref
@@ -215,8 +216,6 @@ val dumped_pass : string -> bool
 val set_dumped_pass : string -> bool -> unit
 
 val dump_into_file : bool ref
-
-val recmod : bool ref
 
 (* Support for flags that can also be set from an environment variable *)
 type 'a env_reader = {

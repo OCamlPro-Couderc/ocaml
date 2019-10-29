@@ -32,6 +32,7 @@ type error =
         prefix: Compilation_unit.Prefix.t;
         current_pack: Compilation_unit.Prefix.t }
   | Inconsistent_package_import of filepath * Compilation_unit.Name.t
+  | Need_recursive_interfaces of Compilation_unit.Name.t
 
 exception Error of error
 
