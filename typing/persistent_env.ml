@@ -131,6 +131,7 @@ type 'a t = {
   persistent_structures : 'a pers_struct_info NameTbl.t;
   imported_units: CU.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
+  recursive_interfaces: CU.Set.t ref;
   crc_units: Consistbl.t;
   can_load_cmis: can_load_cmis ref;
 }
@@ -139,6 +140,7 @@ let empty () = {
   persistent_structures = NameTbl.create 17;
   imported_units = ref CU.Set.empty;
   imported_opaque_units = ref CU.Name.Set.empty;
+  recursive_interfaces = ref CU.Set.empty;
   crc_units = Consistbl.create ();
   can_load_cmis = ref Can_load_cmis;
 }
@@ -148,12 +150,14 @@ let clear penv =
     persistent_structures;
     imported_units;
     imported_opaque_units;
+    recursive_interfaces;
     crc_units;
     can_load_cmis;
   } = penv in
   NameTbl.clear persistent_structures;
   imported_units := CU.Set.empty;
   imported_opaque_units := CU.Name.Set.empty;
+  recursive_interfaces := CU.Set.empty;
   Consistbl.clear crc_units;
   can_load_cmis := Can_load_cmis;
   ()
@@ -172,6 +176,9 @@ let add_import {imported_units; _} unit =
 
 let add_imported_opaque {imported_opaque_units; _} s =
   imported_opaque_units := CU.Name.Set.add s !imported_opaque_units
+
+let add_recursive_interface {recursive_interfaces; _} intf =
+  recursive_interfaces := CU.Set.add intf !recursive_interfaces
 
 let find_in_cache {persistent_structures; _} s =
   match NameTbl.find persistent_structures s with
@@ -236,7 +243,7 @@ let save_pers_struct penv crc ps pm =
         | Alerts _ -> ()
         | Unsafe_string -> ()
         | Pack _p -> ()
-        | Recursive -> ()
+        | Recursive _ -> ()
         | Opaque -> add_imported_opaque penv modname)
     ps.ps_flags;
   let for_pack_prefix = prefix_of_pers_struct ps in
@@ -292,7 +299,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
                       CU.Name.of_string
                         (CU.Prefix.to_string p ^ "." ^
                          CU.Name.to_string modname)))
-      | Recursive ->
+      | Recursive _ ->
           (* The parameters to take account of are:
              - either the current unit is an interface, and it is compiled in
                the same set of recursive units
@@ -307,7 +314,10 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
              belong to the same (recursive) pack.
           *)
           if not !Clflags.recursive_interfaces then
-            error (Need_recursive_interfaces(ps.ps_name))
+            error (Need_recursive_interfaces(ps.ps_name));
+          if not (CU.Set.mem (Current_unit.get_exn ())
+              !(penv.recursive_interfaces)) then
+            failwith "Not in the same set"
       | Opaque ->
           add_imported_opaque penv modname)
     ps.ps_flags;
@@ -447,7 +457,9 @@ let make_cmi penv modname sign alerts =
       (match CU.for_pack_prefix (Current_unit.get_exn ()) with
          [] -> []
        | prefix -> [Cmi_format.Pack prefix] );
-      if !Clflags.recursive_interfaces then [Cmi_format.Recursive] else [];
+      if !Clflags.recursive_interfaces then
+        [Cmi_format.Recursive (CU.Set.elements !(penv.recursive_interfaces))]
+      else [];
       [Alerts alerts];
     ]
   in

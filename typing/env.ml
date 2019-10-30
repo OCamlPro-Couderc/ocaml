@@ -768,6 +768,9 @@ let crc_of_unit name =
 let is_imported_opaque modname =
   Persistent_env.is_imported_opaque persistent_env modname
 
+let add_recursive_interface cu =
+  Persistent_env.add_recursive_interface persistent_env cu
+
 let reset_declaration_caches () =
   Hashtbl.clear value_declarations;
   Hashtbl.clear type_declarations;
