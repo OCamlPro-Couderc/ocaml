@@ -2686,20 +2686,20 @@ let type_interface env ast =
   transl_signature env ast
 
 let type_rec_interfaces env asts =
+  List.iter (fun (cu, _, _) -> Env.add_recursive_interface cu) asts;
   let mtys, recenv =
     transl_recmodule_modtypes ~persistent:true env
-      (List.map (fun (unit_name, ast, loc) ->
+      (List.map (fun (cu, ast, loc) ->
            let modty =
              { pmty_desc = Pmty_signature ast;
                pmty_loc = loc;
                pmty_attributes = [] }
            in
            let name =
-             match unit_name with
-               None -> None
-             | Some name -> Some (Compilation_unit.Name.to_string name)
+             Some (Compilation_unit.Name.to_string (Compilation_unit.name cu))
            in
-           {pmd_name=Location.mkloc name loc; pmd_type=modty;
+           {pmd_name=Location.mkloc name loc;
+            pmd_type=modty;
             pmd_attributes=[]; pmd_loc=loc}) asts)
   in
   List.iter (fun { md_type; md_name; md_loc } ->

@@ -360,6 +360,8 @@ val save_signature_with_imports:
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
 
+val add_recursive_interface: Compilation_unit.t -> unit
+
 (* Return the set of compilation units imported, with their CRC *)
 val imports: unit -> Compilation_unit.crcs
 
