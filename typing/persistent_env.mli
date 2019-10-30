@@ -125,6 +125,8 @@ val is_imported : 'a t -> Compilation_unit.t -> bool
    in [penv] as an opaque module *)
 val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
 
+val add_recursive_interface : 'a t -> Compilation_unit.t -> unit
+
 val make_cmi : 'a t -> Compilation_unit.Name.t -> Types.signature -> alerts
   -> Cmi_format.cmi_infos
 

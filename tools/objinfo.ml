@@ -117,14 +117,20 @@ let print_pers_flags =
   | Opaque -> printf " -opaque"
   | Unsafe_string -> printf " -unsafe-string"
   | Pack modnames -> printf " -for-pack %s" (String.concat "." modnames)
-  | Recursive -> printf " -recursive"
+  | Recursive intfs ->
+      printf " -recursive %s"
+        (Format.asprintf "%a"
+           (Format.pp_print_list
+              ~pp_sep:(fun ppf () -> Format.fprintf ppf " ")
+              Compilation_unit.print) intfs)
 
 let print_cmi_infos name crcs flags =
   printf "Unit name: %s\n" name;
   printf "Interfaces imported:\n";
   List.iter print_name_crc crcs;
   printf "Compilation flags:\n";
-  List.iter print_pers_flags flags
+  List.iter print_pers_flags flags;
+  printf "\n"
 
 
 let print_cmt_infos cmt =
