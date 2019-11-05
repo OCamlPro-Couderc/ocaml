@@ -299,7 +299,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
                       CU.Name.of_string
                         (CU.Prefix.to_string p ^ "." ^
                          CU.Name.to_string modname)))
-      | Recursive _ ->
+      | Recursive intfs ->
           (* The parameters to take account of are:
              - either the current unit is an interface, and it is compiled in
                the same set of recursive units
@@ -313,11 +313,13 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
              Since pack tie the recursive interfaces together, we can check they
              belong to the same (recursive) pack.
           *)
+          let current_unit = Current_unit.get_exn () in
           if not !Clflags.recursive_interfaces then
             error (Need_recursive_interfaces(ps.ps_name));
-          if not (CU.Set.mem (Current_unit.get_exn ())
-              !(penv.recursive_interfaces)) then
-            failwith "Not in the same set"
+          if CU.Name.equal (CU.name current_unit) ps.ps_name then
+            List.iter (add_recursive_interface penv) intfs;
+          if not (CU.Set.mem current_unit !(penv.recursive_interfaces)) then
+            failwith "Not in the same set";
       | Opaque ->
           add_imported_opaque penv modname)
     ps.ps_flags;
@@ -447,6 +449,9 @@ let is_imported {imported_units; _} u =
 
 let is_imported_opaque {imported_opaque_units; _} s =
   CU.Name.Set.mem s !imported_opaque_units
+
+let recursive_interfaces {recursive_interfaces; _} =
+  CU.Set.elements !recursive_interfaces
 
 let make_cmi penv modname sign alerts =
   let flags =
