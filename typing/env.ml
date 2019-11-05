@@ -645,6 +645,9 @@ let crc_of_unit name =
 let is_imported_opaque modname =
   Persistent_env.is_imported_opaque persistent_env modname
 
+let recursive_interfaces () =
+  Persistent_env.recursive_interfaces persistent_env
+
 let add_recursive_interface cu =
   Persistent_env.add_recursive_interface persistent_env cu
 
