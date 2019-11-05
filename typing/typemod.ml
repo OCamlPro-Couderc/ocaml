@@ -1684,6 +1684,31 @@ let enrich_module_type anchor name mty env =
   | Some p, Some name ->
       Mtype.enrich_modtype env (Pdot(p, name)) mty
 
+let enrich_signature anchor name sg env =
+  let mty = enrich_module_type anchor name (Mty_signature sg) env in
+  match mty with Mty_signature sg -> sg | _ -> assert false
+
+let wrap_recmodules bindings coercions =
+  let wrap (id, id_loc, mty_decl, modl, _, attrs, loc) (_, coercion, env) =
+    let modl' =
+      { mod_desc = Tmod_constraint(modl, mty_decl.mty_type,
+                                   Tmodtype_explicit mty_decl, coercion);
+        mod_type = mty_decl.mty_type;
+        mod_env = env;
+        mod_loc = modl.mod_loc;
+        mod_attributes = [];
+      } in
+    {
+      mb_id = id;
+      mb_name = id_loc;
+      mb_presence = Mp_present;
+      mb_expr = modl';
+      mb_attributes = attrs;
+      mb_loc = loc;
+    }
+  in
+  List.map2 wrap bindings coercions
+
 let check_recmodule_inclusion env bindings =
   (* PR#4450, PR#4470: consider
         module rec X : DECL = MOD  where MOD has inferred type ACTUAL
@@ -1720,32 +1745,32 @@ let check_recmodule_inclusion env bindings =
       (* Generate fresh names Y_i for the rec. bound module idents X_i *)
       let bindings1 =
         List.map
-          (fun (id, _name, _mty_decl, _modl, mty_actual, _attrs, _loc) ->
+          (fun (id, _intf, mty_impl, _loc) ->
              let ids =
                Option.map
                  (fun id -> (id, Ident.create_scoped ~scope (Ident.name id))) id
              in
-             (ids, mty_actual))
+             (ids, mty_impl))
           bindings in
       (* Enter the Y_i in the environment with their actual types substituted
          by the input substitution s *)
       let env' =
         List.fold_left
-          (fun env (ids, mty_actual) ->
+          (fun env (ids, mty_impl) ->
              match ids with
              | None -> env
              | Some (id, id') ->
-               let mty_actual' =
+               let mty_impl' =
                  if first_time
-                 then mty_actual
-                 else subst_and_strengthen env scope s (Some id) mty_actual
+                 then mty_impl
+                 else subst_and_strengthen env scope s (Some id) mty_impl
                in
-               Env.add_module ~arg:false id' Mp_present mty_actual' env)
+               Env.add_module ~arg:false id' Mp_present mty_impl' env)
           env bindings1 in
       (* Build the output substitution Y_i <- X_i *)
       let s' =
         List.fold_left
-          (fun s (ids, _mty_actual) ->
+          (fun s (ids, _mty_impl) ->
              match ids with
              | None -> s
              | Some (id, id') -> Subst.add_module id (Pident id') s)
@@ -1753,32 +1778,15 @@ let check_recmodule_inclusion env bindings =
       (* Recurse with env' and s' *)
       check_incl false (n-1) env' s'
     end else begin
-      (* Base case: check inclusion of s(mty_actual) in s(mty_decl)
+      (* Base case: check inclusion of s(mty_impl) in s(intf)
          and insert coercion if needed *)
-      let check_inclusion (id, name, mty_decl, modl, mty_actual, attrs, loc) =
-        let mty_decl' = Subst.modtype (Rescope scope) s mty_decl.mty_type
-        and mty_actual' = subst_and_strengthen env scope s id mty_actual in
-        let coercion =
-          try
-            Includemod.modtypes ~loc:modl.mod_loc env mty_actual' mty_decl'
-          with Includemod.Error msg ->
-            raise(Error(modl.mod_loc, env, Not_included msg)) in
-        let modl' =
-            { mod_desc = Tmod_constraint(modl, mty_decl.mty_type,
-                Tmodtype_explicit mty_decl, coercion);
-              mod_type = mty_decl.mty_type;
-              mod_env = env;
-              mod_loc = modl.mod_loc;
-              mod_attributes = [];
-             } in
-        {
-         mb_id = id;
-         mb_name = name;
-         mb_presence = Mp_present;
-         mb_expr = modl';
-         mb_attributes = attrs;
-         mb_loc = loc;
-        }
+      let check_inclusion (id, intf, mty_impl, loc) =
+        let intf' = Subst.modtype (Rescope scope) s intf
+        and mty_impl' = subst_and_strengthen env scope s id mty_impl in
+        try
+          id, Includemod.modtypes ~loc env mty_impl' intf', env
+        with Includemod.Error msg ->
+          raise(Error(loc, env, Not_included msg))
       in
       List.map check_inclusion bindings
     end
@@ -2116,8 +2124,12 @@ and type_recmodule funct_body anchor names env sbind =
       )
       env decls
   in
-  let bindings2 =
-    check_recmodule_inclusion newenv bindings1 in
+  let recmods_type =
+    List.map (fun (id, _, tmty_intf, modl, mty_impl, _, _) ->
+        id, tmty_intf.mty_type, mty_impl, modl.mod_loc) bindings1 in
+  let coercions =
+    check_recmodule_inclusion newenv recmods_type in
+  let bindings2 = wrap_recmodules bindings1 coercions in
   bindings2, newenv
 
 and type_open_decl ?used_slot ?toplevel funct_body names env sod =
@@ -2603,6 +2615,68 @@ let () =
   Typeclass.type_open_descr := type_open_descr;
   type_module_type_of_fwd := type_module_type_of
 
+let type_rec_implementation sourcefile outputprefix modulename initial_env ast =
+  let loc = Location.in_file sourcefile in
+  let intf =
+    let sourceintf =
+      Filename.remove_extension sourcefile ^ !Config.interface_suffix in
+    if Sys.file_exists sourceintf then begin
+      let intf_file =
+        try
+          Load_path.find_uncap (modulename ^ ".cmi")
+        with Not_found ->
+          raise(Error(loc, Env.empty, Interface_not_compiled sourceintf)) in
+      Env.read_signature modulename intf_file
+    end
+    else
+      raise (Error(loc, Env.empty, Recursive_module_require_explicit_type))
+  in
+  let id = Ident.create_persistent modulename in
+  (* The other recursive interfaces will be fetched when necessary *)
+  let recenv =
+    Env.add_module ~arg:false id Mp_present (Mty_signature intf) initial_env in
+  let str, sg, names, _ = type_structure recenv ast loc in
+  Signature_names.check_module names loc id;
+  let sg' =
+    enrich_signature None (Some (Ident.name id)) str.str_type recenv in
+  let intfs =
+    List.map (fun unit ->
+        let name = Compilation_unit.name unit in
+        if Compilation_unit.Name.equal name modulename then
+          Some id, Mty_signature sg, Mty_signature sg', loc
+        else
+          let id =
+            Ident.create_persistent (Compilation_unit.name unit) in
+          let intf =
+            let intf_file =
+              try
+                Load_path.find_uncap (name ^ ".cmi")
+              with Not_found ->
+                raise(Error(Location.in_file sourcefile, Env.empty,
+                            Interface_not_compiled (name ^ ".cmi"))) in
+            Env.read_signature name intf_file
+          in
+          Some id, Mty_signature intf, Mty_signature intf, loc)
+      (Env.recursive_interfaces ())
+  in
+  (* adapt to use Includemod.compunit *)
+  let coercions =
+    check_recmodule_inclusion recenv intfs in
+  let _, coercion, env =
+    List.find (fun (id, _, _) ->
+        match id with
+          Some id -> Ident.name id = modulename
+        | None -> false)
+      coercions in
+  Typecore.force_delayed_checks ();
+  (* It is important to run these checks after the inclusion test above,
+     so that value declarations which are not used internally but
+     exported are not reported as being unused. *)
+  Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
+    (Cmt_format.Implementation str) (Some sourcefile) env None;
+  (str, coercion)
+
+
 
 (* Typecheck an implementation file *)
 
@@ -2613,6 +2687,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       Env.reset_required_globals ();
       if !Clflags.print_types then (* #7656 *)
         Warnings.parse_options false "-32-34-37-38-60";
+      if !Clflags.recursive_interfaces then
+        type_rec_implementation
+          sourcefile outputprefix modulename initial_env ast
+      else
       let (str, sg, names, finalenv) =
         type_structure initial_env ast (Location.in_file sourcefile) in
       let simple_sg = Signature_names.simplify finalenv names sg in

@@ -148,6 +148,8 @@ val import_crcs : 'a t -> source:filepath -> Compilation_unit.crcs -> unit
 (* Return the set of compilation units imported, with their CRC *)
 val imports : 'a t -> Compilation_unit.crcs
 
+val recursive_interfaces : 'a t -> Compilation_unit.t list
+
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit:
   'a t -> (Persistent_signature.t -> 'a) -> Compilation_unit.Name.t -> Digest.t
