@@ -77,7 +77,7 @@ let main () =
         (extract_output !output_name);
       Warnings.check_fatal ();
     end
-    else if !make_package then begin
+    else if !make_package || !make_recursive_package then begin
       Compmisc.init_path ();
       let extracted_output = extract_output !output_name in
       let revd = get_objfiles ~with_ocamlparam:false in

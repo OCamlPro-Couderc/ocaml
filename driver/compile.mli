@@ -27,11 +27,15 @@ val rec_interfaces:
 val to_bytecode :
   Compile_common.info ->
   Typedtree.structure * Typedtree.module_coercion ->
-  Instruct.instruction list * Ident.Set.t
+  Instruct.instruction list * Ident.Set.t *
+  (Lambda.shape_result * Ident.Set.t) option
 (** [to_bytecode info typed] takes a typechecked implementation
     and returns its bytecode.
 *)
 
 val emit_bytecode :
-  Compile_common.info -> Instruct.instruction list * Ident.Set.t -> unit
+  Compile_common.info ->
+  Instruct.instruction list * Ident.Set.t *
+  (Lambda.shape_result * Ident.Set.t) option
+  -> unit
 (** [emit_bytecode bytecode] output the bytecode executable. *)

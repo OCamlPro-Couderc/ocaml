@@ -314,11 +314,40 @@ and lambda_event_kind =
   | Lev_pseudo
   | Lev_module_definition of Ident.t
 
+
+type unsafe_component =
+  | Unsafe_module_binding
+  | Unsafe_functor
+  | Unsafe_non_function
+  | Unsafe_typext
+
+type unsafe_info =
+  | Info of { reason:unsafe_component; info_loc:Location.t; subid:Ident.t }
+  | Unnamed
+
+type shape =
+  | Function
+  | Lazy
+  | Class
+  | Module of shape list
+
+type shape_result = (shape, unsafe_info) Result.t
+
+type member_infos = {
+  member_id: Ident.t;
+  member_recursive: (shape_result * Ident.Set.t) option
+}
+
+type pack_member =
+    PM_intf
+  | PM_impl of member_infos
+
 type program =
   { module_ident : Ident.t;
     main_module_block_size : int;
     required_globals : Ident.Set.t;    (* Modules whose initializer side effects
                                           must occur before [code]. *)
+    recursive : (shape_result * Ident.Set.t) option;
     code : lambda }
 (* Lambda code for the middle-end.
    * In the closure case the code is a sequence of assignments to a

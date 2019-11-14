@@ -26,17 +26,8 @@ open Translobj
 open Translcore
 open Translclass
 
-type unsafe_component =
-  | Unsafe_module_binding
-  | Unsafe_functor
-  | Unsafe_non_function
-  | Unsafe_typext
-
-type unsafe_info =
-  | Unsafe of { reason:unsafe_component; loc:Location.t; subid:Ident.t }
-  | Unnamed
 type error =
-  Circular_dependency of (Ident.t * unsafe_info) list
+  Circular_dependency of (Ident.t * Lambda.unsafe_info) list
 | Conflicting_inline_attributes
 
 exception Error of Location.t * error
@@ -220,19 +211,20 @@ let undefined_location loc =
 
 exception Initialization_failure of unsafe_info
 
-let init_shape id modl =
+let init_shape id modl : (Lambda.lambda * Lambda.shape, Lambda.unsafe_info) Result.t  =
   let rec init_shape_mod subid loc env mty =
     match Mtype.scrape env mty with
       Mty_ident _
     | Mty_alias _ ->
         raise (Initialization_failure
-                (Unsafe {reason=Unsafe_module_binding;loc;subid}))
+                (Info {reason=Unsafe_module_binding;info_loc=loc;subid}))
     | Mty_signature sg ->
-        Const_block(0, [Const_block(0, init_shape_struct env sg)])
+        Module (init_shape_struct env sg)
+        (* Const_block(0, [Const_block(0, init_shape_struct env sg)]) *)
     | Mty_functor _ ->
         (* can we do better? *)
         raise (Initialization_failure
-                (Unsafe {reason=Unsafe_functor;loc;subid}))
+                (Info {reason=Unsafe_functor;info_loc=loc;subid}))
   and init_shape_struct env sg =
     match sg with
       [] -> []
@@ -240,12 +232,14 @@ let init_shape id modl =
         let init_v =
           match Ctype.expand_head env ty with
             {desc = Tarrow(_,_,_,_)} ->
-              Const_pointer 0 (* camlinternalMod.Function *)
+              Function
+              (* Const_pointer 0 (\* camlinternalMod.Function *\) *)
           | {desc = Tconstr(p, _, _)} when Path.same p Predef.path_lazy_t ->
-              Const_pointer 1 (* camlinternalMod.Lazy *)
+              Lazy
+              (* Const_pointer 1 (\* camlinternalMod.Lazy *\) *)
           | _ ->
               let not_a_function =
-                Unsafe {reason=Unsafe_non_function; loc; subid }
+                Info {reason=Unsafe_non_function; info_loc=loc; subid }
               in
               raise (Initialization_failure not_a_function) in
         init_v :: init_shape_struct env rem
@@ -256,7 +250,7 @@ let init_shape id modl =
     | Sig_type(id, tdecl, _, _) :: rem ->
         init_shape_struct (Env.add_type ~check:false id tdecl env) rem
     | Sig_typext (subid, {ext_loc=loc},_,_) :: _ ->
-        raise (Initialization_failure (Unsafe {reason=Unsafe_typext;loc;subid}))
+        raise (Initialization_failure (Info {reason=Unsafe_typext;info_loc=loc;subid}))
     | Sig_module(id, Mp_present, md, _, _) :: rem ->
         init_shape_mod id md.md_loc env md.md_type ::
         init_shape_struct (Env.add_module_declaration ~check:false
@@ -268,17 +262,32 @@ let init_shape id modl =
     | Sig_modtype(id, minfo, _) :: rem ->
         init_shape_struct (Env.add_modtype id minfo env) rem
     | Sig_class _ :: rem ->
-        Const_pointer 2 (* camlinternalMod.Class *)
+        Class
+        (* Const_pointer 2 (\* camlinternalMod.Class *\) *)
         :: init_shape_struct env rem
     | Sig_class_type _ :: rem ->
         init_shape_struct env rem
   in
   try
     Ok(undefined_location modl.mod_loc,
-       Lconst(init_shape_mod id modl.mod_loc modl.mod_env modl.mod_type))
+       init_shape_mod id modl.mod_loc modl.mod_env modl.mod_type)
   with Initialization_failure reason -> Result.Error(reason)
 
+let shape_to_lambda shape =
+  let rec transl = function
+    | Function -> Const_pointer 0
+    | Lazy -> Const_pointer 1
+    | Class -> Const_pointer 2
+    | Module l ->
+        Const_block(0, [Const_block(0, List.map transl l)])
+  in
+  Lconst (transl shape)
+
 (* Reorder bindings to honor dependencies.  *)
+
+type recmod_kind =
+    Recmod of Lambda.lambda
+  | Recunit of Ident.t
 
 type binding_status =
   | Undefined
@@ -305,11 +314,11 @@ let extract_unsafe_cycle id status init cycle_start =
   collect cycle_start [] cycle_start
 
 let reorder_rec_bindings bindings =
-  let id = Array.of_list (List.map (fun (id,_,_,_) -> id) bindings)
-  and loc = Array.of_list (List.map (fun (_,loc,_,_) -> loc) bindings)
-  and init = Array.of_list (List.map (fun (_,_,init,_) -> init) bindings)
-  and rhs = Array.of_list (List.map (fun (_,_,_,rhs) -> rhs) bindings) in
-  let fv = Array.map Lambda.free_variables rhs in
+  let id = Array.of_list (List.map (fun (id,_,_,_,_) -> id) bindings)
+  and loc = Array.of_list (List.map (fun (_,loc,_,_,_) -> loc) bindings)
+  and init = Array.of_list (List.map (fun (_,_,init,_,_) -> init) bindings)
+  and rhs = Array.of_list (List.map (fun (_,_,_,rhs,_) -> rhs) bindings)
+  and fv = Array.of_list (List.map (fun (_,_,_,_,fvs) -> fvs) bindings)in
   let num_bindings = Array.length id in
   let status = Array.make num_bindings Undefined in
   let res = ref [] in
@@ -355,6 +364,7 @@ let eval_rec_bindings bindings cont =
   | (_, None, _) :: rem ->
       bind_inits rem
   | (Id id, Some(loc, shape), _rhs) :: rem ->
+      let shape = shape_to_lambda shape in
       Llet(Strict, Pgenval, id,
            Lapply{ap_should_be_tailcall=false;
                   ap_loc=Location.none;
@@ -366,10 +376,17 @@ let eval_rec_bindings bindings cont =
   and bind_strict = function
     [] ->
       patch_forwards bindings
-  | (Ignore_loc loc, None, rhs) :: rem ->
+  | (Ignore_loc loc, None, Recmod rhs) :: rem ->
       Lsequence(Lprim(Pignore, [rhs], loc), bind_strict rem)
-  | (Id id, None, rhs) :: rem ->
+  | (Ignore_loc _, None, Recunit _) :: rem ->
+      (* impossible case *)
+      bind_strict rem
+  | (Id id, None, Recmod rhs) :: rem ->
       Llet(Strict, Pgenval, id, rhs, bind_strict rem)
+  | (Id id, None, Recunit pers_id) :: rem ->
+      Llet(Strict, Pgenval, id,
+           Lprim(Pgetglobal pers_id, [], Location.none),
+           bind_strict rem)
   | (_id, Some _, _rhs) :: rem ->
       bind_strict rem
   and patch_forwards = function
@@ -378,7 +395,8 @@ let eval_rec_bindings bindings cont =
   | (Ignore_loc _, _, _rhs) :: rem
   | (_, None, _rhs) :: rem ->
       patch_forwards rem
-  | (Id id, Some(_loc, shape), rhs) :: rem ->
+  | (Id id, Some(_loc, shape), Recmod rhs) :: rem ->
+      let shape = shape_to_lambda shape in
       Lsequence(Lapply{ap_should_be_tailcall=false;
                        ap_loc=Location.none;
                        ap_func=mod_prim "update_mod";
@@ -386,21 +404,54 @@ let eval_rec_bindings bindings cont =
                        ap_inlined=Default_inline;
                        ap_specialised=Default_specialise},
                 patch_forwards rem)
+  | (Id id, Some(_loc, shape), Recunit pers_id) :: rem ->
+      let shape = shape_to_lambda shape in
+      let funct =
+        Lprim(Pfield 0, [Lprim(Pgetglobal pers_id, [], Location.none)],
+              Location.none) in
+      Lsequence(Lapply{ap_should_be_tailcall=false;
+                       ap_loc=Location.none;
+                       ap_func= funct;
+                       ap_args=[shape; Lvar id];
+                       ap_inlined=Default_inline;
+                       ap_specialised=Default_specialise},
+                patch_forwards rem)
   in
     bind_inits bindings
 
-let compile_recmodule compile_rhs bindings cont =
+let compile_recmodule_gen bindings cont =
   eval_rec_bindings
-    (reorder_rec_bindings
-       (List.map
-          (fun {mb_id=id; mb_name; mb_expr=modl; mb_loc=loc; _} ->
-             let id_or_ignore_loc, shape =
+    (reorder_rec_bindings bindings)
+    cont
+
+let compile_recmodule compile_rhs bindings cont =
+  compile_recmodule_gen
+    (List.map
+       (fun {mb_id=id; mb_expr=modl; mb_loc=loc; mb_name} ->
+          let id_or_ignore_loc, shape =
                match id with
                | None -> Ignore_loc mb_name.loc, Result.Error Unnamed
                | Some id -> Id id, init_shape id modl
-             in
-             (id_or_ignore_loc, modl.mod_loc, shape, compile_rhs id modl loc))
-          bindings))
+          in
+          let rhs = compile_rhs id modl loc in
+          let fvs = Lambda.free_variables rhs in
+          (id_or_ignore_loc, modl.mod_loc, shape, Recmod rhs, fvs))
+       bindings)
+    cont
+
+let compile_recunits components loc cont =
+  compile_recmodule_gen
+    (List.map
+       (function
+           (PM_intf, _) -> assert false
+         | (PM_impl {member_recursive = None }, _) -> assert false
+         | (PM_impl {member_id=pers_id;
+                     member_recursive = Some (shape, fvs)}, id) ->
+             let shape = match shape with
+                 Ok s -> Ok (undefined_location loc, s)
+               | Result.Error e -> Result.Error e in
+             (Id id, loc, shape, Recunit pers_id, fvs))
+       components)
     cont
 
 (* Code to translate class entries in a structure *)
@@ -780,19 +831,62 @@ let transl_current_module_ident module_name =
   let prefix = Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
   Ident.create_persistent ~prefix module_name
 
+let transl_implementation_aux module_id str cc =
+  let code, size = transl_struct Location.none [] cc
+      (global_path module_id) str
+  in
+  if !Clflags.recursive_interfaces then
+    let modl =
+      { mod_desc = Tmod_structure str;
+        mod_loc = Location.none;
+        mod_type = Mty_signature str.str_type;
+        mod_env = str.str_final_env;
+        mod_attributes = [] }
+    in
+    let code, shape, size =
+      match init_shape module_id modl with
+        Ok (_, shape) ->
+          let shape = Ok shape in
+          let component_id = Ident.create_local (Ident.name module_id) in
+          let shape_id = Ident.create_local "shape" in
+          let update_mod =
+            Lapply{ap_should_be_tailcall=false;
+                   ap_loc=Location.none;
+                   ap_func=mod_prim "update_mod";
+                   ap_args=[Lvar shape_id; Lvar component_id; code];
+                   ap_inlined=Default_inline;
+                   ap_specialised=Default_specialise}
+          in
+          let body =
+            Lfunction {kind = Tupled;
+                       params = [(shape_id, Pgenval); (component_id, Pgenval)];
+                       return = Pgenval;
+                       body = update_mod;
+                       attr = Lambda.default_stub_attribute;
+                       loc = Location.none}
+          in
+          Lprim(Pmakeblock(0, Immutable, None), [body], Location.none), shape, 1
+      | Error reason ->
+          (* In that case, the module is bound strictly *)
+          code, Result.Error reason, size
+    in
+    let recursive = Some (shape, Lambda.free_variables code) in
+    code, (size, recursive)
+  else code, (size, None)
+
 let transl_implementation_flambda module_name (str, cc) =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
   let module_id = transl_current_module_ident module_name in
-  let body, size =
+  let body, (size, recursive) =
     Translobj.transl_label_init
-      (fun () -> transl_struct Location.none [] cc
-                   (global_path module_id) str)
+      (fun () -> transl_implementation_aux module_id str cc)
   in
   { module_ident = module_id;
     main_module_block_size = size;
     required_globals = required_globals ~flambda:true body;
+    recursive;
     code = body }
 
 let transl_implementation module_name (str, cc) =
@@ -1345,7 +1439,8 @@ let transl_store_implementation module_name (str, restr) =
     (* module_ident is not used by closure, but this allow to share
        the type with the flambda version *)
     module_ident = Ident.create_persistent module_name;
-    required_globals = required_globals ~flambda:true code }
+    required_globals = required_globals ~flambda:true code;
+    recursive = None; }
 
 (* Compile a toplevel phrase *)
 
@@ -1498,31 +1593,50 @@ let transl_toplevel_definition str =
 (* Compile the initialization code for a packed library *)
 
 let get_component = function
-    None -> Lconst const_unit
-  | Some id -> Lprim(Pgetglobal id, [], Location.none)
+    PM_intf -> Lconst const_unit
+  | PM_impl { member_id; _ } -> Lprim(Pgetglobal member_id, [], Location.none)
 
-let transl_package_flambda component_names coercion =
+let transl_recursive_package components =
+  let components =
+    List.map (function
+          PM_intf -> assert false
+        | PM_impl { member_id; _} as comp  ->
+            comp, Ident.create_local (Ident.name member_id)) components in
+  compile_recunits components Location.none
+    (Lprim(Pmakeblock(0, Immutable, None),
+           List.map (fun (_, id) -> Lvar id) components, Location.none))
+
+
+let transl_package_flambda components coercion =
   let size =
     match coercion with
-    | Tcoerce_none -> List.length component_names
+    | Tcoerce_none -> List.length components
     | Tcoerce_structure (l, _) -> List.length l
     | Tcoerce_functor _
     | Tcoerce_primitive _
     | Tcoerce_alias _ -> assert false
   in
-  size,
-  apply_coercion Location.none Strict coercion
-    (Lprim(Pmakeblock(0, Immutable, None),
-           List.map get_component component_names,
-           Location.none))
+  let body =
+    if !Clflags.make_recursive_package then
+      transl_recursive_package components
+    else
+      Lprim(Pmakeblock(0, Immutable, None),
+            List.map get_component components,
+            Location.none)
+  in
+  size, apply_coercion Location.none Strict coercion body
 
-let transl_package component_names target_name coercion =
+let transl_package components target_name coercion =
   let module_name = transl_current_module_ident (Ident.name target_name) in
-  let components =
-    Lprim(Pmakeblock(0, Immutable, None),
-          List.map get_component component_names, Location.none) in
+  let body =
+    if !Clflags.make_recursive_package then
+      transl_recursive_package components
+    else
+      Lprim(Pmakeblock(0, Immutable, None),
+          List.map get_component components, Location.none)
+  in
   Lprim(Psetglobal module_name,
-        [apply_coercion Location.none Strict coercion components],
+        [apply_coercion Location.none Strict coercion body],
         Location.none)
   (*
   let components =
@@ -1540,25 +1654,25 @@ let transl_package component_names target_name coercion =
   Lprim(Psetglobal target_name, [Lprim(Pmakeblock(0, Immutable), components)])
    *)
 
-let transl_store_package component_names target_name coercion =
+let transl_store_package components target_name coercion =
   let rec make_sequence fn pos arg =
     match arg with
       [] -> lambda_unit
     | hd :: tl -> Lsequence(fn pos hd, make_sequence fn (pos + 1) tl) in
   match coercion with
     Tcoerce_none ->
-      (List.length component_names,
+      (List.length components,
        make_sequence
          (fun pos id ->
            Lprim(Psetfield(pos, Pointer, Root_initialization),
                  [Lprim(Pgetglobal target_name, [], Location.none);
                   get_component id],
                  Location.none))
-         0 component_names)
+         0 components)
   | Tcoerce_structure (pos_cc_list, _id_pos_list) ->
       let components =
         Lprim(Pmakeblock(0, Immutable, None),
-              List.map get_component component_names,
+              List.map get_component components,
               Location.none)
       in
       let blk = Ident.create_local "block" in
@@ -1601,10 +1715,10 @@ let print_cycle ppf cycle =
 let explanation_submsg (id, unsafe_info) =
   match unsafe_info with
   | Unnamed -> assert false (* can't be part of a cycle. *)
-  | Unsafe {reason;loc;subid} ->
+  | Info {reason;info_loc;subid} ->
       let print fmt =
         let printer = Format.dprintf fmt (Ident.name id) (Ident.name subid) in
-        Location.mkloc printer loc in
+        Location.mkloc printer info_loc in
       match reason with
       | Unsafe_module_binding ->
           print "Module %s defines an unsafe module, %s ."

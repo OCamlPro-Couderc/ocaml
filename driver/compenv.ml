@@ -603,12 +603,13 @@ let process_action
       readenv ppf (Before_compile name);
       let opref = output_prefix name in
       interface ~source_file:name ~output_prefix:opref;
-      if !make_package then objfiles := (opref ^ ".cmi") :: !objfiles
+      if !make_package || !make_recursive_package then
+        objfiles := (opref ^ ".cmi") :: !objfiles
   | ProcessRecInterfaces names ->
       readenv ppf (Before_compile "*recmod*");
       let opref = output_prefixes names in
       rec_interfaces ~source_files:names ~output_prefixes:opref;
-      if !make_package then
+      if !make_package || !make_recursive_package then
         objfiles := List.fold_left (fun objfiles opref ->
             (opref ^ ".cmi") :: objfiles) !objfiles (List.rev opref)
   | ProcessCFile name ->
@@ -642,7 +643,9 @@ let aggregate_rec_interfaces actions =
             ProcessInterface name -> name :: interfaces, others
           | other -> interfaces, other :: others) ([], []) actions
     in
-    List.rev (ProcessRecInterfaces interfaces :: others)
+    if interfaces <> [] then
+      List.rev (ProcessRecInterfaces interfaces :: others)
+    else actions
   else
     actions
 
