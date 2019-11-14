@@ -397,7 +397,7 @@ let rec emit = function
 
 (* Emission to a file *)
 
-let to_file outchan unit_name objfile ~required_globals code =
+let to_file outchan unit_name objfile ~required_globals rec_infos code =
   init();
   output_string outchan cmo_magic_number;
   let pos_depl = pos_out outchan in
@@ -416,6 +416,10 @@ let to_file outchan unit_name objfile ~required_globals code =
       (p, pos_out outchan - p)
     end else
       (0, 0) in
+  let rec_infos = match rec_infos with
+      None -> None
+    | Some (shape, fvs) -> Some (shape, Ident.Set.elements fvs)
+  in
   let compunit =
     { cu_name = unit_name;
       cu_prefix = Compilation_unit.Prefix.parse_for_pack !Clflags.for_package;
@@ -426,6 +430,7 @@ let to_file outchan unit_name objfile ~required_globals code =
       cu_primitives = List.map Primitive.byte_name
                                !Translmod.primitive_declarations;
       cu_required_globals = Ident.Set.elements required_globals;
+      cu_rec_infos = rec_infos;
       cu_force_link = !Clflags.link_everything;
       cu_debug = pos_debug;
       cu_debugsize = size_debug } in

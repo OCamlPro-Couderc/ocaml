@@ -430,6 +430,14 @@ let mk_pack_opt f =
   "-pack", Arg.Unit f, " Package the given .cmx files into one .cmx"
 ;;
 
+let mk_recursive_pack_byt f =
+  "-recursive-pack", Arg.Unit f, " Package the given .cmo files into one .cmo"
+;;
+
+let mk_recursive_pack_opt f =
+  "-recursive-pack", Arg.Unit f, " Package the given .cmx files into one .cmx"
+;;
+
 let mk_pp f =
   "-pp", Arg.String f, "<command>  Pipe sources through preprocessor <command>"
 ;;
@@ -980,6 +988,7 @@ module type Compiler_options = sig
   val _principal : unit -> unit
   val _no_principal : unit -> unit
   val _rectypes : unit -> unit
+  val _recursive_pack : unit -> unit
   val _runtime_variant : string -> unit
   val _with_runtime : unit -> unit
   val _without_runtime : unit -> unit
@@ -1200,6 +1209,7 @@ struct
     mk_recinterfaces F._recinterfaces;
     mk_rectypes F._rectypes;
     mk_no_rectypes F._no_rectypes;
+    mk_recursive_pack_byt F._recursive_pack;
     mk_runtime_variant F._runtime_variant;
     mk_with_runtime F._with_runtime;
     mk_without_runtime F._without_runtime;
@@ -1392,6 +1402,7 @@ struct
     mk_principal F._principal;
     mk_no_principal F._no_principal;
     mk_rectypes F._rectypes;
+    mk_recursive_pack_opt F._recursive_pack;
     mk_no_rectypes F._no_rectypes;
     mk_remove_unused_arguments F._remove_unused_arguments;
     mk_rounds F._rounds;
@@ -1857,6 +1868,7 @@ module Default = struct
     let _pack = set make_package
     let _plugin _p = plugin := true
     let _pp s = preprocessor := (Some s)
+    let _recursive_pack = set make_recursive_package
     let _runtime_variant s = runtime_variant := s
     let _stop_after pass =
       let module P = Compiler_pass in

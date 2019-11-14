@@ -292,7 +292,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
              computing it using `split_on_char` each time *)
           let curr_prefix = CU.for_pack_prefix (Current_unit.get_exn ()) in
           if not (check_pack_compatibility curr_prefix p)
-          && not !Clflags.make_package then
+          && not (!Clflags.make_package || !Clflags.make_recursive_package) then
             error (Inconsistent_package_declaration
                      {filename; imported_unit = name; prefix = p;
                       current_pack = curr_prefix});
@@ -316,13 +316,15 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
              Since pack tie the recursive interfaces together, we can check they
              belong to the same (recursive) pack.
           *)
-          let current_unit = Current_unit.get_exn () in
-          if not !Clflags.recursive_interfaces then
-            error (Need_recursive_interfaces(ps.ps_name));
-          if CU.Name.equal (CU.name current_unit) ps.ps_name then
-            List.iter (add_recursive_interface penv) intfs;
-          if not (CU.Set.mem current_unit !(penv.recursive_interfaces)) then
-            failwith "Not in the same set";
+          if not !Clflags.make_recursive_package then begin
+            let current_unit = Current_unit.get_exn () in
+            if not !Clflags.recursive_interfaces then
+              error (Need_recursive_interfaces(ps.ps_name));
+            if CU.Name.equal (CU.name current_unit) ps.ps_name then
+              List.iter (add_recursive_interface penv) intfs;
+            if not (CU.Set.mem current_unit !(penv.recursive_interfaces)) then
+              error (Need_recursive_interfaces(ps.ps_name))
+          end
       | Opaque ->
           add_imported_opaque penv modname)
     ps.ps_flags;

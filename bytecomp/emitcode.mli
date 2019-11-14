@@ -19,14 +19,16 @@ open Cmo_format
 open Instruct
 
 val to_file: out_channel -> Compilation_unit.Name.t -> string ->
-  required_globals:Ident.Set.t -> instruction list -> unit
+  required_globals:Ident.Set.t -> (Lambda.shape_result * Ident.Set.t) option ->
+  instruction list -> unit
         (* Arguments:
              channel on output file
              name of compilation unit implemented
              path of cmo file being written
              required_globals: list of compilation units that must be
                evaluated before this one
-             list of instructions to emit *)
+             list of instructions to emit
+             shape and free variables (for recursive unit) *)
 val to_memory:
   instruction list -> instruction list ->
     Misc.LongString.t * (reloc_info * int) list * debug_event list

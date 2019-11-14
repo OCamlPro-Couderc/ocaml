@@ -47,7 +47,8 @@ type pack_member_kind =
 type pack_member =
   { pm_file: filepath;
     pm_name: CU.Name.t;
-    pm_kind: pack_member_kind }
+    pm_kind: pack_member_kind;
+  }
 
 let read_member_info pack_path file =
   let name =
@@ -124,9 +125,12 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
       List.map
         (fun m ->
           match m.pm_kind with
-          | PM_intf -> None
+          | PM_intf -> Lambda.PM_intf
           | PM_impl _ ->
-            Some (Ident.create_persistent (CU.Name.to_string m.pm_name)))
+              let member_id =
+                Ident.create_persistent (CU.Name.to_string m.pm_name) in
+              let member_recursive = None in
+              Lambda.PM_impl { member_id; member_recursive })
         members
     in
     let module_ident = Ident.create_persistent (CU.Name.to_string targetname) in
@@ -144,6 +148,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
             main_module_block_size;
             module_ident;
             required_globals;
+            recursive = None;
           }
         in
         program, Flambda_middle_end.lambda_to_clambda
@@ -159,6 +164,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
             main_module_block_size;
             module_ident;
             required_globals;
+            recursive = None;
           }
         in
         program, Closure_middle_end.lambda_to_clambda

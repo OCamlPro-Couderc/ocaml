@@ -29,6 +29,7 @@ type error =
   | Illegal_renaming of CU.Name.t * string * CU.Name.t
   | File_not_found of string
   | Wrong_for_pack of string * CU.Prefix.t
+  | Cannot_pack_recursive_interface of string
 
 exception Error of error
 
@@ -78,8 +79,11 @@ let read_member_info pack_path file = (
       (String.capitalize_ascii(Filename.basename(chop_extensions file))) in
   let kind =
     (* PR#7479: make sure it is either a .cmi or a .cmo *)
-    if Filename.check_suffix file ".cmi" then
+    if Filename.check_suffix file ".cmi" then begin
+      if not !Clflags.make_recursive_package then
+        raise (Error (Cannot_pack_recursive_interface file));
       PM_intf
+    end
     else begin
       let ic = open_in_bin file in
       try
@@ -169,8 +173,21 @@ let build_global_target ~ppf_dump oc target_name members identifiers pos coercio
     List.map2
       (fun m id ->
         match m.pm_kind with
-        | PM_intf -> None
-        | PM_impl _ -> Some id)
+        | PM_intf -> Lambda.PM_intf
+        | PM_impl compunit ->
+            let member_recursive =
+              match compunit.cu_rec_infos with
+                None -> None
+              | Some (s, fvs) ->
+                  let fvs' =
+                    List.fold_left (fun acc elt -> Ident.Set.add elt acc)
+                      Ident.Set.empty fvs in
+                  Some (s, fvs')
+            in
+            let member_infos =
+              Lambda.{ member_id = id; member_recursive }
+            in
+            Lambda.PM_impl member_infos)
       members identifiers in
   let lam =
     Translmod.transl_package
@@ -249,6 +266,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
           (unit, Some (Env.crc_of_unit targetname)) :: imports;
         cu_primitives = !primitives;
         cu_required_globals = Ident.Set.elements required_globals;
+        cu_rec_infos = None;
         cu_force_link = !force_link;
         cu_debug = if pos_final > pos_debug then pos_debug else 0;
         cu_debugsize = pos_final - pos_debug } in
@@ -310,6 +328,9 @@ let report_error ppf = function
       fprintf ppf "File %a@ was not compiled with the `-for-pack %a' option"
         Location.print_filename file
         Compilation_unit.Prefix.print path
+  | Cannot_pack_recursive_interface file ->
+      fprintf ppf "Cannot pack %s into a recursive pack, only implementations \
+                   are accepted." file
 
 let () =
   Location.register_error_of_exn

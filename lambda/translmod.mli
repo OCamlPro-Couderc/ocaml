@@ -30,30 +30,20 @@ val transl_implementation_flambda:
 
 val transl_toplevel_definition: structure -> lambda
 val transl_package:
-      Ident.t option list -> Ident.t -> module_coercion -> lambda
+      pack_member list -> Ident.t -> module_coercion -> lambda
 val transl_store_package:
-      Ident.t option list -> Ident.t -> module_coercion -> int * lambda
+      pack_member list -> Ident.t -> module_coercion -> int * lambda
 
 val transl_package_flambda:
-      Ident.t option list -> module_coercion -> int * lambda
+      pack_member list -> module_coercion -> int * lambda
 
 val toplevel_name: Ident.t -> string
 val nat_toplevel_name: Ident.t -> Ident.t * int
 
 val primitive_declarations: Primitive.description list ref
 
-type unsafe_component =
-  | Unsafe_module_binding
-  | Unsafe_functor
-  | Unsafe_non_function
-  | Unsafe_typext
-
-type unsafe_info =
-  | Unsafe of { reason:unsafe_component; loc:Location.t; subid:Ident.t }
-  | Unnamed
-
 type error =
-  Circular_dependency of (Ident.t * unsafe_info) list
+  Circular_dependency of (Ident.t * Lambda.unsafe_info) list
 | Conflicting_inline_attributes
 
 exception Error of Location.t * error

@@ -104,6 +104,7 @@ module type Compiler_options = sig
   val _principal : unit -> unit
   val _no_principal : unit -> unit
   val _rectypes : unit -> unit
+  val _recursive_pack : unit -> unit
   val _runtime_variant : string -> unit
   val _with_runtime : unit -> unit
   val _without_runtime : unit -> unit

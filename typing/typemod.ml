@@ -2617,13 +2617,14 @@ let () =
 
 let type_rec_implementation sourcefile outputprefix modulename initial_env ast =
   let loc = Location.in_file sourcefile in
+  let modulename_as_string = Compilation_unit.Name.to_string modulename in
   let intf =
     let sourceintf =
       Filename.remove_extension sourcefile ^ !Config.interface_suffix in
     if Sys.file_exists sourceintf then begin
       let intf_file =
         try
-          Load_path.find_uncap (modulename ^ ".cmi")
+          Load_path.find_uncap (modulename_as_string ^ ".cmi")
         with Not_found ->
           raise(Error(loc, Env.empty, Interface_not_compiled sourceintf)) in
       Env.read_signature modulename intf_file
@@ -2631,7 +2632,7 @@ let type_rec_implementation sourcefile outputprefix modulename initial_env ast =
     else
       raise (Error(loc, Env.empty, Recursive_module_require_explicit_type))
   in
-  let id = Ident.create_persistent modulename in
+  let id = Ident.create_persistent modulename_as_string in
   (* The other recursive interfaces will be fetched when necessary *)
   let recenv =
     Env.add_module ~arg:false id Mp_present (Mty_signature intf) initial_env in
@@ -2642,18 +2643,19 @@ let type_rec_implementation sourcefile outputprefix modulename initial_env ast =
   let intfs =
     List.map (fun unit ->
         let name = Compilation_unit.name unit in
+        let name_as_string = Compilation_unit.Name.to_string name in
         if Compilation_unit.Name.equal name modulename then
           Some id, Mty_signature sg, Mty_signature sg', loc
         else
           let id =
-            Ident.create_persistent (Compilation_unit.name unit) in
+            Ident.create_persistent name_as_string in
           let intf =
             let intf_file =
               try
-                Load_path.find_uncap (name ^ ".cmi")
+                Load_path.find_uncap (name_as_string ^ ".cmi")
               with Not_found ->
                 raise(Error(Location.in_file sourcefile, Env.empty,
-                            Interface_not_compiled (name ^ ".cmi"))) in
+                            Interface_not_compiled (name_as_string ^ ".cmi"))) in
             Env.read_signature name intf_file
           in
           Some id, Mty_signature intf, Mty_signature intf, loc)
@@ -2665,7 +2667,7 @@ let type_rec_implementation sourcefile outputprefix modulename initial_env ast =
   let _, coercion, env =
     List.find (fun (id, _, _) ->
         match id with
-          Some id -> Ident.name id = modulename
+          Some id -> Ident.name id = modulename_as_string
         | None -> false)
       coercions in
   Typecore.force_delayed_checks ();
