@@ -80,7 +80,7 @@ let flambda i backend typed =
       (Translmod.transl_implementation_flambda i.module_name)
   |> Profile.(record generate)
     (fun {Lambda.module_ident; main_module_block_size;
-          required_globals; code } ->
+          required_globals; code; recursive } ->
     ((module_ident, main_module_block_size), code)
     |>> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
     |>> Simplif.simplify_lambda
@@ -91,6 +91,7 @@ let flambda i backend typed =
           main_module_block_size;
           required_globals;
           code;
+          recursive;
         }
       in
       Asmgen.compile_implementation

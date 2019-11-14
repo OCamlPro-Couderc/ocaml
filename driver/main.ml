@@ -101,6 +101,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _recinterfaces = set recursive_interfaces
   let _rectypes = set recursive_types
   let _no_rectypes = unset recursive_types
+  let _recursive_pack = set make_recursive_package
   let _runtime_variant s = runtime_variant := s
   let _safe_string = unset unsafe_string
   let _short_paths = unset real_paths
@@ -200,7 +201,7 @@ let main () =
         (extract_output !output_name);
       Warnings.check_fatal ();
     end
-    else if !make_package then begin
+    else if !make_package || !make_recursive_package then begin
       Compmisc.init_path ();
       let extracted_output = extract_output !output_name in
       let revd = get_objfiles ~with_ocamlparam:false in

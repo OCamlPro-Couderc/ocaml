@@ -26,6 +26,7 @@ type error =
   | Illegal_renaming of string * string * string
   | File_not_found of string
   | Wrong_for_pack of string * Compilation_unit.Prefix.t
+  | Cannot_pack_recursive_interface of string
 
 exception Error of error
 

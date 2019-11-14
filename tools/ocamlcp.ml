@@ -87,6 +87,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _recinterfaces = ignore
   let _rectypes = ignore
   let _no_rectypes = ignore
+  let _recursive_pack = ignore
   let _runtime_variant = ignore
   let _safe_string = ignore
   let _short_paths = ignore
