@@ -287,7 +287,7 @@ let shape_to_lambda shape =
 
 type recmod_kind =
     Recmod of Lambda.lambda
-  | Recunit of Ident.t
+  | Recunit of Ident.t * Lambda.lambda list
 
 type binding_status =
   | Undefined
@@ -383,10 +383,15 @@ let eval_rec_bindings bindings cont =
       bind_strict rem
   | (Id id, None, Recmod rhs) :: rem ->
       Llet(Strict, Pgenval, id, rhs, bind_strict rem)
-  | (Id id, None, Recunit pers_id) :: rem ->
-      Llet(Strict, Pgenval, id,
-           Lprim(Pgetglobal pers_id, [], Location.none),
-           bind_strict rem)
+  | (Id id, None, Recunit (pers_id, recmods)) :: rem ->
+      Lletrec([id,
+               Lapply{ap_should_be_tailcall=false;
+                      ap_loc=Location.none;
+                      ap_func=Lprim(Pgetglobal pers_id, [], Location.none);
+                      ap_args=recmods;
+                      ap_inlined=Default_inline;
+                      ap_specialised=Default_specialise}],
+              bind_strict rem)
   | (_id, Some _, _rhs) :: rem ->
       bind_strict rem
   and patch_forwards = function
@@ -404,7 +409,7 @@ let eval_rec_bindings bindings cont =
                        ap_inlined=Default_inline;
                        ap_specialised=Default_specialise},
                 patch_forwards rem)
-  | (Id id, Some(_loc, shape), Recunit pers_id) :: rem ->
+  | (Id id, Some(_loc, shape), Recunit (pers_id, recmods)) :: rem ->
       let shape = shape_to_lambda shape in
       let funct =
         Lprim(Pfield 0, [Lprim(Pgetglobal pers_id, [], Location.none)],
@@ -412,7 +417,7 @@ let eval_rec_bindings bindings cont =
       Lsequence(Lapply{ap_should_be_tailcall=false;
                        ap_loc=Location.none;
                        ap_func= funct;
-                       ap_args=[shape; Lvar id];
+                       ap_args=shape :: Lvar id :: recmods;
                        ap_inlined=Default_inline;
                        ap_specialised=Default_specialise},
                 patch_forwards rem)
@@ -439,7 +444,8 @@ let compile_recmodule compile_rhs bindings cont =
        bindings)
     cont
 
-let compile_recunits components loc cont =
+let compile_recunits components recmods loc cont =
+  let recmods = List.map (fun id -> Lvar id) recmods in
   compile_recmodule_gen
     (List.map
        (function
@@ -450,7 +456,7 @@ let compile_recunits components loc cont =
              let shape = match shape with
                  Ok s -> Ok (undefined_location loc, s)
                | Result.Error e -> Result.Error e in
-             (Id id, loc, shape, Recunit pers_id, fvs))
+             (Id id, loc, shape, Recunit (pers_id, recmods), fvs))
        components)
     cont
 
@@ -843,6 +849,9 @@ let transl_implementation_aux module_id str cc =
         mod_env = str.str_final_env;
         mod_attributes = [] }
     in
+    let rec_idents =
+      List.map (fun name -> Env.recursive_interface_id name, Pgenval)
+        (Env.recursive_interfaces ()) in
     let code, shape, size =
       match init_shape module_id modl with
         Ok (_, shape) ->
@@ -859,7 +868,8 @@ let transl_implementation_aux module_id str cc =
           in
           let body =
             Lfunction {kind = Tupled;
-                       params = [(shape_id, Pgenval); (component_id, Pgenval)];
+                       params = (shape_id, Pgenval) :: (component_id, Pgenval)
+                                :: rec_idents;
                        return = Pgenval;
                        body = update_mod;
                        attr = Lambda.default_stub_attribute;
@@ -867,8 +877,14 @@ let transl_implementation_aux module_id str cc =
           in
           Lprim(Pmakeblock(0, Immutable, None), [body], Location.none), shape, 1
       | Error reason ->
-          (* In that case, the module is bound strictly *)
-          code, Result.Error reason, size
+          (* In that case, the module is bound strictly, without update_mod *)
+          Lfunction {kind = Tupled;
+                       params = rec_idents;
+                       return = Pgenval;
+                       body = code;
+                       attr = Lambda.default_stub_attribute;
+                     loc = Location.none},
+          Result.Error reason, 1
     in
     let recursive = Some (shape, Lambda.free_variables code) in
     code, (size, recursive)
@@ -1597,12 +1613,21 @@ let get_component = function
   | PM_impl { member_id; _ } -> Lprim(Pgetglobal member_id, [], Location.none)
 
 let transl_recursive_package components =
+  let recmods =
+    List.map (fun name -> Ident.create_local name) (Env.recursive_interfaces ())
+  in
   let components =
     List.map (function
           PM_intf -> assert false
         | PM_impl { member_id; _} as comp  ->
-            comp, Ident.create_local (Ident.name member_id)) components in
-  compile_recunits components Location.none
+            comp,
+            List.find (fun id ->
+                let _, name =
+                  Compilation_unit.Prefix.extract_prefix (Ident.name member_id)
+                in
+                name = Ident.name id) recmods)
+      components in
+  compile_recunits components recmods Location.none
     (Lprim(Pmakeblock(0, Immutable, None),
            List.map (fun (_, id) -> Lvar id) components, Location.none))
 
