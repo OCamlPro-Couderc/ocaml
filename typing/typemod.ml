@@ -2450,13 +2450,12 @@ let type_rec_implementation sourcefile outputprefix modulename initial_env ast =
   let sg' =
     enrich_signature None (Ident.name id) str.str_type recenv in
   let intfs =
-    List.map (fun unit ->
-        let name = Compilation_unit.name unit in
+    List.map (fun name ->
         if Compilation_unit.Name.equal name modulename then
           id, Mty_signature sg, Mty_signature sg', loc
         else
           let id =
-            Ident.create_persistent (Compilation_unit.name unit) in
+            Ident.create_persistent name in
           let intf =
             let intf_file =
               try
@@ -2572,13 +2571,13 @@ let type_rec_interfaces env asts =
   List.iter (fun (cu, _, _) -> Env.add_recursive_interface cu) asts;
   let mtys, recenv =
     transl_recmodule_modtypes ~persistent:true env
-      (List.map (fun (cu, ast, loc) ->
+      (List.map (fun (name, ast, loc) ->
            let modty =
              { pmty_desc = Pmty_signature ast;
                pmty_loc = loc;
                pmty_attributes = [] }
            in
-           {pmd_name=Location.mkloc (Compilation_unit.name cu) loc;
+           {pmd_name=Location.mkloc name loc;
             pmd_type=modty;
             pmd_attributes=[]; pmd_loc=loc}) asts)
   in

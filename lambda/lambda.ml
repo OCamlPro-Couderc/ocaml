@@ -652,8 +652,12 @@ let rec patch_guarded patch = function
 
 let rec transl_address loc = function
   | Env.Aident id ->
-      if Ident.global id
-      then Lprim(Pgetglobal id, [], loc)
+      if Ident.global id then
+        let _, name =
+          Compilation_unit.Prefix.extract_prefix (Ident.name id) in
+        if Env.is_recursive_interface name then
+          Lvar (Env.recursive_interface_id name)
+        else Lprim(Pgetglobal id, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->
       Lprim(Pfield pos, [transl_address loc addr], loc)

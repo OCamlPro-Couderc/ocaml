@@ -125,7 +125,13 @@ val is_imported : 'a t -> Compilation_unit.t -> bool
    in [penv] as an opaque module *)
 val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
 
-val add_recursive_interface : 'a t -> Compilation_unit.t -> unit
+(* [is_imported penv unit] checks if [unit] has been succesfully
+   imported in the environment [penv] *)
+val is_recursive_interface : 'a t -> Compilation_unit.Name.t -> bool
+
+val add_recursive_interface : 'a t -> Compilation_unit.Name.t -> unit
+
+val recursive_interface_id : 'a t -> Compilation_unit.Name.t -> Ident.t
 
 val make_cmi : 'a t -> Compilation_unit.Name.t -> Types.signature -> alerts
   -> Cmi_format.cmi_infos
@@ -144,7 +150,7 @@ val import_crcs : 'a t -> source:filepath -> Compilation_unit.crcs -> unit
 (* Return the set of compilation units imported, with their CRC *)
 val imports : 'a t -> Compilation_unit.crcs
 
-val recursive_interfaces : 'a t -> Compilation_unit.t list
+val recursive_interfaces : 'a t -> Compilation_unit.Name.t list
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit:

@@ -78,6 +78,33 @@ let print_line name =
 let print_required_global id =
   printf "\t%s\n" (Ident.name id)
 
+let print_list print_elt ppf elts =
+  List.iter (fun elt -> fprintf ppf "%a ;\n\t" print_elt elt) elts
+
+let rec print_shape ppf = function
+    Lambda.Function -> fprintf ppf "Function"
+  | Lambda.Lazy -> fprintf ppf "Lazy"
+  | Lambda.Class -> fprintf ppf "Class"
+  | Lambda.Module l ->
+      fprintf ppf "Module [%a]"
+        (print_list print_shape) l
+
+let print_shape_result ppf = function
+    Ok shape -> fprintf ppf "Shape: %a" print_shape shape
+  | Error _ -> fprintf ppf "Shape: Error"
+
+let print_free_var ppf id = fprintf ppf "%s" (Ident.name id)
+
+let print_rec_infos infos =
+  printf "Recursive: %a\n"
+    (fun ppf infos ->
+       match infos with
+         None -> fprintf ppf "NO"
+       | Some (shape, fvs) ->
+           fprintf ppf "%a\nFreevars:%a\n"
+             print_shape_result shape
+             (print_list print_free_var) fvs) infos
+
 let print_cmo_infos cu =
   printf "Unit name: %s\n" cu.cu_name;
   print_string "Interfaces imported:\n";
@@ -91,7 +118,8 @@ let print_cmo_infos cu =
         printf "YES\n";
         printf "Primitives declared in this module:\n";
         List.iter print_line l);
-  printf "Force link: %s\n" (if cu.cu_force_link then "YES" else "no")
+  printf "Force link: %s\n" (if cu.cu_force_link then "YES" else "no");
+  print_rec_infos cu.cu_rec_infos
 
 let print_spaced_string s =
   printf " %s" s
@@ -122,7 +150,7 @@ let print_pers_flags =
         (Format.asprintf "%a"
            (Format.pp_print_list
               ~pp_sep:(fun ppf () -> Format.fprintf ppf " ")
-              Compilation_unit.print) intfs)
+              Compilation_unit.Name.print) intfs)
 
 let print_cmi_infos name crcs flags =
   printf "Unit name: %s\n" name;
