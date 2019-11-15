@@ -48,6 +48,7 @@ let update_offset objfile identifiers defined base (rel, ofs) =
     match rel with
       Reloc_getglobal id ->
         if List.mem id identifiers && not (List.mem id defined)
+           && not !Clflags.make_recursive_package
         then raise(Error(Forward_reference(objfile, id)))
     | Reloc_setglobal id ->
         if List.mem id identifiers && List.mem id defined

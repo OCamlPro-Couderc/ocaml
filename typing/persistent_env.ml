@@ -134,7 +134,7 @@ type 'a t = {
   persistent_structures : 'a pers_struct_info NameTbl.t;
   imported_units: CU.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
-  recursive_interfaces: CU.Set.t ref;
+  recursive_interfaces: Ident.t CU.Name.Map.t ref;
   crc_units: Consistbl.t;
   can_load_cmis: can_load_cmis ref;
 }
@@ -143,7 +143,7 @@ let empty () = {
   persistent_structures = NameTbl.create 17;
   imported_units = ref CU.Set.empty;
   imported_opaque_units = ref CU.Name.Set.empty;
-  recursive_interfaces = ref CU.Set.empty;
+  recursive_interfaces = ref CU.Name.Map.empty;
   crc_units = Consistbl.create ();
   can_load_cmis = ref Can_load_cmis;
 }
@@ -160,7 +160,7 @@ let clear penv =
   NameTbl.clear persistent_structures;
   imported_units := CU.Set.empty;
   imported_opaque_units := CU.Name.Set.empty;
-  recursive_interfaces := CU.Set.empty;
+  recursive_interfaces := CU.Name.Map.empty;
   Consistbl.clear crc_units;
   can_load_cmis := Can_load_cmis;
   ()
@@ -181,7 +181,8 @@ let add_imported_opaque {imported_opaque_units; _} s =
   imported_opaque_units := CU.Name.Set.add s !imported_opaque_units
 
 let add_recursive_interface {recursive_interfaces; _} intf =
-  recursive_interfaces := CU.Set.add intf !recursive_interfaces
+  let id = Ident.create_local (CU.Name.to_string intf) in
+  recursive_interfaces := CU.Name.Map.add intf id !recursive_interfaces
 
 let find_in_cache {persistent_structures; _} s =
   match NameTbl.find persistent_structures s with
@@ -322,9 +323,11 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
               error (Need_recursive_interfaces(ps.ps_name));
             if CU.Name.equal (CU.name current_unit) ps.ps_name then
               List.iter (add_recursive_interface penv) intfs;
-            if not (CU.Set.mem current_unit !(penv.recursive_interfaces)) then
+            if not (CU.Name.Map.mem (CU.name current_unit)
+                      !(penv.recursive_interfaces)) then
               error (Need_recursive_interfaces(ps.ps_name))
-          end
+          end else
+            List.iter (add_recursive_interface penv) intfs
       | Opaque ->
           add_imported_opaque penv modname)
     ps.ps_flags;
@@ -457,8 +460,14 @@ let is_imported {imported_units; _} u =
 let is_imported_opaque {imported_opaque_units; _} s =
   CU.Name.Set.mem s !imported_opaque_units
 
+let is_recursive_interface {recursive_interfaces; _} s =
+  CU.Name.Map.mem s !recursive_interfaces
+
+let recursive_interface_id {recursive_interfaces; _} s =
+  CU.Name.Map.find s !recursive_interfaces
+
 let recursive_interfaces {recursive_interfaces; _} =
-  CU.Set.elements !recursive_interfaces
+  List.map fst (CU.Name.Map.bindings !recursive_interfaces)
 
 let make_cmi penv modname sign alerts =
   let flags =
@@ -470,7 +479,7 @@ let make_cmi penv modname sign alerts =
          [] -> []
        | prefix -> [Cmi_format.Pack prefix] );
       if !Clflags.recursive_interfaces then
-        [Cmi_format.Recursive (CU.Set.elements !(penv.recursive_interfaces))]
+        [Cmi_format.Recursive (recursive_interfaces penv)]
       else [];
       [Alerts alerts];
     ]

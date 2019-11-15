@@ -2641,8 +2641,7 @@ let type_rec_implementation sourcefile outputprefix modulename initial_env ast =
   let sg' =
     enrich_signature None (Some (Ident.name id)) str.str_type recenv in
   let intfs =
-    List.map (fun unit ->
-        let name = Compilation_unit.name unit in
+    List.map (fun name ->
         let name_as_string = Compilation_unit.Name.to_string name in
         if Compilation_unit.Name.equal name modulename then
           Some id, Mty_signature sg, Mty_signature sg', loc
@@ -2766,18 +2765,16 @@ let type_interface env ast =
   transl_signature env ast
 
 let type_rec_interfaces env asts =
-  List.iter (fun (cu, _, _) -> Env.add_recursive_interface cu) asts;
+  List.iter (fun (name, _, _) -> Env.add_recursive_interface name) asts;
   let mtys, recenv =
     transl_recmodule_modtypes ~persistent:true env
-      (List.map (fun (cu, ast, loc) ->
+      (List.map (fun (name, ast, loc) ->
            let modty =
              { pmty_desc = Pmty_signature ast;
                pmty_loc = loc;
                pmty_attributes = [] }
            in
-           let name =
-             Some (Compilation_unit.Name.to_string (Compilation_unit.name cu))
-           in
+           let name = Some (Compilation_unit.Name.to_string name) in
            {pmd_name=Location.mkloc name loc;
             pmd_type=modty;
             pmd_attributes=[]; pmd_loc=loc}) asts)

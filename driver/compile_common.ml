@@ -104,10 +104,7 @@ let typecheck_rec_intf infos asts =
   let tsgs, recenv =
     asts
     |> List.map2 (fun info ast ->
-        let unit =
-          Compilation_unit.create
-            ~for_pack_prefix:info.for_pack_prefix info.module_name in
-        unit, ast, Location.in_file info.source_file) infos
+        info.module_name, ast, Location.in_file info.source_file) infos
     |> Typemod.type_rec_interfaces env
     |> fun (tsgs, recenv) ->
     List.map2 (fun tsg info ->

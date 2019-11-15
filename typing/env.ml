@@ -773,8 +773,14 @@ let is_imported_opaque modname =
 let recursive_interfaces () =
   Persistent_env.recursive_interfaces persistent_env
 
-let add_recursive_interface cu =
-  Persistent_env.add_recursive_interface persistent_env cu
+let add_recursive_interface modname =
+  Persistent_env.add_recursive_interface persistent_env modname
+
+let is_recursive_interface modname =
+  Persistent_env.is_recursive_interface persistent_env modname
+
+let recursive_interface_id modname =
+  Persistent_env.recursive_interface_id persistent_env modname
 
 let reset_declaration_caches () =
   Hashtbl.clear value_declarations;
