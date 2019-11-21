@@ -50,8 +50,7 @@ let main () =
         (ppf,
          Optcompile.implementation ~backend,
          Optcompile.interface,
-         (fun ~source_files ~output_prefixes -> ignore (source_files,
-                                                        output_prefixes); assert false),
+         Optcompile.rec_interfaces,
          ".cmx",
          ".cmxa");
     with Arg.Bad msg ->
@@ -88,7 +87,7 @@ let main () =
         (get_objfiles ~with_ocamlparam:false) target;
       Warnings.check_fatal ();
     end
-    else if !make_package then begin
+    else if !make_package || !make_recursive_package then begin
       Compmisc.init_path ();
       let target = extract_output !output_name in
       Compmisc.with_ppf_dump ~file_prefix:target (fun ppf_dump ->

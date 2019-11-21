@@ -58,14 +58,16 @@ module Unit_info = struct
     defines : Compilation_unit.t list;
     imports_cmi : Digest.t option Compilation_unit.Map.t;
     imports_cmx : Digest.t option Compilation_unit.Map.t;
+    recursive : (Lambda.shape_result * Ident.t list) option;
     export_info : export_info;
   }
 
-  let create ~unit ~defines ~imports_cmi ~imports_cmx ~export_info =
+  let create ~unit ~defines ~imports_cmi ~imports_cmx ~recursive ~export_info =
     { unit;
       defines;
       imports_cmi;
       imports_cmx;
+      recursive;
       export_info;
     }
 
@@ -74,6 +76,7 @@ module Unit_info = struct
   let imports_cmi t = t.imports_cmi
   let imports_cmx t = t.imports_cmx
   let export_info t = t.export_info
+  let recursive t = t.recursive
 
   let with_export_info t export_info =
     { t with

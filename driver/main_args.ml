@@ -987,6 +987,7 @@ module type Compiler_options = sig
   val _pp : string -> unit
   val _principal : unit -> unit
   val _no_principal : unit -> unit
+  val _recinterfaces: unit -> unit
   val _rectypes : unit -> unit
   val _recursive_pack : unit -> unit
   val _runtime_variant : string -> unit
@@ -1401,6 +1402,7 @@ struct
     mk_ppx F._ppx;
     mk_principal F._principal;
     mk_no_principal F._no_principal;
+    mk_recinterfaces F._recinterfaces;
     mk_rectypes F._rectypes;
     mk_recursive_pack_opt F._recursive_pack;
     mk_no_rectypes F._no_rectypes;

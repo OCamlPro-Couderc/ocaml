@@ -33,11 +33,22 @@ let interface ~source_file ~output_prefix =
   with_info ~source_file ~output_prefix ~dump_ext:"cmi" @@ fun info ->
   Compile_common.interface info
 
+let with_infos ~source_files ~output_prefixes ~dump_ext k =
+  List.map2 (fun source_file output_prefix ->
+      safe_with_info ~native:false ~tool_name ~source_file ~output_prefix ~dump_ext
+        (fun info -> info))
+    source_files output_prefixes
+  |> k
+
+let rec_interfaces ~source_files ~output_prefixes =
+  with_infos ~source_files ~output_prefixes ~dump_ext:"cmi" @@ fun infos ->
+  Compile_common.rec_interfaces infos
+
 let (|>>) (x, y) f = (x, f y)
 
 (** Native compilation backend for .ml files. *)
 
-let write_cmx_file filename =
+let write_cmx_file filename recursive =
   let imports_cmi =
     (* CR-someday mshinwell: Replace type "modname" everywhere with a new type,
        in its own module, such module to supercede [Compilation_unit.Name]. *)
@@ -56,7 +67,12 @@ let write_cmx_file filename =
       | Closure approx -> Closure approx
       | Flambda export_info -> Flambda export_info
     in
-    UI.create ~unit ~defines ~imports_cmi ~imports_cmx ~export_info
+    let recursive =
+      match recursive with
+        None -> None
+      | Some (shape, fvs) -> Some (shape, Ident.Set.elements fvs)
+    in
+    UI.create ~unit ~defines ~imports_cmi ~imports_cmx ~recursive ~export_info
   in
   let unit_info_link_time =
     let linking_state = Linking_state.Snapshot.create () in
@@ -102,7 +118,7 @@ let flambda i backend typed =
         ~middle_end:Flambda_middle_end.lambda_to_clambda
         ~ppf_dump:i.ppf_dump
         program);
-    write_cmx_file (cmx i))
+    write_cmx_file (cmx i) recursive)
 
 let closure i backend typed =
   Clflags.use_inlining_arguments_set Clflags.classic_arguments;
@@ -122,7 +138,7 @@ let closure i backend typed =
             ~prefixname:i.output_prefix
             ~middle_end:Closure_middle_end.lambda_to_clambda
             ~ppf_dump:i.ppf_dump;
-       write_cmx_file (cmx i))
+       write_cmx_file (cmx i) program.Lambda.recursive)
 
 let implementation ~backend ~source_file ~output_prefix =
   let backend info typed =
