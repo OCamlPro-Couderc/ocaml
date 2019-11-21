@@ -26,7 +26,6 @@ let interface ~source_file ~output_prefix =
   Compile_common.interface info
 
 let with_infos ~source_files ~output_prefixes ~dump_ext k =
-  (* Temporary hack *)
   List.map2 (fun source_file output_prefix ->
       safe_with_info ~native:false ~tool_name ~source_file ~output_prefix ~dump_ext
         (fun info -> info))
