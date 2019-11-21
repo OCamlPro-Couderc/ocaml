@@ -96,6 +96,7 @@ module type Compiler_options = sig
   val _pp : string -> unit
   val _principal : unit -> unit
   val _no_principal : unit -> unit
+  val _recinterfaces: unit -> unit
   val _rectypes : unit -> unit
   val _recursive_pack : unit -> unit
   val _runtime_variant : string -> unit

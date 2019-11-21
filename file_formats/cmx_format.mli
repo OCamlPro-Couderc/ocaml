@@ -52,6 +52,7 @@ module Unit_info : sig
        with a "-for-pack" option (see CR in compilation_state.ml). *)
     -> imports_cmi:Digest.t option Compilation_unit.Map.t
     -> imports_cmx:Digest.t option Compilation_unit.Map.t
+    -> recursive:(Lambda.shape_result * Ident.t list) option
     -> export_info:export_info
     -> t
 
@@ -67,6 +68,9 @@ module Unit_info : sig
 
   (** Info imported. *)
   val imports_cmx : t -> Digest.t option Compilation_unit.Map.t
+
+  (** Shape and recursive modules from the same pack *)
+  val recursive : t -> (Lambda.shape_result * Ident.t list) option
 
   (** Term language information, e.g. for inlining. *)
   val export_info : t -> export_info

@@ -125,10 +125,18 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         (fun m ->
           match m.pm_kind with
           | PM_intf -> Lambda.PM_intf
-          | PM_impl _ ->
+          | PM_impl (ui, _) ->
               let member_id =
                 Ident.create_persistent (CU.Name.to_string m.pm_name) in
-              let member_recursive = None in
+              let member_recursive =
+                match UI.recursive ui with
+                  None -> None
+                | Some (s, fvs) ->
+                    let fvs' =
+                      List.fold_left (fun acc elt -> Ident.Set.add elt acc)
+                        Ident.Set.empty fvs in
+                    Some (s, fvs')
+              in
               Lambda.PM_impl { member_id; member_recursive })
         members
     in
@@ -139,6 +147,8 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
       let main_module_block_size, code =
         Translmod.transl_package_flambda components coercion
       in
+      if !Clflags.dump_lambda then
+        Format.fprintf ppf_dump "%a@." Printlambda.lambda code;
       let program =
         { Lambda.
           code;
@@ -159,6 +169,8 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         Translmod.transl_store_package components
           (Ident.create_persistent targetname) coercion
       in
+      if !Clflags.dump_lambda then
+        Format.fprintf ppf_dump "%a@." Printlambda.lambda code;
       let program =
         { Lambda.
           code;
@@ -244,6 +256,7 @@ let build_package_cmx members cmxfile =
   in
   let pkg_infos =
     UI.create ~unit:current_unit ~defines ~imports_cmi ~imports_cmx
+      ~recursive:None
       ~export_info
   in
   let pkg_link_infos = Cmx_format.Unit_info_link_time.join unit_link_infos in

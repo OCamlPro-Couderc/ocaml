@@ -21,6 +21,9 @@ val implementation:
    backend:(module Backend_intf.S)
    -> source_file:string -> output_prefix:string -> unit
 
+val rec_interfaces:
+  source_files:string list -> output_prefixes:string list -> unit
+
 (** {2 Internal functions} **)
 
 val closure :
