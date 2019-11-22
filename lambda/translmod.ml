@@ -873,7 +873,13 @@ let transl_recursive_implementation module_id str code =
                             :: rec_idents;
                    return = Pgenval;
                    body = update_mod;
-                   attr = Lambda.default_function_attribute;
+                   attr = {
+                     inline = Default_inline;
+                     specialise = Default_specialise;
+                     local = Default_local;
+                     is_a_functor = true;
+                     stub = false;
+                   };
                    loc = Location.none}, shape, 1
     | Error reason ->
         (* In that case, the module is bound strictly, without update_mod *)
@@ -881,7 +887,13 @@ let transl_recursive_implementation module_id str code =
                    params = rec_idents;
                    return = Pgenval;
                    body = code;
-                   attr = Lambda.default_function_attribute;
+                   attr = {
+                     inline = Default_inline;
+                     specialise = Default_specialise;
+                     local = Default_local;
+                     is_a_functor = true;
+                     stub = false;
+                   };
                    loc = Location.none},
         Result.Error reason, 1
   in
