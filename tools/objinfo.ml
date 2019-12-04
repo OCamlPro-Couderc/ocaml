@@ -106,6 +106,10 @@ let print_rec_infos infos =
              print_shape_result shape
              (print_list print_free_var) fvs) infos
 
+let print_compunit unit =
+  printf "\t%s\n"
+    (Format.asprintf "%a" Compilation_unit.print_full_path unit)
+
 let print_cmo_infos cu =
   printf "Unit name: %s\n" cu.cu_name;
   print_string "Interfaces imported:\n";
@@ -120,7 +124,9 @@ let print_cmo_infos cu =
         printf "Primitives declared in this module:\n";
         List.iter print_line l);
   printf "Force link: %s\n" (if cu.cu_force_link then "YES" else "no");
-  print_rec_infos cu.cu_rec_infos
+  print_rec_infos cu.cu_rec_infos;
+  print_string "Recursive pack dependencies:\n";
+  List.iter print_compunit cu.cu_rec_dependencies
 
 let print_spaced_string s =
   printf " %s" s
@@ -145,7 +151,10 @@ let print_pers_flags =
   | Alerts _ -> ()
   | Opaque -> printf " -opaque"
   | Unsafe_string -> printf " -unsafe-string"
-  | Pack modnames -> printf " -for-pack %s" (String.concat "." modnames)
+  | Pack (modnames, is_recursive) ->
+      printf " -for-%spack %s"
+        (if is_recursive then "recursive-" else "")
+        (String.concat "." modnames)
   | Recursive intfs ->
       printf " -recursive %s"
         (Format.asprintf "%a"

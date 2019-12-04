@@ -20,7 +20,7 @@ type pers_flags =
   | Alerts of alerts
   | Opaque
   | Unsafe_string
-  | Pack of Compilation_unit.Prefix.t
+  | Pack of Compilation_unit.Prefix.t * bool
   | Recursive of Compilation_unit.Name.t list
 
 type cmi_infos = {

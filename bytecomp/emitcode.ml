@@ -430,6 +430,7 @@ let to_file outchan unit_name objfile ~required_globals rec_infos code =
       cu_primitives = List.map Primitive.byte_name
                                !Translmod.primitive_declarations;
       cu_required_globals = Ident.Set.elements required_globals;
+      cu_rec_dependencies = Env.imports_from_recursive_pack ();
       cu_rec_infos = rec_infos;
       cu_force_link = !Clflags.link_everything;
       cu_debug = pos_debug;
