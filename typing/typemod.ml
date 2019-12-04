@@ -2658,7 +2658,7 @@ let type_rec_implementation sourcefile outputprefix modulename initial_env ast =
             Env.read_signature name intf_file
           in
           Some id, Mty_signature intf, Mty_signature intf, loc)
-      (Env.recursive_interfaces ())
+      (Env.imports_from_same_recursive_pack ())
   in
   (* adapt to use Includemod.compunit *)
   let coercions =

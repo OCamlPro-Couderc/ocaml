@@ -38,6 +38,10 @@ type compilation_unit =
                                             must occur before this one. *)
     cu_rec_infos: (Lambda.shape_result * Ident.t list) option;
                                          (* Used to initialize recursive unit *)
+    cu_rec_dependencies: Compilation_unit.t list;
+                                         (* Compilation units in the current
+                                            recursive pack that must be
+                                            initialized before this one. *)
     cu_primitives: string list;          (* Primitives declared inside *)
     mutable cu_force_link: bool;         (* Must be linked even if unref'ed *)
     mutable cu_debug: int;               (* Position of debugging info, or 0 *)

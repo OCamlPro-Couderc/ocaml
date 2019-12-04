@@ -53,6 +53,7 @@ module Unit_info : sig
     -> imports_cmi:Digest.t option Compilation_unit.Map.t
     -> imports_cmx:Digest.t option Compilation_unit.Map.t
     -> recursive:(Lambda.shape_result * Ident.t list) option
+    -> recursive_dependencies:Compilation_unit.t list
     -> export_info:export_info
     -> t
 
@@ -71,6 +72,8 @@ module Unit_info : sig
 
   (** Shape and recursive modules from the same pack *)
   val recursive : t -> (Lambda.shape_result * Ident.t list) option
+
+  val recursive_dependencies : t -> Compilation_unit.t list
 
   (** Term language information, e.g. for inlining. *)
   val export_info : t -> export_info

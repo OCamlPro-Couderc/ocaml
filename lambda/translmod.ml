@@ -450,18 +450,32 @@ let compile_recmodule compile_rhs bindings cont =
        bindings)
     cont
 
-let compile_recunits components recmods loc cont =
-  let recmods = List.map (fun id -> Lvar id) recmods in
+let compile_recunits components loc cont =
+  let recmods = List.map (fun (_, id) -> id) components in
   compile_recmodule_gen
     (List.map
        (function
-           (PM_intf, _) -> assert false
-         | (PM_impl {member_recursive = None }, _) -> assert false
-         | (PM_impl {member_id=pers_id;
-                     member_recursive = Some (shape, fvs)}, id) ->
+           PM_intf, _ -> assert false
+         | PM_impl {member_recursive = None }, _ -> assert false
+         | PM_impl {member_cu;
+                    member_recursive = Some (shape, fvs);
+                    member_recursive_dependencies}, id ->
+             let pers_id =
+               Ident.create_persistent
+                 ~prefix:(Compilation_unit.for_pack_prefix member_cu)
+                 (Compilation_unit.(Name.to_string (name member_cu)))
+             in
              let shape = match shape with
                  Ok s -> Ok (undefined_location loc, s)
                | Result.Error e -> Result.Error e in
+             let recmods =
+               List.map (fun cu ->
+                   let fullpath = Compilation_unit.full_path_as_string cu in
+                   let id =
+                     List.find (fun id -> Ident.name id = fullpath) recmods in
+                   Lvar id)
+                 member_recursive_dependencies
+             in
              (Id id, loc, shape, Recunit (pers_id, recmods), fvs))
        components)
     cont
@@ -852,8 +866,8 @@ let transl_recursive_implementation module_id str code =
       mod_attributes = [] }
   in
   let rec_idents =
-    List.map (fun name -> Env.recursive_interface_id name, Pgenval)
-      (Env.recursive_interfaces ()) in
+    List.map (fun cu -> Env.recursive_pack_component_id cu, Pgenval)
+      (Env.imports_from_recursive_pack ()) in
   let code, shape, size =
     match init_shape module_id modl with
       Ok (_, shape) ->
@@ -1657,27 +1671,23 @@ let transl_toplevel_definition str =
 
 let get_component = function
     PM_intf -> Lconst const_unit
-  | PM_impl { member_id; _ } -> Lprim(Pgetglobal member_id, [], Location.none)
+  | PM_impl { member_cu; _ } ->
+      let pers_id =
+        Ident.create_persistent
+          ~prefix:(Compilation_unit.for_pack_prefix member_cu)
+          (Compilation_unit.(Name.to_string (name member_cu)))
+      in
+      Lprim(Pgetglobal pers_id, [], Location.none)
 
 let transl_recursive_package components bind_components =
-  let recmods =
-    List.map (fun name ->
-        Ident.create_local (Compilation_unit.Name.to_string name))
-      (Env.recursive_interfaces ())
-  in
   let components =
     List.map (function
           PM_intf -> assert false
-        | PM_impl { member_id; _} as comp  ->
+        | PM_impl { member_cu; _} as comp  ->
             comp,
-            List.find (fun id ->
-                let _, name =
-                  Compilation_unit.Prefix.extract_prefix (Ident.name member_id)
-                in
-                let id_name = Compilation_unit.Name.of_string (Ident.name id) in
-                Compilation_unit.Name.equal name id_name) recmods)
+            Ident.create_local (Compilation_unit.full_path_as_string member_cu))
       components in
-  compile_recunits components recmods Location.none
+  compile_recunits components (* recmods  *)Location.none
     (bind_components components)
 
 let transl_package_flambda components coercion =

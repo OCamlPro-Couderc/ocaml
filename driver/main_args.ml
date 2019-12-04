@@ -128,6 +128,18 @@ let mk_for_pack_opt f =
   \     ocamlopt -pack -o <ident>.cmx"
 ;;
 
+let mk_for_recursive_pack_byt f =
+  "-for-recursive-pack", Arg.String f,
+  "<ident>  Generate code that can later be recursively `packed' with\n\
+  \     ocamlc -recursive-pack -o <ident>.cmo"
+;;
+
+let mk_for_recursive_pack_opt f =
+  "-for-recursive-pack", Arg.String f,
+  "<ident>  Generate code that can later be recursively `packed' with\n\
+  \     ocamlopt -recursive-pack -o <ident>.cmx"
+;;
+
 let mk_g_byt f =
   "-g", Arg.Unit f, " Save debugging information"
 ;;
@@ -966,6 +978,7 @@ module type Compiler_options = sig
   val _config : unit -> unit
   val _config_var : string -> unit
   val _for_pack : string -> unit
+  val _for_recursive_pack : string -> unit
   val _g : unit -> unit
   val _stop_after : string -> unit
   val _i : unit -> unit
@@ -1168,6 +1181,7 @@ struct
     mk_dllpath F._dllpath;
     mk_dtypes F._annot;
     mk_for_pack_byt F._for_pack;
+    mk_for_recursive_pack_byt F._for_recursive_pack;
     mk_g_byt F._g;
     mk_stop_after ~native:false F._stop_after;
     mk_i F._i;
@@ -1348,6 +1362,7 @@ struct
     mk_config_var F._config_var;
     mk_dtypes F._annot;
     mk_for_pack_opt F._for_pack;
+    mk_for_recursive_pack_opt F._for_recursive_pack;
     mk_g_opt F._g;
     mk_function_sections F._function_sections;
     mk_stop_after ~native:true F._stop_after;
@@ -1853,6 +1868,8 @@ module Default = struct
     let _dtimings () = profile_columns := [`Time]
     let _dump_into_file = set dump_into_file
     let _for_pack s = for_package := (Some s)
+    let _for_recursive_pack s =
+      for_package := (Some s); for_recursive_package := true
     let _g = set debug
     let _i = set print_types
     let _impl = impl

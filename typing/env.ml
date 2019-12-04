@@ -711,7 +711,7 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
   let pers_address =
     List.find_opt (function Pack _ -> true | _ -> false) flags
     |> function
-      Some (Pack prefix) ->
+      Some (Pack (prefix, _)) ->
         Aident (Ident.create_persistent ~prefix name)
     | _ -> Aident id
   in
@@ -770,17 +770,20 @@ let crc_of_unit name =
 let is_imported_opaque modname =
   Persistent_env.is_imported_opaque persistent_env modname
 
-let recursive_interfaces () =
-  Persistent_env.recursive_interfaces persistent_env
+let imports_from_recursive_pack () =
+  Persistent_env.imports_from_recursive_pack persistent_env
+
+let imports_from_same_recursive_pack () =
+  Persistent_env.imports_from_same_recursive_pack persistent_env
 
 let add_recursive_interface modname =
   Persistent_env.add_recursive_interface persistent_env modname
 
-let is_recursive_interface modname =
-  Persistent_env.is_recursive_interface persistent_env modname
+let is_imported_from_recursive_pack cu =
+  Persistent_env.is_imported_from_recursive_pack persistent_env cu
 
-let recursive_interface_id modname =
-  Persistent_env.recursive_interface_id persistent_env modname
+let recursive_pack_component_id cu =
+  Persistent_env.recursive_pack_component_id persistent_env cu
 
 let reset_declaration_caches () =
   Hashtbl.clear value_declarations;
