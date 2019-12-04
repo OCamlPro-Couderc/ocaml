@@ -347,8 +347,9 @@ type shape =
 type shape_result = (shape, unsafe_info) Result.t
 
 type member_infos = {
-  member_id: Ident.t;
-  member_recursive: (shape_result * Ident.Set.t) option
+  member_cu: Compilation_unit.t;
+  member_recursive: (shape_result * Ident.Set.t) option;
+  member_recursive_dependencies: Compilation_unit.t list;
 }
 
 type pack_member =
@@ -653,10 +654,9 @@ let rec patch_guarded patch = function
 let rec transl_address loc = function
   | Env.Aident id ->
       if Ident.global id then
-        let _, name =
-          Compilation_unit.Prefix.extract_prefix (Ident.name id) in
-        if Env.is_recursive_interface name then
-          Lvar (Env.recursive_interface_id name)
+        let cu = Compilation_unit.of_raw_string (Ident.name id) in
+        if Env.is_imported_from_recursive_pack cu then
+          Lvar (Env.recursive_pack_component_id cu)
         else Lprim(Pgetglobal id, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->

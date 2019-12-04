@@ -72,7 +72,9 @@ let write_cmx_file filename recursive =
         None -> None
       | Some (shape, fvs) -> Some (shape, Ident.Set.elements fvs)
     in
-    UI.create ~unit ~defines ~imports_cmi ~imports_cmx ~recursive ~export_info
+    let recursive_dependencies = Env.imports_from_recursive_pack () in
+    UI.create ~unit ~defines ~imports_cmi ~imports_cmx
+      ~recursive ~recursive_dependencies ~export_info
   in
   let unit_info_link_time =
     let linking_state = Linking_state.Snapshot.create () in

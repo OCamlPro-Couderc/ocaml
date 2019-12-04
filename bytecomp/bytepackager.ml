@@ -166,13 +166,16 @@ let rec append_bytecode_list packagename oc identifiers defined ofs subst =
 
 (* Generate the code that builds the tuple representing the package module *)
 
-let build_global_target ~ppf_dump oc target_name members identifiers pos coercion =
+let build_global_target ~ppf_dump oc prefix target_name members identifiers pos coercion =
   let components =
     List.map2
-      (fun m id ->
+      (fun m _id ->
         match m.pm_kind with
         | PM_intf -> Lambda.PM_intf
         | PM_impl compunit ->
+            let member_cu =
+              Compilation_unit.create ~for_pack_prefix:prefix m.pm_name
+            in
             let member_recursive =
               match compunit.cu_rec_infos with
                 None -> None
@@ -183,7 +186,9 @@ let build_global_target ~ppf_dump oc target_name members identifiers pos coercio
                   Some (s, fvs')
             in
             let member_infos =
-              Lambda.{ member_id = id; member_recursive }
+              Lambda.{ member_cu; member_recursive;
+                       member_recursive_dependencies =
+                         compunit.cu_rec_dependencies }
             in
             Lambda.PM_impl member_infos)
       members identifiers in
@@ -239,7 +244,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let pos_code = pos_out oc in
     let ofs = append_bytecode_list packagename oc identifiers [] 0
                                    Subst.identity members in
-    build_global_target ~ppf_dump oc targetname members identifiers ofs coercion;
+    build_global_target ~ppf_dump oc prefix targetname members identifiers ofs coercion;
     let pos_debug = pos_out oc in
     if !Clflags.debug && !events <> [] then begin
       output_value oc (List.rev !events);
@@ -262,6 +267,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
           (unit, Some (Env.crc_of_unit targetname)) :: imports;
         cu_primitives = !primitives;
         cu_required_globals = Ident.Set.elements required_globals;
+        cu_rec_dependencies = [];
         cu_rec_infos = None;
         cu_force_link = !force_link;
         cu_debug = if pos_final > pos_debug then pos_debug else 0;

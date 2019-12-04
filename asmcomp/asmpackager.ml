@@ -105,7 +105,7 @@ let check_units members =
 
 (* Make the .o file for the package *)
 
-let make_package_object ~ppf_dump members targetobj targetname coercion
+let make_package_object ~ppf_dump prefix members targetobj targetname coercion
       ~backend =
   Profile.record_call (Printf.sprintf "pack(%s)" targetname) (fun () ->
     let objtemp =
@@ -126,8 +126,8 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
           match m.pm_kind with
           | PM_intf -> Lambda.PM_intf
           | PM_impl (ui, _) ->
-              let member_id =
-                Ident.create_persistent (CU.Name.to_string m.pm_name) in
+              let member_cu =
+                CU.create ~for_pack_prefix:prefix m.pm_name in
               let member_recursive =
                 match UI.recursive ui with
                   None -> None
@@ -137,7 +137,9 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
                         Ident.Set.empty fvs in
                     Some (s, fvs')
               in
-              Lambda.PM_impl { member_id; member_recursive })
+              Lambda.PM_impl { member_cu; member_recursive;
+                               member_recursive_dependencies =
+                                 UI.recursive_dependencies ui })
         members
     in
     let module_ident = Ident.create_persistent targetname in
@@ -257,6 +259,7 @@ let build_package_cmx members cmxfile =
   let pkg_infos =
     UI.create ~unit:current_unit ~defines ~imports_cmi ~imports_cmx
       ~recursive:None
+      ~recursive_dependencies:[]
       ~export_info
   in
   let pkg_link_infos = Cmx_format.Unit_info_link_time.join unit_link_infos in
@@ -273,7 +276,7 @@ let package_object_files ~ppf_dump files targetcmx
   let pack_path = CU.Prefix.parse_for_pack (Some packagename) in
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
-  make_package_object ~ppf_dump members targetobj targetname coercion ~backend;
+  make_package_object ~ppf_dump pack_path members targetobj targetname coercion ~backend;
   build_package_cmx members targetcmx
 
 (* The entry point *)

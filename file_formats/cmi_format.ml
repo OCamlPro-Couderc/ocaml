@@ -20,7 +20,7 @@ type pers_flags =
   | Alerts of alerts
   | Opaque
   | Unsafe_string
-  | Pack of Compilation_unit.Prefix.t
+  | Pack of Compilation_unit.Prefix.t * bool
   | Recursive of Compilation_unit.Name.t list
 
 type error =
@@ -85,7 +85,7 @@ let output_cmi filename oc cmi =
   let crc = Digest.file filename in
   let for_pack_prefix =
     match List.find_opt (function Pack _ -> true | _ -> false) cmi.cmi_flags with
-      Some (Pack p) -> p
+      Some (Pack (p, _)) -> p
     | _ -> []
   in
   let crcs =

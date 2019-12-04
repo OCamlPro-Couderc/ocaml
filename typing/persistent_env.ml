@@ -131,7 +131,7 @@ type 'a t = {
   persistent_structures : 'a pers_struct_info NameTbl.t;
   imported_units: CU.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
-  recursive_interfaces: Ident.t CU.Name.Map.t ref;
+  recursive_dependencies: Ident.t CU.Map.t ref;
   crc_units: Consistbl.t;
   can_load_cmis: can_load_cmis ref;
 }
@@ -140,7 +140,7 @@ let empty () = {
   persistent_structures = NameTbl.create 17;
   imported_units = ref CU.Set.empty;
   imported_opaque_units = ref CU.Name.Set.empty;
-  recursive_interfaces = ref CU.Name.Map.empty;
+  recursive_dependencies = ref CU.Map.empty;
   crc_units = Consistbl.create ();
   can_load_cmis = ref Can_load_cmis;
 }
@@ -150,14 +150,14 @@ let clear penv =
     persistent_structures;
     imported_units;
     imported_opaque_units;
-    recursive_interfaces;
+    recursive_dependencies;
     crc_units;
     can_load_cmis;
   } = penv in
   NameTbl.clear persistent_structures;
   imported_units := CU.Set.empty;
   imported_opaque_units := CU.Name.Set.empty;
-  recursive_interfaces := CU.Name.Map.empty;
+  recursive_dependencies := CU.Map.empty;
   Consistbl.clear crc_units;
   can_load_cmis := Can_load_cmis;
   ()
@@ -177,9 +177,14 @@ let add_import {imported_units; _} unit =
 let add_imported_opaque {imported_opaque_units; _} s =
   imported_opaque_units := CU.Name.Set.add s !imported_opaque_units
 
-let add_recursive_interface {recursive_interfaces; _} intf =
-  let id = Ident.create_local intf in
-  recursive_interfaces := CU.Name.Map.add intf id !recursive_interfaces
+let add_imported_recursive_pack_component {recursive_dependencies; _} cu id =
+  recursive_dependencies := CU.Map.add cu id !recursive_dependencies
+
+let add_recursive_interface penv intf =
+  let curr_prefix = CU.for_pack_prefix (Current_unit.get_exn ()) in
+  let cu = CU.create ~for_pack_prefix:curr_prefix intf in
+  let id = Ident.create_local (CU.full_path_as_string cu) in
+  add_imported_recursive_pack_component penv cu id
 
 let find_in_cache {persistent_structures; _} s =
   match NameTbl.find persistent_structures s with
@@ -225,7 +230,7 @@ let fold {persistent_structures; _} f x =
 
 let prefix_of_pers_struct ps =
     match List.find_opt (function Pack _ -> true | _ -> false) ps.ps_flags with
-      Some (Pack p) -> p
+      Some (Pack (p, _)) -> p
     | _ -> []
 
 (* Reading persistent structures from .cmi files *)
@@ -239,7 +244,7 @@ let save_pers_struct penv crc ps pm =
         | Rectypes -> ()
         | Alerts _ -> ()
         | Unsafe_string -> ()
-        | Pack _p -> ()
+        | Pack _ -> ()
         | Recursive _ -> ()
         | Opaque -> add_imported_opaque penv modname)
     ps.ps_flags;
@@ -281,7 +286,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
           if Config.safe_string then
             error (Depend_on_unsafe_string_unit(ps.ps_name));
       | Alerts _ -> ()
-      | Pack p ->
+      | Pack (p, is_recursive) ->
           (* Current for-pack prefix should be stored somewhere to avoid
              computing it using `split_on_char` each time *)
           let curr_prefix = CU.for_pack_prefix (Current_unit.get_exn ()) in
@@ -295,7 +300,17 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
                      (filename,
                       CU.Name.of_string
                         (CU.Prefix.to_string p ^ "." ^
-                         CU.Name.to_string modname)))
+                         CU.Name.to_string modname)));
+          if !Clflags.for_recursive_package
+          || !Clflags.make_recursive_package then
+            if not is_recursive then
+              failwith "component should be compiled for a recursive pack"
+            else
+              let cu = CU.create ~for_pack_prefix:p modname in
+              let id = Ident.create_local (CU.full_path_as_string cu) in
+              add_imported_recursive_pack_component penv cu id
+          else if is_recursive then
+            failwith "component should be compiled for a recursive pack"
       | Recursive intfs ->
           (* The parameters to take account of are:
              - either the current unit is an interface, and it is compiled in
@@ -310,14 +325,14 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
              Since pack tie the recursive interfaces together, we can check they
              belong to the same (recursive) pack.
           *)
-          if not !Clflags.make_recursive_package then begin
+          if not !Clflags.make_recursive_package
+          && not !Clflags.for_recursive_package then begin
             let current_unit = Current_unit.get_exn () in
             if not !Clflags.recursive_interfaces then
               error (Need_recursive_interfaces(ps.ps_name));
             if CU.Name.equal (CU.name current_unit) ps.ps_name then
               List.iter (add_recursive_interface penv) intfs;
-            if not (CU.Name.Map.mem (CU.name current_unit)
-                      !(penv.recursive_interfaces)) then
+            if not (CU.Map.mem current_unit !(penv.recursive_dependencies)) then
               error (Need_recursive_interfaces(ps.ps_name))
           end else
             List.iter (add_recursive_interface penv) intfs
@@ -451,14 +466,21 @@ let is_imported {imported_units; _} u =
 let is_imported_opaque {imported_opaque_units; _} s =
   CU.Name.Set.mem s !imported_opaque_units
 
-let is_recursive_interface {recursive_interfaces; _} s =
-  CU.Name.Map.mem s !recursive_interfaces
+let is_imported_from_recursive_pack {recursive_dependencies; _} s =
+  CU.Map.mem s !recursive_dependencies
 
-let recursive_interface_id {recursive_interfaces; _} s =
-  CU.Name.Map.find s !recursive_interfaces
+let recursive_pack_component_id {recursive_dependencies; _} s =
+  CU.Map.find s !recursive_dependencies
 
-let recursive_interfaces {recursive_interfaces; _} =
-  List.map fst (CU.Name.Map.bindings !recursive_interfaces)
+let imports_from_recursive_pack {recursive_dependencies; _} =
+  List.map fst (CU.Map.bindings !recursive_dependencies)
+
+let imports_from_same_recursive_pack {recursive_dependencies; _} =
+  let current_prefix = CU.for_pack_prefix (Current_unit.get_exn ()) in
+  List.filter_map (fun (cu, _) ->
+      if CU.Prefix.equal (CU.for_pack_prefix cu) current_prefix then Some (CU.name cu)
+      else None)
+    (CU.Map.bindings !recursive_dependencies)
 
 let make_cmi penv modname sign alerts =
   let flags =
@@ -468,9 +490,9 @@ let make_cmi penv modname sign alerts =
       (if !Clflags.unsafe_string then [Cmi_format.Unsafe_string] else []);
       (match CU.for_pack_prefix (Current_unit.get_exn ()) with
          [] -> []
-       | prefix -> [Cmi_format.Pack prefix] );
+       | prefix -> [Cmi_format.Pack (prefix, !Clflags.for_recursive_package)] );
       if !Clflags.recursive_interfaces then
-        [Cmi_format.Recursive (recursive_interfaces penv)]
+        [Cmi_format.Recursive (imports_from_same_recursive_pack penv)]
       else [];
       [Alerts alerts];
     ]
@@ -500,7 +522,7 @@ let save_cmi penv psig pm =
          will also return its crc *)
       let prefix =
         match List.find_opt (function Pack _ -> true | _ -> false) flags with
-          Some (Pack p) -> p
+          Some (Pack (p, _)) -> p
         | _ -> []
       in
       let unit = CU.create ~for_pack_prefix:prefix modname in

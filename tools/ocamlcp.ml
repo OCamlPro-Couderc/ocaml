@@ -50,6 +50,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _dllpath = ignore
   let _dtypes = ignore
   let _for_pack = ignore
+  let _for_recursive_pack = ignore
   let _g = ignore
   let _stop_after = ignore
   let _i = ignore
