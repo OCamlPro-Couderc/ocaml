@@ -329,9 +329,11 @@ type shape =
 
 type shape_result = (shape, unsafe_info) Result.t
 
+type recursive_info = (shape_result * Ident.Set.t) option
+
 type member_infos = {
   member_cu: Compilation_unit.t;
-  member_recursive: (shape_result * Ident.Set.t) option;
+  member_recursive: recursive_info;
   member_recursive_dependencies : Compilation_unit.t list;
 }
 
@@ -344,7 +346,7 @@ type program =
     main_module_block_size : int;
     required_globals : Ident.Set.t;    (* Modules whose initializer side effects
                                           must occur before [code]. *)
-    recursive : (shape_result * Ident.Set.t) option;
+    recursive : recursive_info;
     code : lambda }
 (* Lambda code for the middle-end.
    * In the closure case the code is a sequence of assignments to a

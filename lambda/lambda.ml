@@ -346,9 +346,11 @@ type shape =
 
 type shape_result = (shape, unsafe_info) Result.t
 
+type recursive_info = (shape_result * Ident.Set.t) option
+
 type member_infos = {
   member_cu: Compilation_unit.t;
-  member_recursive: (shape_result * Ident.Set.t) option;
+  member_recursive: recursive_info;
   member_recursive_dependencies: Compilation_unit.t list;
 }
 
@@ -655,6 +657,9 @@ let rec transl_address loc = function
   | Env.Aident id ->
       if Ident.global id then
         let cu = Compilation_unit.of_raw_string (Ident.name id) in
+        if !Clflags.debug_compiler then
+          Format.eprintf "transl_address %a, cu: %a\n%!"
+            Ident.print id Compilation_unit.print cu;
         if Env.is_imported_from_recursive_pack cu then
           Lvar (Env.recursive_pack_component_id cu)
         else Lprim(Pgetglobal id, [], loc)

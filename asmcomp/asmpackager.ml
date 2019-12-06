@@ -146,8 +146,9 @@ let make_package_object ~ppf_dump prefix members targetobj targetname coercion
     let prefixname = Filename.remove_extension objtemp in
     let required_globals = Ident.Set.empty in
     if Config.flambda then begin
-      let main_module_block_size, code =
-        Translmod.transl_package_flambda components coercion
+      let main_module_block_size, code, recursive =
+        Translmod.transl_package_flambda components
+          (Ident.create_persistent targetname) coercion
       in
       if !Clflags.dump_lambda then
         Format.fprintf ppf_dump "%a@." Printlambda.lambda code;
@@ -157,7 +158,7 @@ let make_package_object ~ppf_dump prefix members targetobj targetname coercion
           main_module_block_size;
           module_ident;
           required_globals;
-          recursive = None;
+          recursive;
         }
       in
       Asmgen.compile_implementation ~backend
@@ -167,7 +168,7 @@ let make_package_object ~ppf_dump prefix members targetobj targetname coercion
         ~ppf_dump
         program
     end else begin
-      let main_module_block_size, code =
+      let main_module_block_size, code, recursive =
         Translmod.transl_store_package components
           (Ident.create_persistent targetname) coercion
       in
@@ -179,7 +180,7 @@ let make_package_object ~ppf_dump prefix members targetobj targetname coercion
           main_module_block_size;
           module_ident;
           required_globals;
-          recursive = None;
+          recursive;
         }
       in
       Asmgen.compile_implementation ~backend
@@ -203,7 +204,7 @@ let make_package_object ~ppf_dump prefix members targetobj targetname coercion
 
 (* Make the .cmx file for the package *)
 
-let build_package_cmx members cmxfile =
+let build_package_cmx prefix members cmxfile =
   let module UI = Cmx_format.Unit_info in
   let unit_names_in_pack =
     CU.Name.Set.of_list (List.map (fun m -> m.pm_name) members)
@@ -215,6 +216,11 @@ let build_package_cmx members cmxfile =
           | PM_intf -> accu
           | PM_impl (info, link_info) -> (info, link_info) :: accu)
         members [])
+  in
+  let recursive_dependencies =
+    List.filter (fun cu ->
+        not (CU.Prefix.equal prefix (CU.for_pack_prefix cu)))
+      (Env.imports_from_recursive_pack ())
   in
   let compilation_state = Compilation_state.Snapshot.create () in
   let current_unit = Persistent_env.Current_unit.get_exn () in
@@ -259,7 +265,7 @@ let build_package_cmx members cmxfile =
   let pkg_infos =
     UI.create ~unit:current_unit ~defines ~imports_cmi ~imports_cmx
       ~recursive:None
-      ~recursive_dependencies:[]
+      ~recursive_dependencies
       ~export_info
   in
   let pkg_link_infos = Cmx_format.Unit_info_link_time.join unit_link_infos in
@@ -277,7 +283,7 @@ let package_object_files ~ppf_dump files targetcmx
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
   make_package_object ~ppf_dump pack_path members targetobj targetname coercion ~backend;
-  build_package_cmx members targetcmx
+  build_package_cmx pack_path members targetcmx
 
 (* The entry point *)
 

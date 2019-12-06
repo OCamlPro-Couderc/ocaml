@@ -182,8 +182,14 @@ let add_imported_recursive_pack_component {recursive_dependencies; _} cu id =
 
 let add_recursive_interface penv intf =
   let curr_prefix = CU.for_pack_prefix (Current_unit.get_exn ()) in
-  let cu = CU.create ~for_pack_prefix:curr_prefix intf in
+  let head =
+    (* Only the highest modules in the pack hierarchy are recursive *)
+    if curr_prefix <> [] then  [ List.hd curr_prefix ] else curr_prefix in
+  let cu = CU.create ~for_pack_prefix:head intf in
   let id = Ident.create_local (CU.full_path_as_string cu) in
+  if !Clflags.debug_compiler then
+    Format.eprintf "add_recusive_interface (as id %a): %a\n%!"
+      Ident.print id CU.print cu;
   add_imported_recursive_pack_component penv cu id
 
 let find_in_cache {persistent_structures; _} s =
@@ -253,6 +259,9 @@ let save_pers_struct penv crc ps pm =
   Consistbl.set crc_units unit crc ps.ps_filename;
   add_import penv unit
 
+let for_recursive_package () =
+  !Clflags.for_recursive_package || !Clflags.make_recursive_package
+
 let check_pack_compatibility current_prefix imported_prefix =
   Misc.Stdlib.List.is_prefix
     ~equal:(=)
@@ -264,6 +273,7 @@ let check_pack_import current_prefix imported_prefix imported_unit =
          ~equal:(=)
          (imported_prefix @ [imported_unit])
          ~of_:current_prefix)
+  || for_recursive_package ()
 
 let acknowledge_pers_struct penv check modname pers_sig pm =
   let { Persistent_signature.filename; cmi } = pers_sig in
@@ -301,8 +311,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
                       CU.Name.of_string
                         (CU.Prefix.to_string p ^ "." ^
                          CU.Name.to_string modname)));
-          if !Clflags.for_recursive_package
-          || !Clflags.make_recursive_package then
+          if for_recursive_package () then
             if not is_recursive then
               failwith "component should be compiled for a recursive pack"
             else
@@ -477,10 +486,26 @@ let imports_from_recursive_pack {recursive_dependencies; _} =
 
 let imports_from_same_recursive_pack {recursive_dependencies; _} =
   let current_prefix = CU.for_pack_prefix (Current_unit.get_exn ()) in
+  if !Clflags.debug_compiler then
+    Format.(
+      eprintf "imports_from_same_recursive_pack:%a\n%!"
+        (CU.Map.print
+           (* ~sep:(fun fmt () -> fprintf fmt "; ") *)
+           Ident.print) !recursive_dependencies);
   List.filter_map (fun (cu, _) ->
       if CU.Prefix.equal (CU.for_pack_prefix cu) current_prefix then Some (CU.name cu)
       else None)
     (CU.Map.bindings !recursive_dependencies)
+  |> fun deps ->
+  if !Clflags.debug_compiler then
+    Format.(
+      eprintf "imports_from_same_recursive_pack %a:\n%a\n%!"
+        CU.Prefix.print current_prefix
+        (pp_print_list
+           ~pp_sep:(fun fmt () -> fprintf fmt "; ")
+           CU.Name.print)
+        deps);
+  deps
 
 let make_cmi penv modname sign alerts =
   let flags =

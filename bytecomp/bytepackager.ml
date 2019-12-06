@@ -192,7 +192,7 @@ let build_global_target ~ppf_dump oc prefix target_name members identifiers pos 
             in
             Lambda.PM_impl member_infos)
       members identifiers in
-  let lam =
+  let lam, recursive =
     Translmod.transl_package
       components (Ident.create_persistent target_name) coercion in
   if !Clflags.dump_lambda then
@@ -201,7 +201,8 @@ let build_global_target ~ppf_dump oc prefix target_name members identifiers pos 
     Bytegen.compile_implementation target_name lam in
   let rel =
     Emitcode.to_packed_file oc instrs in
-  relocs := List.map (fun (r, ofs) -> (r, pos + ofs)) rel @ !relocs
+  relocs := List.map (fun (r, ofs) -> (r, pos + ofs)) rel @ !relocs;
+  recursive
 
 (* Build the .cmo file obtained by packaging the given .cmo files. *)
 
@@ -244,7 +245,21 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let pos_code = pos_out oc in
     let ofs = append_bytecode_list packagename oc identifiers [] 0
                                    Subst.identity members in
-    build_global_target ~ppf_dump oc prefix targetname members identifiers ofs coercion;
+    let recursive_info =
+      build_global_target
+        ~ppf_dump oc prefix targetname members identifiers ofs coercion
+    in
+    let cu_rec_infos =
+      match recursive_info with
+        None -> None
+      | Some (shape, fvs) -> Some (shape, Ident.Set.elements fvs)
+    in
+    let cu_rec_dependencies =
+      List.filter (fun cu ->
+          not (Compilation_unit.Prefix.equal prefix
+                 (Compilation_unit.for_pack_prefix cu)))
+        (Env.imports_from_recursive_pack ())
+    in
     let pos_debug = pos_out oc in
     if !Clflags.debug && !events <> [] then begin
       output_value oc (List.rev !events);
@@ -267,8 +282,8 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
           (unit, Some (Env.crc_of_unit targetname)) :: imports;
         cu_primitives = !primitives;
         cu_required_globals = Ident.Set.elements required_globals;
-        cu_rec_dependencies = [];
-        cu_rec_infos = None;
+        cu_rec_dependencies;
+        cu_rec_infos;
         cu_force_link = !force_link;
         cu_debug = if pos_final > pos_debug then pos_debug else 0;
         cu_debugsize = pos_final - pos_debug } in

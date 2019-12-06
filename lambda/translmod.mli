@@ -30,12 +30,15 @@ val transl_implementation_flambda:
 
 val transl_toplevel_definition: structure -> lambda
 val transl_package:
-      pack_member list -> Ident.t -> module_coercion -> lambda
+  pack_member list -> Ident.t -> module_coercion
+  -> lambda * Lambda.recursive_info
 val transl_store_package:
-      pack_member list -> Ident.t -> module_coercion -> int * lambda
+  pack_member list -> Ident.t -> module_coercion
+  -> int * lambda * Lambda.recursive_info
 
 val transl_package_flambda:
-      pack_member list -> module_coercion -> int * lambda
+  pack_member list -> Ident.t -> module_coercion
+  -> int * lambda * Lambda.recursive_info
 
 val toplevel_name: Ident.t -> string
 val nat_toplevel_name: Ident.t -> Ident.t * int
