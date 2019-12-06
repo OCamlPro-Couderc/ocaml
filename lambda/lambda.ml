@@ -348,9 +348,11 @@ type shape =
 
 type shape_result = (shape, unsafe_info) Result.t
 
+type recursive_info = (shape_result * Ident.Set.t) option
+
 type member_infos = {
   member_cu: Compilation_unit.t;
-  member_recursive: (shape_result * Ident.Set.t) option;
+  member_recursive: recursive_info;
   member_recursive_dependencies: Compilation_unit.t list;
 }
 
