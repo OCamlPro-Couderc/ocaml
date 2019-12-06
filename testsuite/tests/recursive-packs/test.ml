@@ -3,13 +3,13 @@ files="a.mli aset.mli a.ml aset.ml use_aset.ml"
 * setup-ocamlc.byte-build-env
 program = "${test_build_directory}/use_make.byte"
 ** ocamlc.byte
-flags = "-for-pack P -recursive"
+flags = "-for-recursive-pack P -recursive"
 all_modules = "a.mli aset.mli"
 *** ocamlc.byte
-flags = "-for-pack P -recursive"
+flags = "-for-recursive-pack P -recursive"
 module = "a.ml"
 **** ocamlc.byte
-flags = "-for-pack P -recursive"
+flags = "-for-recursive-pack P -recursive"
 module = "aset.ml"
 ***** ocamlc.byte
 flags = "-recursive-pack"
@@ -31,13 +31,13 @@ reference = "${test_source_directory}/use_aset.reference"
 * setup-ocamlopt.byte-build-env
 program = "${test_build_directory}/use_make.asm"
 ** ocamlopt.byte
-flags = "-for-pack P -recursive"
+flags = "-for-recursive-pack P -recursive"
 all_modules = "a.mli aset.mli"
 *** ocamlopt.byte
-flags = "-for-pack P -recursive"
+flags = "-for-recursive-pack P -recursive"
 module = "a.ml"
 **** ocamlopt.byte
-flags = "-for-pack P -recursive"
+flags = "-for-recursive-pack P -recursive"
 module = "aset.ml"
 ***** ocamlopt.byte
 flags = "-recursive-pack"
