@@ -33,6 +33,7 @@ type error =
         current_pack: Compilation_unit.Prefix.t }
   | Inconsistent_package_import of filepath * Compilation_unit.Name.t
   | Need_recursive_interfaces of Compilation_unit.Name.t
+  | Inconsistent_recursive_package_import of filepath * bool
 
 exception Error of error
 
@@ -129,7 +130,8 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
    imported in the environment [penv] *)
 val is_imported_from_recursive_pack : 'a t -> Compilation_unit.t -> bool
 
-val add_recursive_interface : 'a t -> Compilation_unit.Name.t -> unit
+val add_recursive_interface :
+  'a t -> Compilation_unit.Prefix.t -> Compilation_unit.Name.t -> unit
 
 val recursive_pack_component_id : 'a t -> Compilation_unit.t -> Ident.t
 

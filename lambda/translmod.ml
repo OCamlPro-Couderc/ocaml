@@ -861,7 +861,7 @@ let transl_recursive_implementation_strict rec_idents code =
                is_a_functor = true;
                stub = false;
              };
-             loc = Location.none}, 1
+             loc = Location.in_file "translmod_rec_impl_strict"}, 1
 
 let transl_recursive_implementation module_id shape rec_idents code =
   let code, size =
@@ -871,7 +871,7 @@ let transl_recursive_implementation module_id shape rec_idents code =
         let shape_id = Ident.create_local "shape" in
         let update_mod =
           Lapply{ap_should_be_tailcall=false;
-                 ap_loc=Location.none;
+                 ap_loc=Location.in_file "translmod_rec_impl-update_mod-apply";
                  ap_func=mod_prim "update_mod";
                  ap_args=[Lvar shape_id; Lvar component_id; code];
                  ap_inlined=Default_inline;
@@ -889,7 +889,7 @@ let transl_recursive_implementation module_id shape rec_idents code =
                      is_a_functor = true;
                      stub = false;
                    };
-                   loc = Location.none}, 1
+                   loc = Location.in_file "translmod_rec_impl-update_mod"}, 1
     | Result.Error _ ->
         (* In that case, the module is bound strictly, without update_mod *)
         transl_recursive_implementation_strict rec_idents code
@@ -897,34 +897,24 @@ let transl_recursive_implementation module_id shape rec_idents code =
   code, size
 
 let transl_implementation_aux module_id str cc =
-  let code, size = transl_struct Location.none [] cc
+  let code, size = transl_struct (Location.in_file "translmod_impl-struct") [] cc
       (global_path module_id) str
   in
-  (* TODO: factorize *)
-  if !Clflags.recursive_interfaces then
+  if !Clflags.recursive_interfaces || !Clflags.for_recursive_package then
     let shape = init_shape_implementation module_id str in
     let fvs = Lambda.free_variables code in
     let rec_idents =
       List.map (fun cu -> Env.recursive_pack_component_id cu, Pgenval)
         (Env.imports_from_recursive_pack ()) in
-    let code, size =
-      transl_recursive_implementation module_id shape rec_idents code in
-    let funct_id = Ident.create_local "*update_mod*" in
+    let code, f_size =
+      if !Clflags.recursive_interfaces then
+        transl_recursive_implementation module_id shape rec_idents code
+      else
+        transl_recursive_implementation_strict rec_idents code in
+    let funct_id = Ident.create_local ("functor_mod_impl") in
     Llet (Strict, Pgenval, funct_id, code,
-          Lprim(Pmakeblock(0, Immutable, None), [Lvar funct_id], Location.none)),
-    (size, Some (shape, fvs))
-  else if !Clflags.for_recursive_package then
-    let shape = init_shape_implementation module_id str in
-    let fvs = Lambda.free_variables code in
-    let rec_idents =
-      List.map (fun cu -> Env.recursive_pack_component_id cu, Pgenval)
-        (Env.imports_from_recursive_pack ()) in
-    let code, size =
-      transl_recursive_implementation_strict rec_idents code in
-    let funct_id = Ident.create_local "*functor_mod*" in
-     Llet (Strict, Pgenval, funct_id, code,
-          Lprim(Pmakeblock(0, Immutable, None), [Lvar funct_id], Location.none)),
-    (size, Some (shape, fvs))
+          Lprim(Pmakeblock(0, Immutable, None), [Lvar funct_id], Location.in_file "translmod_impl-makebloc")),
+    (f_size, Some (shape, fvs))
   else code, (size, None)
 
 let transl_implementation_flambda module_name (str, cc) =
@@ -1473,7 +1463,11 @@ let transl_store_recursive_implementation module_id ((impl, restr)) =
     List.map (fun cu -> Env.recursive_pack_component_id cu, Pgenval)
       (Env.imports_from_recursive_pack ()) in
   let funct, size =
-    transl_recursive_implementation module_id shape rec_idents code in
+    if !Clflags.recursive_interfaces then
+      transl_recursive_implementation module_id shape rec_idents code
+    else
+      transl_recursive_implementation_strict rec_idents code
+  in
   let body_id = Ident.create_local "*body*" in
   (size,
    Llet (Strict, Pgenval, body_id, funct,
@@ -1489,7 +1483,7 @@ let transl_store_phrases module_name str =
   transl_store_structure_gen module_id (str, Tcoerce_none) true
 
 let transl_store_gen module_id (impl, restr) topl =
-  if !Clflags.recursive_interfaces then
+  if !Clflags.recursive_interfaces || !Clflags.for_recursive_package then
     transl_store_recursive_implementation module_id (impl, restr)
   else transl_store_structure_gen module_id (impl, restr) topl, None
 
@@ -1663,12 +1657,10 @@ let get_component = function
       in
       Lprim(Pgetglobal pers_id, [], Location.none)
 
-let transl_recursive_subpackage module_id components cont : lambda *
-  Lambda.recursive_info =
+let transl_recursive_subpackage_gen module_id components recdeps =
   let ids =
     List.fold_left (fun acc (_, cu) -> cu :: acc)
-      (List.map Env.recursive_pack_component_id
-         (Env.imports_from_recursive_pack ()))
+      (List.map Env.recursive_pack_component_id recdeps)
       components
   in
   let persistent_id cu =
@@ -1718,13 +1710,10 @@ let transl_recursive_subpackage module_id components cont : lambda *
     in
     let funct_code, _ =
       if !Clflags.recursive_interfaces then
-          transl_recursive_implementation module_id shape params body
+        transl_recursive_implementation module_id shape params body
       else transl_recursive_implementation_strict params body
     in
-    let funct_id = Ident.create_local "*functor_mod*" in
-    Llet (Strict, Pgenval, funct_id, funct_code,
-          Lprim(Pmakeblock(0, Immutable, None), [Lvar funct_id],
-                Location.none))
+    funct_code
   in
   let code =
     List.fold_right (fun (comp, id) acc ->
@@ -1735,14 +1724,23 @@ let transl_recursive_subpackage module_id components cont : lambda *
             let args = generate_args member_recursive_dependencies in
             compile_component id pers_id args acc)
       components
-      cont
+      (Lprim(Pmakeblock(0, Immutable, None),
+             List.map (fun (_, id) -> Lvar id) components, Location.none))
     |> funct
   in
   code, Some (shape, fvs)
 
+let transl_recursive_subpackage module_id components recdeps =
+  let funct_body, recursive =
+    transl_recursive_subpackage_gen module_id components recdeps in
+  let funct_id = Ident.create_local ("functor_mod_sub") in
+  Llet (Strict, Pgenval, funct_id, funct_body,
+        Lprim(Pmakeblock(0, Immutable, None), [Lvar funct_id],
+              Location.none)),
+  1,
+  recursive
 
-let transl_recursive_package module_id components bind_components : lambda *
-  Lambda.recursive_info =
+let transl_recursive_package module_id components recdeps size bind_components =
   let components =
     List.map (function
           PM_intf -> assert false
@@ -1751,13 +1749,14 @@ let transl_recursive_package module_id components bind_components : lambda *
             Ident.create_local (Compilation_unit.full_path_as_string member_cu))
       components in
   if !Clflags.for_recursive_package then
-    transl_recursive_subpackage module_id components (bind_components components)
+    transl_recursive_subpackage module_id components recdeps
   else
-    compile_recunits components (* recmods  *)Location.none
+    compile_recunits components Location.none
       (bind_components components),
+    size,
     None
 
-let transl_package_flambda components module_id coercion =
+let transl_package_flambda components module_id recdeps coercion =
   let size =
     match coercion with
     | Tcoerce_none -> List.length components
@@ -1766,37 +1765,59 @@ let transl_package_flambda components module_id coercion =
     | Tcoerce_primitive _
     | Tcoerce_alias _ -> assert false
   in
-  let body, recursive =
+  let code, size, recursive =
     if !Clflags.make_recursive_package then
-      transl_recursive_package module_id components
+      transl_recursive_package module_id components recdeps size
         (fun components ->
            Lprim(Pmakeblock(0, Immutable, None),
-                 List.map (fun (_, id) -> Lvar id) components, Location.none))
+                 List.map (fun (_, id) -> Lvar id) components, Location.none)
+           |> apply_coercion Location.none Strict coercion)
     else
       Lprim(Pmakeblock(0, Immutable, None),
             List.map get_component components,
-            Location.none),
+            Location.none)
+      |> apply_coercion Location.none Strict coercion,
+      size,
       None
   in
-  size, apply_coercion Location.none Strict coercion body, recursive
+  { code;
+    main_module_block_size = size;
+    module_ident = module_id;
+    required_globals = required_globals ~flambda:true code;
+    recursive;
+  }
 
-let transl_package components target_name coercion =
+let transl_package components target_name recdeps coercion =
   let module_name = transl_current_module_ident (Ident.name target_name) in
-  let body, recursive =
+  let size =
+    match coercion with
+    | Tcoerce_none -> List.length components
+    | Tcoerce_structure (l, _) -> List.length l
+    | Tcoerce_functor _
+    | Tcoerce_primitive _
+    | Tcoerce_alias _ -> assert false
+  in
+  let body, size, recursive =
     if !Clflags.make_recursive_package then
-      transl_recursive_package target_name components
+      transl_recursive_package target_name components recdeps size
         (fun components ->
            Lprim(Pmakeblock(0, Immutable, None),
                  List.map (fun (_, id) -> Lvar id) components, Location.none))
     else
       Lprim(Pmakeblock(0, Immutable, None),
             List.map get_component components, Location.none),
+      size,
       None
   in
-  Lprim(Psetglobal module_name,
-        [apply_coercion Location.none Strict coercion body],
-        Location.none),
-  recursive
+  { code =
+      Lprim(Psetglobal module_name,
+            [apply_coercion Location.none Strict coercion body],
+            Location.none);
+    main_module_block_size = size;
+    module_ident = target_name;
+    required_globals = required_globals ~flambda:true body;
+    recursive;
+  }
   (*
   let components =
     match coercion with
@@ -1813,63 +1834,102 @@ let transl_package components target_name coercion =
   Lprim(Psetglobal target_name, [Lprim(Pmakeblock(0, Immutable), components)])
    *)
 
-let transl_store_package components target_name coercion =
+let transl_store_recursive_subpackage module_id components recdeps =
+  let funct_body, recursive =
+    transl_recursive_subpackage_gen module_id components recdeps in
+  let funct_id = Ident.create_local "functor_mod_store_sub" in
+  Llet (Strict, Pgenval, funct_id, funct_body,
+        Lprim(Psetfield(0, Pointer, Root_initialization),
+              [Lprim(Pgetglobal module_id, [], Location.none);
+               Lvar funct_id],
+              Location.none)),
+  1,
+  recursive
+
+let transl_store_recursive_package
+    module_id components recdeps size bind_components =
+  let components =
+    List.map (function
+          PM_intf -> assert false
+        | PM_impl { member_cu; _} as comp  ->
+            comp,
+            Ident.create_local (Compilation_unit.full_path_as_string member_cu))
+      components in
+  if !Clflags.for_recursive_package then
+    transl_store_recursive_subpackage module_id components recdeps
+  else
+    compile_recunits components Location.none
+      (bind_components components),
+    size,
+    None
+
+let transl_store_package components target_name recdeps coercion =
   let rec make_sequence fn pos arg =
     match arg with
       [] -> lambda_unit
     | hd :: tl -> Lsequence(fn pos hd, make_sequence fn (pos + 1) tl) in
   match coercion with
     Tcoerce_none ->
-      let code, recursive =
+      let bind get_component components =
+        make_sequence
+          (fun pos id ->
+             Lprim(Psetfield(pos, Pointer, Root_initialization),
+                   [Lprim(Pgetglobal target_name, [], Location.none);
+                    get_component id],
+                   Location.none))
+          0 components
+      in
+      let size = List.length components in
+      let code, size, recursive =
         if !Clflags.make_recursive_package then
-          transl_recursive_package target_name components
-            (fun components ->
-               let _, ids = List.split components in
-               make_sequence
-                 (fun pos id ->
-                    Lprim(Psetfield(pos, Pointer, Root_initialization),
-                          [Lprim(Pgetglobal target_name, [], Location.none);
-                           Lvar id],
-                          Location.none))
-                 0 ids)
+          transl_store_recursive_package
+            target_name components recdeps size (bind (fun (_, id) -> Lvar id))
         else
-          make_sequence
-            (fun pos id ->
-               Lprim(Psetfield(pos, Pointer, Root_initialization),
-                     [Lprim(Pgetglobal target_name, [], Location.none);
-                      get_component id],
-                     Location.none))
-            0 components,
+          bind get_component components,
+          size,
           None
       in
-      List.length components, code, recursive
+      { code;
+        main_module_block_size = size;
+        module_ident = target_name;
+        required_globals = required_globals ~flambda:true code;
+        recursive;
+      }
 
   | Tcoerce_structure (pos_cc_list, _id_pos_list) ->
-      let components, recursive =
-        if !Clflags.make_recursive_package then
-          transl_recursive_package target_name components
-            (fun components ->
-               Lprim(Pmakeblock(0, Immutable, None),
-                     List.map (fun (_, id) -> Lvar id) components,
-                     Location.none))
+      let bind get_component components =
+        Lprim(Pmakeblock(0, Immutable, None),
+              List.map get_component components,
+              Location.none)
+      in
+      let size = List.length pos_cc_list in
+      let components, size, recursive =
+        if !Clflags.make_recursive_package || !Clflags.for_recursive_package then
+          transl_store_recursive_package
+            target_name components recdeps size (bind (fun (_, id) -> Lvar id))
         else
-          Lprim(Pmakeblock(0, Immutable, None),
-                List.map get_component components,
-                Location.none),
+          bind get_component components,
+          size,
           None
       in
       let blk = Ident.create_local "block" in
-      (List.length pos_cc_list,
-       Llet (Strict, Pgenval, blk,
-             apply_coercion Location.none Strict coercion components,
-             make_sequence
-               (fun pos _id ->
-                 Lprim(Psetfield(pos, Pointer, Root_initialization),
-                       [Lprim(Pgetglobal target_name, [], Location.none);
-                        Lprim(Pfield pos, [Lvar blk], Location.none)],
-                       Location.none))
-               0 pos_cc_list),
-      recursive)
+      let code =
+        Llet (Strict, Pgenval, blk,
+              apply_coercion Location.none Strict coercion components,
+              make_sequence
+                (fun pos _id ->
+                   Lprim(Psetfield(pos, Pointer, Root_initialization),
+                         [Lprim(Pgetglobal target_name, [], Location.none);
+                          Lprim(Pfield pos, [Lvar blk], Location.none)],
+                         Location.none))
+                0 pos_cc_list) in
+
+      { code;
+        main_module_block_size = size;
+        module_ident = target_name;
+        required_globals = required_globals ~flambda:true code;
+        recursive;
+      }
   (*
               (* ignore id_pos_list as the ids are already bound *)
       let id = Array.of_list component_names in

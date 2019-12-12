@@ -166,7 +166,8 @@ let rec append_bytecode_list packagename oc identifiers defined ofs subst =
 
 (* Generate the code that builds the tuple representing the package module *)
 
-let build_global_target ~ppf_dump oc prefix target_name members identifiers pos coercion =
+let build_global_target
+    ~ppf_dump oc prefix target_name members identifiers recdeps pos coercion =
   let components =
     List.map2
       (fun m _id ->
@@ -192,17 +193,17 @@ let build_global_target ~ppf_dump oc prefix target_name members identifiers pos 
             in
             Lambda.PM_impl member_infos)
       members identifiers in
-  let lam, recursive =
+  let program =
     Translmod.transl_package
-      components (Ident.create_persistent target_name) coercion in
+      components (Ident.create_persistent target_name) recdeps coercion in
   if !Clflags.dump_lambda then
-    Format.fprintf ppf_dump "%a@." Printlambda.lambda lam;
+    Format.fprintf ppf_dump "%a@." Printlambda.lambda program.Lambda.code;
   let instrs =
-    Bytegen.compile_implementation target_name lam in
+    Bytegen.compile_implementation target_name program.Lambda.code in
   let rel =
     Emitcode.to_packed_file oc instrs in
   relocs := List.map (fun (r, ofs) -> (r, pos + ofs)) rel @ !relocs;
-  recursive
+  program.Lambda.recursive
 
 (* Build the .cmo file obtained by packaging the given .cmo files. *)
 
@@ -244,10 +245,12 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     output_binary_int oc 0;
     let pos_code = pos_out oc in
     let ofs = append_bytecode_list packagename oc identifiers [] 0
-                                   Subst.identity members in
+        Subst.identity members in
+    let recursive_dependencies = Env.imports_from_recursive_pack () in
     let recursive_info =
       build_global_target
-        ~ppf_dump oc prefix targetname members identifiers ofs coercion
+        ~ppf_dump oc prefix targetname members identifiers
+        recursive_dependencies ofs coercion
     in
     let cu_rec_infos =
       match recursive_info with
@@ -258,7 +261,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
       List.filter (fun cu ->
           not (Compilation_unit.Prefix.equal prefix
                  (Compilation_unit.for_pack_prefix cu)))
-        (Env.imports_from_recursive_pack ())
+        recursive_dependencies
     in
     let pos_debug = pos_out oc in
     if !Clflags.debug && !events <> [] then begin
