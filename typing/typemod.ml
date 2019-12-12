@@ -2762,7 +2762,8 @@ let type_interface env ast =
   transl_signature env ast
 
 let type_rec_interfaces env asts =
-  List.iter (fun (name, _, _) -> Env.add_recursive_interface name) asts;
+  let prefix = Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
+  List.iter (fun (name, _, _) -> Env.add_recursive_interface prefix name) asts;
   let mtys, recenv =
     transl_recmodule_modtypes ~persistent:true env
       (List.map (fun (name, ast, loc) ->

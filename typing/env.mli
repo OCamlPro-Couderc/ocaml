@@ -364,7 +364,8 @@ val imports_from_recursive_pack: unit -> Compilation_unit.t list
 
 val imports_from_same_recursive_pack: unit -> Compilation_unit.Name.t list
 
-val add_recursive_interface: Compilation_unit.Name.t -> unit
+val add_recursive_interface:
+  Compilation_unit.Prefix.t -> Compilation_unit.Name.t -> unit
 
 val is_imported_from_recursive_pack: Compilation_unit.t -> bool
 
