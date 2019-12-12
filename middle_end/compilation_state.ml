@@ -131,6 +131,13 @@ let current_unit = empty
 
 let merged_flambda_export_info = ref Export_info.empty
 
+let merge_export_info ui =
+  match UI.export_info ui with
+  | Closure _ -> ()
+  | Flambda export_info ->
+      merged_flambda_export_info :=
+        Export_info.merge !merged_flambda_export_info export_info
+
 type find_cmx_result =
   | Current_unit
   | Already_loaded of UI.t
@@ -196,12 +203,7 @@ let find_or_load_unit_info_from_cmx ?comp_unit desired_unit
       | Some (info, crc, filename) ->
         current_unit.imports_cmx <-
           CU.Map.add (UI.unit info) (Some crc) current_unit.imports_cmx;
-        begin match UI.export_info info with
-        | Closure _ -> ()
-        | Flambda export_info ->
-          merged_flambda_export_info :=
-            Export_info.merge !merged_flambda_export_info export_info
-        end;
+        merge_export_info info;
         CU.Name.Tbl.add global_infos_table desired_unit_name
           (Already_loaded info);
         Just_loaded { info; filename; }
@@ -231,7 +233,8 @@ let compilation_unit_for_global id : compilation_unit_or_predef =
       (* Assume that the compilation unit (called [id]), whose .cmx file
          is missing, is not packed. *)
       Compilation_unit desired_unit
-    | Already_loaded info -> Compilation_unit (UI.unit info)
+    | Already_loaded info ->
+        Compilation_unit (UI.unit info)
     | Just_loaded { info; filename; } ->
       let for_pack_prefix_in_cmx = CU.for_pack_prefix (UI.unit info) in
       let current_for_pack_prefix =
@@ -254,6 +257,8 @@ let compilation_unit_for_global id : compilation_unit_or_predef =
   end
 
 let cache_unit_info ui =
+  if !Clflags.make_recursive_package then
+    merge_export_info ui;
   CU.Name.Tbl.add global_infos_table (CU.name (UI.unit ui)) (Already_loaded ui)
 
 let check_is_flambda flambda =

@@ -105,8 +105,9 @@ let check_units members =
 
 (* Make the .o file for the package *)
 
-let make_package_object ~ppf_dump prefix members targetobj targetname coercion
-      ~backend =
+let make_package_object
+    ~ppf_dump prefix members recursive_dependencies
+    targetobj targetname coercion ~backend  =
   Profile.record_call
     (Printf.sprintf "pack(%s)" (CU.Name.to_string targetname)) (fun () ->
     let objtemp =
@@ -146,39 +147,22 @@ let make_package_object ~ppf_dump prefix members targetobj targetname coercion
     let targetname_as_string = CU.Name.to_string targetname in
     let module_ident = Ident.create_persistent targetname_as_string in
     let prefixname = Filename.remove_extension objtemp in
-    let required_globals = Ident.Set.empty in
     let program, middle_end =
       if Config.flambda then
-        let main_module_block_size, code, recursive =
-          Translmod.transl_package_flambda components module_ident coercion
-        in
-        let code = Simplif.simplify_lambda code in
         let program =
-          { Lambda.
-            code;
-            main_module_block_size;
-            module_ident;
-            required_globals;
-            recursive;
-          }
+          Translmod.transl_package_flambda
+            components module_ident recursive_dependencies coercion
         in
         program, Flambda_middle_end.lambda_to_clambda
       else
-        let main_module_block_size, code, recursive =
-          Translmod.transl_store_package components module_ident coercion
-        in
-        let code = Simplif.simplify_lambda code in
         let program =
-          { Lambda.
-            code;
-            main_module_block_size;
-            module_ident;
-            required_globals;
-            recursive;
-          }
+          Translmod.transl_store_package
+            components module_ident recursive_dependencies coercion
         in
         program, Closure_middle_end.lambda_to_clambda
     in
+    let program =
+      Lambda.{ program with code = Simplif.simplify_lambda program.code } in
     if !Clflags.dump_lambda then
       Format.fprintf ppf_dump "%a@." Printlambda.lambda program.code;
     Asmgen.compile_implementation ~backend
@@ -196,12 +180,13 @@ let make_package_object ~ppf_dump prefix members targetobj targetname coercion
       Ccomp.call_linker Ccomp.Partial targetobj (objtemp :: objfiles) ""
     in
     remove_file objtemp;
-    if not ok then raise(Error Linking_error)
+    if not ok then raise(Error Linking_error);
+    program
   )
 
 (* Make the .cmx file for the package *)
 
-let build_package_cmx prefix members cmxfile =
+let build_package_cmx members cmxfile program recursive_dependencies =
   let module UI = Cmx_format.Unit_info in
   let unit_names_in_pack =
     CU.Name.Set.of_list (List.map (fun m -> m.pm_name) members)
@@ -214,28 +199,51 @@ let build_package_cmx prefix members cmxfile =
           | PM_impl (info, link_info) -> (info, link_info) :: accu)
         members [])
   in
-  let recursive_dependencies =
-    List.filter (fun cu ->
-        not (CU.Prefix.equal prefix (CU.for_pack_prefix cu)))
-      (Env.imports_from_recursive_pack ())
+  let recursive =
+    match program.Lambda.recursive with
+      None -> None
+    | Some (shape, fvs) -> Some (shape, Ident.Set.elements fvs)
   in
+  (* Recursive pack can generate a call to !CamlinternalMod *)
+  Ident.Set.iter (fun id ->
+      let _, name = CU.Prefix.extract_prefix (Ident.name id) in
+      if CU.Name.Set.mem name unit_names_in_pack then ()
+      else
+        Compilation_state.require_global id)
+    program.Lambda.required_globals;
   let compilation_state = Compilation_state.Snapshot.create () in
   let current_unit = Persistent_env.Current_unit.get_exn () in
   let current_unit_name = CU.name current_unit in
   let current_unit_crc = Env.crc_of_unit current_unit_name in
   let imports_cmi =
-    let imports_cmi =
+    let imports_from_components =
       CU.Map.filter (fun cu _crc ->
           not (CU.Name.Set.mem (CU.name cu) unit_names_in_pack))
         (Asmlink.extract_crc_interfaces ())
     in
-    CU.Map.add current_unit (Some current_unit_crc) imports_cmi
+    (* Recursive pack can generate a call to !CamlinternalMod *)
+    let imports_from_recursive_pack =
+      Ident.Set.fold (fun id imports ->
+          let cu = CU.of_raw_string (Ident.name id) in
+          if CU.Name.Set.mem (CU.name cu) unit_names_in_pack then imports
+          else
+            let crc = Env.crc_of_unit (CU.name cu) in
+            CU.Map.add cu (Some crc) imports)
+        program.Lambda.required_globals
+        imports_from_components
+    in
+    CU.Map.add current_unit (Some current_unit_crc) imports_from_recursive_pack
   in
   let imports_cmx =
-    CU.Map.filter (fun imported_unit _crc ->
-        let name = CU.name imported_unit in
-        not (CU.Name.Set.mem name unit_names_in_pack))
-      (Asmlink.extract_crc_implementations ())
+    let imports_from_components =
+      CU.Map.filter (fun imported_unit _crc ->
+          let name = CU.name imported_unit in
+          not (CU.Name.Set.mem name unit_names_in_pack))
+        (Asmlink.extract_crc_implementations ())
+    in
+    CU.Map.union
+      (fun _ comps _imports -> Some comps)
+      imports_from_components compilation_state.imports_cmx
   in
   let defines =
     (List.flatten (List.map UI.defines units)) @ [current_unit]
@@ -259,7 +267,7 @@ let build_package_cmx prefix members cmxfile =
   in
   let pkg_infos =
     UI.create ~unit:current_unit ~defines ~imports_cmi ~imports_cmx
-      ~recursive:None
+      ~recursive
       ~recursive_dependencies
       ~export_info
   in
@@ -275,10 +283,19 @@ let package_object_files ~ppf_dump files targetcmx
     | None -> CU.Name.to_string targetname
     | Some p -> p ^ "." ^ CU.Name.to_string targetname in
   let pack_path = CU.Prefix.parse_for_pack (Some packagename) in
+  let recursive_dependencies =
+    List.filter (fun cu ->
+        not (CU.Prefix.equal pack_path (CU.for_pack_prefix cu)))
+      (Env.imports_from_recursive_pack ())
+  in
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
-  make_package_object ~ppf_dump pack_path members targetobj targetname coercion ~backend;
-  build_package_cmx pack_path members targetcmx
+  let program =
+    make_package_object
+      ~ppf_dump pack_path members recursive_dependencies
+      targetobj targetname coercion ~backend
+  in
+  build_package_cmx members targetcmx program recursive_dependencies
 
 (* The entry point *)
 

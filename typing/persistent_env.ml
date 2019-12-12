@@ -34,6 +34,7 @@ type error =
         prefix: CU.Prefix.t; current_pack: CU.Prefix.t }
   | Inconsistent_package_import of filepath * CU.Name.t
   | Need_recursive_interfaces of CU.Name.t
+  | Inconsistent_recursive_package_import of filepath * bool
 
 exception Error of error
 let error err = raise (Error err)
@@ -183,12 +184,8 @@ let add_imported_opaque {imported_opaque_units; _} s =
 let add_imported_recursive_pack_component {recursive_dependencies; _} cu id =
   recursive_dependencies := CU.Map.add cu id !recursive_dependencies
 
-let add_recursive_interface penv intf =
-  let curr_prefix = CU.for_pack_prefix (Current_unit.get_exn ()) in
-  let head =
-    (* Only the highest modules in the pack hierarchy are recursive *)
-    if curr_prefix <> [] then  [ List.hd curr_prefix ] else curr_prefix in
-  let cu = CU.create ~for_pack_prefix:head intf in
+let add_recursive_interface penv prefix intf =
+  let cu = CU.create ~for_pack_prefix:prefix intf in
   let id = Ident.create_local (CU.full_path_as_string cu) in
   add_imported_recursive_pack_component penv cu id
 
@@ -289,6 +286,8 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
              ps_filename = filename;
              ps_flags = flags;
            } in
+  let check_recursive = ref (fun (_ : CU.t) -> ()) in
+  let prefix = ref [] in
   if ps.ps_name <> modname then
     error (Illegal_renaming(modname, ps.ps_name, filename));
   List.iter
@@ -317,13 +316,16 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
                          CU.Name.to_string modname)));
           if for_recursive_package () then
             if not is_recursive then
-              failwith "component should be compiled for a recursive pack"
+              error (Inconsistent_recursive_package_import
+                       (filename, is_recursive))
             else
               let cu = CU.create ~for_pack_prefix:p modname in
               let id = Ident.create_local (CU.full_path_as_string cu) in
               add_imported_recursive_pack_component penv cu id
           else if is_recursive then
-            failwith "component should be compiled for a recursive pack"
+            error (Inconsistent_recursive_package_import
+                     (filename, is_recursive));
+          prefix := p
       | Recursive intfs ->
           (* The parameters to take account of are:
              - either the current unit is an interface, and it is compiled in
@@ -338,20 +340,29 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
              Since pack tie the recursive interfaces together, we can check they
              belong to the same (recursive) pack.
           *)
-          if not !Clflags.make_recursive_package
-          && not !Clflags.for_recursive_package then begin
+          let check cu =
             let current_unit = Current_unit.get_exn () in
-            if not !Clflags.recursive_interfaces then
-              error (Need_recursive_interfaces(ps.ps_name));
-            if CU.Name.equal (CU.name current_unit) ps.ps_name then
-              List.iter (add_recursive_interface penv) intfs;
-            if not (CU.Map.mem current_unit !(penv.recursive_dependencies)) then
-              error (Need_recursive_interfaces(ps.ps_name))
-          end else
-            List.iter (add_recursive_interface penv) intfs
+            let prefix = CU.for_pack_prefix cu in
+            if not !Clflags.recursive_interfaces && CU.equal cu current_unit then
+                error (Need_recursive_interfaces(ps.ps_name));
+            if not !Clflags.make_recursive_package
+            && not !Clflags.for_recursive_package then begin
+              if not !Clflags.recursive_interfaces then
+                error (Need_recursive_interfaces(ps.ps_name));
+              if CU.Name.equal (CU.name current_unit) ps.ps_name then
+                List.iter (add_recursive_interface penv prefix) intfs;
+              if not (CU.Map.mem current_unit !(penv.recursive_dependencies)) then
+                error (Need_recursive_interfaces(ps.ps_name))
+            end else begin
+              List.iter (add_recursive_interface penv prefix) intfs
+            end
+          in
+          check_recursive := check
       | Opaque ->
           add_imported_opaque penv modname)
     ps.ps_flags;
+  let compunit = CU.create ~for_pack_prefix:(!prefix) ps.ps_name in
+  !check_recursive compunit;
   if check then check_consistency penv ps;
   let {persistent_structures; _} = penv in
   NameTbl.add persistent_structures modname (Found (ps, pm));
@@ -433,6 +444,16 @@ let check_pers_struct penv f ~loc name =
             Format.asprintf
               "%a is compiled in a set of recursive interfaces"
               CU.Name.print name
+        | Inconsistent_recursive_package_import(intf_filename, recursive) ->
+            let import_msg = if recursive then "recursive" else "regular" in
+            let curr_unit_msg = if recursive then "without" else "with" in
+            Printf.sprintf
+              "%s is compiled for a %s package, @ \
+               while the current unit is being compiled %s @ \
+               a `-for_recursive_pack` prefix.@]"
+              intf_filename
+              import_msg
+              curr_unit_msg
       in
       let warn = Warnings.No_cmi_file(CU.Name.to_string name, Some msg) in
         Location.prerr_warning loc warn
@@ -609,6 +630,17 @@ let report_error ppf =
          which is compiled in a set of recursive interfaces.@ %s @]"
         CU.Name.print name
         "The current unit must be compiled in the same set."
+  | Inconsistent_recursive_package_import(intf_filename, recursive) ->
+      let import_msg = if recursive then "recursive" else "regular" in
+      let curr_unit_msg = if recursive then "without" else "with" in
+      fprintf ppf
+        "@[<hov>Invalid import of %s, @ \
+         which is compiled for a %s package, @ \
+         while the current unit is being compiled %s @ \
+         a `-for_recursive_pack` prefix.@]"
+        intf_filename
+        import_msg
+        curr_unit_msg
 
 let () =
   Location.register_error_of_exn
