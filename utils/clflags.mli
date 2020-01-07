@@ -121,7 +121,7 @@ val dllpaths : string list ref
 val make_package : bool ref
 val for_package : string option ref
 val make_recursive_package : bool ref
-val for_recursive_package : bool ref
+val recursive_packages : string list ref
 val error_size : int ref
 val float_const_prop : bool ref
 val transparent_modules : bool ref
