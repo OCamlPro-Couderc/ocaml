@@ -47,8 +47,8 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _dllib s = defer (ProcessDLLs (Misc.rev_split_words s))
   let _dllpath s = dllpaths := !dllpaths @ [s]
   let _for_pack s = for_package := Some s
-  let _for_recursive_pack s =
-    for_package := Some s; for_recursive_package := true
+  let _pack_is_recursive s =
+    recursive_packages := s :: !recursive_packages
   let _g = set debug
   let _i () =
     print_types := true;

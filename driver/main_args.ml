@@ -115,16 +115,9 @@ let mk_for_pack_opt f =
   \     ocamlopt -pack -o <ident>.cmx"
 ;;
 
-let mk_for_recursive_pack_byt f =
-  "-for-recursive-pack", Arg.String f,
-  "<ident>  Generate code that can later be recursively `packed' with\n\
-  \     ocamlc -recursive-pack -o <ident>.cmo"
-;;
-
-let mk_for_recursive_pack_opt f =
-  "-for-recursive-pack", Arg.String f,
-  "<ident>  Generate code that can later be recursively `packed' with\n\
-  \     ocamlopt -recursive-pack -o <ident>.cmx"
+let mk_pack_is_recursive f =
+  "-pack-is-recursive", Arg.String f,
+  "<ident>  Indicate which pack in the pack hierarchy is recursive."
 ;;
 
 let mk_g_byt f =
@@ -938,7 +931,7 @@ module type Compiler_options = sig
   val _config : unit -> unit
   val _config_var : string -> unit
   val _for_pack : string -> unit
-  val _for_recursive_pack : string -> unit
+  val _pack_is_recursive : string -> unit
   val _g : unit -> unit
   val _stop_after : string -> unit
   val _i : unit -> unit
@@ -1137,7 +1130,7 @@ struct
     mk_dllpath F._dllpath;
     mk_dtypes F._annot;
     mk_for_pack_byt F._for_pack;
-    mk_for_recursive_pack_byt F._for_recursive_pack;
+    mk_pack_is_recursive F._pack_is_recursive;
     mk_g_byt F._g;
     mk_stop_after F._stop_after;
     mk_i F._i;
@@ -1313,7 +1306,7 @@ struct
     mk_config_var F._config_var;
     mk_dtypes F._annot;
     mk_for_pack_opt F._for_pack;
-    mk_for_recursive_pack_opt F._for_recursive_pack;
+    mk_pack_is_recursive F._pack_is_recursive;
     mk_g_opt F._g;
     mk_stop_after F._stop_after;
     mk_i F._i;

@@ -50,8 +50,8 @@ module Options = Main_args.Make_optcomp_options (struct
   let _config = Misc.show_config_and_exit
   let _config_var = Misc.show_config_variable_and_exit
   let _for_pack s = for_package := Some s
-  let _for_recursive_pack s =
-    for_package := Some s; for_recursive_package := true
+  let _pack_is_recursive s =
+    recursive_packages := s :: !recursive_packages
   let _g = set debug
   let _i () =
     print_types := true;

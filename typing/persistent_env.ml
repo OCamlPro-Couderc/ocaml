@@ -257,7 +257,7 @@ let save_pers_struct penv crc ps pm =
   add_import penv unit
 
 let for_recursive_package () =
-  !Clflags.for_recursive_package || !Clflags.make_recursive_package
+  !Clflags.recursive_packages <> [] || !Clflags.make_recursive_package
 
 let check_pack_compatibility current_prefix imported_prefix =
   Misc.Stdlib.List.is_prefix
@@ -342,7 +342,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
             if not !Clflags.recursive_interfaces && CU.equal cu current_unit then
                 error (Need_recursive_interfaces(ps.ps_name));
             if not !Clflags.make_recursive_package
-            && not !Clflags.for_recursive_package then begin
+            && !Clflags.recursive_packages = [] then begin
               if not !Clflags.recursive_interfaces then
                 error (Need_recursive_interfaces(ps.ps_name));
               if CU.Name.equal (CU.name current_unit) ps.ps_name then
@@ -536,7 +536,7 @@ let make_cmi penv modname sign alerts =
       (if !Clflags.unsafe_string then [Cmi_format.Unsafe_string] else []);
       (match CU.for_pack_prefix (Current_unit.get_exn ()) with
          [] -> []
-       | prefix -> [Cmi_format.Pack (prefix, !Clflags.for_recursive_package)] );
+       | prefix -> [Cmi_format.Pack (prefix, !Clflags.recursive_packages <> [])] );
       if !Clflags.recursive_interfaces then
         [Cmi_format.Recursive (imports_from_same_recursive_pack penv)]
       else [];

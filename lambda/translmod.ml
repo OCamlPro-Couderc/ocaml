@@ -900,7 +900,7 @@ let transl_implementation_aux module_id str cc =
   let code, size = transl_struct (Location.in_file "translmod_impl-struct") [] cc
       (global_path module_id) str
   in
-  if !Clflags.recursive_interfaces || !Clflags.for_recursive_package then
+  if !Clflags.recursive_interfaces || !Clflags.recursive_packages <> [] then
     let shape = init_shape_implementation module_id str in
     let fvs = Lambda.free_variables code in
     let rec_idents =
@@ -1483,7 +1483,7 @@ let transl_store_phrases module_name str =
   transl_store_structure_gen module_id (str, Tcoerce_none) true
 
 let transl_store_gen module_id (impl, restr) topl =
-  if !Clflags.recursive_interfaces || !Clflags.for_recursive_package then
+  if !Clflags.recursive_interfaces || !Clflags.recursive_packages <> [] then
     transl_store_recursive_implementation module_id (impl, restr)
   else transl_store_structure_gen module_id (impl, restr) topl, None
 
@@ -1748,7 +1748,7 @@ let transl_recursive_package module_id components recdeps size bind_components =
             comp,
             Ident.create_local (Compilation_unit.full_path_as_string member_cu))
       components in
-  if !Clflags.for_recursive_package then
+  if !Clflags.recursive_packages <> [] then
     transl_recursive_subpackage module_id components recdeps
   else
     compile_recunits components Location.none
@@ -1855,7 +1855,7 @@ let transl_store_recursive_package
             comp,
             Ident.create_local (Compilation_unit.full_path_as_string member_cu))
       components in
-  if !Clflags.for_recursive_package then
+  if !Clflags.recursive_packages <> [] then
     transl_store_recursive_subpackage module_id components recdeps
   else
     compile_recunits components Location.none
@@ -1904,7 +1904,7 @@ let transl_store_package components target_name recdeps coercion =
       in
       let size = List.length pos_cc_list in
       let components, size, recursive =
-        if !Clflags.make_recursive_package || !Clflags.for_recursive_package then
+        if !Clflags.make_recursive_package || !Clflags.recursive_packages <> [] then
           transl_store_recursive_package
             target_name components recdeps size (bind (fun (_, id) -> Lvar id))
         else
