@@ -78,6 +78,9 @@ let process_implementation_file sourcefile =
     Compilation_unit.Name.of_string
       (String.capitalize_ascii(Filename.basename prefixname)) in
   Persistent_env.Current_unit.set modulename;
+  Persistent_env.Current_unit.set_recursive_prefixes
+    (List.map (fun s -> Compilation_unit.Prefix.parse_for_pack (Some s))
+       !Clflags.recursive_packages);
   let inputfile = preprocess sourcefile in
   let env = initial_env () in
   try
@@ -114,6 +117,9 @@ let process_interface_file sourcefile =
     Compilation_unit.Name.of_string
       (String.capitalize_ascii(Filename.basename prefixname)) in
   Persistent_env.Current_unit.set modulename;
+  Persistent_env.Current_unit.set_recursive_prefixes
+    (List.map (fun s -> Compilation_unit.Prefix.parse_for_pack (Some s))
+       !Clflags.recursive_packages);
   let inputfile = preprocess sourcefile in
   let ast =
     Pparse.file ~tool_name inputfile

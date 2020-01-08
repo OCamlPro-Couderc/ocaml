@@ -321,6 +321,9 @@ let package_files ~ppf_dump initial_env files targetfile =
     let targetname =
       CU.Name.of_string (String.capitalize_ascii(Filename.basename prefix)) in
     Persistent_env.Current_unit.set targetname;
+    Persistent_env.Current_unit.set_recursive_prefixes
+      (List.map (fun s -> Compilation_unit.Prefix.parse_for_pack (Some s))
+         !Clflags.recursive_packages);
     Misc.try_finally (fun () ->
         let coercion =
           Typemod.package_units initial_env files targetcmi targetname in

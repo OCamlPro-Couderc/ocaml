@@ -318,6 +318,9 @@ let package_files ~ppf_dump initial_env files targetcmx ~backend =
       CU.Prefix.parse_for_pack !Clflags.for_package in
   let comp_unit = CU.create ~for_pack_prefix targetname in
   Persistent_env.Current_unit.set_unit comp_unit;
+    Persistent_env.Current_unit.set_recursive_prefixes
+      (List.map (fun s -> Compilation_unit.Prefix.parse_for_pack (Some s))
+         !Clflags.recursive_packages);
   Compilation_state.reset comp_unit;
   Misc.try_finally (fun () ->
       let coercion =
