@@ -77,6 +77,12 @@ module Current_unit : sig
   (** Check that the identifier given corresponds to the compilaiton unit being
       compiled. *)
   val is_name_of : Ident.t -> bool
+
+  val set_recursive_prefixes : Compilation_unit.Prefix.t list -> unit
+
+  val recursive_prefixes : unit -> Compilation_unit.Prefix.t list
+
+  val in_recursive_pack : unit -> bool
 end
 
 module Persistent_signature : sig

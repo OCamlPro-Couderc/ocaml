@@ -35,6 +35,9 @@ let annot i = i.output_prefix ^ ".annot"
 let init_env module_name for_pack_prefix =
   Compmisc.init_path ();
   Persistent_env.Current_unit.set ~prefix:for_pack_prefix module_name;
+  Persistent_env.Current_unit.set_recursive_prefixes
+    (List.map (fun s -> Compilation_unit.Prefix.parse_for_pack (Some s))
+       !Clflags.recursive_packages);
   Compmisc.initial_env ()
 
 let raw_with_info ~gen_env ~native ~tool_name ~source_file ~output_prefix ~dump_ext k =

@@ -50,6 +50,9 @@ module Current_unit : sig
   val is_unit_exn : CU.t -> bool
   val is_name_of : Ident.t -> bool
   val get_id_exn : unit -> Ident.t
+  val set_recursive_prefixes : CU.Prefix.t list -> unit
+  val recursive_prefixes : unit -> CU.Prefix.t list
+  val in_recursive_pack : unit -> bool
 end = struct
   open CU
 
@@ -94,6 +97,20 @@ end = struct
     match !current_unit with
     | None -> Misc.fatal_error "Current compilation unit is not set"
     | Some cur -> equal cur unit
+
+  let rec_prefixes = ref []
+
+  let set_recursive_prefixes pfs =
+    rec_prefixes := pfs
+
+  let recursive_prefixes () =
+    !rec_prefixes
+
+  let in_recursive_pack () =
+    match get () with
+    | None -> Misc.fatal_error "Current compilation unit is not set"
+    | Some cur ->
+        List.exists (Prefix.equal (for_pack_prefix cur)) !rec_prefixes
 
 end
 
@@ -327,8 +344,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
              - either the current unit is an interface, and it is compiled in
                the same set of recursive units
              - either the current unit is an implementation:
-               - it is the implementation of this interface, as such it should
-                 be compiled with recursive_interface
+               - it is the implementation of this interface
                - it is an implementation of the same set of recursive interfaces
                  as this one.
                - it is an implementation outside of this set.
@@ -339,8 +355,8 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
           let check cu =
             let current_unit = Current_unit.get_exn () in
             let prefix = CU.for_pack_prefix cu in
-            if not !Clflags.recursive_interfaces && CU.equal cu current_unit then
-                error (Need_recursive_interfaces(ps.ps_name));
+            (* if not !Clflags.recursive_interfaces && CU.equal cu current_unit then
+             *     error (Need_recursive_interfaces(ps.ps_name)); *)
             if not !Clflags.make_recursive_package
             && !Clflags.recursive_packages = [] then begin
               if not !Clflags.recursive_interfaces then
