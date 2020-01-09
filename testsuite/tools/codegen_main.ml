@@ -25,8 +25,6 @@ let compile_file filename =
     Compilation_unit.create (Compilation_unit.Name.of_string "Test")
   in
   Persistent_env.Current_unit.set_unit comp_unit;
-  Persistent_env.Current_unit.set_recursive_prefixes
-    (List.map (fun s -> Some s) !Clflags.recursive_packages);
   Compilation_state.reset comp_unit;
   Linking_state.reset ();
   Emit.begin_assembly comp_unit;
