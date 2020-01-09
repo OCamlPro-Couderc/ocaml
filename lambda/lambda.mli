@@ -333,7 +333,7 @@ type shape =
 
 type shape_result = (shape, unsafe_info) Result.t
 
-type recursive_info = (shape_result * Ident.Set.t) option
+type recursive_info = (shape_result * Ident.Set.t * bool) option
 
 type member_infos = {
   member_cu: Compilation_unit.t;

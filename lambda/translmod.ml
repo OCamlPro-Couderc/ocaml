@@ -460,7 +460,7 @@ let compile_recunits components dependencies loc cont =
            PM_intf, _ -> assert false
          | PM_impl {member_recursive = None }, _ -> assert false
          | PM_impl {member_cu;
-                    member_recursive = Some (shape, fvs);
+                    member_recursive = Some (shape, fvs, _);
                     member_recursive_dependencies}, id ->
              let pers_id =
                Ident.create_persistent
@@ -883,9 +883,9 @@ let init_shape_package components =
             match member_recursive with
               None ->
                 failwith "not compiled for recursive pack"
-            | Some (Ok shape, fvs) ->
+            | Some (Ok shape, fvs, _) ->
                 Ok (shape :: acc_shape), Ident.Set.union pack_fvs fvs
-            | Some (Result.Error e, fvs) ->
+            | Some (Result.Error e, fvs, _) ->
                 Result.Error e, Ident.Set.union pack_fvs fvs)
       components
       (Ok [], Ident.Set.empty)
@@ -951,8 +951,9 @@ let transl_implementation_aux module_id str cc =
     let rec_idents =
       List.map (fun cu -> Env.recursive_pack_component_id cu, Pgenval)
         (Env.imports_from_recursive_pack ()) in
+    let for_recursive_pack = Persistent_env.Current_unit.in_recursive_pack () in
     let code, f_size =
-      if Persistent_env.Current_unit.in_recursive_pack () then
+      if for_recursive_pack then
         transl_recursive_implementation module_id shape rec_idents code
       else
         transl_recursive_implementation_strict rec_idents code in
@@ -960,7 +961,7 @@ let transl_implementation_aux module_id str cc =
     Llet (Strict, Pgenval, funct_id, code,
           Lprim(Pmakeblock(0, Immutable, None), [Lvar funct_id],
                 Location.in_file "translmod_impl-makebloc")),
-    (f_size, Some (shape, fvs))
+    (f_size, Some (shape, fvs, for_recursive_pack))
   else code, (size, None)
 
 let transl_implementation_flambda module_name (str, cc) =
@@ -1525,8 +1526,9 @@ let transl_store_recursive_implementation module_id ((impl, restr)) =
   let rec_idents =
     List.map (fun cu -> Env.recursive_pack_component_id cu, Pgenval)
       (Env.imports_from_recursive_pack ()) in
+  let for_recursive_pack = Persistent_env.Current_unit.in_recursive_pack () in
   let funct, size =
-    if Persistent_env.Current_unit.in_recursive_pack () then
+    if for_recursive_pack then
       transl_recursive_implementation module_id shape rec_idents code
     else
       transl_recursive_implementation_strict rec_idents code
@@ -1539,7 +1541,7 @@ let transl_store_recursive_implementation module_id ((impl, restr)) =
                            Lvar body_id],
                           Location.none),
                     lambda_unit))),
-  Some (shape, fvs)
+  Some (shape, fvs, for_recursive_pack)
 
 let transl_store_phrases module_name str =
   let module_id = transl_store_gen_init module_name in
@@ -1725,8 +1727,7 @@ let get_component = function
       in
       Lprim(Pgetglobal pers_id, [], Location.none)
 
-let transl_recursive_subpackage_gen
-    module_id components recdeps bind_components =
+let transl_recursive_subpackage_gen module_id components recdeps bind =
   let ids =
     List.fold_left (fun acc (_, cu) -> cu :: acc)
       (List.map Env.recursive_pack_component_id recdeps)
@@ -1764,6 +1765,7 @@ let transl_recursive_subpackage_gen
          body)
   in
   let shape, fvs = init_shape_package (List.map fst components) in
+  let for_recursive_pack = Persistent_env.Current_unit.in_recursive_pack () in
   let funct body =
     let params = List.filter_map (fun id ->
         if List.exists (function
@@ -1778,7 +1780,7 @@ let transl_recursive_subpackage_gen
         ids
     in
     let funct_code, _ =
-      if Persistent_env.Current_unit.in_recursive_pack () then
+      if for_recursive_pack then
         transl_recursive_implementation module_id shape params body
       else transl_recursive_implementation_strict params body
     in
@@ -1787,7 +1789,7 @@ let transl_recursive_subpackage_gen
   let code =
     (if !Clflags.make_recursive_package then
       compile_recunits components recdeps Location.none
-        (bind_components components)
+        (bind components)
     else
       List.fold_right (fun (comp, id) acc ->
           match comp with
@@ -1801,7 +1803,7 @@ let transl_recursive_subpackage_gen
                List.map (fun (_, id) -> Lvar id) components, Location.none)))
     |> funct
   in
-  code, Some (shape, fvs)
+  code, Some (shape, fvs, for_recursive_pack)
 
 let transl_recursive_subpackage module_id components recdeps bind_components =
   let funct_body, recursive =
@@ -1832,7 +1834,7 @@ let transl_recursive_package module_id components recdeps size bind_components =
     let recursive =
       if Persistent_env.Current_unit.recursive_prefixes () <> [] then
         let shape, fvs = init_shape_package (List.map fst components) in
-        Some (shape, fvs)
+        Some (shape, fvs, true)
       else
         None
     in

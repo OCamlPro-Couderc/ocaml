@@ -418,7 +418,8 @@ let to_file outchan unit_name objfile ~required_globals rec_infos code =
       (0, 0) in
   let rec_infos = match rec_infos with
       None -> None
-    | Some (shape, fvs) -> Some (shape, Ident.Set.elements fvs)
+    | Some (shape, fvs, for_recursive_pack) ->
+        Some (shape, Ident.Set.elements fvs, for_recursive_pack)
   in
   let compunit =
     { cu_name = unit_name;

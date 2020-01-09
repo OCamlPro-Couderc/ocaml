@@ -34,6 +34,8 @@ type error =
   | Wrong_for_pack of string * Compilation_unit.Prefix.t
   | Linking_error
   | File_not_found of string
+  | Cannot_pack_recursive_interface of string
+  | Incompatible_recursive_flags of Compilation_unit.Name.t * bool
 
 exception Error of error
 

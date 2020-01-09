@@ -35,6 +35,8 @@ type error =
   | Wrong_for_pack of string * CU.Prefix.t
   | Linking_error
   | File_not_found of string
+  | Cannot_pack_recursive_interface of string
+  | Incompatible_recursive_flags of CU.Name.t * bool
 
 exception Error of error
 
@@ -50,14 +52,29 @@ type pack_member =
     pm_kind: pack_member_kind;
   }
 
+let check_member_recursive_info info =
+  match UI.recursive info with
+    None -> ()
+  | Some (_, _, for_recursive_pack) ->
+    let name = CU.name (UI.unit info) in
+    if for_recursive_pack && not !Clflags.make_recursive_package
+    then
+      raise (Error (Incompatible_recursive_flags (name, true)))
+    else if not for_recursive_pack && !Clflags.make_recursive_package
+    then
+      raise (Error (Incompatible_recursive_flags (name, false)))
+
 let read_member_info pack_path file =
   let name =
     CU.Name.of_string (String.capitalize_ascii (
       Filename.basename (chop_extensions file)))
   in
   let kind =
-    if Filename.check_suffix file ".cmi" then
+    if Filename.check_suffix file ".cmi" then begin
+      if !Clflags.make_recursive_package then
+        raise (Error (Cannot_pack_recursive_interface file));
       PM_intf
+    end
     else begin
       let info, link_info, crc = Cmx_format.load ~filename:file in
       let name_in_cmx = CU.name (UI.unit info) in
@@ -75,6 +92,7 @@ let read_member_info pack_path file =
       end;
       Asmlink.check_consistency file info crc;
       Compilation_state.cache_unit_info info;
+      check_member_recursive_info info;
       PM_impl (info, link_info)
     end
   in
@@ -133,11 +151,11 @@ let make_package_object
               let member_recursive =
                 match UI.recursive ui with
                   None -> None
-                | Some (s, fvs) ->
+                | Some (s, fvs, for_recursive_pack) ->
                     let fvs' =
                       List.fold_left (fun acc elt -> Ident.Set.add elt acc)
                         Ident.Set.empty fvs in
-                    Some (s, fvs')
+                    Some (s, fvs', for_recursive_pack)
               in
               Lambda.PM_impl { member_cu; member_recursive;
                                member_recursive_dependencies =
@@ -202,7 +220,8 @@ let build_package_cmx members cmxfile program recursive_dependencies =
   let recursive =
     match program.Lambda.recursive with
       None -> None
-    | Some (shape, fvs) -> Some (shape, Ident.Set.elements fvs)
+    | Some (shape, fvs, for_recursive_pack) ->
+        Some (shape, Ident.Set.elements fvs, for_recursive_pack)
   in
   (* Recursive pack can generate a call to !CamlinternalMod *)
   Ident.Set.iter (fun id ->
@@ -351,6 +370,16 @@ let report_error ppf = function
       fprintf ppf "File %s not found" file
   | Linking_error ->
       fprintf ppf "Error during partial linking"
+  | Cannot_pack_recursive_interface file ->
+      fprintf ppf "Cannot pack %s into a recursive pack, only implementations \
+                   are accepted." file
+  | Incompatible_recursive_flags (name, for_recursive_pack) ->
+      let compiled_for =
+        if for_recursive_pack then "recursive" else "classic" in
+      let flag = if for_recursive_pack then "-pack" else "-recursive-pack" in
+      fprintf ppf "Compilation unit %a is compiled for a %s pack \
+                   This pack must be compiled with the `%s` option."
+        Compilation_unit.Name.print name compiled_for flag
 
 let () =
   Location.register_error_of_exn

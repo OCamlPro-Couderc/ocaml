@@ -30,6 +30,7 @@ type error =
   | File_not_found of string
   | Wrong_for_pack of string * CU.Prefix.t
   | Cannot_pack_recursive_interface of string
+  | Incompatible_recursive_flags of Compilation_unit.Name.t * bool
 
 exception Error of error
 
@@ -74,6 +75,17 @@ type pack_member =
     pm_kind: pack_member_kind;
   }
 
+let check_member_recursive_info compunit =
+  match compunit.cu_rec_infos with
+    None -> ()
+  | Some (_, _, for_recursive_pack) ->
+    if for_recursive_pack && not !Clflags.make_recursive_package
+    then
+      raise (Error (Incompatible_recursive_flags (compunit.cu_name, true)))
+    else if not for_recursive_pack && !Clflags.make_recursive_package
+    then
+      raise (Error (Incompatible_recursive_flags (compunit.cu_name, false)))
+
 let read_member_info pack_path file = (
   let name =
     CU.Name.of_string
@@ -81,7 +93,7 @@ let read_member_info pack_path file = (
   let kind =
     (* PR#7479: make sure it is either a .cmi or a .cmo *)
     if Filename.check_suffix file ".cmi" then begin
-      if not !Clflags.make_recursive_package then
+      if !Clflags.make_recursive_package then
         raise (Error (Cannot_pack_recursive_interface file));
       PM_intf
     end
@@ -100,6 +112,7 @@ let read_member_info pack_path file = (
         then raise(Error(Illegal_renaming(name, file, compunit.cu_name)));
         if not (Compilation_unit.Prefix.equal compunit.cu_prefix pack_path) then
           raise (Error (Wrong_for_pack (file, pack_path)));
+        check_member_recursive_info compunit;
         close_in ic;
         PM_impl compunit
       with x ->
@@ -183,11 +196,11 @@ let build_global_target
             let member_recursive =
               match compunit.cu_rec_infos with
                 None -> None
-              | Some (s, fvs) ->
+              | Some (s, fvs, for_recursive_pack) ->
                   let fvs' =
                     List.fold_left (fun acc elt -> Ident.Set.add elt acc)
                       Ident.Set.empty fvs in
-                  Some (s, fvs')
+                  Some (s, fvs', for_recursive_pack)
             in
             let member_infos =
               Lambda.{ member_cu; member_recursive;
@@ -262,7 +275,8 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let cu_rec_infos =
       match recursive_info with
         None -> None
-      | Some (shape, fvs) -> Some (shape, Ident.Set.elements fvs)
+      | Some (shape, fvs, for_recursive_pack) ->
+          Some (shape, Ident.Set.elements fvs, for_recursive_pack)
     in
     let cu_rec_dependencies =
       List.filter (fun cu ->
@@ -361,6 +375,13 @@ let report_error ppf = function
   | Cannot_pack_recursive_interface file ->
       fprintf ppf "Cannot pack %s into a recursive pack, only implementations \
                    are accepted." file
+  | Incompatible_recursive_flags (name, for_recursive_pack) ->
+      let compiled_for =
+        if for_recursive_pack then "recursive" else "classic" in
+      let flag = if for_recursive_pack then "-pack" else "-recursive-pack" in
+      fprintf ppf "Compilation unit %a is compiled for a %s pack \
+                   This pack must be compiled with the `%s` option."
+        Compilation_unit.Name.print name compiled_for flag
 
 let () =
   Location.register_error_of_exn
