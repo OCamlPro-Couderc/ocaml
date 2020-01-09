@@ -58,7 +58,7 @@ module Unit_info = struct
     defines : Compilation_unit.t list;
     imports_cmi : Digest.t option Compilation_unit.Map.t;
     imports_cmx : Digest.t option Compilation_unit.Map.t;
-    recursive : (Lambda.shape_result * Ident.t list) option;
+    recursive : (Lambda.shape_result * Ident.t list * bool) option;
     recursive_dependencies : Compilation_unit.t list;
     export_info : export_info;
   }

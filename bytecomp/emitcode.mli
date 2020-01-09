@@ -19,7 +19,8 @@ open Cmo_format
 open Instruct
 
 val to_file: out_channel -> string -> string ->
-  required_globals:Ident.Set.t -> (Lambda.shape_result * Ident.Set.t) option ->
+  required_globals:Ident.Set.t ->
+  (Lambda.shape_result * Ident.Set.t * bool) option ->
   instruction list -> unit
         (* Arguments:
              channel on output file

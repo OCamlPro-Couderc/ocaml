@@ -791,6 +791,7 @@ let reset_declaration_caches () =
   ()
 
 let reset_cache () =
+  Persistent_env.Current_unit.set ~prefix:[] "";
   Persistent_env.Current_unit.set_recursive_prefixes [];
   Persistent_env.clear persistent_env;
   reset_declaration_caches ();

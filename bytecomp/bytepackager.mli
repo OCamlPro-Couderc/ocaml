@@ -27,6 +27,7 @@ type error =
   | File_not_found of string
   | Wrong_for_pack of string * Compilation_unit.Prefix.t
   | Cannot_pack_recursive_interface of string
+  | Incompatible_recursive_flags of Compilation_unit.Name.t * bool
 
 exception Error of error
 
