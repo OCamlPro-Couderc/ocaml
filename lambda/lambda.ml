@@ -346,7 +346,7 @@ type shape =
 
 type shape_result = (shape, unsafe_info) Result.t
 
-type recursive_info = (shape_result * Ident.Set.t) option
+type recursive_info = (shape_result * Ident.Set.t * bool) option
 
 type member_infos = {
   member_cu: Compilation_unit.t;
@@ -362,7 +362,7 @@ type program =
   { module_ident : Ident.t;
     main_module_block_size : int;
     required_globals : Ident.Set.t;
-    recursive : (shape_result * Ident.Set.t) option;
+    recursive : recursive_info;
     code : lambda }
 
 let const_unit = Const_pointer 0

@@ -95,15 +95,21 @@ let print_shape_result ppf = function
 
 let print_free_var ppf id = fprintf ppf "%s" (Ident.name id)
 
+let print_for_recpack ppf = function
+    true -> fprintf ppf "for recursive pack"
+  | false -> fprintf ppf "for recursive subpack"
+
 let print_rec_infos infos =
   printf "Recursive: %a\n"
     (fun ppf infos ->
        match infos with
          None -> fprintf ppf "NO"
-       | Some (shape, fvs) ->
-           fprintf ppf "%a\nFreevars:%a\n"
+       | Some (shape, fvs, for_recursive_pack) ->
+           fprintf ppf "%a\n%a\nFreevars:%a\n"
+             print_for_recpack for_recursive_pack
              print_shape_result shape
-             (print_list print_free_var) fvs) infos
+             (print_list print_free_var) fvs
+    ) infos
 
 let print_compunit unit =
   printf "\t%s\n"

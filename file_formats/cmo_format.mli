@@ -36,7 +36,7 @@ type compilation_unit =
     cu_required_globals: Ident.t list;   (* Compilation units whose
                                             initialization side effects
                                             must occur before this one. *)
-    cu_rec_infos: (Lambda.shape_result * Ident.t list) option;
+    cu_rec_infos: (Lambda.shape_result * Ident.t list * bool) option;
                                          (* Used to initialize recursive unit *)
     cu_rec_dependencies: Compilation_unit.t list;
                                          (* Compilation units in the current

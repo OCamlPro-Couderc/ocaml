@@ -70,7 +70,8 @@ let write_cmx_file filename recursive =
     let recursive =
       match recursive with
         None -> None
-      | Some (shape, fvs) -> Some (shape, Ident.Set.elements fvs)
+      | Some (shape, fvs, for_recursive_pack) ->
+          Some (shape, Ident.Set.elements fvs,for_recursive_pack)
     in
     let recursive_dependencies = Env.imports_from_recursive_pack () in
     UI.create ~unit ~defines ~imports_cmi ~imports_cmx
