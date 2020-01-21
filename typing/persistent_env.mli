@@ -145,7 +145,8 @@ val add_recursive_interface :
 
 val recursive_pack_component_id : 'a t -> Compilation_unit.t -> Ident.t
 
-val make_cmi : 'a t -> Compilation_unit.Name.t -> Types.signature -> alerts
+val make_cmi :
+  'a t -> Compilation_unit.Name.t -> Types.signature -> alerts -> bool
   -> Cmi_format.cmi_infos
 
 val save_cmi : 'a t -> Persistent_signature.t -> 'a -> unit

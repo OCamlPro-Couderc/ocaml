@@ -161,7 +161,7 @@ let print_pers_flags =
       printf " -for-%spack %s"
         (if is_recursive then "recursive-" else "")
         (CU.Prefix.to_string modnames)
-  | Recursive intfs ->
+  | Recursive (intfs, _) ->
       printf " -recursive %s"
         (Format.asprintf "%a"
            (Format.pp_print_list

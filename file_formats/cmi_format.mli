@@ -21,7 +21,7 @@ type pers_flags =
   | Opaque
   | Unsafe_string
   | Pack of Compilation_unit.Prefix.t * bool
-  | Recursive of Compilation_unit.Name.t list
+  | Recursive of Compilation_unit.Name.t list * bool
 
 type cmi_infos = {
     cmi_name : Compilation_unit.Name.t;

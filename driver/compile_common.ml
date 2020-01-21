@@ -133,10 +133,10 @@ let typecheck_rec_intf infos asts =
   Warnings.check_fatal ();
   fst @@ List.split tsgs, recenv
 
-let emit_signature info ast tsg =
+let emit_signature info ast tsg ~need_code =
   let sg =
     let alerts = Builtin_attributes.alerts_of_sig ast in
-    Env.save_signature ~alerts tsg.Typedtree.sig_type
+    Env.save_signature ~alerts ~need_code tsg.Typedtree.sig_type
       info.module_name (info.output_prefix ^ ".cmi")
   in
   let env = match info.env with Some env -> env | None -> assert false in
@@ -149,7 +149,7 @@ let interface info =
   if Clflags.(should_stop_after Compiler_pass.Parsing) then () else begin
     let tsg = typecheck_intf info ast in
     if not !Clflags.print_types then begin
-      emit_signature info ast tsg
+      emit_signature info ast tsg ~need_code:false
     end
   end
 
@@ -159,8 +159,13 @@ let rec_interfaces infos =
   if Clflags.(should_stop_after Compiler_pass.Parsing) then () else begin
     let tsgs, recenv = typecheck_rec_intf infos asts in
     if not !Clflags.print_types then begin
+      let need_code =
+        List.exists (fun tsg ->
+            let mty = Types.Mty_signature tsg.Typedtree.sig_type in
+            not (Mtype.no_code_needed recenv mty)) tsgs
+      in
       Misc.iter3 (fun info ->
-          emit_signature { info with env = Some recenv })
+          emit_signature ~need_code { info with env = Some recenv })
         infos asts tsgs
     end
   end

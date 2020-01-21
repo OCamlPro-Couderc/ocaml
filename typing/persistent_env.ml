@@ -343,7 +343,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
             error (Inconsistent_recursive_package_import
                      (filename, is_recursive));
           prefix := p
-      | Recursive intfs ->
+      | Recursive (intfs, _need_code) ->
           (* The parameters to take account of are:
              - either the current unit is an interface, and it is compiled in
                the same set of recursive units
@@ -534,7 +534,7 @@ let imports_from_same_recursive_pack {recursive_dependencies; _} =
       else None)
     (CU.Map.bindings !recursive_dependencies)
 
-let make_cmi penv modname sign alerts =
+let make_cmi penv modname sign alerts need_code =
   let flags =
     List.concat [
       if !Clflags.recursive_types then [Cmi_format.Rectypes] else [];
@@ -544,7 +544,7 @@ let make_cmi penv modname sign alerts =
          [] -> []
        | prefix -> [Cmi_format.Pack (prefix, !Clflags.recursive_packages <> [])] );
       if !Clflags.recursive_interfaces then
-        [Cmi_format.Recursive (imports_from_same_recursive_pack penv)]
+        [Cmi_format.Recursive (imports_from_same_recursive_pack penv, need_code)]
       else [];
       [Alerts alerts];
     ]
