@@ -2737,7 +2737,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           if not !Clflags.dont_write_files then begin
             let alerts = Builtin_attributes.alerts_of_str ast in
             let cmi =
-              Env.save_signature ~alerts
+              Env.save_signature ~alerts ~need_code:false
                 simple_sg modulename (outputprefix ^ ".cmi")
             in
             Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
@@ -2863,7 +2863,9 @@ let package_units initial_env objfiles cmifile modulename =
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin
       let cmi =
-        Env.save_signature_with_imports ~alerts:Misc.Stdlib.String.Map.empty
+        Env.save_signature_with_imports
+          ~alerts:Misc.Stdlib.String.Map.empty
+          ~need_code:false
           sg modulename
           (prefix ^ ".cmi") imports
       in
