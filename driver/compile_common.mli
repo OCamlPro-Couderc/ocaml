@@ -67,9 +67,10 @@ val typecheck_intf : info -> Parsetree.signature -> Typedtree.signature (**
    [typecheck_intf info parsetree] typechecks an interface and returns the
    typedtree of the associated signature.  *)
 
-val emit_signature : info -> Parsetree.signature -> Typedtree.signature -> unit
-   (** [emit_signature info parsetree typedtree] emits the [.cmi] file
-   containing the given signature.  *)
+val emit_signature :
+  info -> Parsetree.signature -> Typedtree.signature -> need_code:bool -> unit
+(** [emit_signature info parsetree typedtree ~need_code] emits the [.cmi] file
+    containing the given signature.  *)
 
 val interface : info -> unit (** The complete compilation pipeline for
    interfaces. *)
