@@ -33,7 +33,7 @@ type error =
       { imported_unit: CU.Name.t; filename: filepath;
         prefix: CU.Prefix.t; current_pack: CU.Prefix.t }
   | Inconsistent_package_import of filepath * CU.Name.t
-  | Need_recursive_interfaces of CU.Name.t
+  | Inconsistent_recursive_unit_import of CU.t * bool
   | Inconsistent_recursive_package_import of filepath * bool
 
 exception Error of error
@@ -343,35 +343,24 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
             error (Inconsistent_recursive_package_import
                      (filename, is_recursive));
           prefix := p
-      | Recursive (intfs, _need_code) ->
-          (* The parameters to take account of are:
-             - either the current unit is an interface, and it is compiled in
-               the same set of recursive units
-             - either the current unit is an implementation:
-               - it is the implementation of this interface
-               - it is an implementation of the same set of recursive interfaces
-                 as this one.
-               - it is an implementation outside of this set.
-
-             Since pack tie the recursive interfaces together, we can check they
-             belong to the same (recursive) pack.
-          *)
+      | Recursive (intfs, need_code) ->
           let check cu =
             let current_unit = Current_unit.get_exn () in
+            let current_prefix = CU.for_pack_prefix current_unit in
             let prefix = CU.for_pack_prefix cu in
-            (* if not !Clflags.recursive_interfaces && CU.equal cu current_unit then
-             *     error (Need_recursive_interfaces(ps.ps_name)); *)
-            if not !Clflags.make_recursive_package
-            && !Clflags.recursive_packages = [] then begin
-              if not !Clflags.recursive_interfaces then
-                error (Need_recursive_interfaces(ps.ps_name));
-              if CU.Name.equal (CU.name current_unit) ps.ps_name then
-                List.iter (add_recursive_interface penv prefix) intfs;
-              if not (CU.Map.mem current_unit !(penv.recursive_dependencies)) then
-                error (Need_recursive_interfaces(ps.ps_name))
-            end else begin
-              List.iter (add_recursive_interface penv prefix) intfs
-            end
+            let in_recursive_package =
+              !Clflags.make_recursive_package
+              || !Clflags.recursive_packages <> []
+            in
+            if need_code then
+              if not in_recursive_package then
+                error (Inconsistent_recursive_unit_import
+                         (cu, in_recursive_package))
+              else if List.mem (CU.name current_unit) intfs
+                   && not (CU.Prefix.equal prefix current_prefix) then
+                error (Inconsistent_recursive_unit_import
+                         (cu, in_recursive_package));
+            List.iter (add_recursive_interface penv prefix) intfs
           in
           check_recursive := check
       | Opaque ->
@@ -456,10 +445,10 @@ let check_pers_struct penv f ~loc name =
             Printf.sprintf
               "%s corresponds to the current unit's package"
               intf_filename
-        | Need_recursive_interfaces name ->
+        | Inconsistent_recursive_unit_import (cu, _) ->
             Format.asprintf
               "%a is compiled in a set of recursive interfaces"
-              CU.Name.print name
+              CU.Name.print (CU.name cu)
         | Inconsistent_recursive_package_import(intf_filename, recursive) ->
             let import_msg = if recursive then "recursive" else "regular" in
             let curr_unit_msg = if recursive then "without" else "with" in
@@ -640,12 +629,20 @@ let report_error ppf =
         "@[<hov>The interface %s@ corresponds to the current unit's package %a.@]"
         intf_filename
         CU.Name.print intf_fullname
-  | Need_recursive_interfaces name ->
+  | Inconsistent_recursive_unit_import (unit, in_recursive_pack) ->
+      let msg =
+        if in_recursive_pack then
+          "The current unit must be compiled in the same set \
+           to belong the same pack."
+        else
+          "The current unit should be compiled for a recursive pack."
+      in
       fprintf ppf
-        "@[<hov> Invalid import of %a, @ \
+        "@[<hov>Invalid import of %a, for package %a @ \
          which is compiled in a set of recursive interfaces.@ %s @]"
-        CU.Name.print name
-        "The current unit must be compiled in the same set."
+        CU.Name.print (CU.name unit)
+        CU.Prefix.print (CU.for_pack_prefix unit)
+        msg
   | Inconsistent_recursive_package_import(intf_filename, recursive) ->
       let import_msg = if recursive then "recursive" else "regular" in
       let curr_unit_msg = if recursive then "without" else "with" in
