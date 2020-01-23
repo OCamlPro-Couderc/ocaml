@@ -325,6 +325,7 @@ let package_files ~ppf_dump initial_env files targetfile =
         files in
     let prefix = chop_extensions targetfile in
     let targetcmi = prefix ^ ".cmi" in
+    Location.input_name := targetfile;
     let targetname = String.capitalize_ascii(Filename.basename prefix) in
     Persistent_env.Current_unit.set targetname;
     Persistent_env.Current_unit.set_recursive_prefixes
