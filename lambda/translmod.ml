@@ -910,6 +910,7 @@ let transl_implementation_aux module_id str cc =
         (Env.imports_from_recursive_pack ()) in
     let for_recursive_pack = Persistent_env.Current_unit.in_recursive_pack () in
     let code, f_size =
+      if for_recursive_pack then
         transl_recursive_implementation module_id shape rec_idents code
       else
         transl_recursive_implementation_strict rec_idents code in
