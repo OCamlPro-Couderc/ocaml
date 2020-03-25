@@ -76,14 +76,12 @@ type pack_member =
 
 let check_member_recursive_info compunit =
   match compunit.cu_rec_infos with
-    None -> ()
-  | Some (_, _, for_recursive_pack) ->
-    if for_recursive_pack && not !Clflags.make_recursive_package
-    then
-      raise (Error (Incompatible_recursive_flags (compunit.cu_name, true)))
-    else if not for_recursive_pack && !Clflags.make_recursive_package
-    then
+    None when !Clflags.make_recursive_package ->
       raise (Error (Incompatible_recursive_flags (compunit.cu_name, false)))
+  | Some (_, _, _)
+    when not !Clflags.make_recursive_package ->
+      raise (Error (Incompatible_recursive_flags (compunit.cu_name, true)))
+  | _ -> ()
 
 let read_member_info pack_path file = (
   let name =
@@ -372,7 +370,7 @@ let report_error ppf = function
       let compiled_for =
         if for_recursive_pack then "recursive" else "classic" in
       let flag = if for_recursive_pack then "-pack" else "-recursive-pack" in
-      fprintf ppf "Compilation unit %a is compiled for a %s pack \
+      fprintf ppf "Compilation unit %a is compiled for a %s pack. \n\
                    This pack must be compiled with the `%s` option."
         Compilation_unit.Name.print name compiled_for flag
 
