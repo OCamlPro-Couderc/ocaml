@@ -54,15 +54,14 @@ type pack_member =
 
 let check_member_recursive_info info =
   match UI.recursive info with
-    None -> ()
-  | Some (_, _, for_recursive_pack) ->
-    let name = CU.name (UI.unit info) in
-    if for_recursive_pack && not !Clflags.make_recursive_package
-    then
-      raise (Error (Incompatible_recursive_flags (name, true)))
-    else if not for_recursive_pack && !Clflags.make_recursive_package
-    then
-      raise (Error (Incompatible_recursive_flags (name, false)))
+    None when !Clflags.make_recursive_package ->
+      raise (Error (Incompatible_recursive_flags
+                      (CU.name (UI.unit info), false)))
+  | Some (_, _, _)
+    when not !Clflags.make_recursive_package ->
+      raise (Error (Incompatible_recursive_flags
+                      (CU.name (UI.unit info), true)))
+  | _ -> ()
 
 let read_member_info pack_path file =
   let name =
