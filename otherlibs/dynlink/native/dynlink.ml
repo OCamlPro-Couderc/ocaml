@@ -26,10 +26,10 @@ module DC = Dynlink_common
 module DT = Dynlink_types
 
 type global_map = {
-  name : string;
+  name : Compilation_unit.Name.t;
   crc_intf : Digest.t option;
   crc_impl : Digest.t option;
-  syms : string list
+  syms : Compilation_unit.Name.t list
 }
 
 module Native = struct
@@ -53,7 +53,7 @@ module Native = struct
        elsewhere in the compiler (superceding type [modname]). *)
 
     let name t =
-      CU.Name.to_string (CU.name (DU.unit t))
+      CU.name (DU.unit t)
 
     let crc t = Some (DU.crc t)
 

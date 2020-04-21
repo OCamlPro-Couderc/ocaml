@@ -2623,7 +2623,8 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         if Sys.file_exists sourceintf then begin
           let intf_file =
             try
-              Load_path.find_uncap (modulename ^ ".cmi")
+              Load_path.find_uncap
+                (Compilation_unit.Name.to_string modulename ^ ".cmi")
             with Not_found ->
               raise(Error(Location.in_file sourcefile, Env.empty,
                           Interface_not_compiled sourceintf)) in
@@ -2684,7 +2685,8 @@ let type_interface env ast =
 let package_signatures units =
   let units_with_ids =
     List.map
-      (fun (name, sg) ->
+      (fun (cu_name, sg) ->
+        let name = Compilation_unit.Name.to_string cu_name in
         let oldid = Ident.create_persistent name in
         let newid = Ident.create_local name in
         (oldid, newid, sg))
@@ -2716,12 +2718,13 @@ let package_units initial_env objfiles cmifile modulename =
       (fun f ->
          let pref = chop_extensions f in
          let modname = String.capitalize_ascii(Filename.basename pref) in
-         let sg = Env.read_signature modname (pref ^ ".cmi") in
+         let cu_modname = Compilation_unit.Name.of_string modname in
+         let sg = Env.read_signature cu_modname (pref ^ ".cmi") in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
-         (modname, Env.read_signature modname (pref ^ ".cmi")))
+         (cu_modname, Env.read_signature cu_modname (pref ^ ".cmi")))
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();

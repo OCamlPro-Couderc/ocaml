@@ -31,7 +31,8 @@ let init_path () = Compmisc.init_path ()
 (** Return the initial environment in which compilation proceeds. *)
 let initial_env () =
   let current =
-    Compilation_unit.name (Persistent_env.Current_unit.get_exn ()) in
+    Compilation_unit.(
+      Name.to_string (name (Persistent_env.Current_unit.get_exn ()))) in
   let initial = !Odoc_global.initially_opened_module in
   let initially_opened_module =
     if initial = current then
@@ -73,7 +74,9 @@ let no_docstring f x =
 let process_implementation_file sourcefile =
   init_path ();
   let prefixname = Filename.chop_extension sourcefile in
-  let modulename = String.capitalize_ascii(Filename.basename prefixname) in
+  let modulename =
+    Compilation_unit.Name.of_string
+      (String.capitalize_ascii(Filename.basename prefixname)) in
   Persistent_env.Current_unit.set modulename;
   let inputfile = preprocess sourcefile in
   let env = initial_env () in
@@ -107,7 +110,9 @@ let process_implementation_file sourcefile =
 let process_interface_file sourcefile =
   init_path ();
   let prefixname = Filename.chop_extension sourcefile in
-  let modulename = String.capitalize_ascii(Filename.basename prefixname) in
+  let modulename =
+    Compilation_unit.Name.of_string
+      (String.capitalize_ascii(Filename.basename prefixname)) in
   Persistent_env.Current_unit.set modulename;
   let inputfile = preprocess sourcefile in
   let ast =

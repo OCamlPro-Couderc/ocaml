@@ -34,7 +34,9 @@ let annot i = i.output_prefix ^ ".annot"
 
 let with_info ~native ~tool_name ~source_file ~output_prefix ~dump_ext k =
   Compmisc.init_path ();
-  let module_name = module_of_filename source_file output_prefix in
+  let module_name =
+    Compilation_unit.Name.of_string
+      (module_of_filename source_file output_prefix) in
   let for_pack_prefix =
     Compilation_unit.Prefix.parse_for_pack !Clflags.for_package in
   Persistent_env.Current_unit.set ~prefix:for_pack_prefix module_name;

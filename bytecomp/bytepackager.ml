@@ -20,14 +20,15 @@ open Misc
 open Instruct
 open Cmo_format
 module String = Misc.Stdlib.String
+module CU = Compilation_unit
 
 type error =
     Forward_reference of string * Ident.t
   | Multiple_definition of string * Ident.t
   | Not_an_object_file of string
-  | Illegal_renaming of string * string * string
+  | Illegal_renaming of CU.Name.t * string * CU.Name.t
   | File_not_found of string
-  | Wrong_for_pack of string * Compilation_unit.Prefix.t
+  | Wrong_for_pack of string * CU.Prefix.t
 
 exception Error of error
 
@@ -67,13 +68,14 @@ type pack_member_kind = PM_intf | PM_impl of compilation_unit
 
 type pack_member =
   { pm_file: string;
-    pm_name: string;
+    pm_name: CU.Name.t;
     pm_kind: pack_member_kind;
   }
 
 let read_member_info pack_path file = (
   let name =
-    String.capitalize_ascii(Filename.basename(chop_extensions file)) in
+    CU.Name.of_string
+      (String.capitalize_ascii(Filename.basename(chop_extensions file))) in
   let kind =
     (* PR#7479: make sure it is either a .cmi or a .cmo *)
     if Filename.check_suffix file ".cmi" then
@@ -89,7 +91,7 @@ let read_member_info pack_path file = (
         let compunit_pos = input_binary_int ic in
         seek_in ic compunit_pos;
         let compunit = (input_value ic : compilation_unit) in
-        if compunit.cu_name <> name
+        if not (CU.Name.equal compunit.cu_name name)
         then raise(Error(Illegal_renaming(name, file, compunit.cu_name)));
         if not (Compilation_unit.Prefix.equal compunit.cu_prefix pack_path) then
           raise (Error (Wrong_for_pack (file, pack_path)));
@@ -150,8 +152,9 @@ let rec append_bytecode_list packagename oc identifiers defined ofs subst =
             append_bytecode oc identifiers defined ofs
               subst m.pm_file compunit in
           (* /!\ TEMP *)
-          let prefix = String.split_on_char '.' packagename in
-          let id = Ident.create_persistent ~prefix m.pm_name in
+          let prefix = CU.Prefix.parse_for_pack (Some packagename) in
+          let id =
+            Ident.create_persistent ~prefix (CU.Name.to_string m.pm_name) in
           let root = Path.Pident id in
           append_bytecode_list packagename oc identifiers (id :: defined)
             (ofs + size)
@@ -171,7 +174,8 @@ let build_global_target ~ppf_dump oc target_name members identifiers pos coercio
       members identifiers in
   let lam =
     Translmod.transl_package
-      components (Ident.create_persistent target_name) coercion in
+      components
+      (Ident.create_persistent (CU.Name.to_string target_name)) coercion in
   let lam = Simplif.simplify_lambda lam in
   if !Clflags.dump_lambda then
     Format.fprintf ppf_dump "%a@." Printlambda.lambda lam;
@@ -185,8 +189,8 @@ let build_global_target ~ppf_dump oc target_name members identifiers pos coercio
 
 let package_object_files ~ppf_dump files targetfile targetname coercion =
   let packagename = match !Clflags.for_package with
-      None -> targetname
-    | Some p -> p ^ "." ^ targetname in
+      None -> CU.Name.to_string targetname
+    | Some p -> p ^ "." ^ CU.Name.to_string targetname in
   let prefix = Compilation_unit.Prefix.parse_for_pack (Some packagename) in
   let members =
     map_left_right (read_member_info prefix) files in
@@ -212,7 +216,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     List.map (fun m -> m.pm_name) members in
   let identifiers =
     List.map
-      (fun name -> Ident.create_persistent ~prefix name)
+      (fun name -> Ident.create_persistent ~prefix (CU.Name.to_string name))
       unit_names in
   let oc = open_out_bin targetfile in
   try
@@ -269,7 +273,8 @@ let package_files ~ppf_dump initial_env files targetfile =
         files in
     let prefix = chop_extensions targetfile in
     let targetcmi = prefix ^ ".cmi" in
-    let targetname = String.capitalize_ascii(Filename.basename prefix) in
+    let targetname =
+      CU.Name.of_string (String.capitalize_ascii(Filename.basename prefix)) in
     Persistent_env.Current_unit.set targetname;
     Misc.try_finally (fun () ->
         let coercion =
@@ -295,8 +300,10 @@ let report_error ppf = function
         Location.print_filename file
   | Illegal_renaming(name, file, id) ->
       fprintf ppf "Wrong file naming: %a@ contains the code for\
-                   @ %s when %s was expected"
-        Location.print_filename file name id
+                   @ %a when %a was expected"
+        Location.print_filename file
+        CU.Name.print name
+        CU.Name.print id
   | File_not_found file ->
       fprintf ppf "File %s not found" file
   | Wrong_for_pack(file, path) ->

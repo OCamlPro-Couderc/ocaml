@@ -77,7 +77,9 @@ module Bytecode = struct
 
   let fold_initial_units ~init ~f =
     List.fold_left (fun acc (comp_unit, interface) ->
-        let id = Ident.create_persistent (Compilation_unit.name comp_unit) in
+        let id =
+          Ident.create_persistent
+            Compilation_unit.(Name.to_string (name comp_unit)) in
         let defined =
           Symtable.is_defined_in_global_map !default_global_map id
         in
@@ -124,7 +126,9 @@ module Bytecode = struct
        digest of file contents + unit name.
        Compunit name is needed for .cma files, which produce several code
        fragments. *)
-    let digest = Digest.string (file_digest ^ compunit.cu_name) in
+    let digest =
+      Digest.string
+        (file_digest ^ Compilation_unit.Name.to_string compunit.cu_name) in
     let events =
       if compunit.cu_debug = 0 then [| |]
       else begin

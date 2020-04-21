@@ -24,6 +24,7 @@ open Types
 open Btype
 
 module String = Misc.Stdlib.String
+module CU = Compilation_unit
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
@@ -672,7 +673,8 @@ let find_same_module id tbl =
 let find_name_module ~mark name tbl =
   match IdTbl.find_name wrap_module ~mark name tbl with
   | x -> x
-  | exception Not_found when not (Persistent_env.Current_unit.is name) ->
+  | exception Not_found
+    when not (Persistent_env.Current_unit.is (CU.Name.of_string name)) ->
       let path = Pident(Ident.create_persistent name) in
       path, Mod_persistent
 
@@ -701,7 +703,7 @@ let components_of_module ~alerts ~loc env fs ps path addr mty =
   }
 
 let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
-  let name = cmi.cmi_name in
+  let name = CU.Name.to_string cmi.cmi_name in
   let sign = cmi.cmi_sign in
   let flags = cmi.cmi_flags in
   let id = Ident.create_persistent name in
@@ -776,7 +778,7 @@ let reset_declaration_caches () =
   ()
 
 let reset_cache () =
-  Persistent_env.Current_unit.set ~prefix:[] "";
+  Persistent_env.Current_unit.set ~prefix:[] CU.Name.dummy;
   Persistent_env.clear persistent_env;
   reset_declaration_caches ();
   ()
@@ -828,7 +830,7 @@ let find_ident_module id env =
   match find_same_module id env.modules with
   | Mod_local data -> data
   | Mod_unbound _ -> raise Not_found
-  | Mod_persistent -> find_pers_mod (Ident.name id)
+  | Mod_persistent -> find_pers_mod (CU.Name.of_string (Ident.name id))
 
 let rec find_module_components path env =
   match path with
@@ -993,7 +995,7 @@ and get_address a =
 
 let find_pers_address id =
   if not (Ident.persistent id) then raise Not_found;
-  (find_pers_mod (Ident.name id)).mda_address
+  (find_pers_mod (CU.Name.of_string (Ident.name id))).mda_address
 
 let find_pers_address_ident id =
   match get_address (find_pers_address id) with
@@ -1212,7 +1214,8 @@ let rec scrape_alias_for_visit env (sub : Subst.t option) mty =
       begin match may_subst Subst.module_path sub path with
       | Pident id
         when Ident.persistent id
-          && not (Persistent_env.looked_up persistent_env (Ident.name id)) ->
+          && not (Persistent_env.looked_up persistent_env
+                    (CU.Name.of_string (Ident.name id))) ->
           false
       | path -> (* PR#6600: find_module may raise Not_found *)
           try scrape_alias_for_visit env sub (find_module path env).md_type
@@ -1252,7 +1255,8 @@ let iter_env wrap proj1 proj2 f env () =
            iter_components (Pident id) path data.mda_components
        | Mod_persistent ->
            let modname = Ident.name id in
-           match Persistent_env.find_in_cache persistent_env modname with
+           match Persistent_env.find_in_cache persistent_env
+                   (CU.Name.of_string modname) with
            | None -> ()
            | Some data ->
                iter_components (Pident id) path data.mda_components)
@@ -1274,7 +1278,7 @@ let same_types env1 env2 =
 
 let used_persistent () =
   Persistent_env.fold persistent_env
-    (fun s _m r -> Concr.add s r)
+    (fun s _m r -> Concr.add (CU.Name.to_string s) r)
     Concr.empty
 
 let find_all_comps wrap proj s (p, mda) =
@@ -2300,10 +2304,10 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
   | Mod_persistent -> begin
       match load with
       | Don't_load ->
-          check_pers_mod ~loc s;
+          check_pers_mod ~loc (CU.Name.of_string s);
           path, (() : a)
       | Load -> begin
-          match find_pers_mod s with
+          match find_pers_mod (CU.Name.of_string s) with
           | mda ->
               use_module ~use ~loc s path mda;
               path, (mda : a)
@@ -2751,9 +2755,10 @@ let bound_module name env =
   match IdTbl.find_name wrap_module ~mark:false name env.modules with
   | _ -> true
   | exception Not_found ->
-      if Persistent_env.Current_unit.is name then false
+      let cu_name = CU.Name.of_string name in
+      if Persistent_env.Current_unit.is cu_name then false
       else begin
-        match find_pers_mod name with
+        match find_pers_mod cu_name with
         | _ -> true
         | exception Not_found -> false
       end
@@ -2836,7 +2841,8 @@ let fold_modules f lid env acc =
                in
                f name p md acc
            | Mod_persistent ->
-               match Persistent_env.find_in_cache persistent_env name with
+               match Persistent_env.find_in_cache persistent_env
+                       (CU.Name.of_string name) with
                | None -> acc
                | Some mda ->
                    let md =
@@ -2897,7 +2903,8 @@ let filter_non_loaded_persistent f env =
          | Mod_local _ -> acc
          | Mod_unbound _ -> acc
          | Mod_persistent ->
-             match Persistent_env.find_in_cache persistent_env name with
+             match Persistent_env.find_in_cache persistent_env
+                     (CU.Name.of_string name) with
              | Some _ -> acc
              | None ->
                  if f (Ident.create_persistent name) then

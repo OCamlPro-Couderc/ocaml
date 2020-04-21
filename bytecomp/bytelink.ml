@@ -166,7 +166,7 @@ module Consistbl = Consistbl.Make (CU)
 
 let crc_interfaces = Consistbl.create ()
 let interfaces = ref ([] : CU.t list)
-let implementations_defined = ref ([] : (string * string) list)
+let implementations_defined = ref ([] : (CU.Name.t * string) list)
 
 let check_consistency file_name cu =
   begin try
@@ -190,7 +190,7 @@ let check_consistency file_name cu =
   begin try
     let source = List.assoc cu.cu_name !implementations_defined in
     Location.prerr_warning (Location.in_file file_name)
-      (Warnings.Multiple_definition(cu.cu_name,
+      (Warnings.Multiple_definition(CU.Name.to_string cu.cu_name,
                                     Location.show_filename file_name,
                                     Location.show_filename source))
   with Not_found -> ()
@@ -251,7 +251,7 @@ let link_archive output_fun currpos_fun file_name units_required =
   try
     List.iter
       (fun cu ->
-         let name = file_name ^ "(" ^ cu.cu_name ^ ")" in
+         let name = file_name ^ "(" ^ CU.Name.to_string cu.cu_name ^ ")" in
          try
            link_compunit output_fun currpos_fun inchan name cu
          with Symtable.Error msg ->
@@ -610,7 +610,9 @@ let link objfiles output_name =
   begin
     match Ident.Set.elements missing_modules with
     | [] -> ()
-    | id :: _ -> raise (Error (Required_module_unavailable (Ident.name id)))
+    | id :: _ ->
+        raise (Error (Required_module_unavailable
+                        (CU.Name.of_string (Ident.name id))))
   end;
   Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs; (* put user's libs last *)
   Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
@@ -730,10 +732,10 @@ let report_error ppf = function
   | Inconsistent_import(intf, file1, file2) ->
       fprintf ppf
         "@[<hov>Files %a@ and %a@ \
-                 make inconsistent assumptions over interface %s@]"
+                 make inconsistent assumptions over interface %a@]"
         Location.print_filename file1
         Location.print_filename file2
-        intf
+        CU.Name.print intf
   | Custom_runtime ->
       fprintf ppf "Error while building custom runtime system"
   | File_exists file ->
@@ -743,7 +745,7 @@ let report_error ppf = function
       fprintf ppf "Error on dynamically loaded library: %a"
         Location.print_filename file
   | Required_module_unavailable s ->
-      fprintf ppf "Required module `%s' is unavailable" s
+      fprintf ppf "Required module `%a' is unavailable" CU.Name.print s
   | Camlheader (msg, header) ->
       fprintf ppf "System error while copying file %s: %s" header msg
 

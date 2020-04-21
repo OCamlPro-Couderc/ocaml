@@ -87,7 +87,7 @@ val read_cmi : string -> Cmi_format.cmi_infos
     writes a cmt(i) file.  *)
 val save_cmt :
   string ->  (* filename.cmt to generate *)
-  string ->  (* module name *)
+  Compilation_unit.Name.t ->  (* module name *)
   binary_annots ->
   string option ->  (* source file *)
   Env.t -> (* initial env *)

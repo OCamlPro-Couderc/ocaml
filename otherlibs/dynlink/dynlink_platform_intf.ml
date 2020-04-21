@@ -27,7 +27,7 @@ module type S = sig
   module Unit_header : sig
     type t
 
-    val name : t -> string
+    val name : t -> Dynlink_compilerlibs.Compilation_unit.Name.t
     val crc : t -> Digest.t option
 
     val interface_imports : t -> Dynlink_compilerlibs.Compilation_unit.crcs
@@ -51,7 +51,7 @@ module type S = sig
       -> comp_unit:Dynlink_compilerlibs.Compilation_unit.t
       -> interface:Digest.t option
       -> implementation:(Digest.t option * Dynlink_types.implem_state) option
-      -> defined_symbols:string list
+      -> defined_symbols:Dynlink_compilerlibs.Compilation_unit.Name.t list
       -> 'a)
     -> 'a
 

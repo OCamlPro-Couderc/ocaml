@@ -6,14 +6,19 @@ exception Error of error
 module Name : sig
   (** The name of a compilation unit, without any "-for-pack" prefix. *)
 
-  (** pcouderc: might be abstract, as it was in
-      `middle_end/compilation_unit.mli`*)
-  type t = string
+  type t
 
   (** Printing, comparison, sets, maps, etc. *)
   include Identifiable.S with type t := t
 
+  val dummy: t
+  (** [dummy] is a placeholder for units that does not have a valid name, as the
+     toplevel or the current unit ar the initialization of the compiler. It is
+     not a valid identifier, thus cannot be generated through [of_string]. *)
+
   val of_string : string -> t
+  (** [of_string s] checks the given module name is a valid compilation unit
+      and generates its representation. *)
 
   val to_string : t -> string
 
@@ -60,7 +65,7 @@ val create : ?for_pack_prefix:Prefix.t -> Name.t -> t
 (** Create a compilation unit form the given [name] (which is not encoded or
     mangled in any way). The `-for-pack` of prefix is extracted if there is
     any. *)
-val of_raw_string : Name.t -> t
+val of_raw_string : string -> t
 
 (** A distinguished compilation unit for initialisation of mutable state. *)
 val none : t

@@ -156,7 +156,7 @@ let find_or_load_unit_info_from_cmx ?comp_unit desired_unit
     with Not_found ->
       let desired_unit_name_as_string = CU.Name.to_string desired_unit_name in
       let info_and_crc =
-        if Env.is_imported_opaque desired_unit_name_as_string then None
+        if Env.is_imported_opaque desired_unit_name then None
         else begin
           match Load_path.find_uncap (desired_unit_name_as_string ^ ".cmx") with
           | exception Not_found ->

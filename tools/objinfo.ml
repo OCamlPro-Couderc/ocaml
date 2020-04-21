@@ -68,10 +68,10 @@ let print_name_crc (unit, crco) =
     | Some crc -> string_of_crc crc
   in
   if not !full_path then
-    printf "\t%s\t%s\n" crc (Compilation_unit.name unit)
+    printf "\t%s\t%s\n" crc CU.(Name.to_string (name unit))
   else
     printf "\t%s\t%s\n" crc
-      (Format.asprintf "%a" Compilation_unit.print_full_path unit)
+      (Format.asprintf "%a" CU.print_full_path unit)
 
 let print_line name =
   printf "\t%s\n" name
@@ -80,7 +80,7 @@ let print_required_global id =
   printf "\t%s\n" (Ident.name id)
 
 let print_cmo_infos cu =
-  printf "Unit name: %s\n" cu.cu_name;
+  printf "Unit name: %s\n" (CU.Name.to_string cu.cu_name);
   print_string "Interfaces imported:\n";
   List.iter print_name_crc cu.cu_imports;
   print_string "Required globals:\n";
@@ -117,10 +117,10 @@ let print_pers_flags =
   | Alerts _ -> ()
   | Opaque -> printf " -opaque"
   | Unsafe_string -> printf " -unsafe-string"
-  | Pack modnames -> printf " -for-pack %s" (String.concat "." modnames)
+  | Pack modnames -> printf " -for-pack %s" (CU.Prefix.to_string modnames)
 
 let print_cmi_infos name crcs flags =
-  printf "Unit name: %s\n" name;
+  printf "Unit name: %s\n" (CU.Name.to_string name);
   printf "Interfaces imported:\n";
   List.iter print_name_crc crcs;
   printf "Compilation flags:\n";
@@ -129,7 +129,7 @@ let print_cmi_infos name crcs flags =
 
 let print_cmt_infos cmt =
   let open Cmt_format in
-  printf "Cmt unit name: %s\n" cmt.cmt_modname;
+  printf "Cmt unit name: %s\n" (CU.Name.to_string cmt.cmt_modname);
   print_string "Cmt interfaces imported:\n";
   List.iter print_name_crc cmt.cmt_imports;
   printf "Source file: %s\n"

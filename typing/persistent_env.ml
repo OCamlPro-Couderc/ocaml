@@ -44,7 +44,7 @@ module Current_unit : sig
   val get_exn : unit -> CU.t
   val set : ?prefix:CU.Prefix.t -> CU.Name.t -> unit
   val set_unit : CU.t -> unit
-  val is : string -> bool
+  val is : CU.Name.t -> bool
   val is_unit_exn : CU.t -> bool
   val is_name_of : Ident.t -> bool
   val get_id_exn : unit -> Ident.t
@@ -81,12 +81,10 @@ end = struct
     match get () with
       None -> Misc.fatal_error "Current compilation unit is not set"
     | Some unit ->
-        Name.equal
-          (name unit)
-          (Name.of_string n)
+        Name.equal (name unit) n
 
   let is_name_of id =
-    is (Ident.name id)
+    is (Name.of_string (Ident.name id))
 
   let is_unit_exn unit =
     match !current_unit with
@@ -350,26 +348,28 @@ let check_pers_struct penv f ~loc name =
         | Illegal_renaming(name, ps_name, filename) ->
             Format.asprintf
               " %a@ contains the compiled interface for @ \
-               %s when %s was expected"
-              Location.print_filename filename ps_name name
+               %a when %a was expected"
+              Location.print_filename filename
+              CU.Name.print ps_name
+              CU.Name.print name
         | Inconsistent_import _ -> assert false
         | Need_recursive_types name ->
-            Format.sprintf
-              "%s uses recursive types"
-              name
+            Format.asprintf
+              "%a uses recursive types"
+              CU.Name.print name
         | Depend_on_unsafe_string_unit name ->
-            Printf.sprintf "%s uses -unsafe-string"
-              name
+            Format.asprintf "%a uses -unsafe-string"
+              CU.Name.print name
         | Inconsistent_package_declaration {filename; prefix; _} ->
-            Printf.sprintf
-              "%s is compiled for package %s"
-              filename (String.concat "." prefix)
+            Format.asprintf
+              "%s is compiled for package %a"
+              filename CU.Prefix.print prefix
         | Inconsistent_package_import(intf_filename, _) ->
             Printf.sprintf
               "%s corresponds to the current unit's package"
               intf_filename
       in
-      let warn = Warnings.No_cmi_file(name, Some msg) in
+      let warn = Warnings.No_cmi_file(CU.Name.to_string name, Some msg) in
         Location.prerr_warning loc warn
 
 let read penv f modname filename =
@@ -479,26 +479,32 @@ let report_error ppf =
   function
   | Illegal_renaming(modname, ps_name, filename) -> fprintf ppf
       "Wrong file naming: %a@ contains the compiled interface for@ \
-       %s when %s was expected"
-      Location.print_filename filename ps_name modname
+       %a when %a was expected"
+      Location.print_filename filename
+      CU.Name.print ps_name
+      CU.Name.print modname
   | Inconsistent_import(name, source1, source2) -> fprintf ppf
       "@[<hov>The files %a@ and %a@ \
-              make inconsistent assumptions@ over interface %s@]"
-      Location.print_filename source1 Location.print_filename source2 name
+              make inconsistent assumptions@ over interface %a@]"
+      Location.print_filename source1 Location.print_filename source2
+      CU.Name.print name
   | Need_recursive_types(import) ->
       fprintf ppf
-        "@[<hov>Invalid import of %s, which uses recursive types.@ %s@]"
-        import "The compilation flag -rectypes is required"
+        "@[<hov>Invalid import of %a, which uses recursive types.@ %s@]"
+        CU.Name.print import
+        "The compilation flag -rectypes is required"
   | Depend_on_unsafe_string_unit(import) ->
       fprintf ppf
-        "@[<hov>Invalid import of %s, compiled with -unsafe-string.@ %s@]"
-        import "This compiler has been configured in strict \
-                                  safe-string mode (-force-safe-string)"
+        "@[<hov>Invalid import of %a, compiled with -unsafe-string.@ %s@]"
+        CU.Name.print import
+        "This compiler has been configured in strict \
+         safe-string mode (-force-safe-string)"
   | Inconsistent_package_declaration
       { imported_unit; filename; prefix; current_pack } ->
-      fprintf ppf "%s contains the description for a unit [%s] with@ \
+      fprintf ppf "%s contains the description for a unit [%a] with@ \
                    %a; this cannot be used because@ "
-        filename imported_unit
+        filename
+        CU.Name.print imported_unit
         print_prefix prefix;
       begin match current_pack with
       | [] ->
@@ -510,8 +516,9 @@ let report_error ppf =
       end
   | Inconsistent_package_import(intf_filename, intf_fullname) ->
       fprintf ppf
-        "@[<hov>The interface %s@ corresponds to the current unit's package %s.@]"
-        intf_filename intf_fullname
+        "@[<hov>The interface %s@ corresponds to the current unit's package %a.@]"
+        intf_filename
+        CU.Name.print intf_fullname
 
 let () =
   Location.register_error_of_exn

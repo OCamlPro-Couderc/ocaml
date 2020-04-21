@@ -33,6 +33,8 @@ module Name = struct
     end;
     str
 
+  let dummy = ""
+
   let to_string t = t
 
 end

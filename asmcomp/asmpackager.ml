@@ -106,7 +106,8 @@ let check_units members =
 
 let make_package_object ~ppf_dump members targetobj targetname coercion
       ~backend =
-  Profile.record_call (Printf.sprintf "pack(%s)" targetname) (fun () ->
+  Profile.record_call
+    (Printf.sprintf "pack(%s)" (CU.Name.to_string targetname)) (fun () ->
     let objtemp =
       if !Clflags.keep_asm_file
       then Filename.remove_extension targetobj ^ ".pack" ^ Config.ext_obj
@@ -128,7 +129,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
             Some (Ident.create_persistent (CU.Name.to_string m.pm_name)))
         members
     in
-    let module_ident = Ident.create_persistent targetname in
+    let module_ident = Ident.create_persistent (CU.Name.to_string targetname) in
     let prefixname = Filename.remove_extension objtemp in
     let required_globals = Ident.Set.empty in
     let program, middle_end =
@@ -149,7 +150,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
       else
         let main_module_block_size, code =
           Translmod.transl_store_package components
-            (Ident.create_persistent targetname) coercion
+            (Ident.create_persistent (CU.Name.to_string targetname)) coercion
         in
         let code = Simplif.simplify_lambda code in
         let program =
@@ -163,7 +164,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         program, Closure_middle_end.lambda_to_clambda
     in
     Asmgen.compile_implementation ~backend
-      ~filename:targetname
+      ~filename:(CU.Name.to_string targetname)
       ~prefixname
       ~middle_end
       ~ppf_dump
@@ -198,9 +199,7 @@ let build_package_cmx members cmxfile =
   let compilation_state = Compilation_state.Snapshot.create () in
   let current_unit = Persistent_env.Current_unit.get_exn () in
   let current_unit_name = CU.name current_unit in
-  let current_unit_crc =
-    Env.crc_of_unit (CU.Name.to_string current_unit_name)
-  in
+  let current_unit_crc = Env.crc_of_unit current_unit_name in
   let imports_cmi =
     let imports_cmi =
       CU.Map.filter (fun cu _crc ->
@@ -248,8 +247,8 @@ let package_object_files ~ppf_dump files targetcmx
                          targetobj targetname coercion ~backend =
   let packagename =
     match !Clflags.for_package with
-    | None -> targetname
-    | Some p -> p ^ "." ^ targetname in
+    | None -> CU.Name.to_string targetname
+    | Some p -> p ^ "." ^ CU.Name.to_string targetname in
   let pack_path = CU.Prefix.parse_for_pack (Some packagename) in
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
@@ -268,13 +267,14 @@ let package_files ~ppf_dump initial_env files targetcmx ~backend =
   let prefix = chop_extensions targetcmx in
   let targetcmi = prefix ^ ".cmi" in
   let targetobj = Filename.remove_extension targetcmx ^ Config.ext_obj in
-  let targetname = String.capitalize_ascii(Filename.basename prefix) in
+  let targetname =
+    CU.Name.of_string (String.capitalize_ascii(Filename.basename prefix)) in
   (* Set the name of the current "input" *)
   Location.input_name := targetcmx;
   (* Set the name of the current compunit *)
   let for_pack_prefix =
       CU.Prefix.parse_for_pack !Clflags.for_package in
-  let comp_unit = CU.create ~for_pack_prefix (CU.Name.of_string targetname) in
+  let comp_unit = CU.create ~for_pack_prefix targetname in
   Persistent_env.Current_unit.set_unit comp_unit;
   Compilation_state.reset comp_unit;
   Misc.try_finally (fun () ->
