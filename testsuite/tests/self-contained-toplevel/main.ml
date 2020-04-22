@@ -24,7 +24,7 @@ let () =
   let module Persistent_signature = Persistent_env.Persistent_signature in
   let old_loader = !Persistent_signature.load in
   Persistent_signature.load := (fun ~unit_name ->
-    match unit_name with
+    match Compilation_unit.Name.to_string unit_name with
     | "Foo" ->
       Some { Persistent_signature.
              filename = Sys.executable_name

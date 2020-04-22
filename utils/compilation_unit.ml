@@ -5,7 +5,8 @@ open! Int_replace_polymorphic_compare
 module String = Misc.Stdlib.String
 
 type error =
-  Invalid_character of char
+    Invalid_character of char
+  | Bad_compilation_unit_name of string
 
 exception Error of error
 
@@ -19,7 +20,6 @@ module Name = struct
       let compare = String.compare
       let equal = String.equal
       let hash = Hashtbl.hash
-
       let print = String.print
       let output chan t = print (Format.formatter_of_out_channel chan) t
     end)
@@ -29,7 +29,7 @@ module Name = struct
 
   let of_string str =
     if String.length str < 1 || not (isupper (String.get str 0)) then begin
-      Misc.fatal_errorf "Bad compilation unit name: %s" str
+      raise (Error (Bad_compilation_unit_name str))
     end;
     str
 

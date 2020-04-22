@@ -46,7 +46,8 @@ module Current_unit : sig
   val set_unit : CU.t -> unit
   val is : CU.Name.t -> bool
   val is_unit_exn : CU.t -> bool
-  val is_name_of : Ident.t -> bool
+  val is_name_of : string -> bool
+  val is_ident_name_of : Ident.t -> bool
   val get_id_exn : unit -> Ident.t
 end = struct
   open CU
@@ -83,8 +84,12 @@ end = struct
     | Some unit ->
         Name.equal (name unit) n
 
-  let is_name_of id =
-    is (Name.of_string (Ident.name id))
+  let is_name_of str =
+    try is (Name.of_string str)
+    with CU.Error (Bad_compilation_unit_name _) -> false
+
+  let is_ident_name_of id =
+    is_name_of (Ident.name id)
 
   let is_unit_exn unit =
     match !current_unit with

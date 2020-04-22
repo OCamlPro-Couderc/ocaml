@@ -1,5 +1,6 @@
 type error =
-  Invalid_character of char
+    Invalid_character of char
+  | Bad_compilation_unit_name of string
 
 exception Error of error
 

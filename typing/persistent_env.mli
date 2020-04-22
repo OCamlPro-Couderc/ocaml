@@ -72,9 +72,13 @@ module Current_unit : sig
   (** Check that the unit given is the one being currently compiled. *)
   val is_unit_exn : Compilation_unit.t -> bool
 
-  (** Check that the identifier given corresponds to the compilaiton unit being
+  (** Check that the name given corresponds to the compilation unit being
       compiled. *)
-  val is_name_of : Ident.t -> bool
+  val is_name_of : string -> bool
+
+  (** Check that the identifier given corresponds to the compilation unit being
+      compiled. *)
+  val is_ident_name_of : Ident.t -> bool
 end
 
 module Persistent_signature : sig

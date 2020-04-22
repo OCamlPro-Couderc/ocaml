@@ -667,20 +667,20 @@ let find_same_module id tbl =
   | x -> x
   | exception Not_found
     when Ident.persistent id
-      && not (Persistent_env.Current_unit.is_name_of id) ->
+      && not (Persistent_env.Current_unit.is_ident_name_of id) ->
       Mod_persistent
 
 let find_name_module ~mark name tbl =
   match IdTbl.find_name wrap_module ~mark name tbl with
   | x -> x
   | exception Not_found
-    when not (Persistent_env.Current_unit.is (CU.Name.of_string name)) ->
+    when not (Persistent_env.Current_unit.is_name_of name) ->
       let path = Pident(Ident.create_persistent name) in
       path, Mod_persistent
 
 let add_persistent_structure id env =
   if not (Ident.persistent id) then invalid_arg "Env.add_persistent_structure";
-  if not (Persistent_env.Current_unit.is_name_of id) then
+  if not (Persistent_env.Current_unit.is_ident_name_of id) then
     { env with
       modules = IdTbl.add id Mod_persistent env.modules;
       summary = Env_persistent (env.summary, id);
@@ -2311,7 +2311,7 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
           | mda ->
               use_module ~use ~loc s path mda;
               path, (mda : a)
-          | exception Not_found ->
+          | exception (Not_found | CU.Error (Bad_compilation_unit_name _ )) ->
               may_lookup_error errors loc env (Unbound_module (Lident s))
         end
     end
