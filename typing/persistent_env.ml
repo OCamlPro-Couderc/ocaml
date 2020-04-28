@@ -347,7 +347,8 @@ let acknowledge_pers_struct penv check import modname pers_sig pm =
           if CU.Prefix.in_functor p then
             let unit = CU.create ~for_pack_prefix:p modname in
             let id = Ident.create_local (CU.for_address unit) in
-            add_imported_functorized_pack_unit penv unit id
+            if not (Current_unit.is_unit_exn unit) then
+              add_imported_functorized_pack_unit penv unit id
       | Opaque ->
           add_imported_opaque penv modname
       | Parameter_of functor_unit ->
@@ -357,7 +358,9 @@ let acknowledge_pers_struct penv check import modname pers_sig pm =
           else add_imported_parameter penv ps.ps_name;
           if is_package_parameter current_unit ps.ps_name then
             let id = Ident.create_local ps_name in
-            add_imported_functorized_pack_unit penv (CU.create name) id)
+            let unit = CU.create name in
+            if not (Current_unit.is_unit_exn unit) then
+              add_imported_functorized_pack_unit penv unit id)
     ps.ps_flags;
   if check then check_consistency import penv ps;
   let {persistent_structures; _} = penv in
@@ -508,10 +511,14 @@ let is_imported_from_functorized_pack {imported_functorized_pack_units; _} s =
     !imported_functorized_pack_units
 
 let functorized_pack_component_id {imported_functorized_pack_units; _} s =
-  CU.Map.find_first
-    (fun key -> CU.Name.equal (CU.name key) s)
-    !imported_functorized_pack_units
-  |> snd
+  let exception Found of Ident.t in
+  try
+    CU.Map.iter
+      (fun key value ->
+         if CU.Name.equal (CU.name key) s then raise (Found value))
+      !imported_functorized_pack_units;
+    raise Not_found
+  with Found id -> id
 
 let make_cmi penv modname mty alerts =
   let flags =
