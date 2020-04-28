@@ -15,50 +15,13 @@
 open Mach
 
 (* Transformation of Mach code into a list of pseudo-instructions. *)
-type label = Cmm.label
 
-type instruction =
-  { mutable desc: instruction_desc;
-    mutable next: instruction;
-    arg: Reg.t array;
-    res: Reg.t array;
-    dbg: Debuginfo.t;
-    live: Reg.Set.t }
-
-and instruction_desc =
-  | Lprologue
-  | Lend
-  | Lop of Mach.operation
-  | Lreloadretaddr
-  | Lreturn
-  | Llabel of label
-  | Lbranch of label
-  | Lcondbranch of Mach.test * label
-  | Lcondbranch3 of label option * label option * label option
-  | Lswitch of label array
-  | Lentertrap
-  | Ladjust_trap_depth of { delta_traps : int; }
-  | Lpushtrap of { lbl_handler : label; }
-  | Lpoptrap
-  | Lraise of Lambda.raise_kind
+include Linear_type.Make(Arch)
 
 let has_fallthrough = function
   | Lreturn | Lbranch _ | Lswitch _ | Lraise _
   | Lop Itailcall_ind _ | Lop (Itailcall_imm _) -> false
   | _ -> true
-
-type fundecl =
-  { fun_name: string;
-    fun_body: instruction;
-    fun_fast: bool;
-    fun_dbg : Debuginfo.t;
-    fun_spacetime_shape : Mach.spacetime_shape option;
-    fun_tailrec_entry_point_label : label;
-    fun_contains_calls: bool;
-    fun_num_stack_slots: int array;
-    fun_frame_required: bool;
-    fun_prologue_required: bool;
-  }
 
 (* Invert a test *)
 

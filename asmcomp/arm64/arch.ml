@@ -28,7 +28,6 @@ type addressing_mode =
   | Ibased of string * int              (* global var + displ *)
 
 (* We do not support the reg + shifted reg addressing mode, because
-   what we really need is reg + shifted reg + displ,
    and this is decomposed in two instructions (reg + shifted reg -> tmp,
    then addressing tmp + displ). *)
 

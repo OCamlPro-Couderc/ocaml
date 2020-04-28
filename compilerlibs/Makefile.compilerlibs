@@ -103,9 +103,9 @@ BYTECOMP=bytecomp/instruct.cmo bytecomp/bytegen.cmo \
   driver/errors.cmo driver/compile.cmo
 BYTECOMP_CMI=
 
-ARCH_SPECIFIC =\
-  asmcomp/arch.ml asmcomp/proc.ml asmcomp/CSE.ml asmcomp/selection.ml \
-  asmcomp/scheduling.ml asmcomp/reload.ml
+# ARCH_SPECIFIC =\
+#   asmcomp/arch.ml asmcomp/proc.ml asmcomp/CSEspec.ml asmcomp/selection.ml \
+#   asmcomp/scheduling.ml asmcomp/reload.ml
 ARCH_SPECIFIC_CMI=
 
 INTEL_ASM=\
@@ -143,7 +143,7 @@ ASMCOMP=\
   asmcomp/printmach.cmo asmcomp/selectgen.cmo \
   asmcomp/spacetime_profiling.cmo asmcomp/selection.cmo \
   asmcomp/comballoc.cmo \
-  asmcomp/CSEgen.cmo asmcomp/CSE.cmo \
+  asmcomp/CSEgen.cmo asmcomp/CSEspec.cmo asmcomp/CSE.cmo \
   asmcomp/liveness.cmo \
   asmcomp/spill.cmo asmcomp/split.cmo \
   asmcomp/interf.cmo asmcomp/coloring.cmo \
@@ -160,6 +160,65 @@ ASMCOMP=\
   asmcomp/emitaux.cmo asmcomp/emit.cmo asmcomp/asmgen.cmo \
   asmcomp/asmlink.cmo asmcomp/asmlibrarian.cmo asmcomp/asmpackager.cmo \
   driver/opterrors.cmo driver/optcompile.cmo
+ASMCOMP_CMI=$(ARCH_SPECIFIC_ASMCOMP_CMI)
+
+ASMCOMP_PRELUDE=\
+  asmcomp/object_file.cmo \
+  asmcomp/backend_compilation_unit.cmo \
+  asmcomp/backend_sym.cmo \
+  asmcomp/target_system.cmo \
+  asmcomp/asm_target/asm_section.cmo \
+  asmcomp/asm_target/asm_symbol.cmo \
+  asmcomp/cmm.cmo asmcomp/printcmm.cmo \
+  asmcomp/reg.cmo asmcomp/debug/reg_with_debug_info.cmo \
+  asmcomp/debug/reg_availability_set.cmo \
+  asmcomp/linking_state.cmo \
+  asmcomp/afl_instrument.cmo \
+  asmcomp/CSEgen.cmo \
+  asmcomp/mach_type.cmi \
+  asmcomp/linear_type.cmi
+
+
+ASMCOMP_ARCH_PARAMS=\
+  asmcomp/arch.cmi \
+  asmcomp/proc.cmi \
+  asmcomp/CSEspec.cmi \
+  asmcomp/selection.cmi \
+  asmcomp/reload.cmi \
+  asmcomp/scheduling.cmi \
+  asmcomp/emit.cmi
+
+ASMCOMP_FUNCTOR=\
+  asmcomp/mach.cmo \
+  asmcomp/cmmgen_state.cmo \
+  asmcomp/cmm_helpers.cmo \
+  asmcomp/cmmgen.cmo \
+  asmcomp/interval.cmo \
+  asmcomp/printmach.cmo asmcomp/selectgen.cmo \
+  asmcomp/spacetime_profiling.cmo \
+  asmcomp/comballoc.cmo \
+  asmcomp/CSE.cmo \
+  asmcomp/liveness.cmo \
+  asmcomp/spill.cmo asmcomp/split.cmo \
+  asmcomp/interf.cmo asmcomp/coloring.cmo \
+  asmcomp/linscan.cmo \
+  asmcomp/reloadgen.cmo \
+  asmcomp/deadcode.cmo \
+  asmcomp/linear.cmo asmcomp/printlinear.cmo asmcomp/linearize.cmo \
+  asmcomp/debug/available_regs.cmo \
+  asmcomp/debug/compute_ranges_intf.cmo \
+  asmcomp/debug/compute_ranges.cmo \
+  asmcomp/schedgen.cmo \
+  asmcomp/branch_relaxation_intf.cmo \
+  asmcomp/branch_relaxation.cmo \
+  asmcomp/emitaux.cmo asmcomp/asmgen.cmo \
+  asmcomp/asmlink.cmo asmcomp/asmlibrarian.cmo asmcomp/asmpackager.cmo
+
+ASMCOMP_COMPILE=\
+  asmcomp/backend_maker.cmo \
+  driver/opterrors.cmo driver/optcompile.cmo
+ASMCOMP=$(ASMCOMP_PRELUDE) $(ASMCOMP_FUNCTOR) $(ASMCOMP_COMPILE)
+
 ASMCOMP_CMI=$(ARCH_SPECIFIC_ASMCOMP_CMI)
 
 # Files under middle_end/ are not to reference files under asmcomp/.
@@ -308,6 +367,33 @@ partialclean::
 	      compilerlibs/ocamlmiddleend.cmxa \
 	      compilerlibs/ocamlmiddleend.$(A)
 
+$(ASMCOMP_ARCH_PARAMS): %.cmi: %.mli
+	$(CAMLC) $(COMPFLAGS) -c -parameter-of Backend_maker $<
+
+ASMCOMP_FUNCTOR_FLAGS=\
+	-parameter Arch \
+	-parameter Proc \
+	-parameter CSEspec \
+	-parameter Selection \
+	-parameter Reload \
+	-parameter Scheduling \
+	-parameter Emit
+
+
+ASMCOMP_BACKEND_FUNCTOR_PACK=\
+  -for-pack 'Backend_maker(Arch)(Proc)(CSEspec)(Selection)(Reload)(Scheduling)(Emit)'
+
+$(ASMCOMP_FUNCTOR): %.cmo: %.ml $(ASMCOMP_ARCH_PARAMS)
+	$(CAMLC) $(COMPFLAGS) -c $(ASMCOMP_BACKEND_FUNCTOR_PACK) $<
+
+$(ASMCOMP_FUNCTOR:%.cmo=%.cmi): %.cmi: %.mli $(ASMCOMP_ARCH_PARAMS)
+	$(CAMLC) $(COMPFLAGS) -c $(ASMCOMP_BACKEND_FUNCTOR_PACK) $<
+
+$(ASMCOMP_FUNCTOR:%.cmo=%.cmx): %.cmx: %.ml $(ASMCOMP_ARCH_PARAMS)
+	$(CAMLOPT) $(COMPFLAGS) -c $(ASMCOMP_BACKEND_FUNCTOR_PACK) $<
+
+asmcomp/backend_maker.cmo: $(ASMCOMP_FUNCTOR) $(ASMCOMP_IMPL)
+	$(CAMLC) -o $@ -I asmcomp $(ASMCOMP_FUNCTOR_FLAGS) -pack $(ASMCOMP_FUNCTOR) $(ASMCOMP_IMPL)
 
 compilerlibs/ocamloptcomp.cma: $(OPTCOMP_CMI) $(OPTCOMP)
 	$(CAMLC) -a -o $@ $(OPTCOMP)

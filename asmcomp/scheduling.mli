@@ -15,4 +15,4 @@
 
 (* Instruction scheduling *)
 
-val fundecl: Linear.fundecl -> Linear.fundecl
+val fundecl: Linear_type.Make(Arch).fundecl -> Linear_type.Make(Arch).fundecl

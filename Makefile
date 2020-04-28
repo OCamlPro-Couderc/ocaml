@@ -185,7 +185,7 @@ promote-cross: promote-common
 # Promote the newly compiled system to the rank of bootstrap compiler
 # (Runs on the new runtime, produces code for the new runtime)
 .PHONY: promote
-promote: PROMOTE = $(CAMLRUN) tools/stripdebug
+# promote: PROMOTE = $(CAMLRUN) tools/stripdebug
 promote: promote-common
 	cp runtime/ocamlrun$(EXE) boot/ocamlrun$(EXE)
 
@@ -682,23 +682,23 @@ beforedepend:: lambda/runtimedef.ml
 
 # Choose the right machine-dependent files
 
-asmcomp/arch.ml: asmcomp/$(ARCH)/arch.ml
-	cd asmcomp; $(LN) $(ARCH)/arch.ml .
+# asmcomp/arch.ml: asmcomp/$(ARCH)/arch.ml
+# 	cd asmcomp; $(LN) $(ARCH)/arch.ml .
 
-asmcomp/proc.ml: asmcomp/$(ARCH)/proc.ml
-	cd asmcomp; $(LN) $(ARCH)/proc.ml .
+# asmcomp/proc.ml: asmcomp/$(ARCH)/proc.ml
+# 	cd asmcomp; $(LN) $(ARCH)/proc.ml .
 
-asmcomp/selection.ml: asmcomp/$(ARCH)/selection.ml
-	cd asmcomp; $(LN) $(ARCH)/selection.ml .
+# asmcomp/selection.ml: asmcomp/$(ARCH)/selection.ml
+# 	cd asmcomp; $(LN) $(ARCH)/selection.ml .
 
-asmcomp/CSE.ml: asmcomp/$(ARCH)/CSE.ml
-	cd asmcomp; $(LN) $(ARCH)/CSE.ml .
+# asmcomp/CSEspec.ml: asmcomp/$(ARCH)/CSEspec.ml
+# 	cd asmcomp; $(LN) $(ARCH)/CSEspec.ml .
 
-asmcomp/reload.ml: asmcomp/$(ARCH)/reload.ml
-	cd asmcomp; $(LN) $(ARCH)/reload.ml .
+# asmcomp/reload.ml: asmcomp/$(ARCH)/reload.ml
+# 	cd asmcomp; $(LN) $(ARCH)/reload.ml .
 
-asmcomp/scheduling.ml: asmcomp/$(ARCH)/scheduling.ml
-	cd asmcomp; $(LN) $(ARCH)/scheduling.ml .
+# asmcomp/scheduling.ml: asmcomp/$(ARCH)/scheduling.ml
+# 	cd asmcomp; $(LN) $(ARCH)/scheduling.ml .
 
 # Preprocess the code emitters
 

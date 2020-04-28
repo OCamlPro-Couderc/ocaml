@@ -15,4 +15,6 @@
 
 (* Insert load/stores for pseudoregs that got assigned to stack locations. *)
 
-val fundecl: Mach.fundecl -> int array -> Mach.fundecl * bool
+val fundecl:
+  Mach_type.Make(Arch).fundecl -> int array ->
+  Mach_type.Make(Arch).fundecl * bool

@@ -50,11 +50,11 @@ val loc_spacetime_node_hole: Reg.t
 val max_arguments_for_tailcalls : int
 
 (* Maximal register pressures for pre-spilling *)
-val safe_register_pressure: Mach.operation -> int
-val max_register_pressure: Mach.operation -> int array
+val safe_register_pressure: Mach_type.Make(Arch).operation -> int
+val max_register_pressure: Mach_type.Make(Arch).operation -> int array
 
 (* Registers destroyed by operations *)
-val destroyed_at_oper: Mach.instruction_desc -> Reg.t array
+val destroyed_at_oper: Mach_type.Make(Arch).instruction_desc -> Reg.t array
 val destroyed_at_raise: Reg.t array
 val destroyed_at_reloadretaddr : Reg.t array
 
@@ -62,13 +62,13 @@ val destroyed_at_reloadretaddr : Reg.t array
 val regs_are_volatile: Reg.t array -> bool
 
 (* Pure operations *)
-val op_is_pure: Mach.operation -> bool
+val op_is_pure: Mach_type.Make(Arch).operation -> bool
 
 (* Info for laying out the stack frame *)
-val frame_required : Mach.fundecl -> bool
+val frame_required : Mach_type.Make(Arch).fundecl -> bool
 
 (* Function prologues *)
-val prologue_required : Mach.fundecl -> bool
+val prologue_required : Mach_type.Make(Arch).fundecl -> bool
 
 (** For a given register class, the DWARF register numbering for that class.
     Given an allocated register with location [Reg n] and class [reg_class], the

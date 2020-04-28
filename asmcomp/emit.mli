@@ -15,7 +15,7 @@
 
 (* Generation of assembly code *)
 
-val fundecl: Linear.fundecl -> unit
+val fundecl: Linear_type.Make(Arch).fundecl -> unit
 val data: Cmm.data_item list -> unit
 val begin_assembly: Compilation_unit.t -> unit
 val end_assembly: Compilation_unit.t -> unit
