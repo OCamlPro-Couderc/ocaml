@@ -17,6 +17,7 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
+open! Arch_specific
 open Format
 open Config
 open Clflags

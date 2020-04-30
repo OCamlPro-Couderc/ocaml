@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 (* Transformation of Mach code into a list of pseudo-instructions. *)
+open Arch_specific
 open Linear
 
 (* Cons a simple instruction (arg, res, live empty) *)

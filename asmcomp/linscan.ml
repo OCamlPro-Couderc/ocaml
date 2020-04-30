@@ -16,6 +16,7 @@
 
 (* Linear scan register allocation. *)
 
+open Arch_specific
 open Interval
 open Reg
 

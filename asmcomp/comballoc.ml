@@ -15,6 +15,7 @@
 
 (* Combine heap allocations occurring in the same basic block *)
 
+open Arch_specific
 open Mach
 
 type pending_alloc =

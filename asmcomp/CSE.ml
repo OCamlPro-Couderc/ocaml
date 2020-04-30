@@ -16,6 +16,7 @@
 (* Common subexpression elimination by value numbering over extended
    basic blocks. *)
 
+open Arch_specific
 open Mach
 open CSEgen
 

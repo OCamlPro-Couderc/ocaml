@@ -16,7 +16,7 @@ open Mach
 
 (* Transformation of Mach code into a list of pseudo-instructions. *)
 
-include Linear_type.Make(Arch)
+include Linear_type.Make(Arch_specific.Arch)
 
 let has_fallthrough = function
   | Lreturn | Lbranch _ | Lswitch _ | Lraise _

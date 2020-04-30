@@ -25,6 +25,7 @@ module IntPairSet =
         | c -> c
   end)
 
+open Arch_specific
 open Reg
 open Mach
 

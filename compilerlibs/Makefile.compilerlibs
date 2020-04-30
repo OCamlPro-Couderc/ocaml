@@ -174,19 +174,23 @@ ASMCOMP_PRELUDE=\
   asmcomp/debug/reg_availability_set.cmo \
   asmcomp/linking_state.cmo \
   asmcomp/afl_instrument.cmo \
-  asmcomp/CSEgen.cmo \
+  asmcomp/CSEgen.cmo
+
+ASMCOMP_PRELUDE_CMI=\
   asmcomp/mach_type.cmi \
   asmcomp/linear_type.cmi
 
-
 ASMCOMP_ARCH_PARAMS=\
-  asmcomp/arch.cmi \
-  asmcomp/proc.cmi \
-  asmcomp/CSEspec.cmi \
-  asmcomp/selection.cmi \
-  asmcomp/reload.cmi \
-  asmcomp/scheduling.cmi \
-  asmcomp/emit.cmi
+  asmcomp/$(ARCH)/arch.cmo \
+  asmcomp/$(ARCH)/proc.cmo \
+  asmcomp/$(ARCH)/CSEspec.cmo \
+  asmcomp/$(ARCH)/selection.cmo \
+  asmcomp/$(ARCH)/reload.cmo \
+  asmcomp/$(ARCH)/scheduling.cmo \
+  asmcomp/$(ARCH)/emit.cmo
+
+ASMCOMP_FUNCTOR_PARAMS=\
+  asmcomp/arch_specific.cmi
 
 ASMCOMP_FUNCTOR=\
   asmcomp/mach.cmo \
@@ -214,12 +218,22 @@ ASMCOMP_FUNCTOR=\
   asmcomp/emitaux.cmo asmcomp/asmgen.cmo \
   asmcomp/asmlink.cmo asmcomp/asmlibrarian.cmo asmcomp/asmpackager.cmo
 
+ARCH_SPECIFIC_ASMCOMP=
+ifeq ($(ARCH),i386)
+ARCH_SPECIFIC_ASMCOMP=$(INTEL_ASM)
+ARCH_SPECIFIC_ASMCOMP_CMI=$(INTEL_ASM_CMI)
+endif
+ifeq ($(ARCH),amd64)
+ARCH_SPECIFIC_ASMCOMP=$(INTEL_ASM)
+ARCH_SPECIFIC_ASMCOMP_CMI=$(INTEL_ASM_CMI)
+endif
+
 ASMCOMP_COMPILE=\
   asmcomp/backend_maker.cmo \
   driver/opterrors.cmo driver/optcompile.cmo
 ASMCOMP=$(ASMCOMP_PRELUDE) $(ASMCOMP_FUNCTOR) $(ASMCOMP_COMPILE)
 
-ASMCOMP_CMI=$(ARCH_SPECIFIC_ASMCOMP_CMI)
+ASMCOMP_CMI=$(ASMCOMP_PRELUDE_CMI) $(ARCH_SPECIFIC_ASMCOMP_CMI)
 
 # Files under middle_end/ are not to reference files under asmcomp/.
 # This ensures that the middle end can be linked (e.g. for objinfo) even when
@@ -367,21 +381,13 @@ partialclean::
 	      compilerlibs/ocamlmiddleend.cmxa \
 	      compilerlibs/ocamlmiddleend.$(A)
 
-$(ASMCOMP_ARCH_PARAMS): %.cmi: %.mli
+$(ASMCOMP_FUNCTOR_PARAMS): %.cmi: %.mli
 	$(CAMLC) $(COMPFLAGS) -c -parameter-of Backend_maker $<
 
-ASMCOMP_FUNCTOR_FLAGS=\
-	-parameter Arch \
-	-parameter Proc \
-	-parameter CSEspec \
-	-parameter Selection \
-	-parameter Reload \
-	-parameter Scheduling \
-	-parameter Emit
-
+ASMCOMP_FUNCTOR_FLAGS= -parameter Arch_specific
 
 ASMCOMP_BACKEND_FUNCTOR_PACK=\
-  -for-pack 'Backend_maker(Arch)(Proc)(CSEspec)(Selection)(Reload)(Scheduling)(Emit)'
+  -for-pack 'Backend_maker(Arch_specific)'
 
 $(ASMCOMP_FUNCTOR): %.cmo: %.ml $(ASMCOMP_ARCH_PARAMS)
 	$(CAMLC) $(COMPFLAGS) -c $(ASMCOMP_BACKEND_FUNCTOR_PACK) $<
@@ -392,8 +398,23 @@ $(ASMCOMP_FUNCTOR:%.cmo=%.cmi): %.cmi: %.mli $(ASMCOMP_ARCH_PARAMS)
 $(ASMCOMP_FUNCTOR:%.cmo=%.cmx): %.cmx: %.ml $(ASMCOMP_ARCH_PARAMS)
 	$(CAMLOPT) $(COMPFLAGS) -c $(ASMCOMP_BACKEND_FUNCTOR_PACK) $<
 
-asmcomp/backend_maker.cmo: $(ASMCOMP_FUNCTOR) $(ASMCOMP_IMPL)
-	$(CAMLC) -o $@ -I asmcomp $(ASMCOMP_FUNCTOR_FLAGS) -pack $(ASMCOMP_FUNCTOR) $(ASMCOMP_IMPL)
+$(ASMCOMP_ARCH_PARAMS): %.cmo: %.ml $(ASMCOMP_PRELUDE)
+	$(CAMLC) $(COMPFLAGS) -c -for-pack Amd64 $<
+
+$(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmx): %.cmx: %.ml $(ASMCOMP_PRELUDE)
+	$(CAMLOPT) $(COMPFLAGS) -c -for-pack Amd64 $<
+
+asmcomp/backend_maker.cmo: $(ASMCOMP_FUNCTOR)
+	$(CAMLC) -o $@ -I asmcomp $(ASMCOMP_FUNCTOR_FLAGS) -pack $^
+
+asmcomp/backend_maker.cmx: $(ASMCOMP_FUNCTOR:%.cmo=%.cmx)
+	$(CAMLOPT) -o $@ -I asmcomp $(ASMCOMP_FUNCTOR_FLAGS) -pack $^
+
+asmcomp/$(ARCH).cmo: $(ASMCOMP_ARCH_PARAMS)
+	$(CAMLC) -o $@ -I asmcomp -pack $^
+
+asmcomp/$(ARCH).cmx: $(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmx)
+	$(CAMLOPT) -o $@ -I asmcomp -pack $^
 
 compilerlibs/ocamloptcomp.cma: $(OPTCOMP_CMI) $(OPTCOMP)
 	$(CAMLC) -a -o $@ $(OPTCOMP)

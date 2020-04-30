@@ -15,6 +15,7 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42-44-45"]
 
+open Arch_specific
 module V = Backend_var
 module VP = Backend_var.With_provenance
 module UI = Cmx_format.Unit_info

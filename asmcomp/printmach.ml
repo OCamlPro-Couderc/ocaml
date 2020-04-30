@@ -15,6 +15,7 @@
 
 (* Pretty-printing of pseudo machine code *)
 
+open Arch_specific
 open Format
 open Cmm
 open Reg

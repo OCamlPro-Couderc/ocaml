@@ -15,6 +15,8 @@
 
 (* Common functions for emitting assembly code *)
 
+open Arch_specific
+
 let output_channel = ref stdout
 
 let emit_string s = output_string !output_channel s

@@ -14,6 +14,7 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
+open! Arch_specific
 module M = Mach
 module R = Reg
 module RAS = Reg_availability_set

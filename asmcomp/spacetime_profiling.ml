@@ -14,6 +14,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Arch_specific
+
 module V = Backend_var
 module VP = Backend_var.With_provenance
 

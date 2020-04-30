@@ -15,7 +15,7 @@
 
 (* Transformation of Mach code into a list of pseudo-instructions. *)
 
-include module type of Linear_type.Make(Arch)
+include module type of Linear_type.Make(Arch_specific.Arch)
 
 (* type label = Cmm.label
  *

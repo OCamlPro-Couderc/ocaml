@@ -16,6 +16,7 @@
 
 (* Live intervals for the linear scan register allocator. *)
 
+open Arch_specific
 open Reg
 
 type range =

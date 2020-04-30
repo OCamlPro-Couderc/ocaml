@@ -16,6 +16,7 @@
 (* Dead code elimination: remove pure instructions whose results are
    not used. *)
 
+open Arch_specific
 open Mach
 
 module Int = Numbers.Int

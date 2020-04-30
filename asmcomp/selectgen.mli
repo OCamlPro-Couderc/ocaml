@@ -16,6 +16,7 @@
 (* Selection of pseudo-instructions, assignment of pseudo-registers,
    sequentialization. *)
 
+open Arch_specific
 type environment
 
 val env_add

@@ -30,6 +30,7 @@ module OrderedRegSet =
           if n <> 0 then n else r1.stamp - r2.stamp
   end)
 
+open Arch_specific
 open Reg
 
 let allocate_registers() =

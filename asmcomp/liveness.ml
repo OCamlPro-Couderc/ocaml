@@ -16,6 +16,7 @@
 (* Liveness analysis.
    Annotate mach code with the set of regs live at each point. *)
 
+open Arch_specific
 open Mach
 
 let live_at_exit = ref []

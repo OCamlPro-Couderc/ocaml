@@ -72,5 +72,5 @@ module type S = sig
      : bound:int
     -> label_after_error:Cmm.label option
     -> Linear.instruction_desc
-  val relax_specific_op : Arch.specific_operation -> Linear.instruction_desc
+  val relax_specific_op : Arch_specific.Arch.specific_operation -> Linear.instruction_desc
 end

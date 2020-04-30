@@ -13,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-include module type of Mach_type.Make(Arch)
+include module type of Mach_type.Make(Arch_specific.Arch)
 
 val dummy_instr: instruction
 val end_instr: unit -> instruction

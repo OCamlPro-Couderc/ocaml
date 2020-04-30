@@ -15,6 +15,7 @@
 
 (* Instruction scheduling *)
 
+open Arch_specific
 open Reg
 open Mach
 open Linear

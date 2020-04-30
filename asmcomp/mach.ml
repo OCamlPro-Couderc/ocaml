@@ -13,7 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-include Mach_type.Make(Arch)
+open Arch_specific
+include Mach_type.Make(Arch_specific.Arch)
 
 let rec dummy_instr =
   { desc = Iend;

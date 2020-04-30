@@ -17,6 +17,7 @@
 
 [@@@ocaml.warning "-40"]
 
+open! Arch_specific
 open Misc
 open Config
 
