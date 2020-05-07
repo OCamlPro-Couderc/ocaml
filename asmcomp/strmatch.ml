@@ -17,6 +17,7 @@
 
 open Lambda
 open Cmm
+open Arch_specific
 
 module V = Backend_var
 module VP = Backend_var.With_provenance

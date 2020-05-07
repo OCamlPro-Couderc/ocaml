@@ -4,10 +4,9 @@
     important for some new feature in the compiler, the relevant backends'
     behaviour should be checked. *)
 
-module Make(Arch: sig
-    type specific_operation
-    type addressing_mode
-  end) : sig
+module type T = sig
+
+  module Arch : Arch_type.T
 
   type label = Cmm.label
 
@@ -97,5 +96,29 @@ module Make(Arch: sig
       fun_num_stack_slots: int array;
       fun_contains_calls: bool;
     }
+
+end
+
+module Make(Arch: Arch_type.T) : T with module Arch := Arch
+
+module type S = sig
+
+  module Arch : Arch_type.T
+
+  include module type of Make(Arch)
+
+  val dummy_instr: instruction
+  val end_instr: unit -> instruction
+  val instr_cons:
+    instruction_desc -> Reg.t array -> Reg.t array -> instruction ->
+    instruction
+  val instr_cons_debug:
+    instruction_desc -> Reg.t array -> Reg.t array -> Debuginfo.t ->
+    instruction -> instruction
+  val instr_iter: (instruction -> unit) -> instruction -> unit
+
+  val spacetime_node_hole_pointer_is_live_before : instruction -> bool
+
+  val operation_can_raise : operation -> bool
 
 end

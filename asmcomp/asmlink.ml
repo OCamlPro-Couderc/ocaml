@@ -20,6 +20,7 @@
 open! Arch_specific
 open Misc
 open Config
+module Emitaux = Arch_instantiation.Emitaux
 
 module CU = Compilation_unit
 module UI = Cmx_format.Unit_info

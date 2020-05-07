@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module Backend : module type of Backend_maker(Amd64)
+
 (** Native compilation for .ml and .mli files. *)
 
 val interface: source_file:string -> output_prefix:string -> unit

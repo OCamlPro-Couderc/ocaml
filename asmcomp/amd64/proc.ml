@@ -20,6 +20,7 @@ open Misc
 open Arch
 open Cmm
 open Reg
+module Mach = Mach_type.Make(Arch)
 open Mach
 
 let fp = Config.with_frame_pointers

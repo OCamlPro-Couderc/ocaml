@@ -15,37 +15,4 @@
 
 (* Transformation of Mach code into a list of pseudo-instructions. *)
 
-include module type of Linear_type.Make(Arch_specific.Arch)
-
-(* type label = Cmm.label
- *
- * type instruction =
- *   { mutable desc: instruction_desc;
- *     mutable next: instruction;
- *     arg: Reg.t array;
- *     res: Reg.t array;
- *     dbg: Debuginfo.t;
- *     live: Reg.Set.t }
- *
- * and instruction_desc =
- *   | Lprologue
- *   | Lend
- *   | Lop of Mach.operation
- *   | Lreloadretaddr
- *   | Lreturn
- *   | Llabel of label
- *   | Lbranch of label
- *   | Lcondbranch of Mach.test * label
- *   | Lcondbranch3 of label option * label option * label option
- *   | Lswitch of label array
- *   | Lentertrap
- *   | Ladjust_trap_depth of { delta_traps : int; }
- *   | Lpushtrap of { lbl_handler : label; }
- *   | Lpoptrap
- *   | Lraise of Lambda.raise_kind *)
-
-val has_fallthrough :  instruction_desc -> bool
-val end_instr: instruction
-val instr_cons:
-  instruction_desc -> Reg.t array -> Reg.t array -> instruction -> instruction
-val invert_test: Mach.test -> Mach.test
+include Linear_type.S with module Arch := Arch_specific.Arch

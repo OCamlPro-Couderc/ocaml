@@ -24,6 +24,11 @@ open Clflags
 open Misc
 open Cmm
 
+module Emitaux = Arch_instantiation.Emitaux
+module Reload = Arch_instantiation.Reload
+module Selection = Arch_instantiation.Selection
+module Scheduling = Arch_instantiation.Scheduling
+
 type error = Assembler_error of string
 
 exception Error of error

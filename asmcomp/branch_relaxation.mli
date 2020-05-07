@@ -16,7 +16,11 @@
 
 (* Fix up conditional branches that exceed hardware-allowed ranges. *)
 
-module Make (T : Branch_relaxation_intf.S) : sig
+module Make
+    (Arch : Arch_type.S)
+    (_ : Mach_type.S with module Arch := Arch)
+    (Linear : Linear_type.S with module Arch := Arch)
+    (T : Branch_relaxation_intf.S with module Arch := Arch) : sig
   val relax
      : Linear.instruction
     (* [max_offset_of_out_of_line_code] specifies the furthest distance,

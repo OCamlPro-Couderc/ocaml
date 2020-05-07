@@ -14,10 +14,15 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Mach
-open Linear
+module Make
+    (Arch : Arch_type.S)
+    (Mach : Mach_type.S with module Arch := Arch)
+    (Linear : Linear_type.S with module Arch := Arch)
+    (T : Branch_relaxation_intf.S with module Arch := Arch) = struct
 
-module Make (T : Branch_relaxation_intf.S) = struct
+  open Mach
+  open Linear
+
   let label_map code =
     let map = Hashtbl.create 37 in
     let rec fill_map pc instr =

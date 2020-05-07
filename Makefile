@@ -42,7 +42,7 @@ ARCHES=amd64 i386 arm arm64 power s390x
 INCLUDES=-I utils -I parsing -I typing -I bytecomp -I file_formats \
         -I lambda -I middle_end -I middle_end/closure \
         -I middle_end/flambda -I middle_end/flambda/base_types \
-        -I asmcomp -I asmcomp/amd64 -I asmcomp/debug \
+        -I asmcomp -I asmcomp/debug \
         -I driver -I toplevel
 
 COMPFLAGS=-strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66 \
@@ -682,23 +682,23 @@ beforedepend:: lambda/runtimedef.ml
 
 # Choose the right machine-dependent files
 
-# asmcomp/arch.ml: asmcomp/$(ARCH)/arch.ml
-# 	cd asmcomp; $(LN) $(ARCH)/arch.ml .
+asmcomp/arch.ml: asmcomp/$(ARCH)/arch.ml
+	cd asmcomp; $(LN) $(ARCH)/arch.ml .
 
-# asmcomp/proc.ml: asmcomp/$(ARCH)/proc.ml
-# 	cd asmcomp; $(LN) $(ARCH)/proc.ml .
+asmcomp/proc.ml: asmcomp/$(ARCH)/proc.ml
+	cd asmcomp; $(LN) $(ARCH)/proc.ml .
 
-# asmcomp/selection.ml: asmcomp/$(ARCH)/selection.ml
-# 	cd asmcomp; $(LN) $(ARCH)/selection.ml .
+asmcomp/selection.ml: asmcomp/$(ARCH)/selection.ml
+	cd asmcomp; $(LN) $(ARCH)/selection.ml .
 
-# asmcomp/CSEspec.ml: asmcomp/$(ARCH)/CSEspec.ml
-# 	cd asmcomp; $(LN) $(ARCH)/CSEspec.ml .
+asmcomp/CSEspec.ml: asmcomp/$(ARCH)/CSEspec.ml
+	cd asmcomp; $(LN) $(ARCH)/CSEspec.ml .
 
-# asmcomp/reload.ml: asmcomp/$(ARCH)/reload.ml
-# 	cd asmcomp; $(LN) $(ARCH)/reload.ml .
+asmcomp/reload.ml: asmcomp/$(ARCH)/reload.ml
+	cd asmcomp; $(LN) $(ARCH)/reload.ml .
 
-# asmcomp/scheduling.ml: asmcomp/$(ARCH)/scheduling.ml
-# 	cd asmcomp; $(LN) $(ARCH)/scheduling.ml .
+asmcomp/scheduling.ml: asmcomp/$(ARCH)/scheduling.ml
+	cd asmcomp; $(LN) $(ARCH)/scheduling.ml .
 
 # Preprocess the code emitters
 
@@ -1055,7 +1055,7 @@ partialclean::
 
 .PHONY: depend
 depend: beforedepend
-	(for d in utils parsing typing bytecomp asmcomp asmcomp/amd64 middle_end \
+	(for d in utils parsing typing bytecomp asmcomp middle_end \
          lambda file_formats middle_end/closure middle_end/flambda \
          middle_end/flambda/base_types asmcomp/debug \
          driver toplevel; \

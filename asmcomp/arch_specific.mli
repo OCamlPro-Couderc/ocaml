@@ -119,28 +119,37 @@ module Selection : sig
   (* Selection of pseudo-instructions, assignment of pseudo-registers,
      sequentialization. *)
 
-  val fundecl: Cmm.fundecl -> Mach_type.Make(Arch).fundecl
+  [@@@ocaml.warning "-67"]
+  module Make (S : Selector.S with module Arch := Arch) : sig
+    val fundecl: Cmm.fundecl -> Mach_type.Make(Arch).fundecl
+  end
 
 end
 
 module Reload : sig
   (* Insert load/stores for pseudoregs that got assigned to stack locations. *)
 
-  val fundecl:
-    Mach_type.Make(Arch).fundecl -> int array ->
-    Mach_type.Make(Arch).fundecl * bool
-
+  [@@@ocaml.warning "-67"]
+  module Make (S : Reload_type.S with module Arch := Arch) : sig
+    val fundecl:
+      Mach_type.Make(Arch).fundecl -> int array ->
+      Mach_type.Make(Arch).fundecl * bool
+  end
 end
 
 module Scheduling : sig
   (* Instruction scheduling *)
 
-  val fundecl: Linear_type.Make(Arch).fundecl -> Linear_type.Make(Arch).fundecl
-
+  [@@@ocaml.warning "-67"]
+  module Make (S : Scheduler.S with module Arch := Arch) : sig
+    val fundecl: Linear_type.Make(Arch).fundecl -> Linear_type.Make(Arch).fundecl
+  end
 end
 
 module Emit : sig
   (* Generation of assembly code *)
+
+  val linear_has_fallthrough_backref: (Linear_type.Make(Arch).instruction_desc -> bool) ref
 
   val fundecl: Linear_type.Make(Arch).fundecl -> unit
   val data: Cmm.data_item list -> unit

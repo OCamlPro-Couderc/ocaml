@@ -20,15 +20,17 @@ open Cmm
 open Arch
 open Proc
 open Reg
-open Mach
-open Linear
-open Emitaux
-
 open X86_ast
 open X86_proc
 open X86_dsl
 module String = Misc.Stdlib.String
 module Int = Numbers.Int
+module Emitaux = Emitaux(Arch)
+open Emitaux
+module Mach_type = Mach_type.Make(Arch)
+open Mach_type
+module Linear_type = Linear_type.Make(Arch)
+open Linear_type
 
 (* [Branch_relaxation] is not used in this file, but is required by
    emit.mlp files for certain other targets; the reference here ensures
@@ -36,6 +38,9 @@ module Int = Numbers.Int
    for all targets. *)
 [@@@ocaml.warning "-66"]
 open! Branch_relaxation
+
+let linear_has_fallthrough_backref: (instruction_desc -> bool) ref =
+  ref (fun _ -> failwith "linear_has_fallthrough not initialized")
 
 let _label s = D.label ~typ:QWORD s
 
@@ -930,7 +935,7 @@ let rec emit_all fallthrough i =
   | Lend -> ()
   | _ ->
       emit_instr fallthrough i;
-      emit_all (Linear.has_fallthrough i.desc) i.next
+      emit_all (!linear_has_fallthrough_backref i.desc) i.next
 
 let all_functions = ref []
 

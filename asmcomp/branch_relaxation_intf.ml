@@ -19,6 +19,8 @@ module type S = sig
      the natural word size of instructions). *)
   type distance = int
 
+  module Arch : Arch_type.S
+
   module Cond_branch : sig
     (* The various types of conditional branches for a given target that
        may require relaxation. *)
@@ -46,7 +48,7 @@ module type S = sig
                 - Lcondbranch3 (_, _, _)
        [classify_instr] is expected to return [None] when called on any
        instruction not in this list. *)
-    val classify_instr : Linear.instruction_desc -> t option
+    val classify_instr : Linear_type.Make(Arch).instruction_desc -> t option
   end
 
   (* The value to be added to the program counter (in [distance] units)
@@ -55,7 +57,7 @@ module type S = sig
   val offset_pc_at_branch : distance
 
   (* The maximum size of a given instruction. *)
-  val instr_size : Linear.instruction_desc -> distance
+  val instr_size : Linear_type.Make(Arch).instruction_desc -> distance
 
   (* Insertion of target-specific code to relax operations that cannot be
      relaxed generically.  It is assumed that these rewrites do not change
@@ -64,13 +66,13 @@ module type S = sig
      : num_bytes:int
     -> label_after_call_gc:Cmm.label option
     -> dbginfo:Debuginfo.alloc_dbginfo
-    -> Linear.instruction_desc
+    -> Linear_type.Make(Arch).instruction_desc
   val relax_intop_checkbound
      : label_after_error:Cmm.label option
-    -> Linear.instruction_desc
+    -> Linear_type.Make(Arch).instruction_desc
   val relax_intop_imm_checkbound
      : bound:int
     -> label_after_error:Cmm.label option
-    -> Linear.instruction_desc
-  val relax_specific_op : Arch_specific.Arch.specific_operation -> Linear.instruction_desc
+    -> Linear_type.Make(Arch).instruction_desc
+  val relax_specific_op : Arch.specific_operation -> Linear_type.Make(Arch).instruction_desc
 end

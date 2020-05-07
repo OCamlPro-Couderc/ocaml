@@ -1,8 +1,9 @@
 
-module Make(Arch:  sig
-    type specific_operation
-    type addressing_mode
-  end) : sig
+(* Transformation of Mach code into a list of pseudo-instructions. *)
+
+module type T = sig
+
+  module Arch : Arch_type.T
 
   type label = Cmm.label
 
@@ -43,4 +44,21 @@ module Make(Arch:  sig
       fun_frame_required: bool;
       fun_prologue_required: bool;
     }
+
+end
+
+module Make(Arch: Arch_type.T) : T with module Arch := Arch
+
+module type S = sig
+
+  module Arch : Arch_type.T
+
+  include module type of Make(Arch)
+
+  val has_fallthrough :  instruction_desc -> bool
+  val end_instr: instruction
+  val instr_cons:
+    instruction_desc -> Reg.t array -> Reg.t array -> instruction -> instruction
+  val invert_test: Mach_type.Make(Arch).test -> Mach_type.Make(Arch).test
+
 end

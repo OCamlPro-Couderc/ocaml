@@ -24,6 +24,7 @@ module CU = Compilation_unit
 module UI = Cmx_format.Unit_info
 module UIL = Cmx_format.Unit_info_link_time
 module Backend = Backend_maker(Amd64)
+open Backend
 
 let tool_name = "ocamlopt"
 
