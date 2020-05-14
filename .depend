@@ -5888,6 +5888,8 @@ asmcomp/debug/reg_with_debug_info.cmx : \
 asmcomp/debug/reg_with_debug_info.cmi : \
     asmcomp/reg.cmi \
     middle_end/backend_var.cmi
+driver/backend_instantiation.cmo :
+driver/backend_instantiation.cmx :
 driver/compdynlink.cmi :
 driver/compdynlink_common.cmo : \
     driver/compdynlink_types.cmi \
@@ -6141,6 +6143,7 @@ driver/optcompile.cmo : \
     file_formats/cmx_format.cmi \
     middle_end/closure/closure_middle_end.cmi \
     utils/clflags.cmi \
+    driver/backend_instantiation.cmo \
     asmcomp/asmgen.cmi \
     driver/optcompile.cmi
 driver/optcompile.cmx : \
@@ -6160,6 +6163,7 @@ driver/optcompile.cmx : \
     file_formats/cmx_format.cmx \
     middle_end/closure/closure_middle_end.cmx \
     utils/clflags.cmx \
+    driver/backend_instantiation.cmx \
     asmcomp/asmgen.cmx \
     driver/optcompile.cmi
 driver/optcompile.cmi : \

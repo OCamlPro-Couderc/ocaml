@@ -103,11 +103,6 @@ BYTECOMP=bytecomp/instruct.cmo bytecomp/bytegen.cmo \
   driver/errors.cmo driver/compile.cmo
 BYTECOMP_CMI=
 
-# ARCH_SPECIFIC =\
-#   asmcomp/arch.ml asmcomp/proc.ml asmcomp/CSEspec.ml asmcomp/selection.ml \
-#   asmcomp/scheduling.ml asmcomp/reload.ml
-ARCH_SPECIFIC_CMI=
-
 INTEL_ASM=\
   asmcomp/x86_proc.cmo \
   asmcomp/x86_dsl.cmo \
@@ -115,42 +110,6 @@ INTEL_ASM=\
   asmcomp/x86_masm.cmo
 INTEL_ASM_CMI=\
   asmcomp/x86_ast.cmi
-
-ASMCOMP=\
-  $(ARCH_SPECIFIC_ASMCOMP) \
-  asmcomp/arch.cmo \
-  asmcomp/cmm.cmo asmcomp/printcmm.cmo \
-  asmcomp/reg.cmo asmcomp/debug/reg_with_debug_info.cmo \
-  asmcomp/debug/reg_availability_set.cmo \
-  asmcomp/mach.cmo asmcomp/proc.cmo \
-  asmcomp/linking_state.cmo \
-  asmcomp/afl_instrument.cmo \
-  asmcomp/strmatch.cmo \
-  asmcomp/cmmgen_state.cmo \
-  asmcomp/cmm_helpers.cmo \
-  asmcomp/cmmgen.cmo \
-  asmcomp/interval.cmo \
-  asmcomp/printmach.cmo asmcomp/selectgen.cmo \
-  asmcomp/spacetime_profiling.cmo asmcomp/selection.cmo \
-  asmcomp/comballoc.cmo \
-  asmcomp/CSEgen.cmo asmcomp/CSEspec.cmo asmcomp/CSE.cmo \
-  asmcomp/liveness.cmo \
-  asmcomp/spill.cmo asmcomp/split.cmo \
-  asmcomp/interf.cmo asmcomp/coloring.cmo \
-  asmcomp/linscan.cmo \
-  asmcomp/reloadgen.cmo asmcomp/reload.cmo \
-  asmcomp/deadcode.cmo \
-  asmcomp/linear.cmo asmcomp/printlinear.cmo asmcomp/linearize.cmo \
-  asmcomp/debug/available_regs.cmo \
-  asmcomp/debug/compute_ranges_intf.cmo \
-  asmcomp/debug/compute_ranges.cmo \
-  asmcomp/schedgen.cmo asmcomp/scheduling.cmo \
-  asmcomp/branch_relaxation_intf.cmo \
-  asmcomp/branch_relaxation.cmo \
-  asmcomp/emitaux.cmo asmcomp/emit.cmo asmcomp/asmgen.cmo \
-  asmcomp/asmlink.cmo asmcomp/asmlibrarian.cmo asmcomp/asmpackager.cmo \
-  driver/opterrors.cmo driver/optcompile.cmo
-ASMCOMP_CMI=$(ARCH_SPECIFIC_ASMCOMP_CMI)
 
 ARCH_SPECIFIC_ASMCOMP=
 ifeq ($(ARCH),i386)
@@ -185,7 +144,6 @@ ASMCOMP_PRELUDE=\
   asmcomp/reload_type.cmo
 
 ASMCOMP_ARCH_PARAMS=\
-  $(ARCH_SPEFICIC_ASMCOMP_CMI) \
   $(ARCH_SPECIFIC_ASMCOMP) \
   asmcomp/arch.cmo \
   asmcomp/proc.cmo \
@@ -225,7 +183,7 @@ ASMCOMP_FUNCTOR=\
 
 ASMCOMP_COMPILE=\
   asmcomp/emitaux.cmo asmcomp/backend_maker.cmo asmcomp/$(ARCH).cmo \
-  driver/opterrors.cmo driver/optcompile.cmo
+  driver/backend_instantiation.cmo driver/opterrors.cmo driver/optcompile.cmo
 ASMCOMP=  $(ASMCOMP_PRELUDE) $(ASMCOMP_COMPILE)
 
 ASMCOMP_CMI=$(ASMCOMP_PRELUDE_CMI)
@@ -405,6 +363,12 @@ asmcomp/emitaux.cmo: asmcomp/emitaux.ml
 asmcomp/emitaux.cmx: asmcomp/emitaux.ml
 	$(CAMLC) $(COMPFLAGS) -c -parameter 'Emitaux_arg'  $<
 
+$(ARCH_SPECIFIC_ASMCOMP_CMI): %.cmi: %.mli
+	$(CAMLC) $(COMPFLAGS) -c -for-pack Amd64 $<
+
+$(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmi): %.cmi: %.mli
+	$(CAMLC) $(COMPFLAGS) -c -for-pack Amd64 $<
+
 $(ASMCOMP_ARCH_PARAMS): %.cmo: %.ml
 	$(CAMLC) $(COMPFLAGS) -c -for-pack Amd64 $<
 
@@ -420,11 +384,11 @@ asmcomp/backend_maker.cmx: $(ASMCOMP_FUNCTOR:%.cmo=%.cmx)
 asmcomp/$(ARCH).cmi: $(ASMCOMP_ARCH_PARAMS)
 	$(CAMLC) -o $@ -I asmcomp asmcomp/$(ARCH).mli
 
-asmcomp/$(ARCH).cmo: asmcomp/$(ARCH).cmi $(ASMCOMP_ARCH_PARAMS)
-	$(CAMLC) -o $@ -I asmcomp -pack $(ASMCOMP_ARCH_PARAMS)
+asmcomp/$(ARCH).cmo: asmcomp/$(ARCH).cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS)
+	$(CAMLC) -o $@ -I asmcomp -pack $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS)
 
-asmcomp/$(ARCH).cmx: asmcomp/$(ARCH).cmi $(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmx)
-	$(CAMLOPT) -o $@ -I asmcomp -pack $(ASMCOMP_ARCH_PARAMS)
+asmcomp/$(ARCH).cmx: asmcomp/$(ARCH).cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmx)
+	$(CAMLOPT) -o $@ -I asmcomp -pack $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS)
 
 compilerlibs/ocamloptcomp.cma: $(OPTCOMP_CMI) $(OPTCOMP)
 	$(CAMLC) -a -o $@ $(OPTCOMP)
