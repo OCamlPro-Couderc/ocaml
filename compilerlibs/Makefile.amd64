@@ -1,0 +1,42 @@
+#**************************************************************************
+#*                                                                        *
+#*                                 OCaml                                  *
+#*                                                                        *
+#*            Xavier Leroy, projet Cristal, INRIA Rocquencourt            *
+#*                                                                        *
+#*   Copyright 1999 Institut National de Recherche en Informatique et     *
+#*     en Automatique.                                                    *
+#*                                                                        *
+#*   All rights reserved.  This file is distributed under the terms of    *
+#*   the GNU Lesser General Public License version 2.1, with the          *
+#*   special exception on linking described in the file LICENSE.          *
+#*                                                                        *
+#**************************************************************************
+
+ASMCOMP_ARCH_PARAMS=\
+  asmcomp/amd64/arch.cmo \
+  asmcomp/amd64/proc.cmo \
+  asmcomp/amd64/CSEspec.cmo \
+  asmcomp/amd64/selection.cmo \
+  asmcomp/amd64/reload.cmo \
+  asmcomp/amd64/scheduling.cmo \
+  asmcomp/amd64/emit.cmo
+
+
+$(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmi): %.cmi: %.mli
+	$(CAMLC) $(COMPFLAGS) -c -for-pack Amd64 $<
+
+$(ASMCOMP_ARCH_PARAMS): %.cmo: %.ml
+	$(CAMLC) $(COMPFLAGS) -c -for-pack Amd64 $<
+
+$(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmx): %.cmx: %.ml
+	$(CAMLOPT) $(COMPFLAGS) -c -for-pack Amd64 $<
+
+asmcomp/amd64/amd64.cmi: $(ASMCOMP_ARCH_PARAMS)
+	$(CAMLC) -o $@ -I asmcomp asmcomp/amd64/amd64.mli
+
+asmcomp/amd64/amd64.cmo: asmcomp/amd64/amd64.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS)
+	$(CAMLC) -o $@ -I asmcomp -pack $(ASMCOMP_ARCH_PARAMS)
+
+asmcomp/amd64/amd64.cmx: asmcomp/$(ARCH).cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmx)
+	$(CAMLOPT) -o $@ -I asmcomp -pack $(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmx)

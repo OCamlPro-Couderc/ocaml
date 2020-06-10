@@ -807,7 +807,7 @@ let transl_functorized_implementation module_id (impl, cc) =
         transl_struct Location.none [] cc
           (global_path module_id) str
     | Timpl_functor (_, _) ->
-         oo_wrap impl.timpl_env true (fun () ->
+        oo_wrap impl.timpl_env true (fun () ->
             let params, body = extract_impl_functor_components impl in
             compile_functor
               params body cc path Location.none) (),

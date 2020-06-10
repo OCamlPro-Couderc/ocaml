@@ -1987,6 +1987,7 @@ asmcomp/CSE.cmo : \
     asmcomp/proc.cmo \
     asmcomp/mach.cmi \
     asmcomp/cmm.cmi \
+    asmcomp/amd64/CSEspec.cmo \
     asmcomp/CSEgen.cmi \
     asmcomp/arch_specific.cmi \
     asmcomp/CSE.cmi
@@ -1995,6 +1996,7 @@ asmcomp/CSE.cmx : \
     asmcomp/proc.cmx \
     asmcomp/mach.cmx \
     asmcomp/cmm.cmx \
+    asmcomp/amd64/CSEspec.cmx \
     asmcomp/CSEgen.cmx \
     asmcomp/arch_specific.cmi \
     asmcomp/CSE.cmi
@@ -2034,24 +2036,14 @@ asmcomp/arch_instantiation.cmo : \
     asmcomp/selectgen.cmi \
     asmcomp/schedgen.cmi \
     asmcomp/reloadgen.cmi \
-    asmcomp/emitaux.cmi \
     asmcomp/arch_specific.cmi
 asmcomp/arch_instantiation.cmx : \
     asmcomp/spacetime_profiling.cmx \
     asmcomp/selectgen.cmx \
     asmcomp/schedgen.cmx \
     asmcomp/reloadgen.cmx \
-    asmcomp/emitaux.cmx \
     asmcomp/arch_specific.cmi
-asmcomp/arch_specific.cmi : \
-    asmcomp/selector.cmo \
-    asmcomp/scheduler.cmo \
-    asmcomp/reload_type.cmi \
-    asmcomp/reg.cmi \
-    asmcomp/mach_type.cmi \
-    asmcomp/linear_type.cmi \
-    asmcomp/cmm.cmi \
-    asmcomp/CSEgen.cmi
+asmcomp/arch_specific.cmi :
 asmcomp/arch_type.cmo : \
     asmcomp/reg.cmi \
     asmcomp/arch_type.cmi
@@ -2551,21 +2543,22 @@ asmcomp/emit.cmx : \
     asmcomp/branch_relaxation.cmx \
     asmcomp/arch.cmx
 asmcomp/emitaux.cmo : \
-    asmcomp/emitaux_arg.cmi \
     lambda/debuginfo.cmi \
     utils/config.cmi \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
+    asmcomp/arch_type.cmi \
     asmcomp/emitaux.cmi
 asmcomp/emitaux.cmx : \
-    asmcomp/emitaux_arg.cmi \
     lambda/debuginfo.cmx \
     utils/config.cmx \
     asmcomp/cmm.cmx \
     utils/clflags.cmx \
+    asmcomp/arch_type.cmx \
     asmcomp/emitaux.cmi
 asmcomp/emitaux.cmi : \
-    lambda/debuginfo.cmi
+    lambda/debuginfo.cmi \
+    asmcomp/arch_type.cmi
 asmcomp/emitaux_arg.cmi : \
     asmcomp/arch_type.cmi
 asmcomp/emitaux_type.cmi :
@@ -5888,8 +5881,146 @@ asmcomp/debug/reg_with_debug_info.cmx : \
 asmcomp/debug/reg_with_debug_info.cmi : \
     asmcomp/reg.cmi \
     middle_end/backend_var.cmi
-driver/backend_instantiation.cmo :
-driver/backend_instantiation.cmx :
+asmcomp/amd64/CSE.cmo : \
+    asmcomp/reg.cmi \
+    asmcomp/proc.cmo \
+    asmcomp/mach.cmi \
+    asmcomp/cmm.cmi \
+    asmcomp/amd64/CSEspec.cmo \
+    asmcomp/CSEgen.cmi
+asmcomp/amd64/CSE.cmx : \
+    asmcomp/reg.cmx \
+    asmcomp/proc.cmx \
+    asmcomp/mach.cmx \
+    asmcomp/cmm.cmx \
+    asmcomp/amd64/CSEspec.cmx \
+    asmcomp/CSEgen.cmx
+asmcomp/amd64/CSEspec.cmo : \
+    asmcomp/CSEgen.cmi \
+    asmcomp/arch.cmo
+asmcomp/amd64/CSEspec.cmx : \
+    asmcomp/CSEgen.cmx \
+    asmcomp/arch.cmx
+asmcomp/amd64/amd64.cmo : \
+    asmcomp/amd64/amd64.cmi
+asmcomp/amd64/amd64.cmx : \
+    asmcomp/amd64/amd64.cmi
+asmcomp/amd64/amd64.cmi : \
+    asmcomp/selector.cmo \
+    asmcomp/scheduler.cmo \
+    asmcomp/reload_type.cmi \
+    asmcomp/reg.cmi \
+    asmcomp/mach_type.cmi \
+    asmcomp/linear_type.cmi \
+    asmcomp/emitaux.cmi \
+    asmcomp/cmm.cmi \
+    asmcomp/CSEgen.cmi
+asmcomp/amd64/arch.cmo : \
+    utils/config.cmi \
+    utils/clflags.cmi
+asmcomp/amd64/arch.cmx : \
+    utils/config.cmx \
+    utils/clflags.cmx
+asmcomp/amd64/emit.cmo : \
+    asmcomp/x86_proc.cmi \
+    asmcomp/x86_masm.cmi \
+    asmcomp/x86_gas.cmi \
+    asmcomp/x86_dsl.cmi \
+    asmcomp/x86_ast.cmi \
+    middle_end/symbol.cmi \
+    asmcomp/reg.cmi \
+    asmcomp/proc.cmo \
+    utils/numbers.cmi \
+    utils/misc.cmi \
+    asmcomp/mach_type.cmi \
+    asmcomp/linear_type.cmi \
+    lambda/lambda.cmi \
+    asmcomp/emitaux.cmi \
+    utils/domainstate.cmi \
+    utils/config.cmi \
+    asmcomp/cmm.cmi \
+    utils/clflags.cmi \
+    asmcomp/branch_relaxation.cmi \
+    asmcomp/arch.cmo
+asmcomp/amd64/emit.cmx : \
+    asmcomp/x86_proc.cmx \
+    asmcomp/x86_masm.cmx \
+    asmcomp/x86_gas.cmx \
+    asmcomp/x86_dsl.cmx \
+    asmcomp/x86_ast.cmi \
+    middle_end/symbol.cmx \
+    asmcomp/reg.cmx \
+    asmcomp/proc.cmx \
+    utils/numbers.cmx \
+    utils/misc.cmx \
+    asmcomp/mach_type.cmx \
+    asmcomp/linear_type.cmx \
+    lambda/lambda.cmx \
+    asmcomp/emitaux.cmx \
+    utils/domainstate.cmx \
+    utils/config.cmx \
+    asmcomp/cmm.cmx \
+    utils/clflags.cmx \
+    asmcomp/branch_relaxation.cmx \
+    asmcomp/arch.cmx
+asmcomp/amd64/proc.cmo : \
+    asmcomp/x86_proc.cmi \
+    asmcomp/reg.cmi \
+    utils/misc.cmi \
+    asmcomp/mach_type.cmi \
+    utils/config.cmi \
+    asmcomp/cmm.cmi \
+    asmcomp/arch.cmo
+asmcomp/amd64/proc.cmx : \
+    asmcomp/x86_proc.cmx \
+    asmcomp/reg.cmx \
+    utils/misc.cmx \
+    asmcomp/mach_type.cmx \
+    utils/config.cmx \
+    asmcomp/cmm.cmx \
+    asmcomp/arch.cmx
+asmcomp/amd64/reload.cmo : \
+    asmcomp/reload_type.cmi \
+    asmcomp/reg.cmi \
+    asmcomp/cmm.cmi \
+    utils/clflags.cmi \
+    asmcomp/arch.cmo
+asmcomp/amd64/reload.cmx : \
+    asmcomp/reload_type.cmx \
+    asmcomp/reg.cmx \
+    asmcomp/cmm.cmx \
+    utils/clflags.cmx \
+    asmcomp/arch.cmx
+asmcomp/amd64/scheduling.cmo : \
+    asmcomp/scheduler.cmo \
+    asmcomp/arch.cmo
+asmcomp/amd64/scheduling.cmx : \
+    asmcomp/scheduler.cmx \
+    asmcomp/arch.cmx
+asmcomp/amd64/selection.cmo : \
+    asmcomp/selector.cmo \
+    asmcomp/selectgen.cmi \
+    asmcomp/proc.cmo \
+    asmcomp/mach_type.cmi \
+    utils/config.cmi \
+    asmcomp/cmm.cmi \
+    utils/clflags.cmi \
+    asmcomp/arch.cmo
+asmcomp/amd64/selection.cmx : \
+    asmcomp/selector.cmx \
+    asmcomp/selectgen.cmx \
+    asmcomp/proc.cmx \
+    asmcomp/mach_type.cmx \
+    utils/config.cmx \
+    asmcomp/cmm.cmx \
+    utils/clflags.cmx \
+    asmcomp/arch.cmx
+driver/backend_instantiation.cmo : \
+    utils/config.cmi \
+    asmcomp/amd64/amd64.cmi
+driver/backend_instantiation.cmx : \
+    utils/config.cmx \
+    asmcomp/amd64/amd64.cmx
 driver/compdynlink.cmi :
 driver/compdynlink_common.cmo : \
     driver/compdynlink_types.cmi \
@@ -6169,7 +6300,8 @@ driver/optcompile.cmx : \
 driver/optcompile.cmi : \
     typing/typedtree.cmi \
     driver/compile_common.cmi \
-    middle_end/backend_intf.cmi
+    middle_end/backend_intf.cmi \
+    asmcomp/amd64/amd64.cmi
 driver/opterrors.cmo : \
     parsing/location.cmi \
     driver/opterrors.cmi
@@ -6194,6 +6326,7 @@ driver/optmain.cmo : \
     asmcomp/asmlink.cmi \
     asmcomp/asmlibrarian.cmi \
     asmcomp/arch.cmo \
+    asmcomp/amd64/amd64.cmi \
     driver/optmain.cmi
 driver/optmain.cmx : \
     utils/warnings.cmx \
@@ -6212,6 +6345,7 @@ driver/optmain.cmx : \
     asmcomp/asmlink.cmx \
     asmcomp/asmlibrarian.cmx \
     asmcomp/arch.cmx \
+    asmcomp/amd64/amd64.cmx \
     driver/optmain.cmi
 driver/optmain.cmi :
 driver/pparse.cmo : \

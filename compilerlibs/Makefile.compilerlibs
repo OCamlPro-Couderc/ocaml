@@ -141,17 +141,9 @@ ASMCOMP_PRELUDE=\
   asmcomp/arch_type.cmo \
   asmcomp/mach_type.cmo \
   asmcomp/linear_type.cmo \
-  asmcomp/reload_type.cmo
-
-ASMCOMP_ARCH_PARAMS=\
-  $(ARCH_SPECIFIC_ASMCOMP) \
-  asmcomp/arch.cmo \
-  asmcomp/proc.cmo \
-  asmcomp/CSEspec.cmo \
-  asmcomp/selection.cmo \
-  asmcomp/reload.cmo \
-  asmcomp/scheduling.cmo \
-  asmcomp/emit.cmo
+  asmcomp/reload_type.cmo \
+  asmcomp/emitaux.cmo \
+  asmcomp/backend_parameter.cmo
 
 ASMCOMP_FUNCTOR_PARAMS=\
   asmcomp/arch_specific.cmi
@@ -182,9 +174,9 @@ ASMCOMP_FUNCTOR=\
   asmcomp/asmlink.cmo asmcomp/asmlibrarian.cmo asmcomp/asmpackager.cmo
 
 ASMCOMP_COMPILE=\
-  asmcomp/emitaux.cmo asmcomp/backend_maker.cmo asmcomp/$(ARCH).cmo \
+  asmcomp/backend_maker.cmo asmcomp/$(ARCH)/$(ARCH).cmo \
   driver/backend_instantiation.cmo driver/opterrors.cmo driver/optcompile.cmo
-ASMCOMP=  $(ASMCOMP_PRELUDE) $(ASMCOMP_COMPILE)
+ASMCOMP= $(ASMCOMP_PRELUDE) $(ARCH_SPECIFIC_ASMCOMP) $(ASMCOMP_COMPILE)
 
 ASMCOMP_CMI=$(ASMCOMP_PRELUDE_CMI)
 
@@ -342,9 +334,6 @@ ASMCOMP_FUNCTOR_FLAGS= -parameter Arch_specific
 ASMCOMP_BACKEND_FUNCTOR_PACK=\
   -for-pack 'Backend_maker(Arch_specific)'
 
-asmcomp/emitaux_arg.cmi: asmcomp/emitaux_arg.mli
-	$(CAMLC) $(COMPFLAGS) -c -parameter-of 'Emitaux'  $<
-
 $(ASMCOMP_FUNCTOR): %.cmo: %.ml
 	$(CAMLC) $(COMPFLAGS) -c $(ASMCOMP_BACKEND_FUNCTOR_PACK) $<
 
@@ -354,41 +343,11 @@ $(ASMCOMP_FUNCTOR:%.cmo=%.cmi): %.cmi: %.mli
 $(ASMCOMP_FUNCTOR:%.cmo=%.cmx): %.cmx: %.ml
 	$(CAMLOPT) $(COMPFLAGS) -c $(ASMCOMP_BACKEND_FUNCTOR_PACK) $<
 
-asmcomp/emitaux.cmi: asmcomp/emitaux.mli
-	$(CAMLC) $(COMPFLAGS) -c -parameter 'Emitaux_arg'  $<
-
-asmcomp/emitaux.cmo: asmcomp/emitaux.ml
-	$(CAMLC) $(COMPFLAGS) -c -parameter 'Emitaux_arg'  $<
-
-asmcomp/emitaux.cmx: asmcomp/emitaux.ml
-	$(CAMLC) $(COMPFLAGS) -c -parameter 'Emitaux_arg'  $<
-
-$(ARCH_SPECIFIC_ASMCOMP_CMI): %.cmi: %.mli
-	$(CAMLC) $(COMPFLAGS) -c -for-pack Amd64 $<
-
-$(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmi): %.cmi: %.mli
-	$(CAMLC) $(COMPFLAGS) -c -for-pack Amd64 $<
-
-$(ASMCOMP_ARCH_PARAMS): %.cmo: %.ml
-	$(CAMLC) $(COMPFLAGS) -c -for-pack Amd64 $<
-
-$(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmx): %.cmx: %.ml
-	$(CAMLOPT) $(COMPFLAGS) -c -for-pack Amd64 $<
-
 asmcomp/backend_maker.cmo: $(ASMCOMP_FUNCTOR)
 	$(CAMLC) -o $@ -I asmcomp $(ASMCOMP_FUNCTOR_FLAGS) -pack $^
 
 asmcomp/backend_maker.cmx: $(ASMCOMP_FUNCTOR:%.cmo=%.cmx)
-	$(CAMLOPT) -o $@ -I asmcomp $(ASMCOMP_FUNCTOR_FLAGS) -pack $^
-
-asmcomp/$(ARCH).cmi: $(ASMCOMP_ARCH_PARAMS)
-	$(CAMLC) -o $@ -I asmcomp asmcomp/$(ARCH).mli
-
-asmcomp/$(ARCH).cmo: asmcomp/$(ARCH).cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS)
-	$(CAMLC) -o $@ -I asmcomp -pack $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS)
-
-asmcomp/$(ARCH).cmx: asmcomp/$(ARCH).cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmx)
-	$(CAMLOPT) -o $@ -I asmcomp -pack $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS)
+	$(CAMLOPT) -o $@ -I asmcomp $(ASMCOMP_FUNCTOR_FLAGS) -pack $(ASMCOMP_FUNCTOR:%.cmo=%.cmx)
 
 compilerlibs/ocamloptcomp.cma: $(OPTCOMP_CMI) $(OPTCOMP)
 	$(CAMLC) -a -o $@ $(OPTCOMP)

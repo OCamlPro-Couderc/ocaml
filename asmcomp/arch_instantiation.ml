@@ -13,7 +13,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module Emitaux = Emitaux(Arch_specific.Arch)
+module Emit = Arch_specific.Emit
+
+module Emitaux = Emit.Emitaux
 
 module Reload = Arch_specific.Reload.Make(Reloadgen)
 

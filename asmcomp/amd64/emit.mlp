@@ -25,7 +25,7 @@ open X86_proc
 open X86_dsl
 module String = Misc.Stdlib.String
 module Int = Numbers.Int
-module Emitaux = Emitaux(Arch)
+module Emitaux = Emitaux.Make(Arch)
 open Emitaux
 module Mach_type = Mach_type.Make(Arch)
 open Mach_type

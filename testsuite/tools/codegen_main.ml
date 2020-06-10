@@ -14,6 +14,9 @@
 (**************************************************************************)
 
 open Clflags
+open Amd64
+open Backend_maker(Amd64)
+module Emitaux = Emit.Emitaux
 let write_asm_file = ref false
 
 let compile_file filename =

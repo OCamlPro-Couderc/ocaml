@@ -43,7 +43,7 @@ INCLUDES=-I utils -I parsing -I typing -I bytecomp -I file_formats \
         -I lambda -I middle_end -I middle_end/closure \
         -I middle_end/flambda -I middle_end/flambda/base_types \
         -I asmcomp -I asmcomp/debug \
-        -I driver -I toplevel
+        -I asmcomp/$(ARCH) -I driver -I toplevel
 
 COMPFLAGS=-strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66 \
 	  -warn-error A \
@@ -111,6 +111,7 @@ endif
 
 # targets for the compilerlibs/*.{cma,cmxa} archives
 include compilerlibs/Makefile.compilerlibs
+include compilerlibs/Makefile.amd64
 
 # The configuration file
 
@@ -682,27 +683,27 @@ beforedepend:: lambda/runtimedef.ml
 
 # Choose the right machine-dependent files
 
-asmcomp/arch.ml: asmcomp/$(ARCH)/arch.ml
-	cd asmcomp; $(LN) $(ARCH)/arch.ml .
+# asmcomp/arch.ml: asmcomp/$(ARCH)/arch.ml
+# 	cd asmcomp; $(LN) $(ARCH)/arch.ml .
 
-asmcomp/proc.ml: asmcomp/$(ARCH)/proc.ml
-	cd asmcomp; $(LN) $(ARCH)/proc.ml .
+# asmcomp/proc.ml: asmcomp/$(ARCH)/proc.ml
+# 	cd asmcomp; $(LN) $(ARCH)/proc.ml .
 
-asmcomp/selection.ml: asmcomp/$(ARCH)/selection.ml
-	cd asmcomp; $(LN) $(ARCH)/selection.ml .
+# asmcomp/selection.ml: asmcomp/$(ARCH)/selection.ml
+# 	cd asmcomp; $(LN) $(ARCH)/selection.ml .
 
-asmcomp/CSEspec.ml: asmcomp/$(ARCH)/CSEspec.ml
-	cd asmcomp; $(LN) $(ARCH)/CSEspec.ml .
+# asmcomp/CSEspec.ml: asmcomp/$(ARCH)/CSEspec.ml
+# 	cd asmcomp; $(LN) $(ARCH)/CSEspec.ml .
 
-asmcomp/reload.ml: asmcomp/$(ARCH)/reload.ml
-	cd asmcomp; $(LN) $(ARCH)/reload.ml .
+# asmcomp/reload.ml: asmcomp/$(ARCH)/reload.ml
+# 	cd asmcomp; $(LN) $(ARCH)/reload.ml .
 
-asmcomp/scheduling.ml: asmcomp/$(ARCH)/scheduling.ml
-	cd asmcomp; $(LN) $(ARCH)/scheduling.ml .
+# asmcomp/scheduling.ml: asmcomp/$(ARCH)/scheduling.ml
+# 	cd asmcomp; $(LN) $(ARCH)/scheduling.ml .
 
 # Preprocess the code emitters
 
-asmcomp/emit.ml: asmcomp/$(ARCH)/emit.mlp tools/cvt_emit
+asmcomp/$(ARCH)/emit.ml: asmcomp/$(ARCH)/emit.mlp tools/cvt_emit
 	echo \# 1 \"$(ARCH)/emit.mlp\" > $@
 	$(CAMLRUN) tools/cvt_emit < $< >> $@ \
 	|| { rm -f $@; exit 2; }
@@ -710,7 +711,7 @@ asmcomp/emit.ml: asmcomp/$(ARCH)/emit.mlp tools/cvt_emit
 partialclean::
 	rm -f asmcomp/emit.ml
 
-beforedepend:: asmcomp/emit.ml
+beforedepend:: asmcomp/$(ARCH)/emit.ml
 
 tools/cvt_emit: tools/cvt_emit.mll
 	$(MAKE) -C tools cvt_emit
@@ -1058,7 +1059,7 @@ depend: beforedepend
 	(for d in utils parsing typing bytecomp asmcomp middle_end \
          lambda file_formats middle_end/closure middle_end/flambda \
          middle_end/flambda/base_types asmcomp/debug \
-         driver toplevel; \
+         asmcomp/$(ARCH) driver toplevel; \
          do $(CAMLDEP) $(DEPFLAGS) $(DEPINCLUDES) $$d/*.mli $$d/*.ml || exit; \
          done) > .depend
 
