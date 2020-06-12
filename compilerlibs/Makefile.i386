@@ -1,0 +1,49 @@
+#**************************************************************************
+#*                                                                        *
+#*                                 OCaml                                  *
+#*                                                                        *
+#*            Xavier Leroy, projet Cristal, INRIA Rocquencourt            *
+#*                                                                        *
+#*   Copyright 1999 Institut National de Recherche en Informatique et     *
+#*     en Automatique.                                                    *
+#*                                                                        *
+#*   All rights reserved.  This file is distributed under the terms of    *
+#*   the GNU Lesser General Public License version 2.1, with the          *
+#*   special exception on linking described in the file LICENSE.          *
+#*                                                                        *
+#**************************************************************************
+
+COMPFLAGS_I386= $(COMPFLAGS_NO_ARCH) -I asmcomp/i386
+
+ASMCOMP_ARCH_PARAMS_I386=\
+  asmcomp/i386/arch.cmo \
+  asmcomp/i386/proc.cmo \
+  asmcomp/i386/CSE.cmo \
+  asmcomp/i386/selection.cmo \
+  asmcomp/i386/reload.cmo \
+  asmcomp/i386/scheduling.cmo \
+  asmcomp/i386/emit.cmo
+
+
+$(ASMCOMP_ARCH_PARAMS_I386:%.cmo=%.cmi): %.cmi: %.mli
+	$(CAMLC) $(COMPFLAGS_I386) -c -for-pack I386 $<
+
+$(ASMCOMP_ARCH_PARAMS_I386): %.cmo: %.ml
+	$(CAMLC) $(COMPFLAGS_I386) -c -for-pack I386 $<
+
+$(ASMCOMP_ARCH_PARAMS_I386:%.cmo=%.cmx): %.cmx: %.ml
+	$(CAMLOPT) $(COMPFLAGS_I386) -c -for-pack I386 $<
+
+asmcomp/i386/i386.cmi: $(ASMCOMP_ARCH_PARAMS_I386)
+	$(CAMLC) -o $@ $(COMPFLAGS_I386) asmcomp/i386/i386.mli
+
+asmcomp/i386/i386.cmo: asmcomp/i386/i386.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS_I386)
+	$(CAMLC) -o $@ $(COMPFLAGS_I386) -pack $(ASMCOMP_ARCH_PARAMS_I386)
+
+asmcomp/i386/i386.cmx: asmcomp/i386/i386.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS_I386:%.cmo=%.cmx)
+	$(CAMLOPT) -o $@ $(COMPFLAGS_I386) -pack $(ASMCOMP_ARCH_PARAMS_I386:%.cmo=%.cmx)
+
+asmcomp/i386/emit.ml: asmcomp/i386/emit.mlp tools/cvt_emit
+	echo \# 1 \"i386/emit.mlp\" > $@
+	$(CAMLRUN) tools/cvt_emit < $< >> $@ \
+	|| { rm -f $@; exit 2; }

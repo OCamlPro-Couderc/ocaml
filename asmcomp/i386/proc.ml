@@ -20,7 +20,7 @@ open Misc
 open Arch
 open Cmm
 open Reg
-open Mach
+open Mach_type.Make(Arch)
 
 (* Which asm conventions to use *)
 let masm =

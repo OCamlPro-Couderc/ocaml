@@ -45,7 +45,7 @@ INCLUDES_NO_ARCH=-I utils -I parsing -I typing -I bytecomp -I file_formats \
         -I asmcomp -I asmcomp/debug \
 	-I driver -I toplevel
 
-INCLUDES_ARCH= -I asmcomp/amd64 -I asmcomp/arm -I asmcomp/arm64
+INCLUDES_ARCH= -I asmcomp/amd64 -I asmcomp/arm -I asmcomp/arm64 -I asmcomp/i386
 
 INCLUDES=$(INCLUDES_NO_ARCH) $(INCLUDES_ARCH)
 
@@ -122,6 +122,7 @@ include compilerlibs/Makefile.compilerlibs
 include compilerlibs/Makefile.amd64
 include compilerlibs/Makefile.arm
 include compilerlibs/Makefile.arm64
+include compilerlibs/Makefile.i386
 
 # The configuration file
 
@@ -1059,7 +1060,8 @@ partialclean::
 	for d in utils parsing typing bytecomp asmcomp middle_end file_formats \
            lambda middle_end/closure middle_end/flambda \
            middle_end/flambda/base_types asmcomp/debug \
-           asmcomp/amd64 asmcomp/arm asmcomp/arm64 driver toplevel tools; do \
+           asmcomp/amd64 asmcomp/arm asmcomp/arm64 asmcomp/i386 \
+	   driver toplevel tools; do \
 	  rm -f $$d/*.cm[ioxt] $$d/*.cmti $$d/*.annot $$d/*.$(S) \
 	    $$d/*.$(O) $$d/*.$(SO); \
 	done
@@ -1069,7 +1071,8 @@ depend: beforedepend
 	(for d in utils parsing typing bytecomp asmcomp middle_end \
          lambda file_formats middle_end/closure middle_end/flambda \
          middle_end/flambda/base_types asmcomp/debug \
-         asmcomp/amd64 asmcomp/arm asmcomp/arm64 driver toplevel; \
+         asmcomp/amd64 asmcomp/arm asmcomp/arm64 asmcomp/i386 \
+	 driver toplevel; \
          do $(CAMLDEP) $(DEPFLAGS) $(DEPINCLUDES) $$d/*.mli $$d/*.ml || exit; \
          done) > .depend
 

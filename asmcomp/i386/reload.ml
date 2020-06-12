@@ -16,71 +16,75 @@
 open Cmm
 open Arch
 open Reg
-open Mach
+open Mach_type.Make(Arch)
 
 (* Reloading for the Intel x86 *)
 
-let stackp r =
-  match r.loc with
-    Stack _ -> true
-  | _ -> false
+module Make (R : Reload_type.S with module Arch := Arch) = struct
 
-class reload = object (self)
+  let stackp r =
+    match r.loc with
+      Stack _ -> true
+    | _ -> false
 
-inherit Reloadgen.reload_generic as super
+  class reload = object (self)
 
-method! makereg r =
-  match r.typ with
-    Float -> r
-  | _ -> super#makereg r
+    inherit R.reload_generic as super
 
-(* By overriding makereg, we make sure that pseudoregs of type float
-   will never be reloaded. Hence there is no need to make special cases for
-   floating-point operations. *)
+    method! makereg r =
+      match r.typ with
+        Float -> r
+      | _ -> super#makereg r
 
-method! reload_operation op arg res =
-  match op with
-    Iintop(Iadd|Isub|Iand|Ior|Ixor|Icomp _|Icheckbound _) ->
-      (* One of the two arguments can reside in the stack *)
-      if stackp arg.(0) && stackp arg.(1)
-      then ([|arg.(0); self#makereg arg.(1)|], res)
-      else (arg, res)
-  | Iintop(Imul) ->
-      (* First argument (and destination) must be in register,
-         second arg can reside in stack *)
-      if stackp arg.(0)
-      then let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|])
-      else (arg, res)
-  | Iintop_imm(Iadd, _) when arg.(0).loc <> res.(0).loc ->
-      (* This add will be turned into a lea; args and results must be
-         in registers *)
-      super#reload_operation op arg res
-  | Iintop_imm(Imul, _) ->
-      (* First argument and destination must be in register *)
-      if stackp arg.(0)
-      then let r = self#makereg arg.(0) in ([|r|], [|r|])
-      else (arg, res)
-  | Iintop(Imulh | Ilsl | Ilsr | Iasr) | Iintop_imm(_, _)
-  | Ifloatofint | Iintoffloat | Ispecific(Ipush) ->
-      (* The argument(s) can be either in register or on stack *)
-      (* Note: Imulh: arg(0 and res(0) already forced in regs
-               Ilsl, Ilsr, Iasr: arg(1) already forced in regs *)
-      (arg, res)
-  | _ -> (* Other operations: all args and results in registers *)
-      super#reload_operation op arg res
+    (* By overriding makereg, we make sure that pseudoregs of type float
+       will never be reloaded. Hence there is no need to make special cases for
+       floating-point operations. *)
 
-method! reload_test tst arg =
-  match tst with
-    Iinttest _ ->
-      (* One of the two arguments can reside on stack *)
-      if stackp arg.(0) && stackp arg.(1)
-      then [| self#makereg arg.(0); arg.(1) |]
-      else arg
-  | _ ->
-      (* The argument(s) can be either in register or on stack *)
-      arg
+    method! reload_operation op arg res =
+      match op with
+        Iintop(Iadd|Isub|Iand|Ior|Ixor|Icomp _|Icheckbound _) ->
+          (* One of the two arguments can reside in the stack *)
+          if stackp arg.(0) && stackp arg.(1)
+          then ([|arg.(0); self#makereg arg.(1)|], res)
+          else (arg, res)
+      | Iintop(Imul) ->
+          (* First argument (and destination) must be in register,
+             second arg can reside in stack *)
+          if stackp arg.(0)
+          then let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|])
+          else (arg, res)
+      | Iintop_imm(Iadd, _) when arg.(0).loc <> res.(0).loc ->
+          (* This add will be turned into a lea; args and results must be
+             in registers *)
+          super#reload_operation op arg res
+      | Iintop_imm(Imul, _) ->
+          (* First argument and destination must be in register *)
+          if stackp arg.(0)
+          then let r = self#makereg arg.(0) in ([|r|], [|r|])
+          else (arg, res)
+      | Iintop(Imulh | Ilsl | Ilsr | Iasr) | Iintop_imm(_, _)
+      | Ifloatofint | Iintoffloat | Ispecific(Ipush) ->
+          (* The argument(s) can be either in register or on stack *)
+          (* Note: Imulh: arg(0 and res(0) already forced in regs
+                   Ilsl, Ilsr, Iasr: arg(1) already forced in regs *)
+          (arg, res)
+      | _ -> (* Other operations: all args and results in registers *)
+          super#reload_operation op arg res
+
+    method! reload_test tst arg =
+      match tst with
+        Iinttest _ ->
+          (* One of the two arguments can reside on stack *)
+          if stackp arg.(0) && stackp arg.(1)
+          then [| self#makereg arg.(0); arg.(1) |]
+          else arg
+      | _ ->
+          (* The argument(s) can be either in register or on stack *)
+          arg
+
+  end
+
+  let fundecl f num_stack_slots =
+    (new reload)#fundecl f num_stack_slots
 
 end
-
-let fundecl f num_stack_slots =
-  (new reload)#fundecl f num_stack_slots

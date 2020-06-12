@@ -37,6 +37,8 @@ module Selector_arg = struct
 
   type environment = Selectgen.environment
 
+  let size_expr = Selectgen.size_expr
+
   class virtual selector_generic = Spacetime_profiling.instruction_selection
 
 end

@@ -35,6 +35,8 @@ module type S = sig
 
   type environment
 
+  val size_expr : environment -> Cmm.expression -> int
+
   class virtual selector_generic : object
     (* The following methods must or can be overridden by the processor
        description *)
