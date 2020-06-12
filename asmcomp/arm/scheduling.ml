@@ -15,66 +15,69 @@
 (**************************************************************************)
 
 open Arch
-open Mach
+open Mach_type.Make(Arch)
 
 (* Instruction scheduling for the ARM *)
+module Make (S : Scheduler.S with module Arch := Arch) = struct
 
-class scheduler = object
+  class scheduler = object
 
-inherit Schedgen.scheduler_generic as super
+    inherit S.scheduler_generic as super
 
-(* Scheduling -- based roughly on the ARM11 (ARMv6) *)
+    (* Scheduling -- based roughly on the ARM11 (ARMv6) *)
 
-method oper_latency = function
-  (* Loads have a latency of two cycles in general *)
-    Iconst_symbol _
-  | Iconst_float _
-  | Iload(_, _)
-  | Ireload
-  | Ifloatofint       (* mcr/mrc count as memory access *)
-  | Iintoffloat -> 2
-  (* Multiplys have a latency of two cycles *)
-  | Iintop (Imul | Imulh)
-  | Ispecific(Imuladd | Imulsub | Imulhadd) -> 2
-  (* VFP instructions *)
-  | Iaddf
-  | Isubf
-  | Idivf
-  | Imulf | Ispecific Inegmulf
-  | Ispecific(Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf)
-  | Ispecific Isqrtf
-  | Inegf | Iabsf when !fpu >= VFPv2 -> 2
-  (* Everything else *)
-  | _ -> 1
+    method oper_latency = function
+      (* Loads have a latency of two cycles in general *)
+        Iconst_symbol _
+      | Iconst_float _
+      | Iload(_, _)
+      | Ireload
+      | Ifloatofint       (* mcr/mrc count as memory access *)
+      | Iintoffloat -> 2
+      (* Multiplys have a latency of two cycles *)
+      | Iintop (Imul | Imulh)
+      | Ispecific(Imuladd | Imulsub | Imulhadd) -> 2
+      (* VFP instructions *)
+      | Iaddf
+      | Isubf
+      | Idivf
+      | Imulf | Ispecific Inegmulf
+      | Ispecific(Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf)
+      | Ispecific Isqrtf
+      | Inegf | Iabsf when !fpu >= VFPv2 -> 2
+      (* Everything else *)
+      | _ -> 1
 
-method! is_checkbound = function
-    Ispecific(Ishiftcheckbound _) -> true
-  | op -> super#is_checkbound op
+    method! is_checkbound = function
+        Ispecific(Ishiftcheckbound _) -> true
+      | op -> super#is_checkbound op
 
-(* Issue cycles. Rough approximations *)
+    (* Issue cycles. Rough approximations *)
 
-method oper_issue_cycles = function
-    Ialloc _ -> 4
-  | Iintop(Ilsl | Ilsr | Iasr) -> 2
-  | Iintop(Icomp _)
-  | Iintop_imm(Icomp _, _) -> 3
-  | Iintop(Icheckbound _)
-  | Iintop_imm(Icheckbound _, _) -> 2
-  | Ispecific(Ishiftcheckbound _) -> 3
-  | Iintop(Imul | Imulh)
-  | Ispecific(Imuladd | Imulsub | Imulhadd) -> 2
-  (* VFP instructions *)
-  | Iaddf
-  | Isubf -> 7
-  | Imulf
-  | Ispecific Inegmulf -> 9
-  | Ispecific(Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf) -> 17
-  | Idivf
-  | Ispecific Isqrtf -> 27
-  | Inegf | Iabsf | Iconst_float _ when !fpu >= VFPv2 -> 4
-  (* Everything else *)
-  | _ -> 1
+    method oper_issue_cycles = function
+        Ialloc _ -> 4
+      | Iintop(Ilsl | Ilsr | Iasr) -> 2
+      | Iintop(Icomp _)
+      | Iintop_imm(Icomp _, _) -> 3
+      | Iintop(Icheckbound _)
+      | Iintop_imm(Icheckbound _, _) -> 2
+      | Ispecific(Ishiftcheckbound _) -> 3
+      | Iintop(Imul | Imulh)
+      | Ispecific(Imuladd | Imulsub | Imulhadd) -> 2
+      (* VFP instructions *)
+      | Iaddf
+      | Isubf -> 7
+      | Imulf
+      | Ispecific Inegmulf -> 9
+      | Ispecific(Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf) -> 17
+      | Idivf
+      | Ispecific Isqrtf -> 27
+      | Inegf | Iabsf | Iconst_float _ when !fpu >= VFPv2 -> 4
+      (* Everything else *)
+      | _ -> 1
+
+  end
+
+  let fundecl f = (new scheduler)#schedule_fundecl f
 
 end
-
-let fundecl f = (new scheduler)#schedule_fundecl f

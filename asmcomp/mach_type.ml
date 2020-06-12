@@ -34,12 +34,12 @@ module type T = sig
     | Ireload
     | Iconst_int of nativeint
     | Iconst_float of int64
-    | Iconst_symbol of Backend_sym.t
+    | Iconst_symbol of string
     | Icall_ind of { label_after : label; }
-    | Icall_imm of { func : Backend_sym.t; label_after : label; }
+    | Icall_imm of { func : string; label_after : label; }
     | Itailcall_ind of { label_after : label; }
-    | Itailcall_imm of { func : Backend_sym.t; label_after : label; }
-    | Iextcall of { func : Backend_sym.t; alloc : bool; label_after : label; }
+    | Itailcall_imm of { func : string; label_after : label; }
+    | Iextcall of { func : string; alloc : bool; label_after : label; }
     | Istackoffset of int
     | Iload of Cmm.memory_chunk * Arch.addressing_mode
     | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
@@ -76,14 +76,14 @@ module type T = sig
     | Iraise of Lambda.raise_kind
 
   type spacetime_part_of_shape =
-    | Direct_call_point of { callee : Backend_sym.t; }
+    | Direct_call_point of { callee : string; }
     | Indirect_call_point
     | Allocation_point
 
   type spacetime_shape = (spacetime_part_of_shape * Cmm.label) list
 
   type fundecl =
-    { fun_name: Backend_sym.t;
+    { fun_name: string;
       fun_args: Reg.t array;
       fun_body: instruction;
       fun_codegen_options : Cmm.codegen_option list;
@@ -127,12 +127,12 @@ module Make(Arch: Arch_type.T) : T with module Arch := Arch = struct
     | Ireload
     | Iconst_int of nativeint
     | Iconst_float of int64
-    | Iconst_symbol of Backend_sym.t
+    | Iconst_symbol of string
     | Icall_ind of { label_after : label; }
-    | Icall_imm of { func : Backend_sym.t; label_after : label; }
+    | Icall_imm of { func : string; label_after : label; }
     | Itailcall_ind of { label_after : label; }
-    | Itailcall_imm of { func : Backend_sym.t; label_after : label; }
-    | Iextcall of { func : Backend_sym.t; alloc : bool; label_after : label; }
+    | Itailcall_imm of { func : string; label_after : label; }
+    | Iextcall of { func : string; alloc : bool; label_after : label; }
     | Istackoffset of int
     | Iload of Cmm.memory_chunk * Arch.addressing_mode
     | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
@@ -169,14 +169,14 @@ module Make(Arch: Arch_type.T) : T with module Arch := Arch = struct
     | Iraise of Lambda.raise_kind
 
   type spacetime_part_of_shape =
-    | Direct_call_point of { callee : Backend_sym.t; }
+    | Direct_call_point of { callee : string; }
     | Indirect_call_point
     | Allocation_point
 
   type spacetime_shape = (spacetime_part_of_shape * Cmm.label) list
 
   type fundecl =
-    { fun_name: Backend_sym.t;
+    { fun_name: string;
       fun_args: Reg.t array;
       fun_body: instruction;
       fun_codegen_options : Cmm.codegen_option list;

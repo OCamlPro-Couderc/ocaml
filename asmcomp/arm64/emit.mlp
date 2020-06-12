@@ -17,7 +17,9 @@
 (**************************************************************************)
 
 (* Emission of ARM assembly code, 64-bit mode *)
-
+module Make
+        (Mach : Mach_type.S with module Arch := Arch)
+        (Linear : Linear_type.S with module Arch := Arch) = struct
 [@@@ocaml.warning "-40"]
 
 open Misc
@@ -27,6 +29,8 @@ open Proc
 open Reg
 open Mach
 open Linear
+
+module Emitaux = Emitaux.Make(Arch)
 open Emitaux
 
 (* Tradeoff between code size and code speed *)
@@ -396,7 +400,9 @@ let num_instructions_for_intconst n =
               max_offset
             end
 
-          module BR = Branch_relaxation.Make (struct
+          module BR = Branch_relaxation.Make
+              (Arch)(Mach)(Linear)
+              (struct
               (* CR-someday mshinwell: B and BL have +/- 128Mb ranges; for the moment we
                  assume we will never exceed this.  It would seem to be most likely to
                  occur for branches between functions; in this case, the linker should be
@@ -1056,3 +1062,5 @@ let end_assembly comp_unit =
       `	.section	.note.GNU-stack,\"\",%progbits\n`
   | _ -> ()
   end
+
+    end

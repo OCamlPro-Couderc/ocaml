@@ -16,6 +16,9 @@
 (**************************************************************************)
 
 (* Emission of ARM assembly code *)
+module Make
+        (Mach : Mach_type.S with module Arch := Arch)
+        (Linear : Linear_type.S with module Arch := Arch) = struct
 
 [@@@ocaml.warning "-40"]
 
@@ -26,6 +29,8 @@ open Proc
 open Reg
 open Mach
 open Linear
+
+module Emitaux = Emitaux.Make(Arch)
 open Emitaux
 
 (* Tradeoff between code size and code speed *)
@@ -1095,3 +1100,5 @@ let end_assembly comp_unit =
       `	.section	.note.GNU-stack,\"\",%progbits\n`
   | _ -> ()
   end
+
+    end

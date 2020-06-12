@@ -15,26 +15,32 @@
 
 (* CSE for ARM64 *)
 
+module Mach = Mach_type.Make(Arch)
 open Arch
-open Mach
-open CSEgen
+open CSE_type
 
-class cse = object
+module Make (CSE : CSE_type.S with module Arch := Arch) = struct
 
-inherit cse_generic as super
+  type t = Arch.specific_operation
 
-method! class_of_operation op =
-  match op with
-  | Ispecific(Ishiftcheckbound _) -> Op_checkbound
-  | Ispecific _ -> Op_pure
-  | _ -> super#class_of_operation op
+  class cse = object
 
-method! is_cheap_operation op =
-  match op with
-  | Iconst_int n -> n <= 65535n && n >= 0n
-  | _ -> false
+    inherit CSE.cse_generic as super
+
+    method! class_of_operation op =
+      match op with
+      | Ispecific(Ishiftcheckbound _) -> Op_checkbound
+      | Ispecific _ -> Op_pure
+      | _ -> super#class_of_operation op
+
+    method! is_cheap_operation op =
+      match op with
+      | Iconst_int n -> n <= 65535n && n >= 0n
+      | _ -> false
+
+  end
+
+  let fundecl f =
+    (new cse)#fundecl f
 
 end
-
-let fundecl f =
-  (new cse)#fundecl f

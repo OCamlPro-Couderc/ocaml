@@ -53,6 +53,3 @@ let rec end_instr =
 let instr_cons d a r n =
   { desc = d; next = n; arg = a; res = r;
     dbg = Debuginfo.none; live = Reg.Set.empty }
-
-let () =
-  Arch_specific.Emit.linear_has_fallthrough_backref := has_fallthrough

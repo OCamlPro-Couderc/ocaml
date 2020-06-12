@@ -39,15 +39,23 @@ include stdlib/StdlibModules
 CAMLC=$(BOOT_OCAMLC) -g -nostdlib -I boot -use-prims runtime/primitives
 CAMLOPT=$(CAMLRUN) ./ocamlopt -g -nostdlib -I stdlib -I otherlibs/dynlink
 ARCHES=amd64 i386 arm arm64 power s390x
-INCLUDES=-I utils -I parsing -I typing -I bytecomp -I file_formats \
+INCLUDES_NO_ARCH=-I utils -I parsing -I typing -I bytecomp -I file_formats \
         -I lambda -I middle_end -I middle_end/closure \
         -I middle_end/flambda -I middle_end/flambda/base_types \
         -I asmcomp -I asmcomp/debug \
-        -I asmcomp/$(ARCH) -I driver -I toplevel
+	-I driver -I toplevel
 
-COMPFLAGS=-strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66 \
+INCLUDES_ARCH= -I asmcomp/amd64 -I asmcomp/arm -I asmcomp/arm64
+
+INCLUDES=$(INCLUDES_NO_ARCH) $(INCLUDES_ARCH)
+
+COMPFLAGS_NO_ARCH= -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66 \
 	  -warn-error A \
-          -bin-annot -safe-string -strict-formats $(INCLUDES)
+          -bin-annot -safe-string -strict-formats $(INCLUDES_NO_ARCH)
+
+COMPFLAGS= $(COMPFLAGS_NO_ARCH) $(INCLUDES_ARCH)
+
+
 ifeq "$(FUNCTION_SECTIONS)" "true"
 OPTCOMPFLAGS= -function-sections
 else
@@ -112,6 +120,8 @@ endif
 # targets for the compilerlibs/*.{cma,cmxa} archives
 include compilerlibs/Makefile.compilerlibs
 include compilerlibs/Makefile.amd64
+include compilerlibs/Makefile.arm
+include compilerlibs/Makefile.arm64
 
 # The configuration file
 
@@ -703,10 +713,10 @@ beforedepend:: lambda/runtimedef.ml
 
 # Preprocess the code emitters
 
-asmcomp/$(ARCH)/emit.ml: asmcomp/$(ARCH)/emit.mlp tools/cvt_emit
-	echo \# 1 \"$(ARCH)/emit.mlp\" > $@
-	$(CAMLRUN) tools/cvt_emit < $< >> $@ \
-	|| { rm -f $@; exit 2; }
+# asmcomp/$(ARCH)/emit.ml: asmcomp/$(ARCH)/emit.mlp tools/cvt_emit
+# 	echo \# 1 \"$(ARCH)/emit.mlp\" > $@
+# 	$(CAMLRUN) tools/cvt_emit < $< >> $@ \
+# 	|| { rm -f $@; exit 2; }
 
 partialclean::
 	rm -f asmcomp/emit.ml
@@ -1049,7 +1059,7 @@ partialclean::
 	for d in utils parsing typing bytecomp asmcomp middle_end file_formats \
            lambda middle_end/closure middle_end/flambda \
            middle_end/flambda/base_types asmcomp/debug \
-           driver toplevel tools; do \
+           asmcomp/amd64 asmcomp/arm asmcomp/arm64 driver toplevel tools; do \
 	  rm -f $$d/*.cm[ioxt] $$d/*.cmti $$d/*.annot $$d/*.$(S) \
 	    $$d/*.$(O) $$d/*.$(SO); \
 	done
@@ -1059,7 +1069,7 @@ depend: beforedepend
 	(for d in utils parsing typing bytecomp asmcomp middle_end \
          lambda file_formats middle_end/closure middle_end/flambda \
          middle_end/flambda/base_types asmcomp/debug \
-         asmcomp/$(ARCH) driver toplevel; \
+         asmcomp/amd64 asmcomp/arm asmcomp/arm64 driver toplevel; \
          do $(CAMLDEP) $(DEPFLAGS) $(DEPINCLUDES) $$d/*.mli $$d/*.ml || exit; \
          done) > .depend
 

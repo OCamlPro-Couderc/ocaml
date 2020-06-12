@@ -17,17 +17,12 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
-open! Arch_specific
 open Format
 open Config
 open Clflags
 open Misc
 open Cmm
-
-module Emitaux = Arch_instantiation.Emitaux
-module Reload = Arch_instantiation.Reload
-module Selection = Arch_instantiation.Selection
-module Scheduling = Arch_instantiation.Scheduling
+open! Arch_instantiation
 
 type error = Assembler_error of string
 

@@ -26,7 +26,7 @@ let abi =
   match Config.system with
     "linux_eabi" | "freebsd" -> EABI
   | "linux_eabihf" | "netbsd" -> EABI_HF
-  | _ -> assert false
+  | _ -> EABI (* assert false *)
 
 let string_of_arch = function
     ARMv4   -> "armv4"

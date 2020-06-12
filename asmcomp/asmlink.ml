@@ -17,10 +17,9 @@
 
 [@@@ocaml.warning "-40"]
 
-open! Arch_specific
+open! Arch_instantiation
 open Misc
 open Config
-module Emitaux = Arch_instantiation.Emitaux
 
 module CU = Compilation_unit
 module UI = Cmx_format.Unit_info

@@ -1,0 +1,49 @@
+#**************************************************************************
+#*                                                                        *
+#*                                 OCaml                                  *
+#*                                                                        *
+#*            Xavier Leroy, projet Cristal, INRIA Rocquencourt            *
+#*                                                                        *
+#*   Copyright 1999 Institut National de Recherche en Informatique et     *
+#*     en Automatique.                                                    *
+#*                                                                        *
+#*   All rights reserved.  This file is distributed under the terms of    *
+#*   the GNU Lesser General Public License version 2.1, with the          *
+#*   special exception on linking described in the file LICENSE.          *
+#*                                                                        *
+#**************************************************************************
+
+COMPFLAGS_ARM64= $(COMPFLAGS_NO_ARCH) -I asmcomp/arm64
+
+ASMCOMP_ARCH_PARAMS_ARM64=\
+  asmcomp/arm64/arch.cmo \
+  asmcomp/arm64/proc.cmo \
+  asmcomp/arm64/CSE.cmo \
+  asmcomp/arm64/selection.cmo \
+  asmcomp/arm64/reload.cmo \
+  asmcomp/arm64/scheduling.cmo \
+  asmcomp/arm64/emit.cmo
+
+
+$(ASMCOMP_ARCH_PARAMS_ARM64:%.cmo=%.cmi): %.cmi: %.mli
+	$(CAMLC) $(COMPFLAGS_ARM64) -c -for-pack Arm64 $<
+
+$(ASMCOMP_ARCH_PARAMS_ARM64): %.cmo: %.ml
+	$(CAMLC) $(COMPFLAGS_ARM64) -c -for-pack Arm64 $<
+
+$(ASMCOMP_ARCH_PARAMS_ARM64:%.cmo=%.cmx): %.cmx: %.ml
+	$(CAMLOPT) $(COMPFLAGS_ARM64) -c -for-pack Arm64 $<
+
+asmcomp/arm64/arm64.cmi: $(ASMCOMP_ARCH_PARAMS_ARM64)
+	$(CAMLC) -o $@ $(COMPFLAGS_ARM64) asmcomp/arm64/arm64.mli
+
+asmcomp/arm64/arm64.cmo: asmcomp/arm64/arm64.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS_ARM64)
+	$(CAMLC) -o $@ $(COMPFLAGS_ARM64) -pack $(ASMCOMP_ARCH_PARAMS_ARM64)
+
+asmcomp/arm64/arm64.cmx: asmcomp/arm64/arm64.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS_ARM64:%.cmo=%.cmx)
+	$(CAMLOPT) -o $@ $(COMPFLAGS_ARM64) -pack $(ASMCOMP_ARCH_PARAMS_ARM64:%.cmo=%.cmx)
+
+asmcomp/arm64/emit.ml: asmcomp/arm64/emit.mlp tools/cvt_emit
+	echo \# 1 \"arm64/emit.mlp\" > $@
+	$(CAMLRUN) tools/cvt_emit < $< >> $@ \
+	|| { rm -f $@; exit 2; }

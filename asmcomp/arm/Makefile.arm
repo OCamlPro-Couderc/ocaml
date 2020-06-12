@@ -13,37 +13,30 @@
 #*                                                                        *
 #**************************************************************************
 
-COMPFLAGS_AMD64= $(COMPFLAGS_NO_ARCH) -I asmcomp/amd64
-
-ASMCOMP_ARCH_PARAMS_AMD64=\
+ASMCOMP_ARCH_PARAMS=\
   asmcomp/amd64/arch.cmo \
   asmcomp/amd64/proc.cmo \
-  asmcomp/amd64/CSE.cmo \
+  asmcomp/amd64/CSEspec.cmo \
   asmcomp/amd64/selection.cmo \
   asmcomp/amd64/reload.cmo \
   asmcomp/amd64/scheduling.cmo \
   asmcomp/amd64/emit.cmo
 
 
-$(ASMCOMP_ARCH_PARAMS_AMD64:%.cmo=%.cmi): %.cmi: %.mli
-	$(CAMLC) $(COMPFLAGS_AMD64) -c -for-pack Amd64 $<
+$(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmi): %.cmi: %.mli
+	$(CAMLC) $(COMPFLAGS) -c -for-pack Amd64 $<
 
-$(ASMCOMP_ARCH_PARAMS_AMD64): %.cmo: %.ml
-	$(CAMLC) $(COMPFLAGS_AMD64) -c -for-pack Amd64 $<
+$(ASMCOMP_ARCH_PARAMS): %.cmo: %.ml
+	$(CAMLC) $(COMPFLAGS) -c -for-pack Amd64 $<
 
-$(ASMCOMP_ARCH_PARAMS_AMD64:%.cmo=%.cmx): %.cmx: %.ml
-	$(CAMLOPT) $(COMPFLAGS_AMD64) -c -for-pack Amd64 $<
+$(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmx): %.cmx: %.ml
+	$(CAMLOPT) $(COMPFLAGS) -c -for-pack Amd64 $<
 
-asmcomp/amd64/amd64.cmi: $(ASMCOMP_ARCH_PARAMS_AMD64)
-	$(CAMLC) -o $@ $(COMPFLAGS_AMD64) asmcomp/amd64/amd64.mli
+asmcomp/amd64/amd64.cmi: $(ASMCOMP_ARCH_PARAMS)
+	$(CAMLC) -o $@ -I asmcomp asmcomp/amd64/amd64.mli
 
-asmcomp/amd64/amd64.cmo: asmcomp/amd64/amd64.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS_AMD64)
-	$(CAMLC) -o $@ $(COMPFLAGS_AMD64) -pack $(ASMCOMP_ARCH_PARAMS_AMD64)
+asmcomp/amd64/amd64.cmo: asmcomp/amd64/amd64.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS)
+	$(CAMLC) -o $@ -I asmcomp -pack $(ASMCOMP_ARCH_PARAMS)
 
-asmcomp/amd64/amd64.cmx: asmcomp/amd64/amd64.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS_AMD64:%.cmo=%.cmx)
-	$(CAMLOPT) -o $@ $(COMPFLAGS_AMD64) -pack $(ASMCOMP_ARCH_PARAMS_AMD64:%.cmo=%.cmx)
-
-asmcomp/amd64/emit.ml: asmcomp/amd64/emit.mlp tools/cvt_emit
-	echo \# 1 \"amd64/emit.mlp\" > $@
-	$(CAMLRUN) tools/cvt_emit < $< >> $@ \
-	|| { rm -f $@; exit 2; }
+asmcomp/amd64/amd64.cmx: asmcomp/$(ARCH).cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmx)
+	$(CAMLOPT) -o $@ -I asmcomp -pack $(ASMCOMP_ARCH_PARAMS:%.cmo=%.cmx)

@@ -13,9 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Schedgen (* to create a dependency *)
+(* open! Schedgen (\* to create a dependency *\) *)
 
 (* Scheduling is turned off because the processor schedules dynamically
    much better than what we could do. *)
 
-let fundecl f = f
+module Make (_ : Scheduler.S with module Arch := Arch) = struct
+  let fundecl f = f
+end

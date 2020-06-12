@@ -13,7 +13,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module Emit = Arch_specific.Emit
+module Arch = Arch_specific.Arch
+
+module Proc = Arch_specific.Proc
+
+module CSE = Arch_specific.CSE.Make(CSEgen)
+
+module Emit = Arch_specific.Emit.Make(Mach)(Linear)
 
 module Emitaux = Emit.Emitaux
 

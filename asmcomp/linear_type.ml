@@ -33,7 +33,7 @@ module type T = sig
     | Lraise of Lambda.raise_kind
 
   type fundecl =
-    { fun_name: Backend_sym.t;
+    { fun_name: string;
       fun_body: instruction;
       fun_fast: bool;
       fun_dbg : Debuginfo.t;
@@ -77,7 +77,7 @@ module Make(Arch: Arch_type.T) : T with module Arch := Arch = struct
     | Lraise of Lambda.raise_kind
 
   type fundecl =
-    { fun_name: Backend_sym.t;
+    { fun_name: string;
       fun_body: instruction;
       fun_fast: bool;
       fun_dbg : Debuginfo.t;

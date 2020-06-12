@@ -15,6 +15,10 @@
 (**************************************************************************)
 
 (* Emission of Intel x86_64 assembly code *)
+module Make
+        (_ : Mach_type.S with module Arch := Arch)
+        (Linear : Linear_type.S with module Arch := Arch) = struct
+[@@@ocaml.warning "-40"]
 
 open Cmm
 open Arch
@@ -27,10 +31,8 @@ module String = Misc.Stdlib.String
 module Int = Numbers.Int
 module Emitaux = Emitaux.Make(Arch)
 open Emitaux
-module Mach_type = Mach_type.Make(Arch)
-open Mach_type
-module Linear_type = Linear_type.Make(Arch)
-open Linear_type
+open Mach
+open Linear
 
 (* [Branch_relaxation] is not used in this file, but is required by
    emit.mlp files for certain other targets; the reference here ensures
@@ -38,9 +40,6 @@ open Linear_type
    for all targets. *)
 [@@@ocaml.warning "-66"]
 open! Branch_relaxation
-
-let linear_has_fallthrough_backref: (instruction_desc -> bool) ref =
-  ref (fun _ -> failwith "linear_has_fallthrough not initialized")
 
 let _label s = D.label ~typ:QWORD s
 
@@ -935,7 +934,7 @@ let rec emit_all fallthrough i =
   | Lend -> ()
   | _ ->
       emit_instr fallthrough i;
-      emit_all (!linear_has_fallthrough_backref i.desc) i.next
+      emit_all (Linear.has_fallthrough i.desc) i.next
 
 let all_functions = ref []
 
@@ -1184,3 +1183,5 @@ let end_assembly cu =
       None
   in
   X86_proc.generate_code asm
+
+end

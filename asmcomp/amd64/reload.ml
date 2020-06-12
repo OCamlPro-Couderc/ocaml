@@ -58,11 +58,11 @@ let stackp r =
     Stack _ -> true
   | _ -> false
 
-module Make (S : Reload_type.S with module Arch := Arch) = struct
+module Make (R : Reload_type.S with module Arch := Arch) = struct
 
   class reload = object (self)
 
-    inherit S.reload_generic as super
+    inherit R.reload_generic as super
 
     method! reload_operation op arg res =
       match op with
@@ -125,7 +125,7 @@ module Make (S : Reload_type.S with module Arch := Arch) = struct
 
   end
 
-
   let fundecl f num_stack_slots =
     (new reload)#fundecl f num_stack_slots
+
 end

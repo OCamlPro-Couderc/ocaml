@@ -21,7 +21,7 @@ module type S = sig
   val emit_int: int -> unit
   val emit_nativeint: nativeint -> unit
   val emit_int32: int32 -> unit
-  val emit_symbol: ?reloc:string -> Asm_symbol.t -> unit
+  val emit_symbol: char -> string -> unit
   val emit_printf: ('a, out_channel, unit) format -> 'a
   val emit_char: char -> unit
   val emit_string_literal: string -> unit
@@ -64,6 +64,8 @@ module type S = sig
       efa_string: string -> unit }
 
   val emit_frames: emit_frame_actions -> unit
+
+  val is_generic_function: string -> bool
 
   val cfi_startproc : unit -> unit
   val cfi_endproc : unit -> unit

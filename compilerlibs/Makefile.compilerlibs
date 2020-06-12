@@ -122,24 +122,18 @@ ARCH_SPECIFIC_ASMCOMP_CMI=$(INTEL_ASM_CMI)
 endif
 
 ASMCOMP_PRELUDE=\
-  asmcomp/object_file.cmo \
-  asmcomp/backend_compilation_unit.cmo \
-  asmcomp/backend_sym.cmo \
-  asmcomp/target_system.cmo \
-  asmcomp/asm_target/asm_section.cmo \
-  asmcomp/asm_target/asm_symbol.cmo \
   asmcomp/cmm.cmo asmcomp/printcmm.cmo \
   asmcomp/reg.cmo asmcomp/debug/reg_with_debug_info.cmo \
   asmcomp/debug/reg_availability_set.cmo \
   asmcomp/linking_state.cmo \
   asmcomp/afl_instrument.cmo \
-  asmcomp/CSEgen.cmo \
   asmcomp/selector.cmo \
   asmcomp/scheduler.cmo \
   asmcomp/branch_relaxation_intf.cmo \
   asmcomp/branch_relaxation.cmo \
   asmcomp/arch_type.cmo \
   asmcomp/mach_type.cmo \
+  asmcomp/CSE_type.cmo \
   asmcomp/linear_type.cmo \
   asmcomp/reload_type.cmo \
   asmcomp/emitaux.cmo \
@@ -158,7 +152,7 @@ ASMCOMP_FUNCTOR=\
   asmcomp/printmach.cmo asmcomp/selectgen.cmo \
   asmcomp/spacetime_profiling.cmo \
   asmcomp/comballoc.cmo \
-  asmcomp/CSE.cmo \
+  asmcomp/CSEgen.cmo \
   asmcomp/liveness.cmo \
   asmcomp/spill.cmo asmcomp/split.cmo \
   asmcomp/interf.cmo asmcomp/coloring.cmo \
@@ -174,7 +168,8 @@ ASMCOMP_FUNCTOR=\
   asmcomp/asmlink.cmo asmcomp/asmlibrarian.cmo asmcomp/asmpackager.cmo
 
 ASMCOMP_COMPILE=\
-  asmcomp/backend_maker.cmo asmcomp/$(ARCH)/$(ARCH).cmo \
+  asmcomp/backend_maker.cmo asmcomp/amd64/amd64.cmo \
+  asmcomp/arm64/arm64.cmo asmcomp/arm/arm.cmo \
   driver/backend_instantiation.cmo driver/opterrors.cmo driver/optcompile.cmo
 ASMCOMP= $(ASMCOMP_PRELUDE) $(ARCH_SPECIFIC_ASMCOMP) $(ASMCOMP_COMPILE)
 

@@ -149,7 +149,7 @@ module Make (Selector : Selector.S with module Arch := Arch) = struct
       match e with
       | Cop(Cextcall(fn, _, _, _), args, _)
         when List.mem fn inline_ops ->
-          Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
+          Selector.Effect_and_coeffect.join_list_map args self#effects_of
       | _ ->
           super#effects_of e
 
