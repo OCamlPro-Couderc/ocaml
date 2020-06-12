@@ -6227,7 +6227,185 @@ asmcomp/i386/selection.cmx : \
     asmcomp/mach_type.cmx \
     asmcomp/cmm.cmx \
     asmcomp/amd64/arch.cmx
+asmcomp/power/CSE.cmo : \
+    asmcomp/mach_type.cmi \
+    asmcomp/CSE_type.cmo \
+    asmcomp/amd64/arch.cmo
+asmcomp/power/CSE.cmx : \
+    asmcomp/mach_type.cmx \
+    asmcomp/CSE_type.cmx \
+    asmcomp/amd64/arch.cmx
+asmcomp/power/arch.cmo : \
+    lambda/debuginfo.cmi \
+    utils/config.cmi \
+    asmcomp/backend_sym.cmi
+asmcomp/power/arch.cmx : \
+    lambda/debuginfo.cmx \
+    utils/config.cmx \
+    asmcomp/backend_sym.cmx
+asmcomp/power/emit.cmo : \
+    asmcomp/reg.cmi \
+    asmcomp/amd64/proc.cmo \
+    utils/misc.cmi \
+    asmcomp/mach_type.cmi \
+    asmcomp/linear_type.cmi \
+    lambda/lambda.cmi \
+    asmcomp/emitaux.cmi \
+    utils/domainstate.cmi \
+    asmcomp/cmm.cmi \
+    utils/clflags.cmi \
+    asmcomp/branch_relaxation.cmi \
+    asmcomp/backend_sym.cmi \
+    asmcomp/backend_compilation_unit.cmi \
+    asmcomp/asm_target/asm_symbol.cmi \
+    asmcomp/amd64/arch.cmo
+asmcomp/power/emit.cmx : \
+    asmcomp/reg.cmx \
+    asmcomp/amd64/proc.cmx \
+    utils/misc.cmx \
+    asmcomp/mach_type.cmx \
+    asmcomp/linear_type.cmx \
+    lambda/lambda.cmx \
+    asmcomp/emitaux.cmx \
+    utils/domainstate.cmx \
+    asmcomp/cmm.cmx \
+    utils/clflags.cmx \
+    asmcomp/branch_relaxation.cmx \
+    asmcomp/backend_sym.cmx \
+    asmcomp/backend_compilation_unit.cmx \
+    asmcomp/asm_target/asm_symbol.cmx \
+    asmcomp/amd64/arch.cmx
+asmcomp/power/power.cmi : \
+    asmcomp/backend_parameter.cmo
+asmcomp/power/proc.cmo : \
+    asmcomp/reg.cmi \
+    utils/misc.cmi \
+    asmcomp/mach_type.cmi \
+    utils/config.cmi \
+    asmcomp/cmm.cmi \
+    utils/ccomp.cmi \
+    asmcomp/amd64/arch.cmo
+asmcomp/power/proc.cmx : \
+    asmcomp/reg.cmx \
+    utils/misc.cmx \
+    asmcomp/mach_type.cmx \
+    utils/config.cmx \
+    asmcomp/cmm.cmx \
+    utils/ccomp.cmx \
+    asmcomp/amd64/arch.cmx
+asmcomp/power/reload.cmo : \
+    asmcomp/reload_type.cmi \
+    asmcomp/amd64/arch.cmo
+asmcomp/power/reload.cmx : \
+    asmcomp/reload_type.cmx \
+    asmcomp/amd64/arch.cmx
+asmcomp/power/scheduling.cmo : \
+    asmcomp/scheduler.cmo \
+    asmcomp/mach_type.cmi \
+    asmcomp/amd64/arch.cmo
+asmcomp/power/scheduling.cmx : \
+    asmcomp/scheduler.cmx \
+    asmcomp/mach_type.cmx \
+    asmcomp/amd64/arch.cmx
+asmcomp/power/selection.cmo : \
+    asmcomp/selector.cmo \
+    asmcomp/mach_type.cmi \
+    lambda/debuginfo.cmi \
+    asmcomp/cmm.cmi \
+    asmcomp/backend_sym.cmi \
+    asmcomp/amd64/arch.cmo
+asmcomp/power/selection.cmx : \
+    asmcomp/selector.cmx \
+    asmcomp/mach_type.cmx \
+    lambda/debuginfo.cmx \
+    asmcomp/cmm.cmx \
+    asmcomp/backend_sym.cmx \
+    asmcomp/amd64/arch.cmx
+asmcomp/s390x/CSE.cmo : \
+    asmcomp/mach_type.cmi \
+    asmcomp/CSE_type.cmo \
+    asmcomp/amd64/arch.cmo
+asmcomp/s390x/CSE.cmx : \
+    asmcomp/mach_type.cmx \
+    asmcomp/CSE_type.cmx \
+    asmcomp/amd64/arch.cmx
+asmcomp/s390x/arch.cmo :
+asmcomp/s390x/arch.cmx :
+asmcomp/s390x/emit.cmo : \
+    asmcomp/reg.cmi \
+    asmcomp/amd64/proc.cmo \
+    utils/misc.cmi \
+    asmcomp/mach_type.cmi \
+    asmcomp/linear_type.cmi \
+    lambda/lambda.cmi \
+    asmcomp/emitaux.cmi \
+    utils/domainstate.cmi \
+    asmcomp/cmm.cmi \
+    utils/clflags.cmi \
+    asmcomp/backend_sym.cmi \
+    asmcomp/asm_target/asm_symbol.cmi \
+    asmcomp/amd64/arch.cmo
+asmcomp/s390x/emit.cmx : \
+    asmcomp/reg.cmx \
+    asmcomp/amd64/proc.cmx \
+    utils/misc.cmx \
+    asmcomp/mach_type.cmx \
+    asmcomp/linear_type.cmx \
+    lambda/lambda.cmx \
+    asmcomp/emitaux.cmx \
+    utils/domainstate.cmx \
+    asmcomp/cmm.cmx \
+    utils/clflags.cmx \
+    asmcomp/backend_sym.cmx \
+    asmcomp/asm_target/asm_symbol.cmx \
+    asmcomp/amd64/arch.cmx
+asmcomp/s390x/proc.cmo : \
+    asmcomp/reg.cmi \
+    utils/misc.cmi \
+    asmcomp/mach_type.cmi \
+    utils/config.cmi \
+    asmcomp/cmm.cmi \
+    utils/ccomp.cmi \
+    asmcomp/amd64/arch.cmo
+asmcomp/s390x/proc.cmx : \
+    asmcomp/reg.cmx \
+    utils/misc.cmx \
+    asmcomp/mach_type.cmx \
+    utils/config.cmx \
+    asmcomp/cmm.cmx \
+    utils/ccomp.cmx \
+    asmcomp/amd64/arch.cmx
+asmcomp/s390x/reload.cmo : \
+    asmcomp/reload_type.cmi \
+    asmcomp/mach_type.cmi \
+    asmcomp/amd64/arch.cmo
+asmcomp/s390x/reload.cmx : \
+    asmcomp/reload_type.cmx \
+    asmcomp/mach_type.cmx \
+    asmcomp/amd64/arch.cmx
+asmcomp/s390x/s390x.cmi : \
+    asmcomp/backend_parameter.cmo
+asmcomp/s390x/scheduling.cmo : \
+    asmcomp/scheduler.cmo \
+    asmcomp/mach_type.cmi \
+    asmcomp/amd64/arch.cmo
+asmcomp/s390x/scheduling.cmx : \
+    asmcomp/scheduler.cmx \
+    asmcomp/mach_type.cmx \
+    asmcomp/amd64/arch.cmx
+asmcomp/s390x/selection.cmo : \
+    asmcomp/selector.cmo \
+    asmcomp/mach_type.cmi \
+    asmcomp/cmm.cmi \
+    asmcomp/amd64/arch.cmo
+asmcomp/s390x/selection.cmx : \
+    asmcomp/selector.cmx \
+    asmcomp/mach_type.cmx \
+    asmcomp/cmm.cmx \
+    asmcomp/amd64/arch.cmx
 driver/backend_instantiation.cmo : \
+    asmcomp/s390x/s390x.cmi \
+    asmcomp/power/power.cmi \
     asmcomp/i386/i386.cmi \
     utils/config.cmi \
     asmcomp/backend_parameter.cmo \
@@ -6235,6 +6413,8 @@ driver/backend_instantiation.cmo : \
     asmcomp/arm/arm.cmi \
     asmcomp/amd64/amd64.cmi
 driver/backend_instantiation.cmx : \
+    asmcomp/s390x/s390x.cmi \
+    asmcomp/power/power.cmi \
     asmcomp/i386/i386.cmi \
     utils/config.cmx \
     asmcomp/backend_parameter.cmx \

@@ -15,5 +15,9 @@
 
 (* Reloading for the PowerPC *)
 
-let fundecl f num_stack_slots =
-  (new Reloadgen.reload_generic)#fundecl f num_stack_slots
+module Make (R : Reload_type.S with module Arch := Arch) = struct
+
+  let fundecl f num_stack_slots =
+    (new R.reload_generic)#fundecl f num_stack_slots
+
+end

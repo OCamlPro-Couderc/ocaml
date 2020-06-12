@@ -18,7 +18,7 @@
 (* Instruction scheduling for the Z processor *)
 
 open Arch
-open Mach
+open Mach_type.Make(Arch)
 
 (* The z10 processor is in-order, dual-issue.  It could benefit from some
    basic-block scheduling, although precise latency information
@@ -26,38 +26,42 @@ open Mach
    The z196 and later are out-of-order processors.  Basic-block
    scheduling probably makes no difference. *)
 
-class scheduler = object
+module Make (S : Scheduler.S with module Arch := Arch) = struct
 
-inherit Schedgen.scheduler_generic
+  class scheduler = object
 
-(* Latencies (in cycles). Wild guesses.  We multiply all latencies by 2
-   to favor dual-issue. *)
+    inherit S.scheduler_generic
 
-method oper_latency = function
-    Ireload -> 4
-  | Iload(_, _) -> 4
-  | Iconst_float _ -> 4 (* turned into a load *)
-  | Iintop(Imul) -> 10
-  | Iintop_imm(Imul, _) -> 10
-  | Iaddf | Isubf | Imulf -> 8
-  | Idivf -> 40
-  | Ispecific(Imultaddf | Imultsubf) -> 8
-  | _ -> 2
+    (* Latencies (in cycles). Wild guesses.  We multiply all latencies by 2
+       to favor dual-issue. *)
 
-method! reload_retaddr_latency = 4
+    method oper_latency = function
+        Ireload -> 4
+      | Iload(_, _) -> 4
+      | Iconst_float _ -> 4 (* turned into a load *)
+      | Iintop(Imul) -> 10
+      | Iintop_imm(Imul, _) -> 10
+      | Iaddf | Isubf | Imulf -> 8
+      | Idivf -> 40
+      | Ispecific(Imultaddf | Imultsubf) -> 8
+      | _ -> 2
 
-(* Issue cycles.  Rough approximations. *)
+    method! reload_retaddr_latency = 4
 
-method oper_issue_cycles = function
-  | Ialloc _ -> 4
-  | Iintop(Imulh) -> 15
-  | Iintop(Idiv|Imod) -> 20
-  | Iintop(Icomp _) -> 4
-  | Iintop_imm(Icomp _, _) -> 4
-  | _ -> 1
+    (* Issue cycles.  Rough approximations. *)
 
-method! reload_retaddr_issue_cycles = 1
+    method oper_issue_cycles = function
+      | Ialloc _ -> 4
+      | Iintop(Imulh) -> 15
+      | Iintop(Idiv|Imod) -> 20
+      | Iintop(Icomp _) -> 4
+      | Iintop_imm(Icomp _, _) -> 4
+      | _ -> 1
+
+    method! reload_retaddr_issue_cycles = 1
+
+  end
+
+  let fundecl f = (new scheduler)#schedule_fundecl f
 
 end
-
-let fundecl f = (new scheduler)#schedule_fundecl f

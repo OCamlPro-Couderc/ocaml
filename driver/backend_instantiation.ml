@@ -4,6 +4,8 @@ let select_arch arch : (module Backend_parameter.S) =
   | "arm" -> (module Arm)
   | "arm64" -> (module Arm64)
   | "i386" -> (module I386)
+  | "power" -> (module Power)
+  | "s390x" -> (module S390x)
   | _ -> assert false
 
 module Arch = (val (select_arch Config.architecture))

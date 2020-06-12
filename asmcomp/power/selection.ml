@@ -17,7 +17,7 @@
 
 open Cmm
 open Arch
-open Mach
+open Mach_type.Make(Arch)
 
 (* Recognition of addressing modes *)
 
@@ -45,50 +45,54 @@ let rec select_addr = function
 
 (* Instruction selection *)
 
-class selector = object (self)
+module Make (Selector : Selector.S with module Arch := Arch) = struct
 
-inherit Selectgen.selector_generic as super
+  class selector = object (self)
 
-method is_immediate n = (n <= 32767) && (n >= -32768)
+    inherit Selector.selector_generic as super
 
-method select_addressing _chunk exp =
-  match select_addr exp with
-    (Asymbol s, d, _dbg) ->
-      (Ibased(s, d), Ctuple [])
-  | (Alinear e, d, _dbg) ->
-      (Iindexed d, e)
-  | (Aadd(e1, e2), d, dbg) ->
-      if d = 0
-      then (Iindexed2, Ctuple[e1; e2])
-      else (Iindexed d, Cop(Cadda, [e1; e2], dbg))
+    method is_immediate n = (n <= 32767) && (n >= -32768)
 
-method! select_operation op args dbg =
-  match (op, args) with
-  (* PowerPC does not support immediate operands for multiply high *)
-    (Cmulhi, _) -> (Iintop Imulh, args)
-  (* The and, or and xor instructions have a different range of immediate
-     operands than the other instructions *)
-  | (Cand, _) -> self#select_logical Iand args
-  | (Cor, _) -> self#select_logical Ior args
-  | (Cxor, _) -> self#select_logical Ixor args
-  (* Recognize mult-add and mult-sub instructions *)
-  | (Caddf, [Cop(Cmulf, [arg1; arg2], _); arg3]) ->
-      (Ispecific Imultaddf, [arg1; arg2; arg3])
-  | (Caddf, [arg3; Cop(Cmulf, [arg1; arg2], _)]) ->
-      (Ispecific Imultaddf, [arg1; arg2; arg3])
-  | (Csubf, [Cop(Cmulf, [arg1; arg2], _); arg3]) ->
-      (Ispecific Imultsubf, [arg1; arg2; arg3])
-  | _ ->
-      super#select_operation op args dbg
+    method select_addressing _chunk exp =
+      match select_addr exp with
+        (Asymbol s, d, _dbg) ->
+          (Ibased(s, d), Ctuple [])
+      | (Alinear e, d, _dbg) ->
+          (Iindexed d, e)
+      | (Aadd(e1, e2), d, dbg) ->
+          if d = 0
+          then (Iindexed2, Ctuple[e1; e2])
+          else (Iindexed d, Cop(Cadda, [e1; e2], dbg))
 
-method select_logical op = function
-    [arg; Cconst_int (n, _)] when n >= 0 && n <= 0xFFFF ->
-      (Iintop_imm(op, n), [arg])
-  | [Cconst_int (n, _); arg] when n >= 0 && n <= 0xFFFF ->
-      (Iintop_imm(op, n), [arg])
-  | args ->
-      (Iintop op, args)
+    method! select_operation op args dbg =
+      match (op, args) with
+      (* PowerPC does not support immediate operands for multiply high *)
+        (Cmulhi, _) -> (Iintop Imulh, args)
+      (* The and, or and xor instructions have a different range of immediate
+         operands than the other instructions *)
+      | (Cand, _) -> self#select_logical Iand args
+      | (Cor, _) -> self#select_logical Ior args
+      | (Cxor, _) -> self#select_logical Ixor args
+      (* Recognize mult-add and mult-sub instructions *)
+      | (Caddf, [Cop(Cmulf, [arg1; arg2], _); arg3]) ->
+          (Ispecific Imultaddf, [arg1; arg2; arg3])
+      | (Caddf, [arg3; Cop(Cmulf, [arg1; arg2], _)]) ->
+          (Ispecific Imultaddf, [arg1; arg2; arg3])
+      | (Csubf, [Cop(Cmulf, [arg1; arg2], _); arg3]) ->
+          (Ispecific Imultsubf, [arg1; arg2; arg3])
+      | _ ->
+          super#select_operation op args dbg
+
+    method select_logical op = function
+        [arg; Cconst_int (n, _)] when n >= 0 && n <= 0xFFFF ->
+          (Iintop_imm(op, n), [arg])
+      | [Cconst_int (n, _); arg] when n >= 0 && n <= 0xFFFF ->
+          (Iintop_imm(op, n), [arg])
+      | args ->
+          (Iintop op, args)
+
+  end
+
+  let fundecl f = (new selector)#emit_fundecl f
 
 end
-
-let fundecl f = (new selector)#emit_fundecl f

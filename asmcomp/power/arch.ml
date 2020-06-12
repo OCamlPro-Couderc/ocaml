@@ -21,7 +21,7 @@ let ppc64 =
   match Config.model with
   | "ppc" -> false
   | "ppc64" | "ppc64le" -> true
-  | _ -> assert false
+  | _ -> false (* assert false *)
 
 type abi = ELF32 | ELF64v1 | ELF64v2
 
@@ -30,7 +30,7 @@ let abi =
   | "ppc" -> ELF32
   | "ppc64" -> ELF64v1
   | "ppc64le" -> ELF64v2
-  | _ -> assert false
+  | _ -> ELF32 (* assert false *)
 
 (* Machine-specific command-line options *)
 
@@ -71,7 +71,7 @@ let big_endian =
   | "ppc" -> true
   | "ppc64" -> true
   | "ppc64le" -> false
-  | _ -> assert false
+  | _ -> false (* assert false *)
 
 let size_addr = if ppc64 then 8 else 4
 let size_int = size_addr

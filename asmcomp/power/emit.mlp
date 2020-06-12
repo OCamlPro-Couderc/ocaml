@@ -16,6 +16,9 @@
 
 (* Emission of PowerPC assembly code *)
 
+module Make
+        (Mach : Mach_type.S with module Arch := Arch)
+        (Linear : Linear_type.S with module Arch := Arch) = struct
 [@@@ocaml.warning "-40"]
 
 open Cmm
@@ -24,6 +27,7 @@ open Proc
 open Reg
 open Mach
 open Linear
+module Emitaux = Emitaux.Make(Arch)
 open Emitaux
 
 (* Reserved space at bottom of stack *)
@@ -412,7 +416,9 @@ let call_gc_label = ref 0
 
 (* Relaxation of branches that exceed the span of a relative branch. *)
 
-module BR = Branch_relaxation.Make (struct
+module BR = Branch_relaxation.Make
+    (Arch)(Mach)(Linear)
+    (struct
   type distance = int
 
   module Cond_branch = struct
@@ -1237,3 +1243,5 @@ let end_assembly comp_unit =
       Hashtbl.clear tocref_entries
   end;
   `	.section .note.GNU-stack,\"\",%progbits\n`
+
+    end

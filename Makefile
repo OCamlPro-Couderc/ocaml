@@ -45,7 +45,9 @@ INCLUDES_NO_ARCH=-I utils -I parsing -I typing -I bytecomp -I file_formats \
         -I asmcomp -I asmcomp/debug \
 	-I driver -I toplevel
 
-INCLUDES_ARCH= -I asmcomp/amd64 -I asmcomp/arm -I asmcomp/arm64 -I asmcomp/i386
+INCLUDES_ARCH= -I asmcomp/amd64 -I asmcomp/arm -I asmcomp/arm64 \
+	-I asmcomp/i386 -I asmcomp/power -I asmcomp/s390x \
+
 
 INCLUDES=$(INCLUDES_NO_ARCH) $(INCLUDES_ARCH)
 
@@ -123,6 +125,8 @@ include compilerlibs/Makefile.amd64
 include compilerlibs/Makefile.arm
 include compilerlibs/Makefile.arm64
 include compilerlibs/Makefile.i386
+include compilerlibs/Makefile.power
+include compilerlibs/Makefile.s390x
 
 # The configuration file
 
@@ -1061,6 +1065,7 @@ partialclean::
            lambda middle_end/closure middle_end/flambda \
            middle_end/flambda/base_types asmcomp/debug \
            asmcomp/amd64 asmcomp/arm asmcomp/arm64 asmcomp/i386 \
+	   asmcomp/power asmcomp/s390x \
 	   driver toplevel tools; do \
 	  rm -f $$d/*.cm[ioxt] $$d/*.cmti $$d/*.annot $$d/*.$(S) \
 	    $$d/*.$(O) $$d/*.$(SO); \
@@ -1072,6 +1077,7 @@ depend: beforedepend
          lambda file_formats middle_end/closure middle_end/flambda \
          middle_end/flambda/base_types asmcomp/debug \
          asmcomp/amd64 asmcomp/arm asmcomp/arm64 asmcomp/i386 \
+	 asmcomp/power asmcomp/s390x \
 	 driver toplevel; \
          do $(CAMLDEP) $(DEPFLAGS) $(DEPINCLUDES) $$d/*.mli $$d/*.ml || exit; \
          done) > .depend

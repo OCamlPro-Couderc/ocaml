@@ -1,0 +1,49 @@
+#**************************************************************************
+#*                                                                        *
+#*                                 OCaml                                  *
+#*                                                                        *
+#*            Xavier Leroy, projet Cristal, INRIA Rocquencourt            *
+#*                                                                        *
+#*   Copyright 1999 Institut National de Recherche en Informatique et     *
+#*     en Automatique.                                                    *
+#*                                                                        *
+#*   All rights reserved.  This file is distributed under the terms of    *
+#*   the GNU Lesser General Public License version 2.1, with the          *
+#*   special exception on linking described in the file LICENSE.          *
+#*                                                                        *
+#**************************************************************************
+
+COMPFLAGS_S390X= $(COMPFLAGS_NO_ARCH) -I asmcomp/s390x
+
+ASMCOMP_ARCH_PARAMS_S390X=\
+  asmcomp/s390x/arch.cmo \
+  asmcomp/s390x/proc.cmo \
+  asmcomp/s390x/CSE.cmo \
+  asmcomp/s390x/selection.cmo \
+  asmcomp/s390x/reload.cmo \
+  asmcomp/s390x/scheduling.cmo \
+  asmcomp/s390x/emit.cmo
+
+
+$(ASMCOMP_ARCH_PARAMS_S390X:%.cmo=%.cmi): %.cmi: %.mli
+	$(CAMLC) $(COMPFLAGS_S390X) -c -for-pack S390x $<
+
+$(ASMCOMP_ARCH_PARAMS_S390X): %.cmo: %.ml
+	$(CAMLC) $(COMPFLAGS_S390X) -c -for-pack S390x $<
+
+$(ASMCOMP_ARCH_PARAMS_S390X:%.cmo=%.cmx): %.cmx: %.ml
+	$(CAMLOPT) $(COMPFLAGS_S390X) -c -for-pack S390x $<
+
+asmcomp/s390x/s390x.cmi: $(ASMCOMP_ARCH_PARAMS_S390X)
+	$(CAMLC) -o $@ $(COMPFLAGS_S390X) asmcomp/s390x/s390x.mli
+
+asmcomp/s390x/s390x.cmo: asmcomp/s390x/s390x.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS_S390X)
+	$(CAMLC) -o $@ $(COMPFLAGS_S390X) -pack $(ASMCOMP_ARCH_PARAMS_S390X)
+
+asmcomp/s390x/s390x.cmx: asmcomp/s390x/s390x.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS_S390X:%.cmo=%.cmx)
+	$(CAMLOPT) -o $@ $(COMPFLAGS_S390X) -pack $(ASMCOMP_ARCH_PARAMS_S390X:%.cmo=%.cmx)
+
+asmcomp/s390x/emit.ml: asmcomp/s390x/emit.mlp tools/cvt_emit
+	echo \# 1 \"s390x/emit.mlp\" > $@
+	$(CAMLRUN) tools/cvt_emit < $< >> $@ \
+	|| { rm -f $@; exit 2; }

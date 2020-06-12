@@ -18,25 +18,29 @@
 (* CSE for the Z Processor *)
 
 open Arch
-open Mach
-open CSEgen
+open Mach_type.Make(Arch)
+open CSE_type
 
-class cse = object
+module Make (CSE : CSE_type.S with module Arch := Arch) = struct
 
-inherit cse_generic as super
+  class cse = object
 
-method! class_of_operation op =
-  match op with
-  | Ispecific(Imultaddf | Imultsubf) -> Op_pure
-  | _ -> super#class_of_operation op
+    inherit CSE.cse_generic as super
 
-method! is_cheap_operation op =
-  match op with
-  | Iconst_int n ->
-      n >= -0x8000_0000n && n <= 0x7FFF_FFFFn
-  | _ -> false
+    method! class_of_operation op =
+      match op with
+      | Ispecific(Imultaddf | Imultsubf) -> Op_pure
+      | _ -> super#class_of_operation op
+
+    method! is_cheap_operation op =
+      match op with
+      | Iconst_int n ->
+          n >= -0x8000_0000n && n <= 0x7FFF_FFFFn
+      | _ -> false
+
+  end
+
+  let fundecl f =
+    (new cse)#fundecl f
 
 end
-
-let fundecl f =
-  (new cse)#fundecl f

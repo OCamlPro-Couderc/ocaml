@@ -170,6 +170,7 @@ ASMCOMP_FUNCTOR=\
 ASMCOMP_COMPILE=\
   asmcomp/backend_maker.cmo asmcomp/amd64/amd64.cmo \
   asmcomp/arm64/arm64.cmo asmcomp/arm/arm.cmo asmcomp/i386/i386.cmo \
+  asmcomp/power/power.cmo asmcomp/s390x/s390x.cmo \
   driver/backend_instantiation.cmo driver/opterrors.cmo driver/optcompile.cmo
 ASMCOMP= $(ASMCOMP_PRELUDE) $(ARCH_SPECIFIC_ASMCOMP) $(ASMCOMP_COMPILE)
 

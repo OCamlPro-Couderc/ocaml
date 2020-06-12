@@ -21,7 +21,7 @@ open Misc
 open Cmm
 open Reg
 open Arch
-open Mach
+open Mach_type.Make(Arch)
 
 (* Instruction selection *)
 

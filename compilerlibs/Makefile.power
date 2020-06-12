@@ -1,0 +1,49 @@
+#**************************************************************************
+#*                                                                        *
+#*                                 OCaml                                  *
+#*                                                                        *
+#*            Xavier Leroy, projet Cristal, INRIA Rocquencourt            *
+#*                                                                        *
+#*   Copyright 1999 Institut National de Recherche en Informatique et     *
+#*     en Automatique.                                                    *
+#*                                                                        *
+#*   All rights reserved.  This file is distributed under the terms of    *
+#*   the GNU Lesser General Public License version 2.1, with the          *
+#*   special exception on linking described in the file LICENSE.          *
+#*                                                                        *
+#**************************************************************************
+
+COMPFLAGS_POWER= $(COMPFLAGS_NO_ARCH) -I asmcomp/power
+
+ASMCOMP_ARCH_PARAMS_POWER=\
+  asmcomp/power/arch.cmo \
+  asmcomp/power/proc.cmo \
+  asmcomp/power/CSE.cmo \
+  asmcomp/power/selection.cmo \
+  asmcomp/power/reload.cmo \
+  asmcomp/power/scheduling.cmo \
+  asmcomp/power/emit.cmo
+
+
+$(ASMCOMP_ARCH_PARAMS_POWER:%.cmo=%.cmi): %.cmi: %.mli
+	$(CAMLC) $(COMPFLAGS_POWER) -c -for-pack Power $<
+
+$(ASMCOMP_ARCH_PARAMS_POWER): %.cmo: %.ml
+	$(CAMLC) $(COMPFLAGS_POWER) -c -for-pack Power $<
+
+$(ASMCOMP_ARCH_PARAMS_POWER:%.cmo=%.cmx): %.cmx: %.ml
+	$(CAMLOPT) $(COMPFLAGS_POWER) -c -for-pack Power $<
+
+asmcomp/power/power.cmi: $(ASMCOMP_ARCH_PARAMS_POWER)
+	$(CAMLC) -o $@ $(COMPFLAGS_POWER) asmcomp/power/power.mli
+
+asmcomp/power/power.cmo: asmcomp/power/power.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS_POWER)
+	$(CAMLC) -o $@ $(COMPFLAGS_POWER) -pack $(ASMCOMP_ARCH_PARAMS_POWER)
+
+asmcomp/power/power.cmx: asmcomp/power/power.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS_POWER:%.cmo=%.cmx)
+	$(CAMLOPT) -o $@ $(COMPFLAGS_POWER) -pack $(ASMCOMP_ARCH_PARAMS_POWER:%.cmo=%.cmx)
+
+asmcomp/power/emit.ml: asmcomp/power/emit.mlp tools/cvt_emit
+	echo \# 1 \"power/emit.mlp\" > $@
+	$(CAMLRUN) tools/cvt_emit < $< >> $@ \
+	|| { rm -f $@; exit 2; }
