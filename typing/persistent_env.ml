@@ -220,6 +220,20 @@ let check_consistency import penv ps =
 let is_package_parameter unit name =
   CU.Prefix.in_functor_parameters name (CU.for_pack_prefix unit)
 
+let is_parameter_in_same_package pack =
+  match !Clflags.functor_parameter_of with
+    None -> false
+  | Some unit ->
+      let unit = CU.of_raw_string unit in
+      let common = Misc.Stdlib.List.find_and_chop_longest_common_prefix
+        ~equal:
+          (fun (CU.Prefix.Pack (m1, _)) (CU.Prefix.Pack (m2, _)) ->
+             CU.Name.equal m1 m2)
+        ~first:(CU.for_pack_prefix unit)
+        ~second:pack
+      in
+      common.Misc.Stdlib.List.longest_common_prefix <> []
+
 let check_parameter modname flags functor_unit =
   let parameter_for_same_pack =
     match !Clflags.functor_parameter_of with
@@ -334,7 +348,8 @@ let acknowledge_pers_struct penv check import modname pers_sig pm =
              computing it using `split_on_char` each time *)
           let curr_prefix = CU.for_pack_prefix current_unit in
           if not (check_pack_compatibility curr_prefix p)
-          && not !Clflags.make_package then
+             && not (is_parameter_in_same_package p)
+             && not !Clflags.make_package then
             error (Inconsistent_package_declaration
                      {filename; imported_unit = name; prefix = p;
                       current_pack = curr_prefix});

@@ -1084,10 +1084,13 @@ let required_globals = ref []
 let reset_required_globals () = required_globals := []
 let get_required_globals () = !required_globals
 let add_required_global id =
-  if Ident.persistent id && not !Clflags.transparent_modules then
-    let id = address_head (get_address (find_pers_address id)) in
-    if not (List.exists (Ident.same id) !required_globals)
-    then required_globals := id :: !required_globals
+   if Ident.persistent id &&
+     not !Clflags.transparent_modules &&
+     not (Persistent_env.is_imported_as_parameter persistent_env
+            (Compilation_unit.Name.of_string (Ident.name id))) then
+     let id = address_head (get_address (find_pers_address id)) in
+     if not (List.exists (Ident.same id) !required_globals)
+     then required_globals := id :: !required_globals
 
 let rec normalize_module_path lax env = function
   | Pident id as path when lax && Ident.persistent id ->

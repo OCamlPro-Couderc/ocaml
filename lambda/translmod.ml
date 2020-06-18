@@ -804,9 +804,10 @@ let transl_functorized_implementation module_id (impl, cc) =
         transl_struct Location.none [] cc
           (global_path module_id) str
     | Timpl_functor (_, _) ->
-        let params, body = extract_impl_functor_components impl in
-        compile_functor
-          params body cc path Location.none,
+         oo_wrap impl.timpl_env true (fun () ->
+            let params, body = extract_impl_functor_components impl in
+            compile_functor
+              params body cc path Location.none) (),
         1
   in
   transl_impl cc (global_path module_id) impl
@@ -1417,11 +1418,9 @@ let transl_store_structure_gen module_id ({str_items = str}, restr) topl =
     | str -> transl_store_structure module_id map prims aliases str
   in
   transl_store_label_init module_id size f str
-  (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
-let transl_store_functorized_implementation_gen module_id (body, size) =
+let transl_store_functorized_implementation_gen module_id body =
   let body_id = Ident.create_local "*unit-body*" in
-  size,
   Llet (Strict, Pgenval, body_id, body,
         Lsequence (Lprim(Psetfield(0, Pointer, Root_initialization),
                          [Lprim(Pgetglobal module_id, [], Location.none);
@@ -1430,9 +1429,16 @@ let transl_store_functorized_implementation_gen module_id (body, size) =
                    lambda_unit))
 
 let transl_store_functorized_implementation module_id ((impl, restr)) =
-  let body =
-    transl_functorized_implementation module_id (impl, restr) in
-  transl_store_functorized_implementation_gen module_id body
+  transl_store_label_init module_id 1 (fun _ ->
+      let body, _ =
+        transl_functorized_implementation module_id (impl, restr) in
+      let id = Ident.create_local "*unit-body*" in
+      Llet (Strict, Pgenval, id, body,
+            Lsequence (Lprim(Psetfield(0, Pointer, Root_initialization),
+                             [Lprim(Pgetglobal module_id, [], Location.none);
+                              Lvar id],
+                             Location.none),
+                       lambda_unit))) ()
 
 let transl_store_phrases module_name str =
   let unit = Compilation_unit.create module_name in
@@ -1456,12 +1462,13 @@ let transl_store_implementation module_name (impl, restr) =
   let (i, code) =
     if Compilation_unit.Prefix.in_functor
         (Compilation_unit.for_pack_prefix current_unit) then
-      let body, _ =
-        transl_functorized_implementation module_ident (impl, restr) in
-      let body =
-        transl_functorized_package_component_gen body
-          (Env.functorized_pack_imports ()) in
-      transl_store_functorized_implementation_gen module_ident body
+      transl_store_label_init module_ident 1 (fun _ ->
+          let body, _ =
+            transl_functorized_implementation module_ident (impl, restr) in
+          let body, _ =
+            transl_functorized_package_component_gen body
+              (Env.functorized_pack_imports ()) in
+          transl_store_functorized_implementation_gen module_ident body) ()
     else
       transl_store_gen module_ident (impl, restr) false
   in
