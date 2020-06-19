@@ -938,8 +938,10 @@ and label_x_bool_x_core_type_list i ppf x =
       core_type (i+1) ppf ct
 ;;
 
-let param i ppf (id, _) =
-  line i ppf "\"%a\"" fmt_ident id;;
+let param i ppf p =
+  match p with
+    Some (id, _) -> line i ppf "\"%a\"" fmt_ident id
+  | None -> line i ppf "()" ;;
 
 let interface ppf x =
   match x.tintf_desc with

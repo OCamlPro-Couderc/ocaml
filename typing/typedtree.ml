@@ -752,7 +752,7 @@ type implementation =
 
 and implementation_desc =
   | Timpl_structure of structure
-  | Timpl_functor of (Ident.t * Types.module_type) list * structure
+  | Timpl_functor of (Ident.t * Types.module_type) option list * structure
   (* The functor is indeed currified at compilation, but there is no need to
      represent it as is in the typedtree *)
 
@@ -765,7 +765,7 @@ type interface =
 
 and interface_desc =
   | Tintf_signature of signature
-  | Tintf_functor of (Ident.t * Types.module_type) list * signature
+  | Tintf_functor of (Ident.t * Types.module_type) option list * signature
 
 (* List the identifiers bound by a pattern or a let *)
 

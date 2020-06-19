@@ -27,7 +27,7 @@ end
 
 module Prefix : sig
 
-  type component = Pack of Name.t * Name.t list
+  type component = Pack of Name.t * Name.t option list
 
   type t = component list
 

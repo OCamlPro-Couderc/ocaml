@@ -694,6 +694,11 @@ let mk_functor_parameter_of f =
                  functorized unit."
 ;;
 
+let mk_functor_parameter_unit f =
+  "-parameter-unit", Arg.Unit f,
+  "Sets the parameter of the functorized unit as ()."
+;;
+
 let mk_use_prims f =
   "-use-prims", Arg.String f, "<file>  (undocumented)"
 ;;
@@ -971,6 +976,7 @@ module type Compiler_options = sig
   val _full_interface : unit -> unit
   val _functor_parameter : string -> unit
   val _functor_parameter_of : string -> unit
+  val _functor_parameter_unit : unit -> unit
   val _g : unit -> unit
   val _stop_after : string -> unit
   val _i : unit -> unit
@@ -1174,6 +1180,7 @@ struct
     mk_full_interface F._full_interface;
     mk_functor_parameter F._functor_parameter;
     mk_functor_parameter_of F._functor_parameter_of;
+    mk_functor_parameter_unit F._functor_parameter_unit;
     mk_g_byt F._g;
     mk_stop_after ~native:false F._stop_after;
     mk_i F._i;
@@ -1354,6 +1361,7 @@ struct
     mk_for_pack_opt F._for_pack;
     mk_functor_parameter F._functor_parameter;
     mk_functor_parameter_of F._functor_parameter_of;
+    mk_functor_parameter_unit F._functor_parameter_unit;
     mk_g_opt F._g;
     mk_function_sections F._function_sections;
     mk_stop_after ~native:true F._stop_after;
@@ -1857,8 +1865,11 @@ module Default = struct
     let _dump_into_file = set dump_into_file
     let _for_pack s = for_package := (Some s)
     let _full_interface = set print_full_interface
-    let _functor_parameter s = functor_parameters := s :: !functor_parameters
+    let _functor_parameter s =
+      functor_parameters := Some s :: !functor_parameters
     let _functor_parameter_of s = functor_parameter_of := Some s
+    let _functor_parameter_unit () =
+      functor_parameters := None :: !functor_parameters
     let _g = set debug
     let _i = set print_types
     let _impl = impl

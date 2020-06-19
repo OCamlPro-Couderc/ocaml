@@ -520,10 +520,15 @@ let compilation_unit scoping s uty =
   | Unit_signature sg ->
       Unit_signature (signature scoping s sg)
   | Unit_functor(args, res) ->
-      let args', s' = List.fold_left (fun (args, subst) (id, arg) ->
-          let id' = Ident.rename id in
-          (id', modtype scoping subst arg) :: args,
-          add_module id (Pident id') subst)
+      let args', s' = List.fold_left (fun (args, subst) param ->
+          match param with
+            Unit -> Unit :: args, subst
+          | Named (None, arg) ->
+              Named (None, modtype scoping subst arg) :: args, subst
+          | Named (Some id, arg) ->
+              let id' = Ident.rename id in
+              Named (Some id', modtype scoping subst arg) :: args,
+              add_module id (Pident id') subst)
           ([], s) args
       in
       Unit_functor(List.rev args', signature scoping s' res)

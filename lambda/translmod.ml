@@ -443,8 +443,11 @@ let extract_impl_functor_components exp =
   in
   match exp.timpl_desc with
     Timpl_functor (params, body) ->
-      List.map (fun (id, mty) ->
-          Types.Named (Some id, mty), Location.none, Default_inline) params,
+      List.map (function
+            None -> Types.Unit, Location.none, Default_inline
+          | Some (id, mty) ->
+              Types.Named (Some id, mty), Location.none, Default_inline)
+        params,
       str_to_mod body
   |  Timpl_structure str -> [], str_to_mod str
 
@@ -1671,7 +1674,10 @@ let generate_functor_component identifiers = function
 
 let transl_functorized_package_gen components params dependencies =
   let identifiers = List.map fresh_component_id components in
-  let params = List.map (Ident.create_local) params in
+  let params =
+    List.map (function
+          None -> Ident.create_local "*unit*"
+        | Some p -> Ident.create_local p) params in
   let args = dependencies @ params in
   let components =
     List.map

@@ -71,7 +71,10 @@ let read_member_info current_unit file =
       let full_path_with_params =
         let params =
           List.fold_left (fun acc p ->
-              CU.Name.of_string p :: acc) [] !Clflags.functor_parameters in
+              match p with
+                None -> None :: acc
+              | Some p -> Some (CU.Name.of_string p) :: acc)
+            [] !Clflags.functor_parameters in
         CU.for_pack_prefix current_unit @
         [ CU.Prefix.Pack (CU.name current_unit, params) ]
       in
@@ -133,7 +136,8 @@ let make_package_object
     let curr_package_as_prefix =
       let params = List.rev !Clflags.functor_parameters in
       CU.for_pack_prefix current_unit @
-      [CU.Prefix.Pack (CU.name current_unit, List.map CU.Name.of_string params)]
+      [CU.Prefix.Pack (CU.name current_unit,
+                       List.map (Option.map CU.Name.of_string) params)]
     in
     let components =
       List.map
@@ -249,14 +253,19 @@ let build_package_cmx current_unit members cmxfile =
   let package_prefix = CU.for_pack_prefix current_unit in
   let functor_parameters =
     List.fold_left (fun acc p ->
-        CU.Name.of_string p :: acc) [] !Clflags.functor_parameters in
+        match p with
+          None -> None :: acc
+        | Some p -> Some (CU.Name.of_string p) :: acc)
+      [] !Clflags.functor_parameters in
   let curr_package_as_prefix =
     package_prefix @ [CU.Prefix.Pack (current_unit_name, functor_parameters)]
   in
   let imports_cmi =
     CU.Map.filter (fun cu _crc ->
         not (CU.Name.Set.mem (CU.name cu) unit_names_in_pack) &&
-        not (List.exists CU.(Name.equal (name cu)) functor_parameters))
+        not (List.exists
+               (function None -> false | Some p -> CU.(Name.equal (name cu) p))
+               functor_parameters))
       (Asmlink.extract_crc_interfaces ())
   in
   let functorized_pack_imports =

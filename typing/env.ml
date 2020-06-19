@@ -699,8 +699,8 @@ let compilation_unit_type_of_module_type = function
       let rec translate acc = function
           Mty_signature sg ->
             Unit_functor (List.rev acc, sg)
-        | Mty_functor (Named (Some id, mty), mty') ->
-            translate ((id, mty) :: acc) mty'
+        | Mty_functor (param, mty') ->
+            translate (param :: acc) mty'
         | _ -> failwith "[compilation_unit_type_of_module_type] \
                          illformed compilation unit type"
       in

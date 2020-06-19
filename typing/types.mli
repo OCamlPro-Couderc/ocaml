@@ -495,7 +495,7 @@ and ext_status =
 (* Representation of the module type of a compilation unit. *)
 type compilation_unit =
     Unit_signature of signature
-  | Unit_functor of (Ident.t * module_type) list * signature
+  | Unit_functor of functor_parameter list * signature
 
 (* Constructor and record label descriptions inserted held in typing
    environments *)

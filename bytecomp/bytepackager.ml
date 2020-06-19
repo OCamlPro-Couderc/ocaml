@@ -97,7 +97,10 @@ let read_member_info current_unit file = (
         then raise(Error(Illegal_renaming(name, file, compunit.cu_name)));
         let params =
           List.fold_left (fun acc p ->
-              CU.Name.of_string p :: acc) [] !Clflags.functor_parameters in
+              match p with
+                None -> None :: acc
+              | Some p -> Some (CU.Name.of_string p) :: acc)
+            [] !Clflags.functor_parameters in
         let full_path_with_params =
           Compilation_unit.(
             for_pack_prefix current_unit @
@@ -235,7 +238,10 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
   in
   let curr_package_as_prefix =
     let params = List.fold_left (fun acc p ->
-        CU.Name.of_string p :: acc) [] !Clflags.functor_parameters in
+        match p with
+          None -> None :: acc
+        | Some p -> Some (CU.Name.of_string p) :: acc)
+        [] !Clflags.functor_parameters in
     for_pack_prefix @
     [CU.Prefix.Pack (targetname, params)]
   in

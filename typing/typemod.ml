@@ -2632,29 +2632,33 @@ let type_implementation_aux env ast loc = function
       names,
       finalenv
   | params ->
-      let args, newenv, _ =
-        List.fold_left (fun (args, env, subst) param ->
-          let id_arg_pers = Ident.create_persistent param in
-          let mty_arg =
-            Env.read_as_parameter loc (Compilation_unit.Name.of_string param) in
-          let scope = Ctype.create_scope () in
-          let mty_arg' = Subst.modtype Make_local subst mty_arg in
-          let mty_arg' = Mtype.scrape_for_functor_arg env mty_arg' in
-          let id_arg, newenv =
-            Env.enter_module ~scope ~arg:true param Mp_present mty_arg' env in
-          (id_arg, mty_arg') :: args,
-          newenv,
-          Subst.add_module
-            (id_arg_pers)
-            (Path.Pident id_arg)
-            subst)
-          ([], env, Subst.identity) params
+      let args, targs, newenv, _ =
+        List.fold_left (fun (args, targs, env, subst) param ->
+            match param with
+              None -> None :: args, Types.Unit :: targs, env, subst
+            | Some param ->
+                let id_arg_pers = Ident.create_persistent param in
+                let mty_arg =
+                  Env.read_as_parameter loc (Compilation_unit.Name.of_string param) in
+                let scope = Ctype.create_scope () in
+                let mty_arg' = Subst.modtype Make_local subst mty_arg in
+                let mty_arg' = Mtype.scrape_for_functor_arg env mty_arg' in
+                let id_arg, newenv =
+                  Env.enter_module ~scope ~arg:true param Mp_present mty_arg' env in
+                Some (id_arg, mty_arg') :: args,
+                Types.Named (Some id_arg, mty_arg') :: targs,
+                newenv,
+                Subst.add_module
+                  (id_arg_pers)
+                  (Path.Pident id_arg)
+                  subst)
+          ([], [], env, Subst.identity) params
       in
-      let args = List.rev args in
+      let args, targs = List.rev args, List.rev targs in
       let body, sg, names, finalenv =
         type_implementation_structure true newenv ast loc in
       { timpl_desc = Timpl_functor (args, body);
-        timpl_type = Unit_functor (args, sg);
+        timpl_type = Unit_functor (targs, sg);
         timpl_env = env;
       },
       names,
@@ -2765,28 +2769,32 @@ let transl_interface env ast params =
         tintf_env = env;
       }
   | _ ->
-      let args, newenv, _ =
-        List.fold_left (fun (args, env, subst) param ->
-          let id_arg_pers = Ident.create_persistent param in
-          let mty_arg =
-            Env.read_as_parameter loc (Compilation_unit.Name.of_string param) in
-          let scope = Ctype.create_scope () in
-          let mty_arg = Subst.modtype Make_local subst mty_arg in
-          let mty_arg' = Mtype.scrape_for_functor_arg env mty_arg in
-          let id_arg, newenv =
-            Env.enter_module ~scope ~arg:true param Mp_present mty_arg' env in
-          (id_arg, mty_arg) :: args,
-          newenv,
-          Subst.add_module_path
-            (Path.Pident id_arg_pers)
-            (Path.Pident id_arg)
-            subst)
-          ([], env, Subst.identity) params
+      let args, targs, newenv, _ =
+        List.fold_left (fun (args, targs, env, subst) param ->
+            match param with
+              None -> None :: args, Types.Unit :: targs, env, subst
+            | Some param ->
+                let id_arg_pers = Ident.create_persistent param in
+                let mty_arg =
+                  Env.read_as_parameter loc (Compilation_unit.Name.of_string param) in
+                let scope = Ctype.create_scope () in
+                let mty_arg = Subst.modtype Make_local subst mty_arg in
+                let mty_arg' = Mtype.scrape_for_functor_arg env mty_arg in
+                let id_arg, newenv =
+                  Env.enter_module ~scope ~arg:true param Mp_present mty_arg' env in
+                Some (id_arg, mty_arg') :: args,
+                Types.Named (Some id_arg, mty_arg') :: targs,
+                newenv,
+                Subst.add_module_path
+                  (Path.Pident id_arg_pers)
+                  (Path.Pident id_arg)
+                  subst)
+          ([], [], env, Subst.identity) params
       in
       let body = transl_signature newenv ast in
-      let args = List.rev args in
+      let args, targs = List.rev args, List.rev targs in
       { tintf_desc = Tintf_functor (args, body);
-        tintf_type = Unit_functor (args, body.sig_type);
+        tintf_type = Unit_functor (targs, body.sig_type);
         tintf_env = newenv;
       }
 
@@ -2837,20 +2845,23 @@ let package_module_types env parameters units =
   | params ->
       let args, _, subst =
         List.fold_left (fun (args, env, subst) param ->
-          let id_arg_pers = Ident.create_persistent param in
-          let mty_arg =
-            Env.read_as_parameter loc (Compilation_unit.Name.of_string param) in
-          let scope = Ctype.create_scope () in
-          let mty_arg = Subst.modtype Make_local subst mty_arg in
-          let mty_arg = Mtype.scrape_for_functor_arg env mty_arg in
-          let id_arg, newenv =
-            Env.enter_module ~scope ~arg:true param Mp_present mty_arg env in
-          (id_arg, mty_arg) :: args,
-          newenv,
-          Subst.add_module_path
-            (Path.Pident id_arg_pers)
-            (Path.Pident id_arg)
-            subst)
+            match param with
+              None -> Types.Unit :: args, env, subst
+            | Some param ->
+                let id_arg_pers = Ident.create_persistent param in
+                let mty_arg =
+                  Env.read_as_parameter loc (Compilation_unit.Name.of_string param) in
+                let scope = Ctype.create_scope () in
+                let mty_arg = Subst.modtype Make_local subst mty_arg in
+                let mty_arg' = Mtype.scrape_for_functor_arg env mty_arg in
+                let id_arg, newenv =
+                  Env.enter_module ~scope ~arg:true param Mp_present mty_arg' env in
+                Types.Named (Some id_arg, mty_arg') :: args,
+                newenv,
+                Subst.add_module_path
+                  (Path.Pident id_arg_pers)
+                  (Path.Pident id_arg)
+                  subst)
           ([], env, Subst.identity) params
       in
       let args = List.rev args in
@@ -2899,13 +2910,17 @@ let package_units initial_env objfiles cmifile modulename =
     (* Determine imports *)
     let unit_names = List.map fst units in
     let params =
-      List.map Compilation_unit.Name.of_string !Clflags.functor_parameters in
+      List.map (Option.map Compilation_unit.Name.of_string)
+        !Clflags.functor_parameters in
     let imports =
       List.filter
         (fun (unit, _crc) ->
            not (List.exists Compilation_unit.(Name.equal (name unit))
                   unit_names) &&
-           not (List.exists Compilation_unit.(Name.equal (name unit)) params))
+           not (List.exists (function
+                 None -> false
+               | Some param -> Compilation_unit.(Name.equal (name unit) param))
+               params))
         (Env.imports()) in
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin

@@ -41,12 +41,18 @@ end
 
 module Prefix = struct
 
-  type component = Pack of Name.t * Name.t list
+  type component = Pack of Name.t * Name.t option list
 
   type t = component list
 
+  let equal_parameters param1 param2 =
+    match param1, param2 with
+      None, None -> true
+    | Some p1, Some p2 -> Name.equal p1 p2
+    | _ -> false
+
   let equal_component (Pack (m, args)) (Pack (m', args')) =
-    Name.equal m m' && Misc.Stdlib.List.equal Name.equal args args'
+    Name.equal m m' && Misc.Stdlib.List.equal equal_parameters args args'
 
   let print_gen pp_functor pp_arg fmt p =
     let open Format in
@@ -61,9 +67,16 @@ module Prefix = struct
       let equal = Misc.Stdlib.List.equal equal_component
 
       let compare (p1 : t) (p2 : t) =
+        let compare_parameters p1 p2 =
+          match p1, p2 with
+            None, None -> 0
+          | Some n1, Some n2 -> String.compare n1 n2
+          | Some _, None -> 1
+          | None, Some _ -> -1
+        in
         let compare_functors (Pack (m1, args1)) (Pack (m2, args2)) =
           let c = String.compare m1 m2 in
-          if c = 0 then Misc.Stdlib.List.compare String.compare args1 args2
+          if c = 0 then Misc.Stdlib.List.compare compare_parameters args1 args2
           else c
         in
         Misc.Stdlib.List.compare compare_functors p1 p2
@@ -72,7 +85,10 @@ module Prefix = struct
 
       let print fmt p =
         let open Format in
-        let pp_arg fmt arg = fprintf fmt "(%a)" Name.print arg in
+        let pp_arg fmt arg =
+          match arg with
+            None -> fprintf fmt "()"
+          | Some name -> fprintf fmt "(%a)" Name.print name in
         let pp_functor pp_arg fmt (Pack (m, args)) =
           fprintf fmt "%a%a"
             Name.print m
@@ -106,20 +122,27 @@ module Prefix = struct
     match String.index_opt p '(' with
       None -> Pack (p, [])
     | Some i ->
-        let rev_args = extract [] i in
-        Pack (String.sub p 0 i, List.rev rev_args)
+        let args =
+          List.fold_left (fun args name ->
+              if String.equal name "" then None :: args else Some name :: args)
+            [] (extract [] i)
+        in
+        Pack (String.sub p 0 i, args)
 
   let check_module_name name =
-    String.iteri (fun i c ->
-        if not (is_valid_character (i=0) c) then
-          raise (Error (Invalid_character c)))
-      name
+    match name with
+      None -> ()
+    | Some name ->
+        String.iteri (fun i c ->
+            if not (is_valid_character (i=0) c) then
+              raise (Error (Invalid_character c)))
+          name
 
   let parse pack =
     let prefix =
       String.split_on_char '.' pack |> List.map parse_functorized_pack in
     List.iter (function Pack (module_name, args) ->
-        check_module_name module_name;
+        check_module_name (Some module_name);
         List.iter check_module_name args)
       prefix;
     prefix
@@ -161,7 +184,7 @@ module Prefix = struct
 
   let in_functor_parameters unit_name prefix =
     List.exists (function Pack (_, args) ->
-        List.exists (Name.equal unit_name) args)
+        List.exists (equal_parameters (Some unit_name)) args)
       prefix
 
 end

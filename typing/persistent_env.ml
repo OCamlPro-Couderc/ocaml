@@ -258,7 +258,7 @@ let check_parameter modname flags functor_unit =
           flags
   in
   let current_unit = Current_unit.get_exn () in
-  List.mem modname !Clflags.functor_parameters &&
+  List.mem (Some modname) !Clflags.functor_parameters &&
   CU.equal current_unit functor_unit ||
   parameter_for_same_pack ||
   is_package_parameter current_unit (CU.Name.of_string modname)

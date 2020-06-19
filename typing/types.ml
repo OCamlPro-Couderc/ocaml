@@ -334,7 +334,7 @@ and ext_status =
 (* Representation of the module type of a compilation unit. *)
 type compilation_unit =
     Unit_signature of signature
-  | Unit_functor of (Ident.t * module_type) list * signature
+  | Unit_functor of functor_parameter list * signature
 
 (* Constructor and record label descriptions inserted held in typing
    environments *)
@@ -412,7 +412,6 @@ let signature_item_id = function
 let module_type_of_compilation_unit = function
     Unit_signature sg -> Mty_signature sg
   | Unit_functor (args, sg) ->
-      List.fold_right (fun (id, mty) acc ->
-          Mty_functor (Named (Some id, mty), acc))
+      List.fold_right (fun param acc -> Mty_functor (param, acc))
         args
         (Mty_signature sg)
