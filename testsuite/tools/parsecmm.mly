@@ -18,6 +18,7 @@
 %{
 open Cmm
 open Parsecmmaux
+open Backend_instantiation.Instance.Arch_instantiation
 
 let rec make_letdef def body =
   match def with

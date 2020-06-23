@@ -17,31 +17,85 @@ COMPFLAGS_POWER= $(COMPFLAGS_NO_ARCH) -I asmcomp/power
 
 ASMCOMP_ARCH_PARAMS_POWER=\
   asmcomp/power/arch.cmo \
-  asmcomp/power/proc.cmo \
+  asmcomp/power/proc.cmo
+
+ASMCOMP_ARCH_PARAMS_FUNCT_POWER=\
   asmcomp/power/CSE.cmo \
   asmcomp/power/selection.cmo \
   asmcomp/power/reload.cmo \
   asmcomp/power/scheduling.cmo \
   asmcomp/power/emit.cmo
 
+ASMCOMP_ARCH_POWER=\
+  $(ASMCOMP_ARCH_PARAMS_POWER) $(ASMCOMP_ARCH_PARAMS_FUNCT_POWER)
+
 
 $(ASMCOMP_ARCH_PARAMS_POWER:%.cmo=%.cmi): %.cmi: %.mli
-	$(CAMLC) $(COMPFLAGS_POWER) -c -for-pack Power $<
+	$(CAMLC) $(COMPFLAGS_POWER) -c -for-pack "Power()" $<
 
 $(ASMCOMP_ARCH_PARAMS_POWER): %.cmo: %.ml
-	$(CAMLC) $(COMPFLAGS_POWER) -c -for-pack Power $<
+	$(CAMLC) $(COMPFLAGS_POWER) -c -for-pack "Power()" $<
 
 $(ASMCOMP_ARCH_PARAMS_POWER:%.cmo=%.cmx): %.cmx: %.ml
-	$(CAMLOPT) $(COMPFLAGS_POWER) -c -for-pack Power $<
+	$(CAMLOPT) $(COMPFLAGS_POWER) -c -for-pack "Power()" $<
+
+asmcomp/power/CSE_param.cmi: asmcomp/parameters/CSE_param.mli
+	$(CAMLC) $(COMPFLAGS_POWER) -o $@ -c -parameter-of "Power()".CSE $<
+
+asmcomp/power/CSE.cmo: asmcomp/power/CSE.ml asmcomp/power/CSE_param.cmi
+	$(CAMLC) $(COMPFLAGS_POWER) -c -for-pack "Power()" -parameter CSE_param $<
+
+asmcomp/power/CSE.cmx: asmcomp/power/CSE.ml asmcomp/power/CSE_param.cmi
+	$(CAMLOPT) $(COMPFLAGS_POWER) -c -for-pack "Power()" -parameter CSE_param $<
+
+
+asmcomp/power/selection_param.cmi: asmcomp/parameters/selection_param.mli
+	$(CAMLC) $(COMPFLAGS_POWER) -o $@ -c -parameter-of "Power()".Selection $<
+
+asmcomp/power/selection.cmo: asmcomp/power/selection.ml asmcomp/power/selection_param.cmi
+	$(CAMLC) $(COMPFLAGS_POWER) -c -for-pack "Power()" -parameter Selection_param $<
+
+asmcomp/power/selection.cmx: asmcomp/power/selection.ml asmcomp/power/selection_param.cmi
+	$(CAMLOPT) $(COMPFLAGS_POWER) -c -for-pack "Power()" -parameter Selection_param $<
+
+
+asmcomp/power/reload_param.cmi: asmcomp/parameters/reload_param.mli
+	$(CAMLC) $(COMPFLAGS_POWER) -o $@ -c -parameter-of "Power()".Reload $<
+
+asmcomp/power/reload.cmo: asmcomp/power/reload.ml asmcomp/power/reload_param.cmi
+	$(CAMLC) $(COMPFLAGS_POWER) -c -for-pack "Power()" -parameter Reload_param $<
+
+asmcomp/power/reload.cmx: asmcomp/power/reload.ml asmcomp/power/reload_param.cmi
+	$(CAMLOPT) $(COMPFLAGS_POWER) -c -for-pack "Power()" -parameter Reload_param $<
+
+
+asmcomp/power/scheduling_param.cmi: asmcomp/parameters/scheduling_param.mli
+	$(CAMLC) $(COMPFLAGS_POWER) -o $@ -c -parameter-of "Power()".Scheduling $<
+
+asmcomp/power/scheduling.cmo: asmcomp/power/scheduling.ml asmcomp/power/scheduling_param.cmi
+	$(CAMLC) $(COMPFLAGS_POWER) -c -for-pack "Power()" -parameter Scheduling_param $<
+
+asmcomp/power/scheduling.cmx: asmcomp/power/scheduling.ml asmcomp/power/scheduling_param.cmi
+	$(CAMLOPT) $(COMPFLAGS_POWER) -c -for-pack "Power()" -parameter Scheduling_param $<
+
+
+asmcomp/power/emit_param.cmi: asmcomp/parameters/emit_param.mli
+	$(CAMLC) $(COMPFLAGS_POWER) -o $@ -c -parameter-of "Power()".Emit $<
+
+asmcomp/power/emit.cmo: asmcomp/power/emit.ml asmcomp/power/emit_param.cmi
+	$(CAMLC) $(COMPFLAGS_POWER) -c -for-pack "Power()" -parameter Emit_param $<
+
+asmcomp/power/emit.cmx: asmcomp/power/emit.ml asmcomp/power/emit_param.cmi
+	$(CAMLOPT) $(COMPFLAGS_POWER) -c -for-pack "Power()" -parameter Emit_param $<
 
 asmcomp/power/power.cmi: $(ASMCOMP_ARCH_PARAMS_POWER)
-	$(CAMLC) -o $@ $(COMPFLAGS_POWER) asmcomp/power/power.mli
+	$(CAMLC) -o $@ $(COMPFLAGS_POWER) -parameter-unit asmcomp/power/power.mli
 
-asmcomp/power/power.cmo: asmcomp/power/power.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS_POWER)
-	$(CAMLC) -o $@ $(COMPFLAGS_POWER) -pack $(ASMCOMP_ARCH_PARAMS_POWER)
+asmcomp/power/power.cmo: asmcomp/power/power.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_POWER)
+	$(CAMLC) -o $@ $(COMPFLAGS_POWER) -parameter-unit -pack $(ASMCOMP_ARCH_POWER)
 
-asmcomp/power/power.cmx: asmcomp/power/power.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_PARAMS_POWER:%.cmo=%.cmx)
-	$(CAMLOPT) -o $@ $(COMPFLAGS_POWER) -pack $(ASMCOMP_ARCH_PARAMS_POWER:%.cmo=%.cmx)
+asmcomp/power/power.cmx: asmcomp/power/power.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_POWER:%.cmo=%.cmx)
+	$(CAMLOPT) -o $@ $(COMPFLAGS_POWER) -parameter-unit -pack $(ASMCOMP_ARCH_POWER:%.cmo=%.cmx)
 
 asmcomp/power/emit.ml: asmcomp/power/emit.mlp tools/cvt_emit
 	echo \# 1 \"power/emit.mlp\" > $@

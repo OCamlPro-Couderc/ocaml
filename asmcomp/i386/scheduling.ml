@@ -18,6 +18,4 @@
    float reg stack. The Pentiums Pro / II / III / etc schedule
    at run-time much better than what we could do. *)
 
-module Make (_ : Scheduler.S with module Arch := Arch) = struct
-  let fundecl f = f
-end
+let fundecl f = f

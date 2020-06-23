@@ -29,7 +29,7 @@ expect_LIBS := $(addprefix $(COMPILERLIBSDIR)/,\
   ocamlcommon ocamlbytecomp ocamltoplevel)
 
 codegen_PROG = codegen$(EXE)
-codegen_DIRS = parsing utils typing middle_end bytecomp lambda asmcomp
+codegen_DIRS = parsing utils typing middle_end bytecomp lambda asmcomp driver
 codegen_OCAMLFLAGS = $(addprefix -I $(TOPDIR)/, $(codegen_DIRS)) -w +40 -g
 
 codegen_LIBS = $(addprefix $(COMPILERLIBSDIR)/,\

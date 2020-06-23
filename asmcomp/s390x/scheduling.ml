@@ -26,42 +26,38 @@ open Mach_type.Make(Arch)
    The z196 and later are out-of-order processors.  Basic-block
    scheduling probably makes no difference. *)
 
-module Make (S : Scheduler.S with module Arch := Arch) = struct
+class scheduler = object
 
-  class scheduler = object
+  inherit Scheduling_param.scheduler_generic
 
-    inherit S.scheduler_generic
+  (* Latencies (in cycles). Wild guesses.  We multiply all latencies by 2
+     to favor dual-issue. *)
 
-    (* Latencies (in cycles). Wild guesses.  We multiply all latencies by 2
-       to favor dual-issue. *)
+  method oper_latency = function
+      Ireload -> 4
+    | Iload(_, _) -> 4
+    | Iconst_float _ -> 4 (* turned into a load *)
+    | Iintop(Imul) -> 10
+    | Iintop_imm(Imul, _) -> 10
+    | Iaddf | Isubf | Imulf -> 8
+    | Idivf -> 40
+    | Ispecific(Imultaddf | Imultsubf) -> 8
+    | _ -> 2
 
-    method oper_latency = function
-        Ireload -> 4
-      | Iload(_, _) -> 4
-      | Iconst_float _ -> 4 (* turned into a load *)
-      | Iintop(Imul) -> 10
-      | Iintop_imm(Imul, _) -> 10
-      | Iaddf | Isubf | Imulf -> 8
-      | Idivf -> 40
-      | Ispecific(Imultaddf | Imultsubf) -> 8
-      | _ -> 2
+  method! reload_retaddr_latency = 4
 
-    method! reload_retaddr_latency = 4
+  (* Issue cycles.  Rough approximations. *)
 
-    (* Issue cycles.  Rough approximations. *)
+  method oper_issue_cycles = function
+    | Ialloc _ -> 4
+    | Iintop(Imulh) -> 15
+    | Iintop(Idiv|Imod) -> 20
+    | Iintop(Icomp _) -> 4
+    | Iintop_imm(Icomp _, _) -> 4
+    | _ -> 1
 
-    method oper_issue_cycles = function
-      | Ialloc _ -> 4
-      | Iintop(Imulh) -> 15
-      | Iintop(Idiv|Imod) -> 20
-      | Iintop(Icomp _) -> 4
-      | Iintop_imm(Icomp _, _) -> 4
-      | _ -> 1
-
-    method! reload_retaddr_issue_cycles = 1
-
-  end
-
-  let fundecl f = (new scheduler)#schedule_fundecl f
+  method! reload_retaddr_issue_cycles = 1
 
 end
+
+let fundecl f = (new scheduler)#schedule_fundecl f

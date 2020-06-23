@@ -21,6 +21,8 @@ open Proc
 open Cmm
 open Mach_type.Make(Arch)
 
+module Selector = Selection_param
+
 (* Auxiliary for recognizing addressing modes *)
 
 type addressing_expr =
@@ -154,179 +156,174 @@ let chunk_double = function
 
 (* The selector class *)
 
-module Make (Selector : Selector.S with module Arch := Arch) = struct
+class selector = object (self)
 
-  class selector = object (self)
+  inherit Selector.selector_generic as super
+  method is_immediate (_n : int) = true
 
-    inherit Selector.selector_generic as super
+  method! is_simple_expr e =
+    match e with
+    | Cop(Cextcall(fn, _, _alloc, _), args, _)
+      when !fast_math && List.mem fn inline_float_ops ->
+        (* inlined float ops are simple if their arguments are *)
+        List.for_all self#is_simple_expr args
+    | _ ->
+        super#is_simple_expr e
 
-    method is_immediate (_n : int) = true
+  method! effects_of e =
+    match e with
+    | Cop(Cextcall(fn, _, _, _), args, _)
+      when !fast_math && List.mem fn inline_float_ops ->
+        Selector.Effect_and_coeffect.join_list_map args self#effects_of
+    | _ ->
+        super#effects_of e
 
-    method! is_simple_expr e =
-      match e with
-      | Cop(Cextcall(fn, _, _alloc, _), args, _)
-        when !fast_math && List.mem fn inline_float_ops ->
-          (* inlined float ops are simple if their arguments are *)
-          List.for_all self#is_simple_expr args
-      | _ ->
-          super#is_simple_expr e
+  method select_addressing _chunk exp =
+    match select_addr exp with
+      (Asymbol s, d) ->
+        (Ibased(s, d), Ctuple [])
+    | (Alinear e, d) ->
+        (Iindexed d, e)
+    | (Aadd(e1, e2), d) ->
+        (Iindexed2 d, Ctuple[e1; e2])
+    | (Ascale(e, scale), d) ->
+        (Iscaled(scale, d), e)
+    | (Ascaledadd(e1, e2, scale), d) ->
+        (Iindexed2scaled(scale, d), Ctuple[e1; e2])
 
-    method! effects_of e =
-      match e with
-      | Cop(Cextcall(fn, _, _, _), args, _)
-        when !fast_math && List.mem fn inline_float_ops ->
-          Selector.Effect_and_coeffect.join_list_map args self#effects_of
-      | _ ->
-          super#effects_of e
+  method! select_store is_assign addr exp =
+    match exp with
+      Cconst_int (n, _) ->
+        (Ispecific(Istore_int(Nativeint.of_int n, addr, is_assign)), Ctuple [])
+    | (Cconst_natint (n, _) | Cblockheader (n, _)) ->
+        (Ispecific(Istore_int(n, addr, is_assign)), Ctuple [])
+    | Cconst_pointer (n, _) ->
+        (Ispecific(Istore_int(Nativeint.of_int n, addr, is_assign)), Ctuple [])
+    | Cconst_natpointer (n, _) ->
+        (Ispecific(Istore_int(n, addr, is_assign)), Ctuple [])
+    | Cconst_symbol (s, _) ->
+        (Ispecific(Istore_symbol(s, addr, is_assign)), Ctuple [])
+    | _ ->
+        super#select_store is_assign addr exp
 
-    method select_addressing _chunk exp =
-      match select_addr exp with
-        (Asymbol s, d) ->
-          (Ibased(s, d), Ctuple [])
-      | (Alinear e, d) ->
-          (Iindexed d, e)
-      | (Aadd(e1, e2), d) ->
-          (Iindexed2 d, Ctuple[e1; e2])
-      | (Ascale(e, scale), d) ->
-          (Iscaled(scale, d), e)
-      | (Ascaledadd(e1, e2, scale), d) ->
-          (Iindexed2scaled(scale, d), Ctuple[e1; e2])
+  method! select_operation op args dbg =
+    match op with
+    (* Recognize the LEA instruction *)
+      Caddi | Caddv | Cadda | Csubi ->
+        begin match self#select_addressing Word_int (Cop(op, args, dbg)) with
+          (Iindexed _, _)
+        | (Iindexed2 0, _) -> super#select_operation op args dbg
+        | (addr, arg) -> (Ispecific(Ilea addr), [arg])
+        end
+    (* Recognize float arithmetic with memory.
+       In passing, apply Ershov's algorithm to reduce stack usage *)
+    | Caddf ->
+        self#select_floatarith Iaddf Iaddf Ifloatadd Ifloatadd args
+    | Csubf ->
+        self#select_floatarith Isubf (Ispecific Isubfrev) Ifloatsub Ifloatsubrev
+          args
+    | Cmulf ->
+        self#select_floatarith Imulf Imulf Ifloatmul Ifloatmul args
+    | Cdivf ->
+        self#select_floatarith Idivf (Ispecific Idivfrev) Ifloatdiv Ifloatdivrev
+          args
+    (* Recognize store instructions *)
+    | Cstore ((Word_int | Word_val) as chunk, _) ->
+        begin match args with
+          [loc; Cop(Caddi, [Cop(Cload _, [loc'], _); Cconst_int (n, _)], _)]
+          when loc = loc' ->
+            let (addr, arg) = self#select_addressing chunk loc in
+            (Ispecific(Ioffset_loc(n, addr)), [arg])
+        | _ ->
+            super#select_operation op args dbg
+        end
+    (* Recognize inlined floating point operations *)
+    | Cextcall(fn, _ty_res, false, _label)
+      when !fast_math && List.mem fn inline_float_ops ->
+        (Ispecific(Ifloatspecial fn), args)
+    (* i386 does not support immediate operands for multiply high signed *)
+    | Cmulhi ->
+        (Iintop Imulh, args)
+    (* Default *)
+    | _ -> super#select_operation op args dbg
 
-    method! select_store is_assign addr exp =
-      match exp with
-        Cconst_int (n, _) ->
-          (Ispecific(Istore_int(Nativeint.of_int n, addr, is_assign)), Ctuple [])
-      | (Cconst_natint (n, _) | Cblockheader (n, _)) ->
-          (Ispecific(Istore_int(n, addr, is_assign)), Ctuple [])
-      | Cconst_pointer (n, _) ->
-          (Ispecific(Istore_int(Nativeint.of_int n, addr, is_assign)), Ctuple [])
-      | Cconst_natpointer (n, _) ->
-          (Ispecific(Istore_int(n, addr, is_assign)), Ctuple [])
-      | Cconst_symbol (s, _) ->
-          (Ispecific(Istore_symbol(s, addr, is_assign)), Ctuple [])
-      | _ ->
-          super#select_store is_assign addr exp
+  (* Recognize float arithmetic with mem *)
 
-    method! select_operation op args dbg =
-      match op with
-      (* Recognize the LEA instruction *)
-        Caddi | Caddv | Cadda | Csubi ->
-          begin match self#select_addressing Word_int (Cop(op, args, dbg)) with
-            (Iindexed _, _)
-          | (Iindexed2 0, _) -> super#select_operation op args dbg
-          | (addr, arg) -> (Ispecific(Ilea addr), [arg])
-          end
-      (* Recognize float arithmetic with memory.
-         In passing, apply Ershov's algorithm to reduce stack usage *)
-      | Caddf ->
-          self#select_floatarith Iaddf Iaddf Ifloatadd Ifloatadd args
-      | Csubf ->
-          self#select_floatarith Isubf (Ispecific Isubfrev) Ifloatsub Ifloatsubrev
-            args
-      | Cmulf ->
-          self#select_floatarith Imulf Imulf Ifloatmul Ifloatmul args
-      | Cdivf ->
-          self#select_floatarith Idivf (Ispecific Idivfrev) Ifloatdiv Ifloatdivrev
-            args
-      (* Recognize store instructions *)
-      | Cstore ((Word_int | Word_val) as chunk, _) ->
-          begin match args with
-            [loc; Cop(Caddi, [Cop(Cload _, [loc'], _); Cconst_int (n, _)], _)]
-            when loc = loc' ->
-              let (addr, arg) = self#select_addressing chunk loc in
-              (Ispecific(Ioffset_loc(n, addr)), [arg])
-          | _ ->
-              super#select_operation op args dbg
-          end
-      (* Recognize inlined floating point operations *)
-      | Cextcall(fn, _ty_res, false, _label)
-        when !fast_math && List.mem fn inline_float_ops ->
-          (Ispecific(Ifloatspecial fn), args)
-      (* i386 does not support immediate operands for multiply high signed *)
-      | Cmulhi ->
-          (Iintop Imulh, args)
-      (* Default *)
-      | _ -> super#select_operation op args dbg
+  method select_floatarith regular_op reversed_op mem_op mem_rev_op args =
+    match args with
+      [arg1; Cop(Cload (chunk, _), [loc2], _)] ->
+        let (addr, arg2) = self#select_addressing chunk loc2 in
+        (Ispecific(Ifloatarithmem(chunk_double chunk, mem_op, addr)),
+         [arg1; arg2])
+    | [Cop(Cload (chunk, _), [loc1], _); arg2] ->
+        let (addr, arg1) = self#select_addressing chunk loc1 in
+        (Ispecific(Ifloatarithmem(chunk_double chunk, mem_rev_op, addr)),
+         [arg2; arg1])
+    | [arg1; arg2] ->
+        (* Evaluate bigger subexpression first to minimize stack usage.
+           Because of right-to-left evaluation, rightmost arg is evaluated
+           first *)
+        if float_needs arg1 <= float_needs arg2
+        then (regular_op, [arg1; arg2])
+        else (reversed_op, [arg2; arg1])
+    | _ ->
+        fatal_error "Proc_i386: select_floatarith"
 
-    (* Recognize float arithmetic with mem *)
+  (* Deal with register constraints *)
 
-    method select_floatarith regular_op reversed_op mem_op mem_rev_op args =
-      match args with
-        [arg1; Cop(Cload (chunk, _), [loc2], _)] ->
-          let (addr, arg2) = self#select_addressing chunk loc2 in
-          (Ispecific(Ifloatarithmem(chunk_double chunk, mem_op, addr)),
-           [arg1; arg2])
-      | [Cop(Cload (chunk, _), [loc1], _); arg2] ->
-          let (addr, arg1) = self#select_addressing chunk loc1 in
-          (Ispecific(Ifloatarithmem(chunk_double chunk, mem_rev_op, addr)),
-           [arg2; arg1])
-      | [arg1; arg2] ->
-          (* Evaluate bigger subexpression first to minimize stack usage.
-             Because of right-to-left evaluation, rightmost arg is evaluated
-             first *)
-          if float_needs arg1 <= float_needs arg2
-          then (regular_op, [arg1; arg2])
-          else (reversed_op, [arg2; arg1])
-      | _ ->
-          fatal_error "Proc_i386: select_floatarith"
+  method! insert_op_debug env op dbg rs rd =
+    try
+      let (rsrc, rdst, move_res) = pseudoregs_for_operation op rs rd in
+      self#insert_moves env rs rsrc;
+      self#insert_debug env (Iop op) dbg rsrc rdst;
+      if move_res then begin
+        self#insert_moves env rdst rd;
+        rd
+      end else
+        rdst
+    with Use_default ->
+      super#insert_op_debug env op dbg rs rd
 
-    (* Deal with register constraints *)
+  (* Selection of push instructions for external calls *)
 
-    method! insert_op_debug env op dbg rs rd =
-      try
-        let (rsrc, rdst, move_res) = pseudoregs_for_operation op rs rd in
-        self#insert_moves env rs rsrc;
-        self#insert_debug env (Iop op) dbg rsrc rdst;
-        if move_res then begin
-          self#insert_moves env rdst rd;
-          rd
-        end else
-          rdst
-      with Use_default ->
-        super#insert_op_debug env op dbg rs rd
+  method select_push exp =
+    match exp with
+      Cconst_int (n, _) -> (Ispecific(Ipush_int(Nativeint.of_int n)), Ctuple [])
+    | Cconst_natint (n, _) -> (Ispecific(Ipush_int n), Ctuple [])
+    | Cconst_pointer (n, _) ->
+        (Ispecific(Ipush_int(Nativeint.of_int n)), Ctuple [])
+    | Cconst_natpointer (n, _) -> (Ispecific(Ipush_int n), Ctuple [])
+    | Cconst_symbol (s, _) -> (Ispecific(Ipush_symbol s), Ctuple [])
+    | Cop(Cload ((Word_int | Word_val as chunk), _), [loc], _) ->
+        let (addr, arg) = self#select_addressing chunk loc in
+        (Ispecific(Ipush_load addr), arg)
+    | Cop(Cload (Double_u, _), [loc], _) ->
+        let (addr, arg) = self#select_addressing Double_u loc in
+        (Ispecific(Ipush_load_float addr), arg)
+    | _ -> (Ispecific(Ipush), exp)
 
-    (* Selection of push instructions for external calls *)
+  method! mark_c_tailcall =
+    contains_calls := true
 
-    method select_push exp =
-      match exp with
-        Cconst_int (n, _) -> (Ispecific(Ipush_int(Nativeint.of_int n)), Ctuple [])
-      | Cconst_natint (n, _) -> (Ispecific(Ipush_int n), Ctuple [])
-      | Cconst_pointer (n, _) ->
-          (Ispecific(Ipush_int(Nativeint.of_int n)), Ctuple [])
-      | Cconst_natpointer (n, _) -> (Ispecific(Ipush_int n), Ctuple [])
-      | Cconst_symbol (s, _) -> (Ispecific(Ipush_symbol s), Ctuple [])
-      | Cop(Cload ((Word_int | Word_val as chunk), _), [loc], _) ->
-          let (addr, arg) = self#select_addressing chunk loc in
-          (Ispecific(Ipush_load addr), arg)
-      | Cop(Cload (Double_u, _), [loc], _) ->
-          let (addr, arg) = self#select_addressing Double_u loc in
-          (Ispecific(Ipush_load_float addr), arg)
-      | _ -> (Ispecific(Ipush), exp)
-
-    method! mark_c_tailcall =
-      contains_calls := true
-
-    method! emit_extcall_args env args =
-      let rec size_pushes = function
-        | [] -> 0
-        | e :: el -> Selector.size_expr env e + size_pushes el in
-      let sz1 = size_pushes args in
-      let sz2 = Misc.align sz1 stack_alignment in
-      let rec emit_pushes = function
-        | [] ->
-            if sz2 > sz1 then
-              self#insert env (Iop (Istackoffset (sz2 - sz1))) [||] [||]
-        | e :: el ->
-            emit_pushes el;
-            let (op, arg) = self#select_push e in
-            match self#emit_expr env arg with
-            | None -> ()
-            | Some r -> self#insert env (Iop op) r [||] in
-      emit_pushes args;
-      ([||], sz2)
-
-  end
-
-  let fundecl f = (new selector)#emit_fundecl f
+  method! emit_extcall_args env args =
+    let rec size_pushes = function
+      | [] -> 0
+      | e :: el -> Selector.size_expr env e + size_pushes el in
+    let sz1 = size_pushes args in
+    let sz2 = Misc.align sz1 stack_alignment in
+    let rec emit_pushes = function
+      | [] ->
+          if sz2 > sz1 then
+            self#insert env (Iop (Istackoffset (sz2 - sz1))) [||] [||]
+      | e :: el ->
+          emit_pushes el;
+          let (op, arg) = self#select_push e in
+          match self#emit_expr env arg with
+          | None -> ()
+          | Some r -> self#insert env (Iop op) r [||] in
+    emit_pushes args;
+    ([||], sz2)
 
 end
+
+let fundecl f = (new selector)#emit_fundecl f

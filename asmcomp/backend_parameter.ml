@@ -109,63 +109,50 @@ module type S = sig
 
   end
 
-  module CSE : sig
-    (* Common subexpression elimination by value numbering over extended
-       basic blocks. *)
-
-    [@@@ocaml.warning "-67"]
-    module Make (CSE : CSE_type.S with module Arch := Arch) : sig
-      val fundecl: Mach_type.Make(Arch).fundecl -> Mach_type.Make(Arch).fundecl
-    end
-
+  (* Common subexpression elimination by value numbering over extended
+     basic blocks. *)
+  [@@@ocaml.warning "-67"]
+  module CSE : functor (CSE : CSE_type.S with module Arch := Arch) -> sig
+    val fundecl: Mach_type.Make(Arch).fundecl -> Mach_type.Make(Arch).fundecl
   end
 
-  module Selection : sig
-    (* Selection of pseudo-instructions, assignment of pseudo-registers,
-       sequentialization. *)
 
-    [@@@ocaml.warning "-67"]
-    module Make (S : Selector.S with module Arch := Arch) : sig
-      val fundecl: Cmm.fundecl -> Mach_type.Make(Arch).fundecl
-    end
-
+  (* Selection of pseudo-instructions, assignment of pseudo-registers,
+     sequentialization. *)
+  [@@@ocaml.warning "-67"]
+  module Selection : functor (S : Selector.S with module Arch := Arch) -> sig
+    val fundecl: Cmm.fundecl -> Mach_type.Make(Arch).fundecl
   end
 
-  module Reload : sig
-    (* Insert load/stores for pseudoregs that got assigned to stack locations. *)
-
-    [@@@ocaml.warning "-67"]
-    module Make (S : Reload_type.S with module Arch := Arch) : sig
-      val fundecl:
-        Mach_type.Make(Arch).fundecl -> int array ->
-        Mach_type.Make(Arch).fundecl * bool
-    end
+  (* Insert load/stores for pseudoregs that got assigned to stack locations. *)
+  [@@@ocaml.warning "-67"]
+  module Reload : functor (S : Reload_type.S with module Arch := Arch) -> sig
+    val fundecl:
+      Mach_type.Make(Arch).fundecl -> int array ->
+      Mach_type.Make(Arch).fundecl * bool
   end
 
-  module Scheduling : sig
-    (* Instruction scheduling *)
-
-    [@@@ocaml.warning "-67"]
-    module Make (S : Scheduler.S with module Arch := Arch) : sig
-      val fundecl: Linear_type.Make(Arch).fundecl -> Linear_type.Make(Arch).fundecl
-    end
+  (* Instruction scheduling *)
+  [@@@ocaml.warning "-67"]
+  module Scheduling : functor (S : Scheduler.S with module Arch := Arch) -> sig
+    val fundecl: Linear_type.Make(Arch).fundecl -> Linear_type.Make(Arch).fundecl
   end
 
-  module Emit : sig
-    (* Generation of assembly code *)
+  (* Generation of assembly code *)
+  [@@@ocaml.warning "-67"]
+  module Emit : functor
+    (Emit_param : sig
+       module Mach : Mach_type.S with module Arch := Arch
+       module Linear : Linear_type.S with module Arch := Arch
+     end) -> sig
 
-    module Make
-        (_ : Mach_type.S with module Arch := Arch)
-        (Linear : Linear_type.S with module Arch := Arch) : sig
+    module Emitaux : Emitaux.S
 
-      module Emitaux : Emitaux.S
+    val fundecl: Emit_param.Linear.fundecl -> unit
+    val data: Cmm.data_item list -> unit
+    val begin_assembly: Compilation_unit.t -> unit
+    val end_assembly: Compilation_unit.t -> unit
 
-      val fundecl: Linear.fundecl -> unit
-      val data: Cmm.data_item list -> unit
-      val begin_assembly: Compilation_unit.t -> unit
-      val end_assembly: Compilation_unit.t -> unit
-
-    end
   end
 
 end

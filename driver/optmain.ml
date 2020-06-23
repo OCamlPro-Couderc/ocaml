@@ -17,7 +17,7 @@ open Clflags
 open Compenv
 
 open Optcompile.Backend
-open Amd64
+open Backend_instantiation.Arch
 
 module Backend = struct
   (* See backend_intf.mli. *)

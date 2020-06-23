@@ -13,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module Backend : module type of Backend_maker(Amd64)
+module Backend : module type of Backend_instantiation.Instance
 
 (** Native compilation for .ml and .mli files. *)
 

@@ -16,15 +16,13 @@
 
 (* Emission of PowerPC assembly code *)
 
-module Make
-        (Mach : Mach_type.S with module Arch := Arch)
-        (Linear : Linear_type.S with module Arch := Arch) = struct
 [@@@ocaml.warning "-40"]
 
 open Cmm
 open Arch
 open Proc
 open Reg
+open Emit_param
 open Mach
 open Linear
 module Emitaux = Emitaux.Make(Arch)
@@ -1243,5 +1241,3 @@ let end_assembly comp_unit =
       Hashtbl.clear tocref_entries
   end;
   `	.section .note.GNU-stack,\"\",%progbits\n`
-
-    end

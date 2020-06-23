@@ -15,9 +15,6 @@
 (**************************************************************************)
 
 (* Emission of Intel x86_64 assembly code *)
-module Make
-        (_ : Mach_type.S with module Arch := Arch)
-        (Linear : Linear_type.S with module Arch := Arch) = struct
 [@@@ocaml.warning "-40"]
 
 open Cmm
@@ -31,6 +28,7 @@ module String = Misc.Stdlib.String
 module Int = Numbers.Int
 module Emitaux = Emitaux.Make(Arch)
 open Emitaux
+open Emit_param
 open Mach
 open Linear
 
@@ -1183,5 +1181,3 @@ let end_assembly cu =
       None
   in
   X86_proc.generate_code asm
-
-end

@@ -17,9 +17,6 @@
 (**************************************************************************)
 
 (* Emission of ARM assembly code, 64-bit mode *)
-module Make
-        (Mach : Mach_type.S with module Arch := Arch)
-        (Linear : Linear_type.S with module Arch := Arch) = struct
 [@@@ocaml.warning "-40"]
 
 open Misc
@@ -27,6 +24,7 @@ open Cmm
 open Arch
 open Proc
 open Reg
+open Emit_param
 open Mach
 open Linear
 
@@ -1062,5 +1060,3 @@ let end_assembly comp_unit =
       `	.section	.note.GNU-stack,\"\",%progbits\n`
   | _ -> ()
   end
-
-    end

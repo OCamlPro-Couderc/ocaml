@@ -14,8 +14,8 @@
 (**************************************************************************)
 
 open Clflags
-open Amd64
-open Backend_maker(Amd64)
+open Backend_instantiation.Instance
+open Arch_instantiation
 module Emitaux = Emit.Emitaux
 let write_asm_file = ref false
 

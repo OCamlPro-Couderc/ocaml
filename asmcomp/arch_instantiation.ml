@@ -17,13 +17,18 @@ module Arch = Arch_specific.Arch
 
 module Proc = Arch_specific.Proc
 
-module CSE = Arch_specific.CSE.Make(CSEgen)
+module CSE = Arch_specific.CSE(CSEgen)
 
-module Emit = Arch_specific.Emit.Make(Mach)(Linear)
+module Emit_arg = struct
+  module Mach = Mach
+  module Linear = Linear
+end
+
+module Emit = Arch_specific.Emit(Emit_arg)
 
 module Emitaux = Emit.Emitaux
 
-module Reload = Arch_specific.Reload.Make(Reloadgen)
+module Reload = Arch_specific.Reload(Reloadgen)
 
 module Selector_arg = struct
 
@@ -43,6 +48,6 @@ module Selector_arg = struct
 
 end
 
-module Selection = Arch_specific.Selection.Make(Selector_arg)
+module Selection = Arch_specific.Selection(Selector_arg)
 
-module Scheduling = Arch_specific.Scheduling.Make(Schedgen)
+module Scheduling = Arch_specific.Scheduling(Schedgen)

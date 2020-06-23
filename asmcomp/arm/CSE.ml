@@ -19,26 +19,22 @@ open Arch
 open Mach_type.Make(Arch)
 open CSE_type
 
-module Make (CSE : CSE_type.S with module Arch := Arch) = struct
+class cse = object
 
-  class cse = object
+  inherit CSE_param.cse_generic as super
 
-    inherit CSE.cse_generic as super
+  method! class_of_operation op =
+    match op with
+    | Ispecific(Ishiftcheckbound _) -> Op_checkbound
+    | Ispecific _ -> Op_pure
+    | _ -> super#class_of_operation op
 
-    method! class_of_operation op =
-      match op with
-      | Ispecific(Ishiftcheckbound _) -> Op_checkbound
-      | Ispecific _ -> Op_pure
-      | _ -> super#class_of_operation op
-
-    method! is_cheap_operation op =
-      match op with
-      | Iconst_int n -> n <= 255n && n >= 0n
-      | _ -> false
-
-  end
-
-  let fundecl f =
-    (new cse)#fundecl f
+  method! is_cheap_operation op =
+    match op with
+    | Iconst_int n -> n <= 255n && n >= 0n
+    | _ -> false
 
 end
+
+let fundecl f =
+  (new cse)#fundecl f

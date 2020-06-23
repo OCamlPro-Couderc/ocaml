@@ -1,4 +1,6 @@
-let select_arch arch : (module Backend_parameter.S) =
+module type Backend = functor () -> Backend_parameter.S
+
+let select_arch arch : (module Backend) =
   match arch with
     "amd64" -> (module Amd64)
   | "arm" -> (module Arm)
@@ -8,6 +10,7 @@ let select_arch arch : (module Backend_parameter.S) =
   | "s390x" -> (module S390x)
   | _ -> assert false
 
-module Arch = (val (select_arch Config.architecture))
+module Current_arch = (val (select_arch Config.architecture))
+module Arch = Current_arch()
 
-module Instance = Backend_maker(Amd64)
+module Instance = Backend_maker(Arch)

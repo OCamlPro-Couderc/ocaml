@@ -5852,9 +5852,8 @@ asmcomp/amd64/emit.cmo : \
     asmcomp/amd64/proc.cmo \
     utils/numbers.cmi \
     utils/misc.cmi \
-    asmcomp/mach_type.cmi \
     asmcomp/mach.cmi \
-    asmcomp/linear_type.cmi \
+    asmcomp/linear.cmi \
     lambda/lambda.cmi \
     asmcomp/emitaux.cmi \
     utils/domainstate.cmi \
@@ -5874,9 +5873,8 @@ asmcomp/amd64/emit.cmx : \
     asmcomp/amd64/proc.cmx \
     utils/numbers.cmx \
     utils/misc.cmx \
-    asmcomp/mach_type.cmx \
     asmcomp/mach.cmx \
-    asmcomp/linear_type.cmx \
+    asmcomp/linear.cmx \
     lambda/lambda.cmx \
     asmcomp/emitaux.cmx \
     utils/domainstate.cmx \
@@ -5902,25 +5900,18 @@ asmcomp/amd64/proc.cmx : \
     asmcomp/cmm.cmx \
     asmcomp/amd64/arch.cmx
 asmcomp/amd64/reload.cmo : \
-    asmcomp/reload_type.cmi \
     asmcomp/reg.cmi \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/amd64/reload.cmx : \
-    asmcomp/reload_type.cmx \
     asmcomp/reg.cmx \
     asmcomp/cmm.cmx \
     utils/clflags.cmx \
     asmcomp/amd64/arch.cmx
-asmcomp/amd64/scheduling.cmo : \
-    asmcomp/scheduler.cmo \
-    asmcomp/amd64/arch.cmo
-asmcomp/amd64/scheduling.cmx : \
-    asmcomp/scheduler.cmx \
-    asmcomp/amd64/arch.cmx
+asmcomp/amd64/scheduling.cmo :
+asmcomp/amd64/scheduling.cmx :
 asmcomp/amd64/selection.cmo : \
-    asmcomp/selector.cmo \
     asmcomp/amd64/proc.cmo \
     asmcomp/mach_type.cmi \
     utils/config.cmi \
@@ -5928,7 +5919,6 @@ asmcomp/amd64/selection.cmo : \
     utils/clflags.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/amd64/selection.cmx : \
-    asmcomp/selector.cmx \
     asmcomp/amd64/proc.cmx \
     asmcomp/mach_type.cmx \
     utils/config.cmx \
@@ -5964,8 +5954,8 @@ asmcomp/arm/emit.cmo : \
     asmcomp/reg.cmi \
     asmcomp/amd64/proc.cmo \
     utils/misc.cmi \
-    asmcomp/mach_type.cmi \
-    asmcomp/linear_type.cmi \
+    asmcomp/mach.cmi \
+    asmcomp/linear.cmi \
     lambda/lambda.cmi \
     asmcomp/emitaux.cmi \
     utils/domainstate.cmi \
@@ -5978,8 +5968,8 @@ asmcomp/arm/emit.cmx : \
     asmcomp/reg.cmx \
     asmcomp/amd64/proc.cmx \
     utils/misc.cmx \
-    asmcomp/mach_type.cmx \
-    asmcomp/linear_type.cmx \
+    asmcomp/mach.cmx \
+    asmcomp/linear.cmx \
     lambda/lambda.cmx \
     asmcomp/emitaux.cmx \
     utils/domainstate.cmx \
@@ -6006,30 +5996,24 @@ asmcomp/arm/proc.cmx : \
     utils/ccomp.cmx \
     asmcomp/amd64/arch.cmx
 asmcomp/arm/reload.cmo : \
-    asmcomp/reload_type.cmi \
     asmcomp/mach_type.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/arm/reload.cmx : \
-    asmcomp/reload_type.cmx \
     asmcomp/mach_type.cmx \
     asmcomp/amd64/arch.cmx
 asmcomp/arm/scheduling.cmo : \
-    asmcomp/scheduler.cmo \
     asmcomp/mach_type.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/arm/scheduling.cmx : \
-    asmcomp/scheduler.cmx \
     asmcomp/mach_type.cmx \
     asmcomp/amd64/arch.cmx
 asmcomp/arm/selection.cmo : \
-    asmcomp/selector.cmo \
     asmcomp/reg.cmi \
     asmcomp/amd64/proc.cmo \
     asmcomp/mach_type.cmi \
     asmcomp/cmm.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/arm/selection.cmx : \
-    asmcomp/selector.cmx \
     asmcomp/reg.cmx \
     asmcomp/amd64/proc.cmx \
     asmcomp/mach_type.cmx \
@@ -6062,8 +6046,8 @@ asmcomp/arm64/emit.cmo : \
     asmcomp/reg.cmi \
     asmcomp/amd64/proc.cmo \
     utils/misc.cmi \
-    asmcomp/mach_type.cmi \
-    asmcomp/linear_type.cmi \
+    asmcomp/mach.cmi \
+    asmcomp/linear.cmi \
     lambda/lambda.cmi \
     asmcomp/emitaux.cmi \
     utils/domainstate.cmi \
@@ -6077,8 +6061,8 @@ asmcomp/arm64/emit.cmx : \
     asmcomp/reg.cmx \
     asmcomp/amd64/proc.cmx \
     utils/misc.cmx \
-    asmcomp/mach_type.cmx \
-    asmcomp/linear_type.cmx \
+    asmcomp/mach.cmx \
+    asmcomp/linear.cmx \
     lambda/lambda.cmx \
     asmcomp/emitaux.cmx \
     utils/domainstate.cmx \
@@ -6103,26 +6087,16 @@ asmcomp/arm64/proc.cmx : \
     asmcomp/cmm.cmx \
     utils/ccomp.cmx \
     asmcomp/amd64/arch.cmx
-asmcomp/arm64/reload.cmo : \
-    asmcomp/reload_type.cmi \
-    asmcomp/amd64/arch.cmo
-asmcomp/arm64/reload.cmx : \
-    asmcomp/reload_type.cmx \
-    asmcomp/amd64/arch.cmx
-asmcomp/arm64/scheduling.cmo : \
-    asmcomp/scheduler.cmo \
-    asmcomp/amd64/arch.cmo
-asmcomp/arm64/scheduling.cmx : \
-    asmcomp/scheduler.cmx \
-    asmcomp/amd64/arch.cmx
+asmcomp/arm64/reload.cmo :
+asmcomp/arm64/reload.cmx :
+asmcomp/arm64/scheduling.cmo :
+asmcomp/arm64/scheduling.cmx :
 asmcomp/arm64/selection.cmo : \
-    asmcomp/selector.cmo \
     asmcomp/mach_type.cmi \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/arm64/selection.cmx : \
-    asmcomp/selector.cmx \
     asmcomp/mach_type.cmx \
     asmcomp/cmm.cmx \
     utils/clflags.cmx \
@@ -6147,6 +6121,7 @@ asmcomp/i386/emit.cmo : \
     asmcomp/x86_gas.cmi \
     asmcomp/x86_dsl.cmi \
     asmcomp/x86_ast.cmi \
+    middle_end/symbol.cmi \
     asmcomp/reg.cmi \
     asmcomp/amd64/proc.cmo \
     utils/misc.cmi \
@@ -6165,6 +6140,7 @@ asmcomp/i386/emit.cmx : \
     asmcomp/x86_gas.cmx \
     asmcomp/x86_dsl.cmx \
     asmcomp/x86_ast.cmi \
+    middle_end/symbol.cmx \
     asmcomp/reg.cmx \
     asmcomp/amd64/proc.cmx \
     utils/misc.cmx \
@@ -6196,32 +6172,24 @@ asmcomp/i386/proc.cmx : \
     asmcomp/cmm.cmx \
     asmcomp/amd64/arch.cmx
 asmcomp/i386/reload.cmo : \
-    asmcomp/reload_type.cmi \
     asmcomp/reg.cmi \
     asmcomp/mach_type.cmi \
     asmcomp/cmm.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/i386/reload.cmx : \
-    asmcomp/reload_type.cmx \
     asmcomp/reg.cmx \
     asmcomp/mach_type.cmx \
     asmcomp/cmm.cmx \
     asmcomp/amd64/arch.cmx
-asmcomp/i386/scheduling.cmo : \
-    asmcomp/scheduler.cmo \
-    asmcomp/amd64/arch.cmo
-asmcomp/i386/scheduling.cmx : \
-    asmcomp/scheduler.cmx \
-    asmcomp/amd64/arch.cmx
+asmcomp/i386/scheduling.cmo :
+asmcomp/i386/scheduling.cmx :
 asmcomp/i386/selection.cmo : \
-    asmcomp/selector.cmo \
     asmcomp/amd64/proc.cmo \
     utils/misc.cmi \
     asmcomp/mach_type.cmi \
     asmcomp/cmm.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/i386/selection.cmx : \
-    asmcomp/selector.cmx \
     asmcomp/amd64/proc.cmx \
     utils/misc.cmx \
     asmcomp/mach_type.cmx \
@@ -6237,43 +6205,35 @@ asmcomp/power/CSE.cmx : \
     asmcomp/amd64/arch.cmx
 asmcomp/power/arch.cmo : \
     lambda/debuginfo.cmi \
-    utils/config.cmi \
-    asmcomp/backend_sym.cmi
+    utils/config.cmi
 asmcomp/power/arch.cmx : \
     lambda/debuginfo.cmx \
-    utils/config.cmx \
-    asmcomp/backend_sym.cmx
+    utils/config.cmx
 asmcomp/power/emit.cmo : \
     asmcomp/reg.cmi \
     asmcomp/amd64/proc.cmo \
     utils/misc.cmi \
-    asmcomp/mach_type.cmi \
-    asmcomp/linear_type.cmi \
+    asmcomp/mach.cmi \
+    asmcomp/linear.cmi \
     lambda/lambda.cmi \
     asmcomp/emitaux.cmi \
     utils/domainstate.cmi \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
     asmcomp/branch_relaxation.cmi \
-    asmcomp/backend_sym.cmi \
-    asmcomp/backend_compilation_unit.cmi \
-    asmcomp/asm_target/asm_symbol.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/power/emit.cmx : \
     asmcomp/reg.cmx \
     asmcomp/amd64/proc.cmx \
     utils/misc.cmx \
-    asmcomp/mach_type.cmx \
-    asmcomp/linear_type.cmx \
+    asmcomp/mach.cmx \
+    asmcomp/linear.cmx \
     lambda/lambda.cmx \
     asmcomp/emitaux.cmx \
     utils/domainstate.cmx \
     asmcomp/cmm.cmx \
     utils/clflags.cmx \
     asmcomp/branch_relaxation.cmx \
-    asmcomp/backend_sym.cmx \
-    asmcomp/backend_compilation_unit.cmx \
-    asmcomp/asm_target/asm_symbol.cmx \
     asmcomp/amd64/arch.cmx
 asmcomp/power/power.cmi : \
     asmcomp/backend_parameter.cmo
@@ -6293,33 +6253,23 @@ asmcomp/power/proc.cmx : \
     asmcomp/cmm.cmx \
     utils/ccomp.cmx \
     asmcomp/amd64/arch.cmx
-asmcomp/power/reload.cmo : \
-    asmcomp/reload_type.cmi \
-    asmcomp/amd64/arch.cmo
-asmcomp/power/reload.cmx : \
-    asmcomp/reload_type.cmx \
-    asmcomp/amd64/arch.cmx
+asmcomp/power/reload.cmo :
+asmcomp/power/reload.cmx :
 asmcomp/power/scheduling.cmo : \
-    asmcomp/scheduler.cmo \
     asmcomp/mach_type.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/power/scheduling.cmx : \
-    asmcomp/scheduler.cmx \
     asmcomp/mach_type.cmx \
     asmcomp/amd64/arch.cmx
 asmcomp/power/selection.cmo : \
-    asmcomp/selector.cmo \
     asmcomp/mach_type.cmi \
     lambda/debuginfo.cmi \
     asmcomp/cmm.cmi \
-    asmcomp/backend_sym.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/power/selection.cmx : \
-    asmcomp/selector.cmx \
     asmcomp/mach_type.cmx \
     lambda/debuginfo.cmx \
     asmcomp/cmm.cmx \
-    asmcomp/backend_sym.cmx \
     asmcomp/amd64/arch.cmx
 asmcomp/s390x/CSE.cmo : \
     asmcomp/mach_type.cmi \
@@ -6335,29 +6285,25 @@ asmcomp/s390x/emit.cmo : \
     asmcomp/reg.cmi \
     asmcomp/amd64/proc.cmo \
     utils/misc.cmi \
-    asmcomp/mach_type.cmi \
-    asmcomp/linear_type.cmi \
+    asmcomp/mach.cmi \
+    asmcomp/linear.cmi \
     lambda/lambda.cmi \
     asmcomp/emitaux.cmi \
     utils/domainstate.cmi \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
-    asmcomp/backend_sym.cmi \
-    asmcomp/asm_target/asm_symbol.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/s390x/emit.cmx : \
     asmcomp/reg.cmx \
     asmcomp/amd64/proc.cmx \
     utils/misc.cmx \
-    asmcomp/mach_type.cmx \
-    asmcomp/linear_type.cmx \
+    asmcomp/mach.cmx \
+    asmcomp/linear.cmx \
     lambda/lambda.cmx \
     asmcomp/emitaux.cmx \
     utils/domainstate.cmx \
     asmcomp/cmm.cmx \
     utils/clflags.cmx \
-    asmcomp/backend_sym.cmx \
-    asmcomp/asm_target/asm_symbol.cmx \
     asmcomp/amd64/arch.cmx
 asmcomp/s390x/proc.cmo : \
     asmcomp/reg.cmi \
@@ -6376,30 +6322,24 @@ asmcomp/s390x/proc.cmx : \
     utils/ccomp.cmx \
     asmcomp/amd64/arch.cmx
 asmcomp/s390x/reload.cmo : \
-    asmcomp/reload_type.cmi \
     asmcomp/mach_type.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/s390x/reload.cmx : \
-    asmcomp/reload_type.cmx \
     asmcomp/mach_type.cmx \
     asmcomp/amd64/arch.cmx
 asmcomp/s390x/s390x.cmi : \
     asmcomp/backend_parameter.cmo
 asmcomp/s390x/scheduling.cmo : \
-    asmcomp/scheduler.cmo \
     asmcomp/mach_type.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/s390x/scheduling.cmx : \
-    asmcomp/scheduler.cmx \
     asmcomp/mach_type.cmx \
     asmcomp/amd64/arch.cmx
 asmcomp/s390x/selection.cmo : \
-    asmcomp/selector.cmo \
     asmcomp/mach_type.cmi \
     asmcomp/cmm.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/s390x/selection.cmx : \
-    asmcomp/selector.cmx \
     asmcomp/mach_type.cmx \
     asmcomp/cmm.cmx \
     asmcomp/amd64/arch.cmx
@@ -6701,7 +6641,7 @@ driver/optcompile.cmi : \
     typing/typedtree.cmi \
     driver/compile_common.cmi \
     middle_end/backend_intf.cmi \
-    asmcomp/amd64/amd64.cmi
+    driver/backend_instantiation.cmo
 driver/opterrors.cmo : \
     parsing/location.cmi \
     driver/opterrors.cmi
@@ -6722,11 +6662,11 @@ driver/optmain.cmo : \
     driver/compenv.cmi \
     utils/clflags.cmi \
     middle_end/backend_intf.cmi \
+    driver/backend_instantiation.cmo \
     asmcomp/asmpackager.cmi \
     asmcomp/asmlink.cmi \
     asmcomp/asmlibrarian.cmi \
     asmcomp/amd64/arch.cmo \
-    asmcomp/amd64/amd64.cmi \
     driver/optmain.cmi
 driver/optmain.cmx : \
     utils/warnings.cmx \
@@ -6741,11 +6681,11 @@ driver/optmain.cmx : \
     driver/compenv.cmx \
     utils/clflags.cmx \
     middle_end/backend_intf.cmi \
+    driver/backend_instantiation.cmx \
     asmcomp/asmpackager.cmx \
     asmcomp/asmlink.cmx \
     asmcomp/asmlibrarian.cmx \
     asmcomp/amd64/arch.cmx \
-    asmcomp/amd64/amd64.cmx \
     driver/optmain.cmi
 driver/optmain.cmi :
 driver/pparse.cmo : \

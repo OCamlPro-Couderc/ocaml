@@ -19,27 +19,23 @@ open Arch
 open CSE_type
 open Mach_type.Make(Arch)
 
-module Make (CSE : CSE_type.S with module Arch := Arch) = struct
+class cse = object
 
-  class cse = object
+  inherit CSE_param.cse_generic as super
 
-    inherit CSE.cse_generic as super
-
-    method! class_of_operation op =
-      match op with
-      | Ispecific spec ->
-          begin match spec with
-          | Ilea _ | Isextend32 | Izextend32 -> Op_pure
-          | Istore_int(_, _, is_asg) -> Op_store is_asg
-          | Ioffset_loc(_, _) -> Op_store true
-          | Ifloatarithmem _ | Ifloatsqrtf _ -> Op_load
-          | Ibswap _ | Isqrtf -> super#class_of_operation op
-          end
-      | _ -> super#class_of_operation op
-
-  end
-
-  let fundecl f =
-    (new cse)#fundecl f
+  method! class_of_operation op =
+    match op with
+    | Ispecific spec ->
+        begin match spec with
+        | Ilea _ | Isextend32 | Izextend32 -> Op_pure
+        | Istore_int(_, _, is_asg) -> Op_store is_asg
+        | Ioffset_loc(_, _) -> Op_store true
+        | Ifloatarithmem _ | Ifloatsqrtf _ -> Op_load
+        | Ibswap _ | Isqrtf -> super#class_of_operation op
+        end
+    | _ -> super#class_of_operation op
 
 end
+
+let fundecl f =
+  (new cse)#fundecl f
