@@ -1707,25 +1707,26 @@ let transl_functorized_package_gen components params dependencies =
     body = instanciation;
   }
 
-let transl_functorized_package components params dependencies =
+let transl_functorized_package components params dependencies coercion =
   let functor_pack =
     transl_functorized_package_gen components params dependencies in
   let id = Ident.create_local "functor_pack" in
   Llet (Strict, Pgenval, id,
-        functor_pack,
+        apply_coercion Location.none Strict coercion functor_pack,
         Lprim(Pmakeblock(0, Immutable, None), [Lvar id], Location.none))
 
 
-let transl_package_body current_unit components params functor_dependencies =
+let transl_package_body current_unit components params functor_dependencies coercion =
   (* The current package is either itself a functor or inside a functorized pack
   *)
   if Compilation_unit.Prefix.in_functor (Compilation_unit.for_pack_prefix current_unit) ||
      params <> [] || functor_dependencies <> [] then
-    transl_functorized_package components params functor_dependencies
+    transl_functorized_package components params functor_dependencies coercion
   else
-    Lprim(Pmakeblock(0, Immutable, None),
+    apply_coercion Location.none Strict coercion
+      (Lprim(Pmakeblock(0, Immutable, None),
           List.map get_component components,
-          Location.none)
+          Location.none))
 
 let transl_package_flambda current_unit components functor_dependencies coercion =
   let size =
@@ -1738,16 +1739,15 @@ let transl_package_flambda current_unit components functor_dependencies coercion
     | Tcoerce_alias _ -> assert false
   in
   size,
-  apply_coercion Location.none Strict coercion
-    (transl_package_body current_unit
-       components !Clflags.functor_parameters functor_dependencies)
+  transl_package_body current_unit
+       components !Clflags.functor_parameters functor_dependencies coercion
 
 let transl_package current_unit components functor_dependencies coercion =
   let module_name = transl_current_module_ident current_unit in
   let parameters = !Clflags.functor_parameters in
   Lprim(Psetglobal module_name,
-        [apply_coercion Location.none Strict coercion
-           (transl_package_body current_unit components parameters functor_dependencies)],
+        [transl_package_body
+           current_unit components parameters functor_dependencies coercion],
         Location.none)
   (*
   let components =
