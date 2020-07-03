@@ -423,7 +423,8 @@ module Flambda_only = struct
     let current_path = CU.full_path current_comp_unit in
     let prefix_result =
       Misc.Stdlib.List.find_and_chop_longest_common_prefix
-        ~equal:CU.Prefix.equal_component
+        ~equal:(fun (CU.Prefix.Pack (p1, _)) (CU.Prefix.Pack (p2, _)) ->
+            CU.Name.equal p1 p2)
         ~first:desired_path ~second:current_path
     in
     let for_pack_prefix = prefix_result.longest_common_prefix in
