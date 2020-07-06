@@ -6343,6 +6343,22 @@ asmcomp/s390x/selection.cmx : \
     asmcomp/mach_type.cmx \
     asmcomp/cmm.cmx \
     asmcomp/amd64/arch.cmx
+asmcomp/parameters/CSE_param.cmi : \
+    asmcomp/CSE_type.cmo \
+    asmcomp/amd64/arch.cmo
+asmcomp/parameters/emit_param.cmi : \
+    asmcomp/mach_type.cmi \
+    asmcomp/linear_type.cmi \
+    asmcomp/amd64/arch.cmo
+asmcomp/parameters/reload_param.cmi : \
+    asmcomp/reload_type.cmi \
+    asmcomp/amd64/arch.cmo
+asmcomp/parameters/scheduling_param.cmi : \
+    asmcomp/scheduler.cmo \
+    asmcomp/amd64/arch.cmo
+asmcomp/parameters/selection_param.cmi : \
+    asmcomp/selector.cmo \
+    asmcomp/amd64/arch.cmo
 driver/backend_instantiation.cmo : \
     asmcomp/s390x/s390x.cmi \
     asmcomp/power/power.cmi \

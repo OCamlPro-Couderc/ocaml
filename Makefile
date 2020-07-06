@@ -1065,7 +1065,7 @@ partialclean::
            lambda middle_end/closure middle_end/flambda \
            middle_end/flambda/base_types asmcomp/debug \
            asmcomp/amd64 asmcomp/arm asmcomp/arm64 asmcomp/i386 \
-	   asmcomp/power asmcomp/s390x \
+	   asmcomp/power asmcomp/s390x asmcomp/parameters \
 	   driver toplevel tools; do \
 	  rm -f $$d/*.cm[ioxt] $$d/*.cmti $$d/*.annot $$d/*.$(S) \
 	    $$d/*.$(O) $$d/*.$(SO); \
@@ -1077,7 +1077,7 @@ depend: beforedepend
          lambda file_formats middle_end/closure middle_end/flambda \
          middle_end/flambda/base_types asmcomp/debug \
          asmcomp/amd64 asmcomp/arm asmcomp/arm64 asmcomp/i386 \
-	 asmcomp/power asmcomp/s390x \
+	 asmcomp/power asmcomp/s390x asmcomp/parameters \
 	 driver toplevel; \
          do $(CAMLDEP) $(DEPFLAGS) $(DEPINCLUDES) $$d/*.mli $$d/*.ml || exit; \
          done) > .depend
