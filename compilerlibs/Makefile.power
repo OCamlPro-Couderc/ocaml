@@ -39,7 +39,7 @@ $(ASMCOMP_ARCH_PARAMS_POWER): %.cmo: %.ml
 $(ASMCOMP_ARCH_PARAMS_POWER:%.cmo=%.cmx): %.cmx: %.ml
 	$(CAMLOPT) $(COMPFLAGS_POWER) -c -for-pack "Power()" $<
 
-asmcomp/power/CSE_param.cmi: asmcomp/parameters/CSE_param.mli
+asmcomp/power/CSE_param.cmi: asmcomp/parameters/CSE_param.mli asmcomp/CSE_type.cmo
 	$(CAMLC) $(COMPFLAGS_POWER) -o $@ -c -parameter-of "Power()".CSE $<
 
 asmcomp/power/CSE.cmo: asmcomp/power/CSE.ml asmcomp/power/CSE_param.cmi
@@ -49,7 +49,7 @@ asmcomp/power/CSE.cmx: asmcomp/power/CSE.ml asmcomp/power/CSE_param.cmi
 	$(CAMLOPT) $(COMPFLAGS_POWER) -c -for-pack "Power()" -parameter CSE_param $<
 
 
-asmcomp/power/selection_param.cmi: asmcomp/parameters/selection_param.mli
+asmcomp/power/selection_param.cmi: asmcomp/parameters/selection_param.mli asmcomp/selection_type.cmo
 	$(CAMLC) $(COMPFLAGS_POWER) -o $@ -c -parameter-of "Power()".Selection $<
 
 asmcomp/power/selection.cmo: asmcomp/power/selection.ml asmcomp/power/selection_param.cmi
@@ -59,7 +59,7 @@ asmcomp/power/selection.cmx: asmcomp/power/selection.ml asmcomp/power/selection_
 	$(CAMLOPT) $(COMPFLAGS_POWER) -c -for-pack "Power()" -parameter Selection_param $<
 
 
-asmcomp/power/reload_param.cmi: asmcomp/parameters/reload_param.mli
+asmcomp/power/reload_param.cmi: asmcomp/parameters/reload_param.mli asmcomp/reload_type.cmo
 	$(CAMLC) $(COMPFLAGS_POWER) -o $@ -c -parameter-of "Power()".Reload $<
 
 asmcomp/power/reload.cmo: asmcomp/power/reload.ml asmcomp/power/reload_param.cmi
@@ -69,7 +69,7 @@ asmcomp/power/reload.cmx: asmcomp/power/reload.ml asmcomp/power/reload_param.cmi
 	$(CAMLOPT) $(COMPFLAGS_POWER) -c -for-pack "Power()" -parameter Reload_param $<
 
 
-asmcomp/power/scheduling_param.cmi: asmcomp/parameters/scheduling_param.mli
+asmcomp/power/scheduling_param.cmi: asmcomp/parameters/scheduling_param.mli asmcomp/scheduling_type.cmo
 	$(CAMLC) $(COMPFLAGS_POWER) -o $@ -c -parameter-of "Power()".Scheduling $<
 
 asmcomp/power/scheduling.cmo: asmcomp/power/scheduling.ml asmcomp/power/scheduling_param.cmi
@@ -79,7 +79,7 @@ asmcomp/power/scheduling.cmx: asmcomp/power/scheduling.ml asmcomp/power/scheduli
 	$(CAMLOPT) $(COMPFLAGS_POWER) -c -for-pack "Power()" -parameter Scheduling_param $<
 
 
-asmcomp/power/emit_param.cmi: asmcomp/parameters/emit_param.mli
+asmcomp/power/emit_param.cmi: asmcomp/parameters/emit_param.mli asmcomp/mach_type.cmi asmcomp/linear_type.cmi
 	$(CAMLC) $(COMPFLAGS_POWER) -o $@ -c -parameter-of "Power()".Emit $<
 
 asmcomp/power/emit.cmo: asmcomp/power/emit.ml asmcomp/power/emit_param.cmi

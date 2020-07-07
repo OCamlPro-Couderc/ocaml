@@ -24,6 +24,6 @@ type code_dag_node =
     mutable ancestors: int;
     mutable emitted_ancestors: int }
 
-include Scheduler.S with module Arch := Arch_specific.Arch
+include Scheduling_type.S with module Arch := Arch_specific.Arch
 
 val reset : unit -> unit

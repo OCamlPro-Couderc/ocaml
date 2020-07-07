@@ -16,7 +16,7 @@
 (* Selection of pseudo-instructions, assignment of pseudo-registers,
    sequentialization. *)
 
-include Selector.S with module Arch := Arch_specific.Arch
+include Selection_type.S with module Arch := Arch_specific.Arch
 
 val env_add
    : Backend_var.With_provenance.t

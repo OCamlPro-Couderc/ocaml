@@ -120,7 +120,7 @@ module type S = sig
   (* Selection of pseudo-instructions, assignment of pseudo-registers,
      sequentialization. *)
   [@@@ocaml.warning "-67"]
-  module Selection : functor (S : Selector.S with module Arch := Arch) -> sig
+  module Selection : functor (S : Selection_type.S with module Arch := Arch) -> sig
     val fundecl: Cmm.fundecl -> Mach_type.Make(Arch).fundecl
   end
 
@@ -134,7 +134,7 @@ module type S = sig
 
   (* Instruction scheduling *)
   [@@@ocaml.warning "-67"]
-  module Scheduling : functor (S : Scheduler.S with module Arch := Arch) -> sig
+  module Scheduling : functor (S : Scheduling_type.S with module Arch := Arch) -> sig
     val fundecl: Linear_type.Make(Arch).fundecl -> Linear_type.Make(Arch).fundecl
   end
 

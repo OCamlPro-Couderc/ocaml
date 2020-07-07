@@ -2277,8 +2277,8 @@ asmcomp/asmpackager.cmi : \
     utils/compilation_unit.cmi \
     middle_end/backend_intf.cmi
 asmcomp/backend_parameter.cmo : \
-    asmcomp/selector.cmo \
-    asmcomp/scheduler.cmo \
+    asmcomp/selection_type.cmo \
+    asmcomp/scheduling_type.cmo \
     asmcomp/reload_type.cmi \
     asmcomp/reg.cmi \
     asmcomp/mach_type.cmi \
@@ -2288,8 +2288,8 @@ asmcomp/backend_parameter.cmo : \
     asmcomp/cmm.cmi \
     asmcomp/CSE_type.cmo
 asmcomp/backend_parameter.cmx : \
-    asmcomp/selector.cmx \
-    asmcomp/scheduler.cmx \
+    asmcomp/selection_type.cmx \
+    asmcomp/scheduling_type.cmx \
     asmcomp/reload_type.cmx \
     asmcomp/reg.cmx \
     asmcomp/mach_type.cmx \
@@ -2874,14 +2874,13 @@ asmcomp/schedgen.cmx : \
     asmcomp/amd64/arch.cmx \
     asmcomp/schedgen.cmi
 asmcomp/schedgen.cmi : \
-    asmcomp/scheduler.cmo \
     asmcomp/linear.cmi \
     asmcomp/arch_specific.cmi
-asmcomp/scheduler.cmo : \
+asmcomp/scheduling_type.cmo : \
     asmcomp/mach_type.cmi \
     asmcomp/linear_type.cmi \
     asmcomp/arch_type.cmi
-asmcomp/scheduler.cmx : \
+asmcomp/scheduling_type.cmx : \
     asmcomp/mach_type.cmx \
     asmcomp/linear_type.cmx \
     asmcomp/arch_type.cmx
@@ -2918,7 +2917,6 @@ asmcomp/selectgen.cmx : \
     asmcomp/amd64/arch.cmx \
     asmcomp/selectgen.cmi
 asmcomp/selectgen.cmi : \
-    asmcomp/selector.cmo \
     asmcomp/reg.cmi \
     asmcomp/cmm.cmi \
     middle_end/backend_var.cmi \
@@ -2935,14 +2933,14 @@ asmcomp/selection_specific.cmx : \
     asmcomp/schedgen.cmx \
     asmcomp/reloadgen.cmx \
     asmcomp/arch_specific.cmi
-asmcomp/selector.cmo : \
+asmcomp/selection_type.cmo : \
     asmcomp/reg.cmi \
     asmcomp/mach_type.cmi \
     lambda/debuginfo.cmi \
     asmcomp/cmm.cmi \
     middle_end/backend_var.cmi \
     asmcomp/arch_type.cmi
-asmcomp/selector.cmx : \
+asmcomp/selection_type.cmx : \
     asmcomp/reg.cmx \
     asmcomp/mach_type.cmx \
     lambda/debuginfo.cmx \
@@ -6354,10 +6352,10 @@ asmcomp/parameters/reload_param.cmi : \
     asmcomp/reload_type.cmi \
     asmcomp/amd64/arch.cmo
 asmcomp/parameters/scheduling_param.cmi : \
-    asmcomp/scheduler.cmo \
+    asmcomp/scheduling_type.cmo \
     asmcomp/amd64/arch.cmo
 asmcomp/parameters/selection_param.cmi : \
-    asmcomp/selector.cmo \
+    asmcomp/selection_type.cmo \
     asmcomp/amd64/arch.cmo
 driver/backend_instantiation.cmo : \
     asmcomp/s390x/s390x.cmi \

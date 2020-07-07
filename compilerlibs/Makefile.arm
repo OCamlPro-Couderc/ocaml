@@ -39,7 +39,7 @@ $(ASMCOMP_ARCH_PARAMS_ARM): %.cmo: %.ml
 $(ASMCOMP_ARCH_PARAMS_ARM:%.cmo=%.cmx): %.cmx: %.ml
 	$(CAMLOPT) $(COMPFLAGS_ARM) -c -for-pack "Arm()" $<
 
-asmcomp/arm/CSE_param.cmi: asmcomp/parameters/CSE_param.mli
+asmcomp/arm/CSE_param.cmi: asmcomp/parameters/CSE_param.mli asmcomp/CSE_type.cmo
 	$(CAMLC) $(COMPFLAGS_ARM) -o $@ -c -parameter-of "Arm()".CSE $<
 
 asmcomp/arm/CSE.cmo: asmcomp/arm/CSE.ml asmcomp/arm/CSE_param.cmi
@@ -49,7 +49,7 @@ asmcomp/arm/CSE.cmx: asmcomp/arm/CSE.ml asmcomp/arm/CSE_param.cmi
 	$(CAMLOPT) $(COMPFLAGS_ARM) -c -for-pack "Arm()" -parameter CSE_param $<
 
 
-asmcomp/arm/selection_param.cmi: asmcomp/parameters/selection_param.mli
+asmcomp/arm/selection_param.cmi: asmcomp/parameters/selection_param.mli asmcomp/selection_type.cmo
 	$(CAMLC) $(COMPFLAGS_ARM) -o $@ -c -parameter-of "Arm()".Selection $<
 
 asmcomp/arm/selection.cmo: asmcomp/arm/selection.ml asmcomp/arm/selection_param.cmi
@@ -59,7 +59,7 @@ asmcomp/arm/selection.cmx: asmcomp/arm/selection.ml asmcomp/arm/selection_param.
 	$(CAMLOPT) $(COMPFLAGS_ARM) -c -for-pack "Arm()" -parameter Selection_param $<
 
 
-asmcomp/arm/reload_param.cmi: asmcomp/parameters/reload_param.mli
+asmcomp/arm/reload_param.cmi: asmcomp/parameters/reload_param.mli  asmcomp/reload_type.cmo
 	$(CAMLC) $(COMPFLAGS_ARM) -o $@ -c -parameter-of "Arm()".Reload $<
 
 asmcomp/arm/reload.cmo: asmcomp/arm/reload.ml asmcomp/arm/reload_param.cmi
@@ -69,7 +69,7 @@ asmcomp/arm/reload.cmx: asmcomp/arm/reload.ml asmcomp/arm/reload_param.cmi
 	$(CAMLOPT) $(COMPFLAGS_ARM) -c -for-pack "Arm()" -parameter Reload_param $<
 
 
-asmcomp/arm/scheduling_param.cmi: asmcomp/parameters/scheduling_param.mli
+asmcomp/arm/scheduling_param.cmi: asmcomp/parameters/scheduling_param.mli asmcomp/scheduling_type.cmo
 	$(CAMLC) $(COMPFLAGS_ARM) -o $@ -c -parameter-of "Arm()".Scheduling $<
 
 asmcomp/arm/scheduling.cmo: asmcomp/arm/scheduling.ml asmcomp/arm/scheduling_param.cmi
@@ -79,7 +79,7 @@ asmcomp/arm/scheduling.cmx: asmcomp/arm/scheduling.ml asmcomp/arm/scheduling_par
 	$(CAMLOPT) $(COMPFLAGS_ARM) -c -for-pack "Arm()" -parameter Scheduling_param $<
 
 
-asmcomp/arm/emit_param.cmi: asmcomp/parameters/emit_param.mli
+asmcomp/arm/emit_param.cmi: asmcomp/parameters/emit_param.mli asmcomp/mach_type.cmi asmcomp/linear_type.cmi
 	$(CAMLC) $(COMPFLAGS_ARM) -o $@ -c -parameter-of "Arm()".Emit $<
 
 asmcomp/arm/emit.cmo: asmcomp/arm/emit.ml asmcomp/arm/emit_param.cmi

@@ -1,1 +1,1 @@
-include Selector.S with module Arch := Arch
+include Selection_type.S with module Arch := Arch

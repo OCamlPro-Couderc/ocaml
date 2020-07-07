@@ -127,8 +127,8 @@ ASMCOMP_PRELUDE=\
   asmcomp/debug/reg_availability_set.cmo \
   asmcomp/linking_state.cmo \
   asmcomp/afl_instrument.cmo \
-  asmcomp/selector.cmo \
-  asmcomp/scheduler.cmo \
+  asmcomp/selection_type.cmo \
+  asmcomp/scheduling_type.cmo \
   asmcomp/branch_relaxation_intf.cmo \
   asmcomp/branch_relaxation.cmo \
   asmcomp/arch_type.cmo \
@@ -344,6 +344,12 @@ asmcomp/backend_maker.cmo: $(ASMCOMP_FUNCTOR)
 
 asmcomp/backend_maker.cmx: $(ASMCOMP_FUNCTOR:%.cmo=%.cmx)
 	$(CAMLOPT) -o $@ -I asmcomp $(ASMCOMP_FUNCTOR_FLAGS) -pack $(ASMCOMP_FUNCTOR:%.cmo=%.cmx)
+
+driver/backend_instantiation.cmo: driver/backend_instantiation.ml asmcomp/backend_maker.cmo
+	$(CAMLC) $(COMPFLAGS) -c $<
+
+driver/backend_instantiation.cmx: driver/backend_instantiation.ml asmcomp/backend_maker.cmx
+	$(CAMLOPT) $(COMPFLAGS) -c $<
 
 compilerlibs/ocamloptcomp.cma: $(OPTCOMP_CMI) $(OPTCOMP)
 	$(CAMLC) -a -o $@ $(OPTCOMP)

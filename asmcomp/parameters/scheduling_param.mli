@@ -1,1 +1,1 @@
-include Scheduler.S with module Arch := Arch
+include Scheduling_type.S with module Arch := Arch
