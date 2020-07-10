@@ -1768,6 +1768,10 @@ let extract_signature = function
     Unit_functor (_, sg) -> sg
   | Unit_signature sg -> sg
 
+let compilation_unit ?(full=false) ppf uty =
+  if not full then signature ppf (extract_signature uty)
+  else print_compilation_unit ppf (tree_of_compilation_unit uty)
+
 (* Print an interface body (used by -i when compiling a .ml) *)
 let printed_interface sourcefile ppf uty =
   (* we are tracking any collision event for warning 63 *)

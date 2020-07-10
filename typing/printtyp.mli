@@ -139,6 +139,7 @@ val tree_of_module:
     Ident.t -> ?ellipsis:bool -> module_type -> rec_status -> out_sig_item
 val modtype: formatter -> module_type -> unit
 val signature: formatter -> signature -> unit
+val compilation_unit: ?full:bool -> formatter -> compilation_unit -> unit
 val tree_of_modtype: module_type -> out_module_type
 val tree_of_modtype_declaration:
     Ident.t -> modtype_declaration -> out_sig_item
