@@ -29,7 +29,6 @@ ASMCOMP_ARCH_PARAMS_FUNCT_I386=\
 ASMCOMP_ARCH_I386=\
   $(ASMCOMP_ARCH_PARAMS_I386) $(ASMCOMP_ARCH_PARAMS_FUNCT_I386)
 
-
 $(ASMCOMP_ARCH_PARAMS_I386:%.cmo=%.cmi): %.cmi: %.mli
 	$(CAMLC) $(COMPFLAGS_I386) -c -for-pack "I386()" $<
 
@@ -39,8 +38,9 @@ $(ASMCOMP_ARCH_PARAMS_I386): %.cmo: %.ml
 $(ASMCOMP_ARCH_PARAMS_I386:%.cmo=%.cmx): %.cmx: %.ml
 	$(CAMLOPT) $(COMPFLAGS_I386) -c -for-pack "I386()" $<
 
+
 asmcomp/i386/CSE_param.cmi: asmcomp/parameters/CSE_param.mli asmcomp/CSE_type.cmo
-	$(CAMLC) $(COMPFLAGS_I386) -o $@ -c -parameter-of "I386()".CSE $<
+	$(CAMLC) $(COMPFLAGS_I386) -o $@ -c -parameter-of "I386().CSE" $<
 
 asmcomp/i386/CSE.cmo: asmcomp/i386/CSE.ml asmcomp/i386/CSE_param.cmi
 	$(CAMLC) $(COMPFLAGS_I386) -c -for-pack "I386()" -parameter CSE_param $<
@@ -50,7 +50,7 @@ asmcomp/i386/CSE.cmx: asmcomp/i386/CSE.ml asmcomp/i386/CSE_param.cmi
 
 
 asmcomp/i386/selection_param.cmi: asmcomp/parameters/selection_param.mli asmcomp/selection_type.cmo
-	$(CAMLC) $(COMPFLAGS_I386) -o $@ -c -parameter-of "I386()".Selection $<
+	$(CAMLC) $(COMPFLAGS_I386) -o $@ -c -parameter-of "I386().Selection" $<
 
 asmcomp/i386/selection.cmo: asmcomp/i386/selection.ml asmcomp/i386/selection_param.cmi
 	$(CAMLC) $(COMPFLAGS_I386) -c -for-pack "I386()" -parameter Selection_param $<
@@ -60,7 +60,7 @@ asmcomp/i386/selection.cmx: asmcomp/i386/selection.ml asmcomp/i386/selection_par
 
 
 asmcomp/i386/reload_param.cmi: asmcomp/parameters/reload_param.mli asmcomp/reload_type.cmo
-	$(CAMLC) $(COMPFLAGS_I386) -o $@ -c -parameter-of "I386()".Reload $<
+	$(CAMLC) $(COMPFLAGS_I386) -o $@ -c -parameter-of "I386().Reload" $<
 
 asmcomp/i386/reload.cmo: asmcomp/i386/reload.ml asmcomp/i386/reload_param.cmi
 	$(CAMLC) $(COMPFLAGS_I386) -c -for-pack "I386()" -parameter Reload_param $<
@@ -70,7 +70,7 @@ asmcomp/i386/reload.cmx: asmcomp/i386/reload.ml asmcomp/i386/reload_param.cmi
 
 
 asmcomp/i386/scheduling_param.cmi: asmcomp/parameters/scheduling_param.mli asmcomp/scheduling_type.cmo
-	$(CAMLC) $(COMPFLAGS_I386) -o $@ -c -parameter-of "I386()".Scheduling $<
+	$(CAMLC) $(COMPFLAGS_I386) -o $@ -c -parameter-of "I386().Scheduling" $<
 
 asmcomp/i386/scheduling.cmo: asmcomp/i386/scheduling.ml asmcomp/i386/scheduling_param.cmi
 	$(CAMLC) $(COMPFLAGS_I386) -c -for-pack "I386()" -parameter Scheduling_param $<
@@ -80,7 +80,7 @@ asmcomp/i386/scheduling.cmx: asmcomp/i386/scheduling.ml asmcomp/i386/scheduling_
 
 
 asmcomp/i386/emit_param.cmi: asmcomp/parameters/emit_param.mli asmcomp/mach_type.cmi asmcomp/linear_type.cmi
-	$(CAMLC) $(COMPFLAGS_I386) -o $@ -c -parameter-of "I386()".Emit $<
+	$(CAMLC) $(COMPFLAGS_I386) -o $@ -c -parameter-of "I386().Emit" $<
 
 asmcomp/i386/emit.cmo: asmcomp/i386/emit.ml asmcomp/i386/emit_param.cmi
 	$(CAMLC) $(COMPFLAGS_I386) -c -for-pack "I386()" -parameter Emit_param $<
@@ -88,7 +88,8 @@ asmcomp/i386/emit.cmo: asmcomp/i386/emit.ml asmcomp/i386/emit_param.cmi
 asmcomp/i386/emit.cmx: asmcomp/i386/emit.ml asmcomp/i386/emit_param.cmi
 	$(CAMLOPT) $(COMPFLAGS_I386) -c -for-pack "I386()" -parameter Emit_param $<
 
-asmcomp/i386/i386.cmi: $(ASMCOMP_ARCH_PARAMS_I386)
+
+asmcomp/i386/i386.cmi: asmcomp/i386/i386.mli $(ASMCOMP_ARCH_PARAMS_I386)
 	$(CAMLC) -o $@ $(COMPFLAGS_I386) -parameter-unit asmcomp/i386/i386.mli
 
 asmcomp/i386/i386.cmo: asmcomp/i386/i386.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_I386)

@@ -40,7 +40,7 @@ $(ASMCOMP_ARCH_PARAMS_AMD64:%.cmo=%.cmx): %.cmx: %.ml
 
 
 asmcomp/amd64/CSE_param.cmi: asmcomp/parameters/CSE_param.mli asmcomp/CSE_type.cmo
-	$(CAMLC) $(COMPFLAGS_AMD64) -o $@ -c -parameter-of "Amd64()".CSE $<
+	$(CAMLC) $(COMPFLAGS_AMD64) -o $@ -c -parameter-of "Amd64().CSE" $<
 
 asmcomp/amd64/CSE.cmo: asmcomp/amd64/CSE.ml asmcomp/amd64/CSE_param.cmi
 	$(CAMLC) $(COMPFLAGS_AMD64) -c -for-pack "Amd64()" -parameter CSE_param $<
@@ -50,7 +50,7 @@ asmcomp/amd64/CSE.cmx: asmcomp/amd64/CSE.ml asmcomp/amd64/CSE_param.cmi
 
 
 asmcomp/amd64/selection_param.cmi: asmcomp/parameters/selection_param.mli asmcomp/selection_type.cmo
-	$(CAMLC) $(COMPFLAGS_AMD64) -o $@ -c -parameter-of "Amd64()".Selection $<
+	$(CAMLC) $(COMPFLAGS_AMD64) -o $@ -c -parameter-of "Amd64().Selection" $<
 
 asmcomp/amd64/selection.cmo: asmcomp/amd64/selection.ml asmcomp/amd64/selection_param.cmi
 	$(CAMLC) $(COMPFLAGS_AMD64) -c -for-pack "Amd64()" -parameter Selection_param $<
@@ -60,7 +60,7 @@ asmcomp/amd64/selection.cmx: asmcomp/amd64/selection.ml asmcomp/amd64/selection_
 
 
 asmcomp/amd64/reload_param.cmi: asmcomp/parameters/reload_param.mli asmcomp/reload_type.cmo
-	$(CAMLC) $(COMPFLAGS_AMD64) -o $@ -c -parameter-of "Amd64()".Reload $<
+	$(CAMLC) $(COMPFLAGS_AMD64) -o $@ -c -parameter-of "Amd64().Reload" $<
 
 asmcomp/amd64/reload.cmo: asmcomp/amd64/reload.ml asmcomp/amd64/reload_param.cmi
 	$(CAMLC) $(COMPFLAGS_AMD64) -c -for-pack "Amd64()" -parameter Reload_param $<
@@ -70,7 +70,7 @@ asmcomp/amd64/reload.cmx: asmcomp/amd64/reload.ml asmcomp/amd64/reload_param.cmi
 
 
 asmcomp/amd64/scheduling_param.cmi: asmcomp/parameters/scheduling_param.mli asmcomp/scheduling_type.cmo
-	$(CAMLC) $(COMPFLAGS_AMD64) -o $@ -c -parameter-of "Amd64()".Scheduling $<
+	$(CAMLC) $(COMPFLAGS_AMD64) -o $@ -c -parameter-of "Amd64().Scheduling" $<
 
 asmcomp/amd64/scheduling.cmo: asmcomp/amd64/scheduling.ml asmcomp/amd64/scheduling_param.cmi
 	$(CAMLC) $(COMPFLAGS_AMD64) -c -for-pack "Amd64()" -parameter Scheduling_param $<
@@ -80,7 +80,7 @@ asmcomp/amd64/scheduling.cmx: asmcomp/amd64/scheduling.ml asmcomp/amd64/scheduli
 
 
 asmcomp/amd64/emit_param.cmi: asmcomp/parameters/emit_param.mli asmcomp/mach_type.cmi asmcomp/linear_type.cmi
-	$(CAMLC) $(COMPFLAGS_AMD64) -o $@ -c -parameter-of "Amd64()".Emit $<
+	$(CAMLC) $(COMPFLAGS_AMD64) -o $@ -c -parameter-of "Amd64().Emit" $<
 
 asmcomp/amd64/emit.cmo: asmcomp/amd64/emit.ml asmcomp/amd64/emit_param.cmi
 	$(CAMLC) $(COMPFLAGS_AMD64) -c -for-pack "Amd64()" -parameter Emit_param $<
@@ -89,7 +89,7 @@ asmcomp/amd64/emit.cmx: asmcomp/amd64/emit.ml asmcomp/amd64/emit_param.cmi
 	$(CAMLOPT) $(COMPFLAGS_AMD64) -c -for-pack "Amd64()" -parameter Emit_param $<
 
 
-asmcomp/amd64/amd64.cmi: asmcomp/amd64/amd64.mli
+asmcomp/amd64/amd64.cmi: asmcomp/amd64/amd64.mli $(ASMCOMP_ARCH_PARAMS_AMD64)
 	$(CAMLC) -o $@ $(COMPFLAGS_AMD64) -parameter-unit asmcomp/amd64/amd64.mli
 
 asmcomp/amd64/amd64.cmo: asmcomp/amd64/amd64.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_AMD64)

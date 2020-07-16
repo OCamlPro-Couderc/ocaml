@@ -1,0 +1,104 @@
+#**************************************************************************
+#*                                                                        *
+#*                                 OCaml                                  *
+#*                                                                        *
+#*            Xavier Leroy, projet Cristal, INRIA Rocquencourt            *
+#*                                                                        *
+#*   Copyright 1999 Institut National de Recherche en Informatique et     *
+#*     en Automatique.                                                    *
+#*                                                                        *
+#*   All rights reserved.  This file is distributed under the terms of    *
+#*   the GNU Lesser General Public License version 2.1, with the          *
+#*   special exception on linking described in the file LICENSE.          *
+#*                                                                        *
+#**************************************************************************
+
+COMPFLAGS_@ARCH@= $(COMPFLAGS_NO_ARCH) -I asmcomp/@ARCHDIR@
+
+ASMCOMP_ARCH_PARAMS_@ARCH@=\
+  asmcomp/@ARCHDIR@/arch.cmo \
+  asmcomp/@ARCHDIR@/proc.cmo
+
+ASMCOMP_ARCH_PARAMS_FUNCT_@ARCH@=\
+  asmcomp/@ARCHDIR@/CSE.cmo \
+  asmcomp/@ARCHDIR@/selection.cmo \
+  asmcomp/@ARCHDIR@/reload.cmo \
+  asmcomp/@ARCHDIR@/scheduling.cmo \
+  asmcomp/@ARCHDIR@/emit.cmo
+
+ASMCOMP_ARCH_@ARCH@=\
+  $(ASMCOMP_ARCH_PARAMS_@ARCH@) $(ASMCOMP_ARCH_PARAMS_FUNCT_@ARCH@)
+
+$(ASMCOMP_ARCH_PARAMS_@ARCH@:%.cmo=%.cmi): %.cmi: %.mli
+	$(CAMLC) $(COMPFLAGS_@ARCH@) -c -for-pack "@ARCHMOD@()" $<
+
+$(ASMCOMP_ARCH_PARAMS_@ARCH@): %.cmo: %.ml
+	$(CAMLC) $(COMPFLAGS_@ARCH@) -c -for-pack "@ARCHMOD@()" $<
+
+$(ASMCOMP_ARCH_PARAMS_@ARCH@:%.cmo=%.cmx): %.cmx: %.ml
+	$(CAMLOPT) $(COMPFLAGS_@ARCH@) -c -for-pack "@ARCHMOD@()" $<
+
+
+asmcomp/@ARCHDIR@/CSE_param.cmi: asmcomp/parameters/CSE_param.mli asmcomp/CSE_type.cmo
+	$(CAMLC) $(COMPFLAGS_@ARCH@) -o $@ -c -parameter-of "@ARCHMOD@().CSE" $<
+
+asmcomp/@ARCHDIR@/CSE.cmo: asmcomp/@ARCHDIR@/CSE.ml asmcomp/@ARCHDIR@/CSE_param.cmi
+	$(CAMLC) $(COMPFLAGS_@ARCH@) -c -for-pack "@ARCHMOD@()" -parameter CSE_param $<
+
+asmcomp/@ARCHDIR@/CSE.cmx: asmcomp/@ARCHDIR@/CSE.ml asmcomp/@ARCHDIR@/CSE_param.cmi
+	$(CAMLOPT) $(COMPFLAGS_@ARCH@) -c -for-pack "@ARCHMOD@()" -parameter CSE_param $<
+
+
+asmcomp/@ARCHDIR@/selection_param.cmi: asmcomp/parameters/selection_param.mli asmcomp/selection_type.cmo
+	$(CAMLC) $(COMPFLAGS_@ARCH@) -o $@ -c -parameter-of "@ARCHMOD@().Selection" $<
+
+asmcomp/@ARCHDIR@/selection.cmo: asmcomp/@ARCHDIR@/selection.ml asmcomp/@ARCHDIR@/selection_param.cmi
+	$(CAMLC) $(COMPFLAGS_@ARCH@) -c -for-pack "@ARCHMOD@()" -parameter Selection_param $<
+
+asmcomp/@ARCHDIR@/selection.cmx: asmcomp/@ARCHDIR@/selection.ml asmcomp/@ARCHDIR@/selection_param.cmi
+	$(CAMLOPT) $(COMPFLAGS_@ARCH@) -c -for-pack "@ARCHMOD@()" -parameter Selection_param $<
+
+
+asmcomp/@ARCHDIR@/reload_param.cmi: asmcomp/parameters/reload_param.mli asmcomp/reload_type.cmo
+	$(CAMLC) $(COMPFLAGS_@ARCH@) -o $@ -c -parameter-of "@ARCHMOD@().Reload" $<
+
+asmcomp/@ARCHDIR@/reload.cmo: asmcomp/@ARCHDIR@/reload.ml asmcomp/@ARCHDIR@/reload_param.cmi
+	$(CAMLC) $(COMPFLAGS_@ARCH@) -c -for-pack "@ARCHMOD@()" -parameter Reload_param $<
+
+asmcomp/@ARCHDIR@/reload.cmx: asmcomp/@ARCHDIR@/reload.ml asmcomp/@ARCHDIR@/reload_param.cmi
+	$(CAMLOPT) $(COMPFLAGS_@ARCH@) -c -for-pack "@ARCHMOD@()" -parameter Reload_param $<
+
+
+asmcomp/@ARCHDIR@/scheduling_param.cmi: asmcomp/parameters/scheduling_param.mli asmcomp/scheduling_type.cmo
+	$(CAMLC) $(COMPFLAGS_@ARCH@) -o $@ -c -parameter-of "@ARCHMOD@().Scheduling" $<
+
+asmcomp/@ARCHDIR@/scheduling.cmo: asmcomp/@ARCHDIR@/scheduling.ml asmcomp/@ARCHDIR@/scheduling_param.cmi
+	$(CAMLC) $(COMPFLAGS_@ARCH@) -c -for-pack "@ARCHMOD@()" -parameter Scheduling_param $<
+
+asmcomp/@ARCHDIR@/scheduling.cmx: asmcomp/@ARCHDIR@/scheduling.ml asmcomp/@ARCHDIR@/scheduling_param.cmi
+	$(CAMLOPT) $(COMPFLAGS_@ARCH@) -c -for-pack "@ARCHMOD@()" -parameter Scheduling_param $<
+
+
+asmcomp/@ARCHDIR@/emit_param.cmi: asmcomp/parameters/emit_param.mli asmcomp/mach_type.cmi asmcomp/linear_type.cmi
+	$(CAMLC) $(COMPFLAGS_@ARCH@) -o $@ -c -parameter-of "@ARCHMOD@().Emit" $<
+
+asmcomp/@ARCHDIR@/emit.cmo: asmcomp/@ARCHDIR@/emit.ml asmcomp/@ARCHDIR@/emit_param.cmi
+	$(CAMLC) $(COMPFLAGS_@ARCH@) -c -for-pack "@ARCHMOD@()" -parameter Emit_param $<
+
+asmcomp/@ARCHDIR@/emit.cmx: asmcomp/@ARCHDIR@/emit.ml asmcomp/@ARCHDIR@/emit_param.cmi
+	$(CAMLOPT) $(COMPFLAGS_@ARCH@) -c -for-pack "@ARCHMOD@()" -parameter Emit_param $<
+
+
+asmcomp/@ARCHDIR@/@ARCHDIR@.cmi: asmcomp/@ARCHDIR@/@ARCHDIR@.mli $(ASMCOMP_ARCH_PARAMS_@ARCH@)
+	$(CAMLC) -o $@ $(COMPFLAGS_@ARCH@) -parameter-unit asmcomp/@ARCHDIR@/@ARCHDIR@.mli
+
+asmcomp/@ARCHDIR@/@ARCHDIR@.cmo: asmcomp/@ARCHDIR@/@ARCHDIR@.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_@ARCH@)
+	$(CAMLC) -o $@ $(COMPFLAGS_@ARCH@) -parameter-unit -pack $(ASMCOMP_ARCH_@ARCH@)
+
+asmcomp/@ARCHDIR@/@ARCHDIR@.cmx: asmcomp/@ARCHDIR@/@ARCHDIR@.cmi $(ARCH_SPECIFIC_ASMCOMP_CMI) $(ASMCOMP_ARCH_@ARCH@:%.cmo=%.cmx)
+	$(CAMLOPT) -o $@ $(COMPFLAGS_@ARCH@) -parameter-unit -pack $(ASMCOMP_ARCH_@ARCH@:%.cmo=%.cmx)
+
+asmcomp/@ARCHDIR@/emit.ml: asmcomp/@ARCHDIR@/emit.mlp tools/cvt_emit
+	echo \# 1 \"@ARCHDIR@/emit.mlp\" > $@
+	$(CAMLRUN) tools/cvt_emit < $< >> $@ \
+	|| { rm -f $@; exit 2; }

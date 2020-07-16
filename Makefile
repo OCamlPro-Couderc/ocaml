@@ -1040,6 +1040,16 @@ else
 	 @echo "Architecture tests are disabled on 32-bit platforms."
 endif
 
+update_arches_makefiles:
+	for ARCH in $(ARCHES); do \
+	  ARCHMOD=$$(echo $$ARCH | sed -r "s/.*/\u&/"); \
+	  ARCHVAR=$$(echo $$ARCH | sed -r "s/.*/\U&/"); \
+	  cat compilerlibs/Makefile.arch.in | \
+	    sed -e "s/@ARCHDIR@/$${ARCH}/g" \
+	        -e "s/@ARCH@/$${ARCHVAR}/g" \
+	        -e "s/@ARCHMOD@/$${ARCHMOD}/g" > compilerlibs/Makefile.$$ARCH; \
+	done
+
 # The native toplevel
 
 # When the native toplevel executable has an extension (e.g. ".exe"),
