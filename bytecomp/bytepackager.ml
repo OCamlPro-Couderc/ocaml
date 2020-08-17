@@ -264,13 +264,14 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
       append_bytecode_list
         (CU.Prefix.for_address curr_package_as_prefix) oc identifiers [] 0
         Subst.identity members in
+    let unit_names_in_pack =
+      CU.Name.Set.of_list (List.map (fun m -> m.pm_name) members)
+    in
     let imports =
-      List.filter
-        (fun (unit, _crc) ->
-           not (List.mem (CU.name unit) unit_names) &&
-           not (CU.Prefix.in_functor_parameters (CU.name unit)
-                  curr_package_as_prefix))
-        (Bytelink.extract_crc_interfaces()) in
+      List.filter (fun (cu, _crc) ->
+          not (CU.Name.Set.mem (CU.name cu) unit_names_in_pack))
+        (Bytelink.extract_crc_interfaces ())
+    in
     let functor_dependencies =
       List.filter_map (fun (unit, _) ->
           let prefix = CU.for_pack_prefix unit in
@@ -279,9 +280,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
               in_functor_parameters
                 (CU.name unit) curr_package_as_prefix)
           then
-            Some (unit,
-                  Ident.create_persistent ~prefix
-                    CU.(Name.to_string (name unit)))
+            Some (unit, Ident.create_local (CU.for_address unit))
           else None) imports in
     let functor_pack_imports, functor_dependencies =
       List.split functor_dependencies in
