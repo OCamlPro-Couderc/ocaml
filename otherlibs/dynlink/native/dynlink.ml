@@ -58,7 +58,10 @@ module Native = struct
     let crc t = Some (DU.crc t)
 
     let unit_symbol unit =
-      String.concat "__" (List.map CU.Name.to_string (CU.full_path unit))
+      let strip_params = function
+          CU.Prefix.Pack (m, _) -> CU.Name.to_string m
+      in
+      String.concat "__" (List.map strip_params (CU.full_path unit))
 
     let interface_imports t =
       CU.Map.bindings (DU.imports_cmi t)
